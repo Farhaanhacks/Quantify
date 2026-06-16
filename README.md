@@ -88,3 +88,55 @@ information shown is for general informational and educational purposes only and
 should not be treated as financial advice, investment advice, trading advice, or
 a recommendation to buy, sell, or hold any security. Data may be delayed,
 incomplete, or inaccurate. Always verify independently.
+
+## Live market data (optional)
+
+By default the app runs entirely on the demo data in `src/data/demo.ts`, so it
+works with zero configuration. To switch to live data:
+
+1. Sign up for a data provider — the built-in adapter targets
+   [Financial Modeling Prep](https://site.financialmodelingprep.com/) (broad US +
+   Indian/NSE coverage and fundamentals).
+2. Copy `.env.example` to `.env.local` and set:
+   ```
+   MARKET_DATA_PROVIDER=fmp
+   MARKET_DATA_API_KEY=your_key_here
+   ```
+3. Restart `npm run dev`. The Market Pulse movers strip shows a **LIVE** badge
+   when a key is detected and a **DEMO** badge otherwise. All data access goes
+   through `src/lib/marketData.ts`, which falls back to demo data on any error,
+   so the UI never breaks.
+
+> Important: most providers' **free tiers prohibit commercial/paid use**. If you
+> charge for the product, you need a paid commercial data licence.
+
+## Payments (Stripe)
+
+Checkout is wired through Stripe Checkout (hosted — no card data touches this
+site). It stays dormant until you add keys, so the app builds without them.
+
+1. Create a free Stripe account and grab your **test** secret key (`sk_test_…`).
+2. In the Stripe dashboard create two recurring Prices and note their IDs.
+3. In `.env.local` set:
+   ```
+   STRIPE_SECRET_KEY=sk_test_...
+   STRIPE_PRICE_PLUS=price_...
+   STRIPE_PRICE_PRO=price_...
+   NEXT_PUBLIC_BASE_URL=http://localhost:3000
+   ```
+4. Run the app, open `/pricing`, click a paid plan, and pay with Stripe's test
+   card `4242 4242 4242 4242` (any future expiry / any CVC).
+5. For subscription events, set up a webhook to `/api/webhook` and add
+   `STRIPE_WEBHOOK_SECRET`. Granting access on payment needs a user/database
+   layer (not included in this prototype — see the TODOs in the webhook route).
+
+> Test mode needs no business. Accepting **real** payments requires an activated
+> Stripe account (a registered business + KYC), and charging fees for
+> stock-related research may carry regulatory obligations — get professional
+> advice first.
+
+## Deploying with env vars on Vercel
+
+Add the same variables under **Project → Settings → Environment Variables** in
+Vercel, then redeploy. Because the app now has API routes, it runs as a Next.js
+server (still zero-config on Vercel).

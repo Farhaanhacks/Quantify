@@ -48,7 +48,7 @@ const columns: { title: string; items: { label: string; href: string }[] }[] = [
   {
     title: "Quantifi",
     items: [
-      { label: "Plans & Pricing", href: "/" },
+      { label: "Plans & Pricing", href: "/pricing" },
       { label: "About Us", href: "/" },
       { label: "Contact Us", href: "/" },
       { label: "Help Center", href: "/" },

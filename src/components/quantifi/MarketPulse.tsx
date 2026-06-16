@@ -1,4 +1,5 @@
-import { marketPulse, topMovers, fmtPct } from "@/data/demo";
+import { marketPulse, topMovers, fmtPct, fmtPrice } from "@/data/demo";
+import { getQuotes, isLiveConfigured } from "@/lib/marketData";
 
 function PulseRow() {
   // Duplicate the list so the marquee loops seamlessly (-50% translate).
@@ -22,7 +23,12 @@ function PulseRow() {
   );
 }
 
-export default function MarketPulse() {
+export default async function MarketPulse() {
+  // Live quotes for the movers strip (falls back to demo automatically).
+  const tickers = topMovers.map((m) => m.ticker);
+  const quotes = await getQuotes(tickers);
+  const live = isLiveConfigured();
+
   return (
     <section className="border-y border-white/[0.06] bg-ink-900/50">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -37,18 +43,28 @@ export default function MarketPulse() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.04] py-3">
-          <span className="text-[0.7rem] uppercase tracking-[0.16em] text-slate-500">
+          <span className="flex items-center gap-2 text-[0.7rem] uppercase tracking-[0.16em] text-slate-500">
             Today&apos;s movers
+            <span
+              className={`rounded-full border px-1.5 py-0.5 text-[0.6rem] tracking-[0.12em] ${
+                live
+                  ? "border-up/30 bg-up/10 text-up"
+                  : "border-white/10 bg-white/[0.03] text-slate-500"
+              }`}
+            >
+              {live ? "LIVE" : "DEMO"}
+            </span>
           </span>
-          {topMovers.map((m) => {
-            const up = m.changePct >= 0;
+          {quotes.map((q) => {
+            const up = q.changePct >= 0;
             return (
               <span
-                key={m.ticker}
+                key={q.ticker}
                 className={`chip font-mono tnum ${up ? "text-up" : "text-down"}`}
+                title={`${q.name} · $${fmtPrice(q.price)}`}
               >
-                {m.ticker}
-                <span>{fmtPct(m.changePct)}</span>
+                {q.ticker}
+                <span>{fmtPct(q.changePct)}</span>
               </span>
             );
           })}
