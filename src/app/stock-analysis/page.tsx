@@ -1,6 +1,7 @@
 import StockAnalysis from "@/components/quantifi/StockAnalysis";
 import CompanySnapshot from "@/components/quantifi/CompanySnapshot";
-import TradingViewWidget, { tvSymbol } from "@/components/quantifi/TradingViewWidget";
+import TradingViewWidget from "@/components/quantifi/TradingViewWidget";
+import { tvSymbol } from "@/lib/tvSymbol";
 import { Eyebrow } from "@/components/quantifi/Cards";
 import { stockAnalysis, stockByTicker } from "@/data/demo";
 

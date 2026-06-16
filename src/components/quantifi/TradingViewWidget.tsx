@@ -15,13 +15,7 @@ const SRC: Record<WidgetKind, string> = {
     "https://s3.tradingview.com/external-embedding/embed-widget-symbol-overview.js",
 };
 
-// Map a Quantifi ticker to a TradingView symbol (EXCHANGE:SYMBOL).
-export function tvSymbol(ticker: string, exchange?: string): string {
-  const t = ticker.toUpperCase();
-  if (t.endsWith(".NS")) return `NSE:${t.replace(".NS", "")}`;
-  const ex = (exchange ?? "NASDAQ").toUpperCase();
-  return `${ex}:${t}`;
-}
+// Map a Quantifi ticker to a TradingView symbol: see "@/lib/tvSymbol".
 
 export default function TradingViewWidget({
   symbol,
