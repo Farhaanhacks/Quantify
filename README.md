@@ -140,3 +140,11 @@ site). It stays dormant until you add keys, so the app builds without them.
 Add the same variables under **Project → Settings → Environment Variables** in
 Vercel, then redeploy. Because the app now has API routes, it runs as a Next.js
 server (still zero-config on Vercel).
+
+## User portfolios (manual entry)
+
+The `/portfolio` page lets users create multiple named portfolios and add
+holdings by hand (ticker, shares, average cost). Values, gain/loss and
+allocation update live. Data is stored in the browser via `localStorage`
+(`src/lib/usePortfolios.ts`), so it persists per-device but is not yet synced to
+an account — that arrives with the authentication + database layer.
