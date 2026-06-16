@@ -1,0 +1,154 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --bg: #05070d;
+  --panel: rgba(255, 255, 255, 0.04);
+  --panel-border: rgba(255, 255, 255, 0.08);
+  --text: #f2f5fa;
+  --text-dim: #94a3b8;
+  --text-mute: #64748b;
+}
+
+/* Force a dark, polished surface regardless of system/light preference.
+   There is intentionally no light theme path, so light mode cannot break the UI. */
+html {
+  background-color: var(--bg);
+  color-scheme: dark;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "ss01", "cv01", "tnum";
+}
+
+/* Ambient backdrop: soft gold + teal aurora over deep ink, plus faint grid */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(60rem 40rem at 12% -10%, rgba(233, 184, 114, 0.10), transparent 60%),
+    radial-gradient(50rem 36rem at 92% 4%, rgba(79, 209, 197, 0.10), transparent 55%),
+    radial-gradient(46rem 34rem at 50% 120%, rgba(99, 102, 241, 0.08), transparent 60%);
+  pointer-events: none;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(80% 60% at 50% 0%, #000 30%, transparent 80%);
+  -webkit-mask-image: radial-gradient(80% 60% at 50% 0%, #000 30%, transparent 80%);
+  pointer-events: none;
+}
+
+@layer components {
+  .glass {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  .glass-hover {
+    transition: border-color 0.25s ease, background-color 0.25s ease, transform 0.25s ease;
+  }
+  .glass-hover:hover {
+    border-color: rgba(233, 184, 114, 0.35);
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    padding: 0.25rem 0.7rem;
+    font-size: 0.72rem;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .text-gradient-gold {
+    background: linear-gradient(120deg, #fbe2b6 0%, #e9b872 45%, #c9962f 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .text-gradient-teal {
+    background: linear-gradient(120deg, #d7fff9 0%, #5eead4 50%, #4fd1c5 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+@layer utilities {
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+  .mask-fade-x {
+    mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+  }
+}
+
+/* Slim, on-brand scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(233, 184, 114, 0.4);
+  background-clip: content-box;
+}
+
+::selection {
+  background: rgba(233, 184, 114, 0.28);
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 2px solid rgba(233, 184, 114, 0.7);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
