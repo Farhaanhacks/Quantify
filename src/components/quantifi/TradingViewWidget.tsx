@@ -40,6 +40,11 @@ export default function TradingViewWidget({
 
     const widget = document.createElement("div");
     widget.className = "tradingview-widget-container__widget";
+    if (kind !== "symbol-info") {
+      // Critical: the chart fills this inner div, so it needs an explicit height.
+      widget.style.height = "calc(100% - 32px)";
+      widget.style.width = "100%";
+    }
     container.appendChild(widget);
 
     // Required attribution — leave this in.

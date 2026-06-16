@@ -5,7 +5,8 @@ import TradingViewWidget from "@/components/quantifi/TradingViewWidget";
 import CompanySnapshot from "@/components/quantifi/CompanySnapshot";
 import { GlassCard, TickerChip } from "@/components/quantifi/Cards";
 import { tvSymbol } from "@/lib/tvSymbol";
-import { stocks, stockByTicker, companyAnalytics } from "@/data/demo";
+import { stockByTicker, companyAnalytics } from "@/data/demo";
+import { popularTickers } from "@/data/popularTickers";
 
 const QUICK = ["NVDA", "AAPL", "MSFT", "TSLA", "AMZN", "GOOGL", "INFY.NS", "RELIANCE.NS"];
 
@@ -51,9 +52,9 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
               className="min-w-[14rem] flex-1 rounded-lg border border-white/10 bg-ink-800 px-3 py-2.5 text-sm text-white outline-none focus:border-gold/40"
             />
             <datalist id="explorer-universe">
-              {stocks.map((s) => (
-                <option key={s.ticker} value={s.ticker}>
-                  {s.name}
+              {popularTickers.map((s) => (
+                <option key={s.s} value={s.s}>
+                  {s.n}
                 </option>
               ))}
             </datalist>

@@ -1,0 +1,93 @@
+// Popular tickers used purely as search autocomplete suggestions. These carry
+// no market data themselves — the TradingView chart/widgets resolve the data for
+// whatever symbol is chosen. The search box also accepts ANY symbol you type, so
+// this list is convenience, not a limit.
+
+export interface TickerSuggestion {
+  s: string; // symbol
+  n: string; // display name
+}
+
+export const popularTickers: TickerSuggestion[] = [
+  // US — mega/large cap tech
+  { s: "AAPL", n: "Apple" },
+  { s: "MSFT", n: "Microsoft" },
+  { s: "NVDA", n: "NVIDIA" },
+  { s: "GOOGL", n: "Alphabet" },
+  { s: "AMZN", n: "Amazon" },
+  { s: "META", n: "Meta Platforms" },
+  { s: "TSLA", n: "Tesla" },
+  { s: "AMD", n: "Advanced Micro Devices" },
+  { s: "AVGO", n: "Broadcom" },
+  { s: "ORCL", n: "Oracle" },
+  { s: "CRM", n: "Salesforce" },
+  { s: "ADBE", n: "Adobe" },
+  { s: "NFLX", n: "Netflix" },
+  { s: "INTC", n: "Intel" },
+  { s: "QCOM", n: "Qualcomm" },
+  { s: "TXN", n: "Texas Instruments" },
+  { s: "CSCO", n: "Cisco" },
+  { s: "IBM", n: "IBM" },
+  { s: "PLTR", n: "Palantir" },
+  { s: "SNOW", n: "Snowflake" },
+  { s: "UBER", n: "Uber" },
+  { s: "ABNB", n: "Airbnb" },
+  { s: "SHOP", n: "Shopify" },
+  { s: "COIN", n: "Coinbase" },
+  // US — finance & consumer
+  { s: "JPM", n: "JPMorgan Chase" },
+  { s: "BAC", n: "Bank of America" },
+  { s: "GS", n: "Goldman Sachs" },
+  { s: "V", n: "Visa" },
+  { s: "MA", n: "Mastercard" },
+  { s: "BRK.B", n: "Berkshire Hathaway" },
+  { s: "WMT", n: "Walmart" },
+  { s: "COST", n: "Costco" },
+  { s: "HD", n: "Home Depot" },
+  { s: "NKE", n: "Nike" },
+  { s: "MCD", n: "McDonald's" },
+  { s: "SBUX", n: "Starbucks" },
+  { s: "KO", n: "Coca-Cola" },
+  { s: "PEP", n: "PepsiCo" },
+  { s: "PG", n: "Procter & Gamble" },
+  { s: "DIS", n: "Disney" },
+  // US — healthcare & energy & industrial
+  { s: "JNJ", n: "Johnson & Johnson" },
+  { s: "UNH", n: "UnitedHealth" },
+  { s: "PFE", n: "Pfizer" },
+  { s: "LLY", n: "Eli Lilly" },
+  { s: "XOM", n: "ExxonMobil" },
+  { s: "CVX", n: "Chevron" },
+  { s: "BA", n: "Boeing" },
+  { s: "GE", n: "GE Aerospace" },
+  { s: "F", n: "Ford" },
+  { s: "T", n: "AT&T" },
+  // ETFs
+  { s: "SPY", n: "SPDR S&P 500 ETF" },
+  { s: "VOO", n: "Vanguard S&P 500 ETF" },
+  { s: "QQQ", n: "Invesco QQQ Trust" },
+  { s: "VTI", n: "Vanguard Total Market ETF" },
+  { s: "IWM", n: "iShares Russell 2000 ETF" },
+  { s: "DIA", n: "SPDR Dow Jones ETF" },
+  { s: "SMH", n: "VanEck Semiconductor ETF" },
+  { s: "SOXX", n: "iShares Semiconductor ETF" },
+  { s: "ARKK", n: "ARK Innovation ETF" },
+  { s: "SCHD", n: "Schwab US Dividend ETF" },
+  { s: "GLD", n: "SPDR Gold Shares" },
+  // India (NSE)
+  { s: "RELIANCE.NS", n: "Reliance Industries" },
+  { s: "TCS.NS", n: "Tata Consultancy Services" },
+  { s: "INFY.NS", n: "Infosys" },
+  { s: "HDFCBANK.NS", n: "HDFC Bank" },
+  { s: "ICICIBANK.NS", n: "ICICI Bank" },
+  { s: "SBIN.NS", n: "State Bank of India" },
+  { s: "BHARTIARTL.NS", n: "Bharti Airtel" },
+  { s: "ITC.NS", n: "ITC" },
+  { s: "LT.NS", n: "Larsen & Toubro" },
+  { s: "WIPRO.NS", n: "Wipro" },
+  { s: "HINDUNILVR.NS", n: "Hindustan Unilever" },
+  { s: "BAJFINANCE.NS", n: "Bajaj Finance" },
+  { s: "MARUTI.NS", n: "Maruti Suzuki" },
+  { s: "TATAMOTORS.NS", n: "Tata Motors" },
+  { s: "ADANIENT.NS", n: "Adani Enterprises" },
+];
