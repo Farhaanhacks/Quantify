@@ -66,9 +66,10 @@ export default function TradingViewWidget({
       config = {
         symbol,
         width: "100%",
-        colorTheme: "dark",
-        isTransparent: true,
         locale: "en",
+        colorTheme: "dark",
+        theme: "dark",
+        isTransparent: false,
       };
     } else {
       config = {

@@ -96,7 +96,7 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
           <TradingViewWidget
             symbol={tvSym}
             kind="advanced-chart"
-            height={540}
+            height={660}
             range="12M"
             allowSymbolChange
           />
@@ -104,7 +104,7 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
 
         {/* Key stats */}
         <div className="mt-4">
-          <TradingViewWidget symbol={tvSym} kind="symbol-info" height={220} />
+          <TradingViewWidget symbol={tvSym} kind="symbol-info" height={250} />
         </div>
       </section>
 
