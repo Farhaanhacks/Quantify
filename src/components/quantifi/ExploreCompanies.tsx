@@ -90,22 +90,25 @@ export default function ExploreCompanies({ heading = true }: { heading?: boolean
         {tab === "Browse All Stocks" ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {visibleStocks.map((s) => (
-              <GlassCard key={s.ticker} hover className="p-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <TickerChip ticker={s.ticker} />
-                    <p className="mt-2 text-sm font-medium text-white">{s.name}</p>
-                    <p className="text-xs text-slate-500">
-                      {s.exchange} · {s.sector}
-                    </p>
+              <Link key={s.ticker} href={`/stock-analysis?symbol=${s.ticker}`}>
+                <GlassCard hover className="h-full p-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <TickerChip ticker={s.ticker} />
+                      <p className="mt-2 text-sm font-medium text-white">{s.name}</p>
+                      <p className="text-xs text-slate-500">
+                        {s.exchange} · {s.sector}
+                      </p>
+                    </div>
+                    <Sparkline data={s.spark} dir={dirOf(s.changePct)} className="h-9 w-20" />
                   </div>
-                  <Sparkline data={s.spark} dir={dirOf(s.changePct)} className="h-9 w-20" />
-                </div>
-                <div className="mt-3 flex items-center justify-between">
-                  <span className="font-mono text-sm tnum text-white">{fmtPrice(s.price)}</span>
-                  <ChangePill value={s.changePct} />
-                </div>
-              </GlassCard>
+                  <div className="mt-3 flex items-center justify-between">
+                    <span className="font-mono text-sm tnum text-white">{fmtPrice(s.price)}</span>
+                    <ChangePill value={s.changePct} />
+                  </div>
+                  <div className="mt-3 text-xs text-gold/80">View analysis →</div>
+                </GlassCard>
+              </Link>
             ))}
             {visibleStocks.length === 0 ? (
               <p className="text-sm text-slate-500">No demo names for this market yet.</p>

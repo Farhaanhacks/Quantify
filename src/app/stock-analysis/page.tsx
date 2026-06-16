@@ -1,35 +1,31 @@
-import StockAnalysis from "@/components/quantifi/StockAnalysis";
-import CompanySnapshot from "@/components/quantifi/CompanySnapshot";
-import TradingViewWidget from "@/components/quantifi/TradingViewWidget";
-import { tvSymbol } from "@/lib/tvSymbol";
+import StockExplorer from "@/components/quantifi/StockExplorer";
 import { Eyebrow } from "@/components/quantifi/Cards";
-import { stockAnalysis, stockByTicker } from "@/data/demo";
 
 export const metadata = {
   title: "Stock Analysis · Quantifi",
-  description: "One stock connected to its Quantifi Score, fair value, live chart, news, insiders and risk lenses.",
+  description: "Search any stock or ETF for a live chart, key stats and — where available — the Quantifi Score.",
 };
 
-export default function StockAnalysisPage() {
-  const ex = stockByTicker[stockAnalysis.ticker]?.exchange;
+export default function StockAnalysisPage({
+  searchParams,
+}: {
+  searchParams: { symbol?: string };
+}) {
+  const initial = (searchParams?.symbol ?? "NVDA").toUpperCase();
   return (
     <>
-      <StockAnalysis />
-
-      <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        <Eyebrow>Live Chart</Eyebrow>
-        <h2 className="mt-3 font-display text-2xl font-semibold text-white">
-          {stockAnalysis.ticker} price action
-        </h2>
-        <p className="mt-2 max-w-2xl text-sm text-slate-400">
-          Real-time chart embedded from TradingView&apos;s official widget — no scraping, attribution kept.
+      <section className="mx-auto max-w-7xl px-4 pt-12 sm:px-6 lg:px-8">
+        <Eyebrow>Stock Analysis</Eyebrow>
+        <h1 className="mt-3 max-w-2xl font-display text-3xl font-semibold leading-tight text-white sm:text-4xl">
+          Analyze any stock or ETF
+        </h1>
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-400">
+          Search any symbol for a live chart and key statistics. The Quantifi
+          Score shows for names we have fundamentals on, and for every stock once
+          a fundamentals source is connected.
         </p>
-        <div className="mt-5">
-          <TradingViewWidget symbol={tvSymbol(stockAnalysis.ticker, ex)} height={460} />
-        </div>
       </section>
-
-      <CompanySnapshot ticker={stockAnalysis.ticker} />
+      <StockExplorer initial={initial} />
     </>
   );
 }

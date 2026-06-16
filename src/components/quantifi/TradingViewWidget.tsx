@@ -5,26 +5,31 @@ import { useEffect, useRef } from "react";
 // Official TradingView embeddable widgets — the sanctioned, free way to show
 // their charts/data on your own site (no scraping). Attribution is REQUIRED by
 // TradingView's terms; do not remove the copyright link below.
+// Symbol helper lives in "@/lib/tvSymbol" (plain module, server-safe).
 
-type WidgetKind = "advanced-chart" | "symbol-overview";
+type WidgetKind = "advanced-chart" | "symbol-overview" | "symbol-info";
 
 const SRC: Record<WidgetKind, string> = {
   "advanced-chart":
     "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js",
   "symbol-overview":
     "https://s3.tradingview.com/external-embedding/embed-widget-symbol-overview.js",
+  "symbol-info":
+    "https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js",
 };
-
-// Map a Quantifi ticker to a TradingView symbol: see "@/lib/tvSymbol".
 
 export default function TradingViewWidget({
   symbol,
   kind = "advanced-chart",
-  height = 420,
+  height = 520,
+  range = "12M",
+  allowSymbolChange = false,
 }: {
   symbol: string;
   kind?: WidgetKind;
   height?: number;
+  range?: string;
+  allowSymbolChange?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -44,26 +49,37 @@ export default function TradingViewWidget({
       '<a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank" style="color:#64748b;font-size:11px;text-decoration:none">Charts by TradingView</a>';
     container.appendChild(attr);
 
-    const config =
-      kind === "advanced-chart"
-        ? {
-            symbol,
-            autosize: true,
-            theme: "dark",
-            style: "1",
-            hide_side_toolbar: true,
-            allow_symbol_change: false,
-            calendar: false,
-            support_host: "https://www.tradingview.com",
-          }
-        : {
-            symbols: [[symbol]],
-            chartOnly: false,
-            colorTheme: "dark",
-            isTransparent: true,
-            width: "100%",
-            height,
-          };
+    let config: Record<string, unknown>;
+    if (kind === "advanced-chart") {
+      config = {
+        symbol,
+        autosize: true,
+        theme: "dark",
+        style: "1",
+        range,
+        hide_side_toolbar: true,
+        allow_symbol_change: allowSymbolChange,
+        calendar: false,
+        support_host: "https://www.tradingview.com",
+      };
+    } else if (kind === "symbol-info") {
+      config = {
+        symbol,
+        width: "100%",
+        colorTheme: "dark",
+        isTransparent: true,
+        locale: "en",
+      };
+    } else {
+      config = {
+        symbols: [[symbol]],
+        colorTheme: "dark",
+        isTransparent: true,
+        width: "100%",
+        height,
+        chartOnly: false,
+      };
+    }
 
     const script = document.createElement("script");
     script.src = SRC[kind];
@@ -75,7 +91,7 @@ export default function TradingViewWidget({
     return () => {
       container.innerHTML = "";
     };
-  }, [symbol, kind, height]);
+  }, [symbol, kind, height, range, allowSymbolChange]);
 
   return (
     <div
