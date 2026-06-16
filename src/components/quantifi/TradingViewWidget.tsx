@@ -18,6 +18,8 @@ const SRC: Record<WidgetKind, string> = {
     "https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js",
 };
 
+const ATTRIB_RESERVE = 32; // px reserved for the attribution line
+
 export default function TradingViewWidget({
   symbol,
   kind = "advanced-chart",
@@ -40,11 +42,6 @@ export default function TradingViewWidget({
 
     const widget = document.createElement("div");
     widget.className = "tradingview-widget-container__widget";
-    if (kind !== "symbol-info") {
-      // Critical: the chart fills this inner div, so it needs an explicit height.
-      widget.style.height = "calc(100% - 32px)";
-      widget.style.width = "100%";
-    }
     container.appendChild(widget);
 
     // Required attribution — leave this in.
@@ -54,11 +51,15 @@ export default function TradingViewWidget({
       '<a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank" style="color:#64748b;font-size:11px;text-decoration:none">Charts by TradingView</a>';
     container.appendChild(attr);
 
+    // Explicit pixel height in the config (more reliable than autosize).
+    const innerHeight = Math.max(160, height - ATTRIB_RESERVE);
+
     let config: Record<string, unknown>;
     if (kind === "advanced-chart") {
       config = {
         symbol,
-        autosize: true,
+        width: "100%",
+        height: innerHeight,
         theme: "dark",
         style: "1",
         range,
@@ -82,7 +83,7 @@ export default function TradingViewWidget({
         colorTheme: "dark",
         isTransparent: true,
         width: "100%",
-        height,
+        height: innerHeight,
         chartOnly: false,
       };
     }
@@ -103,7 +104,7 @@ export default function TradingViewWidget({
     <div
       className="tradingview-widget-container overflow-hidden rounded-2xl border border-white/[0.08]"
       ref={ref}
-      style={{ height }}
+      style={{ minHeight: height }}
     />
   );
 }
