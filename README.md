@@ -148,3 +148,42 @@ holdings by hand (ticker, shares, average cost). Values, gain/loss and
 allocation update live. Data is stored in the browser via `localStorage`
 (`src/lib/usePortfolios.ts`), so it persists per-device but is not yet synced to
 an account — that arrives with the authentication + database layer.
+
+## Data ingestion / scraping layer
+
+A small, source-agnostic ingestion layer lives in `src/lib/ingest/`. The
+sanctioned, working source is **SEC EDGAR** — public-domain US filings via SEC's
+official free JSON feed (no licence needed). Set `EDGAR_USER_AGENT` (SEC
+requires a User-Agent with contact info), then:
+
+```
+GET /api/fundamentals/AAPL
+```
+
+returns the latest annual revenue, net income, assets, liabilities and cash
+straight from EDGAR. US filers only — non-US tickers (e.g. ".NS") aren't in
+EDGAR.
+
+**Adding other sources responsibly.** `scrapeHtml()` (cheerio-based) is the
+extension point. Before pointing it at any site, check that site's `robots.txt`
+and Terms of Service. Most commercial finance sites (Yahoo, Google Finance,
+screeners) **prohibit scraping** and their data is licensed — using them in a
+paid product is a legal risk. Safe sources: SEC EDGAR, Indian regulatory filings
+(NSE/BSE/MCA), and companies' own investor-relations pages.
+
+> Raw fundamentals are ingredients, not the finished dish: turning them into the
+> Quantifi Score and fair value is a computation step you write on top of this
+> layer.
+
+## TradingView widgets (legitimate charts/data)
+
+Rather than scraping, Quantifi embeds TradingView's **official free widgets**
+(`src/components/quantifi/TradingViewWidget.tsx`) for live charts — see the
+Stock Analysis page. These are free to use on commercial sites **as long as the
+TradingView attribution stays visible** (their terms require it; it's kept in the
+component). For other widget types (fundamentals, movers, screener, news) grab
+the config from tradingview.com/widget-docs and pass it the same way.
+
+> Why not scrape TradingView/Yahoo/Morningstar/etc.? Their terms prohibit it and
+> their data is licensed/proprietary — using it in a paid product invites legal
+> action. Widgets are the sanctioned path; EDGAR + filings are the free-data path.
