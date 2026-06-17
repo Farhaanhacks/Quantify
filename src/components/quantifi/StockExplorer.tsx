@@ -1,13 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import PriceChart from "@/components/quantifi/PriceChart";
+import TradingViewWidget from "@/components/quantifi/TradingViewWidget";
 import CompanySnapshot from "@/components/quantifi/CompanySnapshot";
 import { GlassCard, TickerChip } from "@/components/quantifi/Cards";
-import { companyAnalytics } from "@/data/demo";
+import { tvSymbol } from "@/lib/tvSymbol";
+import { stockByTicker, companyAnalytics } from "@/data/demo";
 import { popularTickers } from "@/data/popularTickers";
 
 const QUICK = ["NVDA", "AAPL", "MSFT", "TSLA", "AMZN", "GOOGL", "INFY.NS", "RELIANCE.NS"];
+
+function toTvSymbol(raw: string): string {
+  const t = raw.trim().toUpperCase();
+  if (!t) return "NASDAQ:NVDA";
+  if (t.includes(":")) return t;
+  const known = stockByTicker[t];
+  if (known) return tvSymbol(t, known.exchange);
+  if (t.endsWith(".NS")) return `NSE:${t.replace(".NS", "")}`;
+  return t;
+}
 
 export default function StockExplorer({ initial = "NVDA" }: { initial?: string }) {
   const [input, setInput] = useState(initial);
@@ -18,6 +29,7 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
     if (t) setTicker(t);
   };
 
+  const tvSym = toTvSymbol(ticker);
   const hasScore = Boolean(companyAnalytics[ticker]);
   const scoredNames = Object.keys(companyAnalytics);
 
@@ -35,7 +47,7 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && commit()}
-              placeholder="e.g. AAPL, TSLA, RELIANCE.NS, QQQ"
+              placeholder="e.g. AAPL, TSLA, NSE:INFY, QQQ"
               className="min-w-[14rem] flex-1 rounded-lg border border-white/10 bg-ink-800 px-3 py-2.5 text-sm text-white outline-none focus:border-gold/40"
             />
             <datalist id="explorer-universe">
@@ -70,18 +82,28 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
             ))}
           </div>
           <p className="mt-3 text-xs text-slate-500">
-            Real price history from Yahoo Finance. For Indian stocks add the
-            exchange suffix (e.g. <span className="font-mono">RELIANCE.NS</span>).
+            Full interactive chart with timeframes. You can also change the symbol
+            directly inside the chart.
           </p>
         </GlassCard>
 
-        {/* Live chart (Lightweight Charts + Yahoo data) */}
-        <div className="mt-4">
-          <PriceChart symbol={ticker} height={460} />
+        {/* Live chart — square-ish, centered */}
+        <div className="mx-auto mt-4 max-w-2xl">
+          <div className="mb-2 flex items-center gap-2">
+            <TickerChip ticker={ticker} active />
+            <span className="text-xs text-slate-500">Live chart · TradingView</span>
+          </div>
+          <TradingViewWidget
+            symbol={tvSym}
+            kind="advanced-chart"
+            height={620}
+            range="12M"
+            allowSymbolChange
+          />
         </div>
       </section>
 
-      {/* Quantifi Score — only where we have fundamentals */}
+      {/* Quantifi Score */}
       {hasScore ? (
         <CompanySnapshot ticker={ticker} />
       ) : (
@@ -91,9 +113,9 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
               Quantifi Score not available for {ticker} yet
             </h3>
             <p className="mt-2 text-sm leading-relaxed text-slate-400">
-              The price chart above works for any symbol. The Quantifi Score is
-              computed from fundamentals, which we currently hold for a demo set of
-              names. Tap one to see the full score:
+              The chart above works for any symbol. The Quantifi Score is computed
+              from fundamentals — wire a free fundamentals key (see below) to score
+              any stock, or tap a demo name:
             </p>
             <div className="mt-3 flex flex-wrap gap-1.5">
               {scoredNames.map((t) => (
