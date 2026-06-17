@@ -2,7 +2,6 @@ import {
   GlassCard,
   SectionHeading,
   ScoreRadar,
-  ChangePill,
   Tag,
 } from "@/components/quantifi/Cards";
 import {
@@ -10,9 +9,9 @@ import {
   stockByTicker,
   SCORE_AXES,
   overallScore,
-  valuationGapPct,
   fmtPrice,
   type ScoreAxisKey,
+  type CompanyAnalytics,
 } from "@/data/demo";
 
 function axisColor(score: number): string {
@@ -24,20 +23,30 @@ function axisColor(score: number): string {
 export default function CompanySnapshot({
   ticker,
   heading = true,
+  data,
+  price,
+  name,
+  live = false,
 }: {
   ticker: string;
   heading?: boolean;
+  data?: CompanyAnalytics;
+  price?: number;
+  name?: string;
+  live?: boolean;
 }) {
-  const a = companyAnalytics[ticker];
-  const stock = stockByTicker[ticker];
-  if (!a || !stock) return null;
+  const a = data ?? companyAnalytics[ticker];
+  const resolvedPrice = price ?? stockByTicker[ticker]?.price;
+  const resolvedName = name ?? stockByTicker[ticker]?.name ?? ticker;
+  if (!a || resolvedPrice == null) return null;
 
   const total = overallScore(a); // 0–30
   const radarValues = SCORE_AXES.map((axis) => a.scores[axis.key].score);
   const radarLabels = SCORE_AXES.map((axis) => axis.label.split(" ")[0]);
 
-  const gap = valuationGapPct(ticker);
-  const under = gap !== null && gap > 0;
+  const gap = ((a.fairValue.estimate - resolvedPrice) / resolvedPrice) * 100;
+  const under = gap > 0;
+  const tag = live ? "" : " (demo)";
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
@@ -54,10 +63,8 @@ export default function CompanySnapshot({
         <GlassCard className="p-5 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
-              <div className="font-display text-lg font-semibold text-white">
-                {a.ticker}
-              </div>
-              <div className="text-xs text-slate-500">{stock.name}</div>
+              <div className="font-display text-lg font-semibold text-white">{a.ticker}</div>
+              <div className="text-xs text-slate-500">{resolvedName}</div>
             </div>
             <div className="text-right">
               <div className="font-display text-2xl font-semibold tnum text-gradient-gold">
@@ -65,7 +72,7 @@ export default function CompanySnapshot({
                 <span className="text-base text-slate-500">/30</span>
               </div>
               <div className="text-[0.7rem] uppercase tracking-[0.14em] text-slate-500">
-                Overall (demo)
+                {live ? "Overall · live" : "Overall (demo)"}
               </div>
             </div>
           </div>
@@ -78,34 +85,25 @@ export default function CompanySnapshot({
         <GlassCard className="p-5 sm:p-6">
           <div className="space-y-2.5">
             {SCORE_AXES.map((axis) => {
-              const data = a.scores[axis.key as ScoreAxisKey];
-              const pct = (data.score / 6) * 100;
+              const d = a.scores[axis.key as ScoreAxisKey];
+              const p = (d.score / 6) * 100;
               return (
                 <details key={axis.key} className="group rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
                     <span className="text-sm text-slate-200">{axis.label}</span>
                     <span className="flex items-center gap-3">
                       <span className="hidden h-2 w-28 overflow-hidden rounded-full bg-white/[0.06] sm:block">
-                        <span
-                          className="block h-full rounded-full"
-                          style={{ width: `${pct}%`, backgroundColor: axisColor(data.score) }}
-                        />
+                        <span className="block h-full rounded-full" style={{ width: `${p}%`, backgroundColor: axisColor(d.score) }} />
                       </span>
-                      <span className="font-mono text-sm tnum text-white">{data.score}/6</span>
-                      <span className="text-slate-500 transition group-open:rotate-90" aria-hidden>
-                        ›
-                      </span>
+                      <span className="font-mono text-sm tnum text-white">{d.score}/6</span>
+                      <span className="text-slate-500 transition group-open:rotate-90" aria-hidden>›</span>
                     </span>
                   </summary>
                   <ul className="mt-3 space-y-1.5 border-t border-white/[0.05] pt-3">
-                    {data.checks.map((chk, i) => (
+                    {d.checks.map((chk, i) => (
                       <li key={i} className="flex items-center gap-2 text-xs">
-                        <span className={chk.pass ? "text-up" : "text-slate-600"}>
-                          {chk.pass ? "✓" : "✕"}
-                        </span>
-                        <span className={chk.pass ? "text-slate-300" : "text-slate-500 line-through"}>
-                          {chk.label}
-                        </span>
+                        <span className={chk.pass ? "text-up" : "text-slate-600"}>{chk.pass ? "✓" : "✕"}</span>
+                        <span className={chk.pass ? "text-slate-300" : "text-slate-500 line-through"}>{chk.label}</span>
                       </li>
                     ))}
                   </ul>
@@ -128,44 +126,25 @@ export default function CompanySnapshot({
           <div className="flex items-center gap-6">
             <div>
               <div className="text-xs text-slate-500">Current</div>
-              <div className="font-mono text-xl font-semibold tnum text-white">
-                ${fmtPrice(stock.price)}
-              </div>
+              <div className="font-mono text-xl font-semibold tnum text-white">${fmtPrice(resolvedPrice)}</div>
             </div>
             <div>
               <div className="text-xs text-slate-500">Fair value</div>
-              <div className="font-mono text-xl font-semibold tnum text-white">
-                ${fmtPrice(a.fairValue.estimate)}
-              </div>
+              <div className="font-mono text-xl font-semibold tnum text-white">${fmtPrice(a.fairValue.estimate)}</div>
             </div>
-            {gap !== null ? (
-              <Tag tone={under ? "up" : "down"}>
-                {under ? "Below" : "Above"} fair value · {Math.abs(gap).toFixed(0)}%
-              </Tag>
-            ) : null}
+            <Tag tone={under ? "up" : "down"}>
+              {under ? "Below" : "Above"} fair value · {Math.abs(gap).toFixed(0)}%
+            </Tag>
           </div>
         </div>
-        {/* simple price vs fair-value bar */}
         <div className="mt-5">
           <div className="relative h-2 rounded-full bg-white/[0.06]">
-            <div
-              className="absolute top-1/2 h-3.5 w-0.5 -translate-y-1/2 bg-teal"
-              style={{ left: `${Math.min(95, Math.max(5, (a.fairValue.estimate / Math.max(a.fairValue.estimate, stock.price)) * 90))}%` }}
-              aria-hidden
-            />
-            <div
-              className="absolute top-1/2 h-3.5 w-0.5 -translate-y-1/2 bg-gold"
-              style={{ left: `${Math.min(95, Math.max(5, (stock.price / Math.max(a.fairValue.estimate, stock.price)) * 90))}%` }}
-              aria-hidden
-            />
+            <div className="absolute top-1/2 h-3.5 w-0.5 -translate-y-1/2 bg-teal" style={{ left: `${Math.min(95, Math.max(5, (a.fairValue.estimate / Math.max(a.fairValue.estimate, resolvedPrice)) * 90))}%` }} aria-hidden />
+            <div className="absolute top-1/2 h-3.5 w-0.5 -translate-y-1/2 bg-gold" style={{ left: `${Math.min(95, Math.max(5, (resolvedPrice / Math.max(a.fairValue.estimate, resolvedPrice)) * 90))}%` }} aria-hidden />
           </div>
           <div className="mt-2 flex gap-4 text-[0.7rem] text-slate-500">
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-gold" /> Current price
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-teal" /> Fair value (demo)
-            </span>
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-gold" /> Current price</span>
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-teal" /> Fair value{tag}</span>
           </div>
         </div>
       </GlassCard>

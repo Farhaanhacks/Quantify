@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import TradingViewWidget from "@/components/quantifi/TradingViewWidget";
 import CompanySnapshot from "@/components/quantifi/CompanySnapshot";
 import { GlassCard, TickerChip } from "@/components/quantifi/Cards";
 import { tvSymbol } from "@/lib/tvSymbol";
-import { stockByTicker, companyAnalytics } from "@/data/demo";
+import { stockByTicker, type CompanyAnalytics } from "@/data/demo";
 import { popularTickers } from "@/data/popularTickers";
 
 const QUICK = ["NVDA", "AAPL", "MSFT", "TSLA", "AMZN", "GOOGL", "INFY.NS", "RELIANCE.NS"];
@@ -20,9 +20,39 @@ function toTvSymbol(raw: string): string {
   return t;
 }
 
+interface ScoreResponse {
+  available: boolean;
+  live?: boolean;
+  analytics?: CompanyAnalytics;
+  price?: number;
+  name?: string;
+}
+
 export default function StockExplorer({ initial = "NVDA" }: { initial?: string }) {
   const [input, setInput] = useState(initial);
   const [ticker, setTicker] = useState(initial.toUpperCase());
+  const [score, setScore] = useState<ScoreResponse | null>(null);
+  const [scoreLoading, setScoreLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setScore(null);
+    setScoreLoading(true);
+    fetch(`/api/score/${encodeURIComponent(ticker)}`)
+      .then((r) => r.json())
+      .then((d: ScoreResponse) => {
+        if (!cancelled) setScore(d);
+      })
+      .catch(() => {
+        if (!cancelled) setScore({ available: false });
+      })
+      .finally(() => {
+        if (!cancelled) setScoreLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [ticker]);
 
   const commit = () => {
     const t = input.trim().toUpperCase();
@@ -30,8 +60,6 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
   };
 
   const tvSym = toTvSymbol(ticker);
-  const hasScore = Boolean(companyAnalytics[ticker]);
-  const scoredNames = Object.keys(companyAnalytics);
 
   return (
     <>
@@ -82,13 +110,13 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
             ))}
           </div>
           <p className="mt-3 text-xs text-slate-500">
-            Full interactive chart with timeframes. You can also change the symbol
-            directly inside the chart.
+            Live chart and a Quantifi Score computed from real fundamentals. For
+            Indian stocks add the exchange suffix (e.g. <span className="font-mono">RELIANCE.NS</span>).
           </p>
         </GlassCard>
 
-        {/* Live chart — square-ish, centered */}
-        <div className="mx-auto mt-4 max-w-2xl">
+        {/* Live chart — landscape, centered */}
+        <div className="mx-auto mt-4 max-w-4xl">
           <div className="mb-2 flex items-center gap-2">
             <TickerChip ticker={ticker} active />
             <span className="text-xs text-slate-500">Live chart · TradingView</span>
@@ -96,7 +124,7 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
           <TradingViewWidget
             symbol={tvSym}
             kind="advanced-chart"
-            height={620}
+            height={540}
             range="12M"
             allowSymbolChange
           />
@@ -104,33 +132,30 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
       </section>
 
       {/* Quantifi Score */}
-      {hasScore ? (
-        <CompanySnapshot ticker={ticker} />
+      {score?.available && score.analytics ? (
+        <CompanySnapshot
+          ticker={ticker}
+          data={score.analytics}
+          price={score.price}
+          name={score.name}
+          live={Boolean(score.live)}
+        />
       ) : (
         <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
           <GlassCard className="p-6">
             <h3 className="font-display text-base font-semibold text-white">
-              Quantifi Score not available for {ticker} yet
+              {scoreLoading
+                ? `Loading Quantifi Score for ${ticker}…`
+                : `Quantifi Score not available for ${ticker}`}
             </h3>
-            <p className="mt-2 text-sm leading-relaxed text-slate-400">
-              The chart above works for any symbol. The Quantifi Score is computed
-              from fundamentals — wire a free fundamentals key (see below) to score
-              any stock, or tap a demo name:
-            </p>
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {scoredNames.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => {
-                    setInput(t);
-                    setTicker(t);
-                  }}
-                >
-                  <TickerChip ticker={t} />
-                </button>
-              ))}
-            </div>
+            {!scoreLoading ? (
+              <p className="mt-2 text-sm leading-relaxed text-slate-400">
+                We couldn&apos;t pull fundamentals for this symbol — it may be an
+                ETF/index (which don&apos;t have company fundamentals), an
+                unrecognized ticker, or Yahoo may be temporarily rate-limiting. The
+                chart above still works.
+              </p>
+            ) : null}
           </GlassCard>
         </section>
       )}
