@@ -1,4 +1,3 @@
-import yahooFinance from "yahoo-finance2";
 import type {
   CompanyAnalytics,
   ScoreAxis,
@@ -6,17 +5,53 @@ import type {
   ScoreAxisKey,
 } from "@/data/demo";
 
+// Calls Yahoo Finance's quoteSummary endpoint directly (no library) for personal,
+// non-commercial use. Yahoo now requires a cookie + crumb handshake; we fetch one,
+// then request the fundamentals modules. Returns null on any failure so callers fall
+// back gracefully.
+
 export interface LiveScore {
   analytics: CompanyAnalytics;
   price?: number;
   name?: string;
 }
 
-const num = (x: unknown): number | undefined =>
-  typeof x === "number" && isFinite(x) ? x : undefined;
+const UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
-const pct = (x: number | undefined): string =>
-  x == null ? "—" : `${(x * 100).toFixed(0)}%`;
+// Yahoo wraps numbers as { raw: number, fmt: string }; read the raw value.
+const num = (x: unknown): number | undefined => {
+  if (typeof x === "number" && isFinite(x)) return x;
+  if (x && typeof x === "object" && "raw" in x) {
+    const raw = (x as { raw: unknown }).raw;
+    if (typeof raw === "number" && isFinite(raw)) return raw;
+  }
+  return undefined;
+};
+
+const str = (x: unknown): string | undefined =>
+  typeof x === "string" && x.length ? x : undefined;
+
+async function getCrumb(): Promise<{ crumb: string; cookie: string } | null> {
+  try {
+    const r1 = await fetch("https://fc.yahoo.com/", {
+      headers: { "User-Agent": UA },
+    });
+    const setCookie = r1.headers.get("set-cookie") ?? "";
+    const cookie = setCookie.split(";")[0];
+    if (!cookie) return null;
+
+    const r2 = await fetch(
+      "https://query2.finance.yahoo.com/v1/test/getcrumb",
+      { headers: { "User-Agent": UA, Cookie: cookie, Accept: "text/plain" } }
+    );
+    const crumb = (await r2.text()).trim();
+    if (!crumb || crumb.length > 40 || crumb.includes("<")) return null;
+    return { crumb, cookie };
+  } catch {
+    return null;
+  }
+}
 
 function axis(checks: ScoreCheck[]): ScoreAxis {
   const passed = checks.filter((c) => c.pass).length;
@@ -25,26 +60,37 @@ function axis(checks: ScoreCheck[]): ScoreAxis {
 }
 
 const c = (label: string, pass: boolean): ScoreCheck => ({ label, pass });
+const fpct = (x: number | undefined): string =>
+  x == null ? "—" : `${(x * 100).toFixed(0)}%`;
 
 export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
-  let r: Record<string, unknown>;
+  const cc = await getCrumb();
+  if (!cc) return null;
+
+  let result: Record<string, unknown> | undefined;
   try {
-    r = (await yahooFinance.quoteSummary(
-      symbol,
-      {
-        modules: ["summaryDetail", "defaultKeyStatistics", "financialData", "price"],
-      },
-      { validateResult: false }
-    )) as unknown as Record<string, unknown>;
+    const modules = "summaryDetail,defaultKeyStatistics,financialData,price";
+    const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(
+      symbol
+    )}?modules=${modules}&crumb=${encodeURIComponent(cc.crumb)}`;
+    const res = await fetch(url, {
+      headers: { "User-Agent": UA, Cookie: cc.cookie },
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as {
+      quoteSummary?: { result?: Record<string, unknown>[] };
+    };
+    result = json?.quoteSummary?.result?.[0];
   } catch {
     return null;
   }
-  if (!r) return null;
+  if (!result) return null;
 
-  const sd = (r.summaryDetail ?? {}) as Record<string, unknown>;
-  const ks = (r.defaultKeyStatistics ?? {}) as Record<string, unknown>;
-  const fd = (r.financialData ?? {}) as Record<string, unknown>;
-  const pr = (r.price ?? {}) as Record<string, unknown>;
+  const sd = (result.summaryDetail ?? {}) as Record<string, unknown>;
+  const ks = (result.defaultKeyStatistics ?? {}) as Record<string, unknown>;
+  const fd = (result.financialData ?? {}) as Record<string, unknown>;
+  const pr = (result.price ?? {}) as Record<string, unknown>;
 
   const pe = num(sd.trailingPE) ?? num(ks.trailingPE);
   const peg = num(ks.pegRatio);
@@ -53,19 +99,16 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   const revGrowth = num(fd.revenueGrowth);
   const earnGrowth = num(fd.earningsGrowth) ?? num(ks.earningsQuarterlyGrowth);
   const currentRatio = num(fd.currentRatio);
-  const debtToEquity = num(fd.debtToEquity); // Yahoo reports as a percent (e.g. 152 = 1.52x)
+  const debtToEquity = num(fd.debtToEquity); // percent: 152 => 1.52x
   const totalCash = num(fd.totalCash);
   const totalDebt = num(fd.totalDebt);
   const divYield = num(sd.dividendYield); // fraction
   const payout = num(sd.payoutRatio); // fraction
   const price = num(fd.currentPrice) ?? num(pr.regularMarketPrice);
   const target = num(fd.targetMeanPrice);
-  const name =
-    (typeof pr.longName === "string" && pr.longName) ||
-    (typeof pr.shortName === "string" && pr.shortName) ||
-    symbol;
+  const name = str(pr.longName) ?? str(pr.shortName) ?? symbol.toUpperCase();
 
-  // If there are no real fundamentals (e.g. an ETF/index), the score doesn't apply.
+  // No company fundamentals (e.g. ETF/index) → score doesn't apply.
   if (pe == null && profitMargins == null && roe == null) return null;
   if (price == null) return null;
 
@@ -97,15 +140,14 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
     ]),
   };
 
-  // Rewards / risk flags from the same numbers.
   const rewards: string[] = [];
   const riskFlags: string[] = [];
-  if (roe != null && roe > 0.15) rewards.push(`Strong return on equity (${pct(roe)}).`);
-  if (revGrowth != null && revGrowth > 0.1) rewards.push(`Revenue growing double digits (${pct(revGrowth)}).`);
-  if (profitMargins != null && profitMargins > 0.15) rewards.push(`Healthy profit margin (${pct(profitMargins)}).`);
+  if (roe != null && roe > 0.15) rewards.push(`Strong return on equity (${fpct(roe)}).`);
+  if (revGrowth != null && revGrowth > 0.1) rewards.push(`Revenue growing double digits (${fpct(revGrowth)}).`);
+  if (profitMargins != null && profitMargins > 0.15) rewards.push(`Healthy profit margin (${fpct(profitMargins)}).`);
   if (totalCash != null && totalDebt != null && totalCash > totalDebt) rewards.push("More cash on hand than total debt.");
   if (target != null && price < target) rewards.push("Trades below analysts' average price target.");
-  if (divYield != null && divYield > 0.02) rewards.push(`Pays a dividend (${pct(divYield)} yield).`);
+  if (divYield != null && divYield > 0.02) rewards.push(`Pays a dividend (${fpct(divYield)} yield).`);
 
   if (profitMargins != null && profitMargins <= 0) riskFlags.push("Currently unprofitable.");
   if (debtToEquity != null && debtToEquity >= 100) riskFlags.push(`Elevated debt (debt/equity ${(debtToEquity / 100).toFixed(1)}x).`);
