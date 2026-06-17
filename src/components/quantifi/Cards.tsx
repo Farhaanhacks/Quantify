@@ -385,7 +385,7 @@ export function ScoreRadar({
     .join(" ");
 
   return (
-    <svg viewBox={`0 0 ${size} ${size}`} width="100%" height="100%" role="img" aria-label="Quantifi Score radar">
+    <svg viewBox={`-52 -8 ${size + 104} ${size + 16}`} width="100%" height="100%" role="img" aria-label="Quantifi Score radar">
       <defs>
         <linearGradient id="radarFill" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="#E9B872" stopOpacity="0.45" />

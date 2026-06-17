@@ -51,10 +51,11 @@ function demoSeries(symbol: string) {
   };
 }
 
-async function yahooSeries(symbol: string) {
+async function yahooSeries(symbol: string, range: string) {
+  const interval = range === "max" || range === "10y" ? "1wk" : "1d";
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
     symbol
-  )}?range=1y&interval=1d`;
+  )}?range=${encodeURIComponent(range)}&interval=${interval}`;
   const res = await fetch(url, {
     headers: {
       "User-Agent":
@@ -97,12 +98,15 @@ async function yahooSeries(symbol: string) {
 }
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: { symbol: string } }
 ) {
   const symbol = params.symbol;
+  const allowed = ["1mo", "6mo", "1y", "5y", "max"];
+  const reqRange = new URL(req.url).searchParams.get("range") ?? "1y";
+  const range = allowed.includes(reqRange) ? reqRange : "1y";
   try {
-    const data = await yahooSeries(symbol);
+    const data = await yahooSeries(symbol, range);
     return NextResponse.json(data);
   } catch (err) {
     console.error("[timeseries] Yahoo failed, using demo:", err);

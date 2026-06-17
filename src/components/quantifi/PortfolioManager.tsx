@@ -9,27 +9,48 @@ import {
   ChangePill,
   BarMeter,
 } from "@/components/quantifi/Cards";
-import { stocks, fmtPrice, fmtPct } from "@/data/demo";
+import { fmtPrice, fmtPct } from "@/data/demo";
+import { popularTickers } from "@/data/popularTickers";
 import {
   usePortfolios,
-  resolvePrice,
   resolveName,
   type UserPortfolio,
 } from "@/lib/usePortfolios";
 
-function computeRows(p: UserPortfolio) {
+interface Quote {
+  price: number;
+  name?: string;
+  currency?: string;
+}
+
+const cur = (c?: string) => (c === "INR" ? "₹" : "$");
+
+function computeRows(p: UserPortfolio, quotes: Record<string, Quote>) {
   const rows = p.holdings.map((h) => {
-    const value = h.shares * h.price;
+    const q = quotes[h.ticker];
+    const px = q?.price ?? h.price;
+    const value = h.shares * px;
     const cost = h.shares * h.avgCost;
     const pl = value - cost;
     const plPct = cost > 0 ? (pl / cost) * 100 : 0;
-    return { ...h, name: resolveName(h.ticker) ?? h.ticker, value, cost, pl, plPct };
+    const currency = q?.currency ?? (h.ticker.endsWith(".NS") ? "INR" : "USD");
+    return {
+      ...h,
+      price: px,
+      name: q?.name ?? resolveName(h.ticker) ?? h.ticker,
+      value,
+      cost,
+      pl,
+      plPct,
+      currency,
+    };
   });
   const totalValue = rows.reduce((s, r) => s + r.value, 0);
   const totalCost = rows.reduce((s, r) => s + r.cost, 0);
   const totalPl = totalValue - totalCost;
   const totalPlPct = totalCost > 0 ? (totalPl / totalCost) * 100 : 0;
-  return { rows, totalValue, totalCost, totalPl, totalPlPct };
+  const mixedCurrency = new Set(rows.map((r) => r.currency)).size > 1;
+  return { rows, totalValue, totalCost, totalPl, totalPlPct, mixedCurrency };
 }
 
 export default function PortfolioManager() {
@@ -52,10 +73,12 @@ export default function PortfolioManager() {
   const [ticker, setTicker] = useState("");
   const [shares, setShares] = useState("");
   const [avgCost, setAvgCost] = useState("");
-  const [price, setPrice] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
 
-  // Keep a valid selection.
+  // live quotes by ticker
+  const [quotes, setQuotes] = useState<Record<string, Quote>>({});
+
   useEffect(() => {
     if (!ready) return;
     if (portfolios.length === 0) {
@@ -68,30 +91,73 @@ export default function PortfolioManager() {
   }, [ready, portfolios, selectedId]);
 
   const current = portfolios.find((p) => p.id === selectedId) ?? null;
-  const summary = useMemo(() => (current ? computeRows(current) : null), [current]);
+  const holdingsKey = current ? current.holdings.map((h) => h.ticker).join(",") : "";
 
-  // Auto-fill current price when a known ticker is typed.
-  function onTickerChange(v: string) {
-    setTicker(v);
-    const known = resolvePrice(v);
-    if (known > 0) setPrice(String(known));
-  }
+  // Refresh live prices for everything held in the current portfolio.
+  useEffect(() => {
+    if (!current) return;
+    const tickers = Array.from(new Set(current.holdings.map((h) => h.ticker)));
+    let cancelled = false;
+    (async () => {
+      for (const t of tickers) {
+        try {
+          const r = await fetch(`/api/quote/${encodeURIComponent(t)}`);
+          const d = await r.json();
+          if (!cancelled && d.valid && typeof d.price === "number") {
+            setQuotes((prev) => ({
+              ...prev,
+              [t]: { price: d.price, name: d.name, currency: d.currency },
+            }));
+          }
+        } catch {
+          /* ignore — keep stored price */
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, holdingsKey]);
 
-  function handleAdd() {
+  const summary = useMemo(
+    () => (current ? computeRows(current, quotes) : null),
+    [current, quotes]
+  );
+
+  async function handleAdd() {
     setFormError(null);
     const t = ticker.trim().toUpperCase();
     const sh = Number(shares);
     const ac = Number(avgCost);
-    const pr = price ? Number(price) : resolvePrice(t, ac);
     if (!t) return setFormError("Enter a ticker symbol.");
     if (!sh || sh <= 0) return setFormError("Enter a valid number of shares.");
     if (!ac || ac <= 0) return setFormError("Enter a valid average cost.");
     if (!current) return;
-    addHolding(current.id, { ticker: t, shares: sh, avgCost: ac, price: pr || ac });
-    setTicker("");
-    setShares("");
-    setAvgCost("");
-    setPrice("");
+
+    setAdding(true);
+    try {
+      const r = await fetch(`/api/quote/${encodeURIComponent(t)}`);
+      const d = await r.json();
+      if (!d.valid || typeof d.price !== "number") {
+        setFormError(
+          `Couldn't find "${t}". Check the symbol — Indian stocks need a .NS suffix (e.g. RELIANCE.NS).`
+        );
+        return;
+      }
+      addHolding(current.id, { ticker: t, shares: sh, avgCost: ac, price: d.price });
+      setQuotes((prev) => ({
+        ...prev,
+        [t]: { price: d.price, name: d.name, currency: d.currency },
+      }));
+      setTicker("");
+      setShares("");
+      setAvgCost("");
+    } catch {
+      setFormError("Couldn't verify that ticker right now — please try again.");
+    } finally {
+      setAdding(false);
+    }
   }
 
   function handleCreate() {
@@ -114,7 +180,7 @@ export default function PortfolioManager() {
       <SectionHeading
         eyebrow="Portfolios"
         title="Build and track your own portfolios"
-        subtitle="Create as many portfolios as you like and add holdings by hand. Saved in your browser — values are illustrative, not advice."
+        subtitle="Create portfolios and add real holdings — tickers are verified and priced from live data. Saved in your browser; illustrative, not advice."
       />
 
       {/* Portfolio selector */}
@@ -198,11 +264,7 @@ export default function PortfolioManager() {
               <h3 className="font-display text-xl font-semibold text-white">{current.name}</h3>
             )}
             <div className="flex items-center gap-3 text-sm">
-              <button
-                type="button"
-                onClick={() => setRenaming(true)}
-                className="text-slate-400 transition hover:text-white"
-              >
+              <button type="button" onClick={() => setRenaming(true)} className="text-slate-400 transition hover:text-white">
                 Rename
               </button>
               <button
@@ -233,34 +295,38 @@ export default function PortfolioManager() {
               <StatTile label="Holdings" value={String(current.holdings.length)} />
             </div>
           ) : null}
+          {summary?.mixedCurrency ? (
+            <p className="mt-2 text-xs text-slate-500">
+              Note: this portfolio mixes currencies — per-row values are in each
+              stock&apos;s native currency, but the totals above are a naive sum (no
+              FX conversion yet).
+            </p>
+          ) : null}
 
           {/* Add holding */}
           <GlassCard className="mt-4 p-5">
             <h4 className="text-sm font-medium text-white">Add a holding</h4>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-              <div className="lg:col-span-1">
-                <label className="mb-1 block text-[0.7rem] uppercase tracking-[0.14em] text-slate-500">
-                  Ticker
-                </label>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div>
+                <label className="mb-1 block text-[0.7rem] uppercase tracking-[0.14em] text-slate-500">Ticker</label>
                 <input
                   list="ticker-universe"
                   value={ticker}
-                  onChange={(e) => onTickerChange(e.target.value)}
-                  placeholder="e.g. AAPL"
+                  onChange={(e) => setTicker(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+                  placeholder="e.g. AAPL or RELIANCE.NS"
                   className="w-full rounded-lg border border-white/10 bg-ink-800 px-3 py-2 text-sm text-white outline-none focus:border-gold/40"
                 />
                 <datalist id="ticker-universe">
-                  {stocks.map((s) => (
-                    <option key={s.ticker} value={s.ticker}>
-                      {s.name}
+                  {popularTickers.map((s) => (
+                    <option key={s.s} value={s.s}>
+                      {s.n}
                     </option>
                   ))}
                 </datalist>
               </div>
               <div>
-                <label className="mb-1 block text-[0.7rem] uppercase tracking-[0.14em] text-slate-500">
-                  Shares
-                </label>
+                <label className="mb-1 block text-[0.7rem] uppercase tracking-[0.14em] text-slate-500">Shares</label>
                 <input
                   type="number"
                   value={shares}
@@ -270,9 +336,7 @@ export default function PortfolioManager() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-[0.7rem] uppercase tracking-[0.14em] text-slate-500">
-                  Avg cost
-                </label>
+                <label className="mb-1 block text-[0.7rem] uppercase tracking-[0.14em] text-slate-500">Avg cost</label>
                 <input
                   type="number"
                   value={avgCost}
@@ -281,25 +345,14 @@ export default function PortfolioManager() {
                   className="w-full rounded-lg border border-white/10 bg-ink-800 px-3 py-2 text-sm text-white outline-none focus:border-gold/40"
                 />
               </div>
-              <div>
-                <label className="mb-1 block text-[0.7rem] uppercase tracking-[0.14em] text-slate-500">
-                  Current price
-                </label>
-                <input
-                  type="number"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  placeholder="auto"
-                  className="w-full rounded-lg border border-white/10 bg-ink-800 px-3 py-2 text-sm text-white outline-none focus:border-gold/40"
-                />
-              </div>
               <div className="flex items-end">
                 <button
                   type="button"
                   onClick={handleAdd}
-                  className="w-full rounded-lg bg-gradient-to-r from-gold-400 to-gold-600 px-4 py-2 text-sm font-semibold text-ink transition hover:opacity-90"
+                  disabled={adding}
+                  className="w-full rounded-lg bg-gradient-to-r from-gold-400 to-gold-600 px-4 py-2 text-sm font-semibold text-ink transition hover:opacity-90 disabled:opacity-50"
                 >
-                  Add holding
+                  {adding ? "Checking…" : "Add holding"}
                 </button>
               </div>
             </div>
@@ -307,7 +360,9 @@ export default function PortfolioManager() {
               <p className="mt-3 text-sm text-down">{formError}</p>
             ) : (
               <p className="mt-3 text-xs text-slate-500">
-                Known tickers auto-fill the current price; for anything else, enter a price yourself.
+                The ticker is verified against live data before it&apos;s added, and
+                the current price is fetched automatically — so only real symbols get
+                tracked.
               </p>
             )}
           </GlassCard>
@@ -334,9 +389,9 @@ export default function PortfolioManager() {
                     <span className="hidden text-sm text-slate-300 sm:inline">{r.name}</span>
                   </div>
                   <div className="text-right font-mono text-sm tnum text-slate-300">{r.shares}</div>
-                  <div className="text-right font-mono text-sm tnum text-slate-300">${fmtPrice(r.avgCost)}</div>
-                  <div className="text-right font-mono text-sm tnum text-slate-300">${fmtPrice(r.price)}</div>
-                  <div className="text-right font-mono text-sm tnum text-white">${fmtPrice(r.value)}</div>
+                  <div className="text-right font-mono text-sm tnum text-slate-300">{cur(r.currency)}{fmtPrice(r.avgCost)}</div>
+                  <div className="text-right font-mono text-sm tnum text-slate-300">{cur(r.currency)}{fmtPrice(r.price)}</div>
+                  <div className="text-right font-mono text-sm tnum text-white">{cur(r.currency)}{fmtPrice(r.value)}</div>
                   <div className="flex justify-end">
                     <ChangePill value={r.plPct} size="xs" />
                   </div>
@@ -382,9 +437,7 @@ export default function PortfolioManager() {
         </>
       ) : (
         <GlassCard className="mt-6 p-10 text-center">
-          <p className="text-sm text-slate-400">
-            You have no portfolios. Create one to get started.
-          </p>
+          <p className="text-sm text-slate-400">You have no portfolios. Create one to get started.</p>
           <button
             type="button"
             onClick={() => setCreating(true)}

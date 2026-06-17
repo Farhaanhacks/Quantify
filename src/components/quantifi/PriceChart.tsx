@@ -12,6 +12,14 @@ interface Meta {
   currency?: string;
 }
 
+const RANGES: { key: string; label: string }[] = [
+  { key: "1mo", label: "1M" },
+  { key: "6mo", label: "6M" },
+  { key: "1y", label: "1Y" },
+  { key: "5y", label: "5Y" },
+  { key: "max", label: "Max" },
+];
+
 export default function PriceChart({
   symbol,
   height = 440,
@@ -20,6 +28,7 @@ export default function PriceChart({
   height?: number;
 }) {
   const elRef = useRef<HTMLDivElement>(null);
+  const [range, setRange] = useState("1y");
   const [meta, setMeta] = useState<Meta | null>(null);
   const [live, setLive] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -34,7 +43,9 @@ export default function PriceChart({
       setLoading(true);
       setErr(null);
       try {
-        const res = await fetch(`/api/timeseries/${encodeURIComponent(symbol)}`);
+        const res = await fetch(
+          `/api/timeseries/${encodeURIComponent(symbol)}?range=${range}`
+        );
         const data = await res.json();
         if (cancelled) return;
 
@@ -89,13 +100,13 @@ export default function PriceChart({
       if (ro) ro.disconnect();
       if (chart) chart.remove();
     };
-  }, [symbol, height]);
+  }, [symbol, height, range]);
 
   const symbolCurrency = meta?.currency === "INR" ? "₹" : "$";
 
   return (
     <GlassCard className="p-4 sm:p-5">
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <TickerChip ticker={symbol} active />
           <span
@@ -119,11 +130,27 @@ export default function PriceChart({
         ) : null}
       </div>
 
+      {/* Timeframe buttons */}
+      <div className="mb-3 flex items-center gap-1 text-xs">
+        {RANGES.map((r) => (
+          <button
+            key={r.key}
+            type="button"
+            onClick={() => setRange(r.key)}
+            className={
+              range === r.key
+                ? "rounded-md bg-gold/20 px-2.5 py-1 font-medium text-gold"
+                : "rounded-md px-2.5 py-1 text-slate-400 transition hover:text-white"
+            }
+          >
+            {r.label}
+          </button>
+        ))}
+      </div>
+
       <div ref={elRef} style={{ height }} />
 
-      {loading ? (
-        <p className="mt-2 text-xs text-slate-500">Loading chart…</p>
-      ) : null}
+      {loading ? <p className="mt-2 text-xs text-slate-500">Loading chart…</p> : null}
       {err ? <p className="mt-2 text-xs text-down">{err}</p> : null}
     </GlassCard>
   );
