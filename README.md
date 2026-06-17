@@ -187,3 +187,15 @@ the config from tradingview.com/widget-docs and pass it the same way.
 > Why not scrape TradingView/Yahoo/Morningstar/etc.? Their terms prohibit it and
 > their data is licensed/proprietary — using it in a paid product invites legal
 > action. Widgets are the sanctioned path; EDGAR + filings are the free-data path.
+
+## Charts (Lightweight Charts + Yahoo Finance) — personal use
+
+The Stock Analysis page now renders charts with TradingView's open-source
+**Lightweight Charts** (Apache-2.0, free, no attribution required), themed to
+match the app. Price history comes from Yahoo Finance's chart endpoint via
+`/api/timeseries/[symbol]` (`src/components/quantifi/PriceChart.tsx`), with a
+synthesized demo series as fallback if Yahoo is unavailable.
+
+> This Yahoo endpoint is unofficial and intended for **personal, non-commercial**
+> use. It can change or rate-limit; the demo fallback keeps the UI working. If the
+> project ever becomes commercial, switch to a licensed data feed.
