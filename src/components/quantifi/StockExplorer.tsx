@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import TradingViewWidget from "@/components/quantifi/TradingViewWidget";
+import PriceChart from "@/components/quantifi/PriceChart";
 import CompanySnapshot from "@/components/quantifi/CompanySnapshot";
 import { GlassCard, TickerChip } from "@/components/quantifi/Cards";
 import { tvSymbol } from "@/lib/tvSymbol";
@@ -9,6 +10,8 @@ import { stockByTicker, type CompanyAnalytics } from "@/data/demo";
 import { popularTickers } from "@/data/popularTickers";
 
 const QUICK = ["NVDA", "AAPL", "MSFT", "TSLA", "AMZN", "GOOGL", "INFY.NS", "RELIANCE.NS"];
+
+type Engine = "tv" | "quantifi";
 
 function toTvSymbol(raw: string): string {
   const t = raw.trim().toUpperCase();
@@ -18,6 +21,14 @@ function toTvSymbol(raw: string): string {
   if (known) return tvSymbol(t, known.exchange);
   if (t.endsWith(".NS")) return `NSE:${t.replace(".NS", "")}`;
   return t;
+}
+
+// Indian symbols routinely aren't served by TradingView's free widget, so default
+// them to the Yahoo-powered chart that does cover them.
+function defaultEngine(t: string): Engine {
+  const u = t.toUpperCase();
+  if (u.endsWith(".NS") || u.endsWith(".BO")) return "quantifi";
+  return "tv";
 }
 
 interface ScoreResponse {
@@ -31,24 +42,25 @@ interface ScoreResponse {
 export default function StockExplorer({ initial = "NVDA" }: { initial?: string }) {
   const [input, setInput] = useState(initial);
   const [ticker, setTicker] = useState(initial.toUpperCase());
+  const [engine, setEngine] = useState<Engine>(defaultEngine(initial.toUpperCase()));
   const [score, setScore] = useState<ScoreResponse | null>(null);
   const [scoreLoading, setScoreLoading] = useState(false);
 
+  // Reset to the smart default engine whenever the symbol changes.
+  useEffect(() => {
+    setEngine(defaultEngine(ticker));
+  }, [ticker]);
+
+  // Fetch the live Quantifi Score.
   useEffect(() => {
     let cancelled = false;
     setScore(null);
     setScoreLoading(true);
     fetch(`/api/score/${encodeURIComponent(ticker)}`)
       .then((r) => r.json())
-      .then((d: ScoreResponse) => {
-        if (!cancelled) setScore(d);
-      })
-      .catch(() => {
-        if (!cancelled) setScore({ available: false });
-      })
-      .finally(() => {
-        if (!cancelled) setScoreLoading(false);
-      });
+      .then((d: ScoreResponse) => !cancelled && setScore(d))
+      .catch(() => !cancelled && setScore({ available: false }))
+      .finally(() => !cancelled && setScoreLoading(false));
     return () => {
       cancelled = true;
     };
@@ -60,6 +72,20 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
   };
 
   const tvSym = toTvSymbol(ticker);
+
+  const segBtn = (e: Engine, label: string) => (
+    <button
+      type="button"
+      onClick={() => setEngine(e)}
+      className={
+        engine === e
+          ? "rounded-full bg-gold/20 px-3 py-1 font-medium text-gold"
+          : "rounded-full px-3 py-1 text-slate-400 transition hover:text-white"
+      }
+    >
+      {label}
+    </button>
+  );
 
   return (
     <>
@@ -75,7 +101,7 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && commit()}
-              placeholder="e.g. AAPL, TSLA, NSE:INFY, QQQ"
+              placeholder="e.g. AAPL, TSLA, ADANIENT.NS, QQQ"
               className="min-w-[14rem] flex-1 rounded-lg border border-white/10 bg-ink-800 px-3 py-2.5 text-sm text-white outline-none focus:border-gold/40"
             />
             <datalist id="explorer-universe">
@@ -110,24 +136,44 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
             ))}
           </div>
           <p className="mt-3 text-xs text-slate-500">
-            Live chart and a Quantifi Score computed from real fundamentals. For
-            Indian stocks add the exchange suffix (e.g. <span className="font-mono">RELIANCE.NS</span>).
+            Two chart engines: TradingView (interactive) and Quantifi (Yahoo data,
+            covers symbols TradingView&apos;s free widget skips, like many Indian
+            stocks). Switch anytime with the toggle.
           </p>
         </GlassCard>
 
-        {/* Live chart — landscape, centered */}
+        {/* Live chart with engine toggle */}
         <div className="mx-auto mt-4 max-w-4xl">
-          <div className="mb-2 flex items-center gap-2">
-            <TickerChip ticker={ticker} active />
-            <span className="text-xs text-slate-500">Live chart · TradingView</span>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <TickerChip ticker={ticker} active />
+              <span className="text-xs text-slate-500">
+                Live chart · {engine === "tv" ? "TradingView" : "Quantifi (Yahoo)"}
+              </span>
+            </div>
+            <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] p-0.5 text-xs">
+              {segBtn("tv", "TradingView")}
+              {segBtn("quantifi", "Quantifi")}
+            </div>
           </div>
-          <TradingViewWidget
-            symbol={tvSym}
-            kind="advanced-chart"
-            height={540}
-            range="12M"
-            allowSymbolChange
-          />
+
+          {engine === "tv" ? (
+            <>
+              <TradingViewWidget
+                symbol={tvSym}
+                kind="advanced-chart"
+                height={540}
+                range="12M"
+                allowSymbolChange
+              />
+              <p className="mt-2 text-xs text-slate-500">
+                Seeing “only available on TradingView”? Tap{" "}
+                <span className="text-gold">Quantifi</span> above for the Yahoo-powered chart.
+              </p>
+            </>
+          ) : (
+            <PriceChart symbol={ticker} height={500} />
+          )}
         </div>
       </section>
 
@@ -151,9 +197,8 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
             {!scoreLoading ? (
               <p className="mt-2 text-sm leading-relaxed text-slate-400">
                 We couldn&apos;t pull fundamentals for this symbol — it may be an
-                ETF/index (which don&apos;t have company fundamentals), an
-                unrecognized ticker, or Yahoo may be temporarily rate-limiting. The
-                chart above still works.
+                ETF/index (no company fundamentals), an unrecognized ticker, or Yahoo
+                may be temporarily rate-limiting. The chart above still works.
               </p>
             ) : null}
           </GlassCard>
