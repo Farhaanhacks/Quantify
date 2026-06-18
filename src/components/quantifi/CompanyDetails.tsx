@@ -258,8 +258,7 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
                 <StatementTable rows={data.cashflowStatements} labels={[
                   { key: "operatingCashFlow", label: "Operating Cash Flow" },
                   { key: "capex", label: "Capital Expenditures" },
-                  { key: "depreciation", label: "Depreciation" },
-                  { key: "netIncome", label: "Net Income" },
+                  { key: "freeCashFlow", label: "Free Cash Flow" },
                 ]} />
               </div>
               <p className="text-xs text-slate-500">Most recent reported annual periods, from Yahoo Finance. Values in the listed currency.</p>

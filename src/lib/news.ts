@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import { detectTickersServer } from "@/lib/tickerDetect";
 
 export interface NewsArticle {
   title: string;
@@ -8,6 +9,7 @@ export interface NewsArticle {
   publishedMs: number;
   summary: string;
   region: "US" | "India" | "Global";
+  tickers?: string[];
 }
 
 const UA =
@@ -116,7 +118,20 @@ export async function getMarketNews(): Promise<NewsArticle[]> {
     if (!existing || a.publishedMs > existing.publishedMs) seen.set(key, a);
   }
 
-  return Array.from(seen.values())
+  const top = Array.from(seen.values())
     .sort((a, b) => b.publishedMs - a.publishedMs)
     .slice(0, 60);
+
+  // Detect mentioned stocks against the full universe (server-side).
+  await Promise.all(
+    top.map(async (a) => {
+      try {
+        a.tickers = await detectTickersServer(`${a.title} ${a.summary}`);
+      } catch {
+        a.tickers = [];
+      }
+    })
+  );
+
+  return top;
 }

@@ -84,9 +84,8 @@ export default function Footer() {
 
         <div className="mt-12 flex flex-col gap-4 border-t border-white/[0.06] pt-8 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-gold/30 to-teal/20 ring-1 ring-white/10">
-              <span className="font-display text-sm font-bold text-gradient-gold">Q</span>
-            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-icon.png" alt="Quantifi" className="h-7 w-auto" />
             <span className="font-display font-semibold text-white">Quantifi</span>
           </div>
           <p className="text-xs text-slate-500">

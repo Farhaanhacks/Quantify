@@ -178,40 +178,75 @@ async function fetchNews(symbol: string): Promise<CompanyNews[]> {
   }
 }
 
-function mapIncome(rows: Record<string, unknown>[]): FinRow[] {
-  return rows.slice(0, 4).map((r) => ({
-    date: dateOf(r.endDate),
-    values: {
-      revenue: num(r.totalRevenue),
-      grossProfit: num(r.grossProfit),
-      operatingIncome: num(r.operatingIncome),
-      netIncome: num(r.netIncome),
-      ebit: num(r.ebit),
-    },
-  }));
-}
-function mapBalance(rows: Record<string, unknown>[]): FinRow[] {
-  return rows.slice(0, 4).map((r) => ({
-    date: dateOf(r.endDate),
-    values: {
-      totalAssets: num(r.totalAssets),
-      totalLiabilities: num(r.totalLiab),
-      totalEquity: num(r.totalStockholderEquity),
-      cash: num(r.cash),
-      longTermDebt: num(r.longTermDebt),
-    },
-  }));
-}
-function mapCashflow(rows: Record<string, unknown>[]): FinRow[] {
-  return rows.slice(0, 4).map((r) => ({
-    date: dateOf(r.endDate),
-    values: {
-      operatingCashFlow: num(r.totalCashFromOperatingActivities),
-      capex: num(r.capitalExpenditures),
-      netIncome: num(r.netIncome),
-      depreciation: num(r.depreciation),
-    },
-  }));
+// Yahoo deprecated the quoteSummary statement modules (they return dates but
+// null values). The fundamentals-timeseries service is what actually serves
+// financial statements now.
+async function getYahooStatements(
+  symbol: string
+): Promise<{ income: FinRow[]; balance: FinRow[]; cashflow: FinRow[] }> {
+  const empty = { income: [], balance: [], cashflow: [] };
+  try {
+    const types = [
+      "annualTotalRevenue", "annualGrossProfit", "annualOperatingIncome", "annualNetIncome",
+      "annualTotalAssets", "annualTotalLiabilitiesNetMinorityInterest", "annualStockholdersEquity",
+      "annualCashAndCashEquivalents", "annualLongTermDebt",
+      "annualOperatingCashFlow", "annualCapitalExpenditure", "annualFreeCashFlow",
+    ];
+    const now = Math.floor(Date.now() / 1000);
+    const p1 = now - 6 * 365 * 24 * 3600;
+    const url = `https://query2.finance.yahoo.com/ws/fundamentals-timeseries/v1/finance/timeseries/${encodeURIComponent(
+      symbol
+    )}?symbol=${encodeURIComponent(symbol)}&type=${types.join(",")}&period1=${p1}&period2=${now}&merge=false`;
+    const res = await fetch(url, {
+      headers: { "User-Agent": UA },
+      next: { revalidate: 86400 },
+      signal: AbortSignal.timeout(9000),
+    });
+    if (!res.ok) return empty;
+    const json = (await res.json()) as { timeseries?: { result?: Record<string, unknown>[] } };
+    const results = json?.timeseries?.result ?? [];
+
+    const byDate = new Map<string, Record<string, number>>();
+    for (const r of results) {
+      const meta = r.meta as { type?: string[] } | undefined;
+      const type = meta?.type?.[0];
+      if (!type) continue;
+      const arr = r[type] as Array<Record<string, unknown>> | undefined;
+      if (!Array.isArray(arr)) continue;
+      for (const pt of arr) {
+        if (!pt) continue;
+        const date = str(pt.asOfDate);
+        const val = num(pt.reportedValue);
+        if (!date || val == null) continue;
+        if (!byDate.has(date)) byDate.set(date, {});
+        byDate.get(date)![type] = val;
+      }
+    }
+    const dates = Array.from(byDate.keys()).sort().reverse().slice(0, 4);
+    const pick = (date: string, keys: Record<string, string>): FinRow => {
+      const src = byDate.get(date) ?? {};
+      const values: Record<string, number | undefined> = {};
+      for (const k in keys) values[k] = src[keys[k]];
+      return { date, values };
+    };
+    return {
+      income: dates.map((d) => pick(d, {
+        revenue: "annualTotalRevenue", grossProfit: "annualGrossProfit",
+        operatingIncome: "annualOperatingIncome", netIncome: "annualNetIncome",
+      })),
+      balance: dates.map((d) => pick(d, {
+        totalAssets: "annualTotalAssets", totalLiabilities: "annualTotalLiabilitiesNetMinorityInterest",
+        totalEquity: "annualStockholdersEquity", cash: "annualCashAndCashEquivalents",
+        longTermDebt: "annualLongTermDebt",
+      })),
+      cashflow: dates.map((d) => pick(d, {
+        operatingCashFlow: "annualOperatingCashFlow", capex: "annualCapitalExpenditure",
+        freeCashFlow: "annualFreeCashFlow",
+      })),
+    };
+  } catch {
+    return empty;
+  }
 }
 
 export async function getYahooCompany(input: string): Promise<CompanyData | null> {
@@ -219,7 +254,7 @@ export async function getYahooCompany(input: string): Promise<CompanyData | null
   if (!cc) return null;
 
   const modules =
-    "assetProfile,summaryDetail,defaultKeyStatistics,financialData,price,calendarEvents,incomeStatementHistory,balanceSheetHistory,cashflowStatementHistory";
+    "assetProfile,summaryDetail,defaultKeyStatistics,financialData,price,calendarEvents";
 
   async function pull(sym: string): Promise<Record<string, unknown> | undefined> {
     try {
@@ -260,12 +295,11 @@ export async function getYahooCompany(input: string): Promise<CompanyData | null
   const fd = (result.financialData ?? {}) as Record<string, unknown>;
   const pr = (result.price ?? {}) as Record<string, unknown>;
   const ce = (result.calendarEvents ?? {}) as Record<string, unknown>;
-  const incomeHist = ((result.incomeStatementHistory as Record<string, unknown>)?.incomeStatementHistory ?? []) as Record<string, unknown>[];
-  const balanceHist = ((result.balanceSheetHistory as Record<string, unknown>)?.balanceSheetStatements ?? []) as Record<string, unknown>[];
-  const cashHist = ((result.cashflowStatementHistory as Record<string, unknown>)?.cashflowStatements ?? []) as Record<string, unknown>[];
 
   const earningsObj = (ce.earnings ?? {}) as Record<string, unknown>;
   const earningsArr = (earningsObj.earningsDate ?? []) as unknown[];
+
+  const stmts = await getYahooStatements(symbol);
 
   const data: CompanyData = {
     symbol,
@@ -326,9 +360,9 @@ export async function getYahooCompany(input: string): Promise<CompanyData | null
     recommendationKey: str(fd.recommendationKey),
     numberOfAnalysts: num(fd.numberOfAnalystOpinions),
     earningsDate: earningsArr.length ? dateOf(earningsArr[0]) : undefined,
-    incomeStatements: mapIncome(incomeHist),
-    balanceSheets: mapBalance(balanceHist),
-    cashflowStatements: mapCashflow(cashHist),
+    incomeStatements: stmts.income,
+    balanceSheets: stmts.balance,
+    cashflowStatements: stmts.cashflow,
     news: await fetchNews(symbol),
   };
 

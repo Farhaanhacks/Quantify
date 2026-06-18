@@ -110,10 +110,12 @@ export default function NewsFeed({ items }: { items: NewsArticle[] }) {
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState<NewsArticle | null>(null);
 
-  // Precompute detected tickers per article once.
+  // Prefer server-side detection (full SEC universe); fall back to the client list.
   const tickersByLink = useMemo(() => {
     const m = new Map<string, string[]>();
-    for (const a of items) m.set(a.link, detectTickers(`${a.title} ${a.summary}`));
+    for (const a of items) {
+      m.set(a.link, a.tickers && a.tickers.length ? a.tickers : detectTickers(`${a.title} ${a.summary}`));
+    }
     return m;
   }, [items]);
 
