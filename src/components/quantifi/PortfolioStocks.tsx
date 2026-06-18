@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   GlassCard,
   SectionHeading,
@@ -8,15 +8,23 @@ import {
   ChangePill,
   Sparkline,
 } from "@/components/quantifi/Cards";
-import {
-  holdings,
-  holdingValue,
-  portfolioTotal,
-  stockByTicker,
-  fmtPrice,
-  fmtPct,
-  dirOf,
-} from "@/data/demo";
+import { holdings, stockByTicker, fmtPrice, fmtPct, dirOf } from "@/data/demo";
+import { usePortfolios, resolveName } from "@/lib/usePortfolios";
+
+interface Row {
+  ticker: string;
+  name: string;
+  sector?: string;
+  geo?: string;
+  shares: number;
+  avgCost: number;
+  price: number;
+  currency: string;
+  dayPct: number | null;
+  spark: number[] | null;
+}
+
+const curSym = (c: string) => (c === "INR" ? "₹" : "$");
 
 export default function PortfolioStocks({
   limit,
@@ -25,14 +33,82 @@ export default function PortfolioStocks({
   limit?: number;
   heading?: boolean;
 }) {
-  const list = limit ? holdings.slice(0, limit) : holdings;
-  const [selectedTicker, setSelectedTicker] = useState(list[0].ticker);
-  const selected = holdings.find((h) => h.ticker === selectedTicker) ?? holdings[0];
+  const { portfolios, ready } = usePortfolios();
+  // Mirror the user's first saved portfolio; fall back to demo if empty.
+  const saved = ready && portfolios[0]?.holdings.length ? portfolios[0].holdings : null;
 
-  const selValue = holdingValue(selected);
-  const selWeight = (selValue / portfolioTotal) * 100;
+  // Live prices for the saved holdings, from the same source the manager uses.
+  const [quotes, setQuotes] = useState<Record<string, { price: number; currency?: string; name?: string }>>({});
+  const savedKey = saved ? saved.map((h) => h.ticker).join(",") : "";
+
+  useEffect(() => {
+    if (!saved) return;
+    let cancelled = false;
+    saved.forEach(async (h) => {
+      try {
+        const r = await fetch(`/api/quote/${encodeURIComponent(h.ticker)}`);
+        const d = await r.json();
+        if (!cancelled && d.valid && typeof d.price === "number") {
+          setQuotes((q) => ({ ...q, [h.ticker]: { price: d.price, currency: d.currency, name: d.name } }));
+        }
+      } catch {
+        /* keep stored price */
+      }
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedKey]);
+
+  const rows: Row[] = useMemo(() => {
+    if (saved) {
+      return saved.map((h) => {
+        const q = quotes[h.ticker];
+        const sd = stockByTicker[h.ticker.toUpperCase()];
+        return {
+          ticker: h.ticker,
+          name: q?.name ?? resolveName(h.ticker) ?? h.ticker,
+          sector: sd?.sector,
+          geo: sd?.geo,
+          shares: h.shares,
+          avgCost: h.avgCost,
+          price: q?.price ?? h.price,
+          currency: q?.currency ?? (/\.(NS|BO)$/i.test(h.ticker) ? "INR" : "USD"),
+          dayPct: sd?.changePct ?? null,
+          spark: sd?.spark ?? null,
+        };
+      });
+    }
+    return holdings.map((h) => ({
+      ticker: h.ticker,
+      name: h.name,
+      sector: h.sector,
+      geo: h.geo,
+      shares: h.shares,
+      avgCost: h.avgCost,
+      price: h.price,
+      currency: "USD",
+      dayPct: stockByTicker[h.ticker]?.changePct ?? null,
+      spark: stockByTicker[h.ticker]?.spark ?? null,
+    }));
+  }, [saved, quotes]);
+
+  const total = rows.reduce((s, r) => s + r.shares * r.price, 0) || 1;
+  const list = limit ? rows.slice(0, limit) : rows;
+  const listKey = list.map((r) => r.ticker).join(",");
+
+  const [selectedTicker, setSelectedTicker] = useState(holdings[0].ticker);
+  useEffect(() => {
+    if (!list.find((r) => r.ticker === selectedTicker)) setSelectedTicker(list[0]?.ticker);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listKey]);
+
+  const selected = list.find((r) => r.ticker === selectedTicker) ?? list[0];
+  if (!selected) return null;
+
+  const selValue = selected.shares * selected.price;
+  const selWeight = (selValue / total) * 100;
   const selPL = ((selected.price - selected.avgCost) / selected.avgCost) * 100;
-  const spark = stockByTicker[selected.ticker]?.spark ?? [1, 2, 3];
+  const spark = selected.spark ?? [1, 1, 1];
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
@@ -40,7 +116,11 @@ export default function PortfolioStocks({
         <SectionHeading
           eyebrow="Portfolio Command Center"
           title="Inside your portfolio"
-          subtitle="Select a holding to see its weight, unrealized move and recent trend. Demo positions for the prototype."
+          subtitle={
+            saved
+              ? "Your saved holdings, live. Edit them in the command center and they update here."
+              : "Demo positions — add your own in the command center and this will mirror them."
+          }
           href="/portfolio"
           cta="Open command center"
         />
@@ -57,7 +137,7 @@ export default function PortfolioStocks({
           </div>
           <ul className="divide-y divide-white/[0.05]">
             {list.map((h) => {
-              const weight = (holdingValue(h) / portfolioTotal) * 100;
+              const weight = ((h.shares * h.price) / total) * 100;
               const pl = ((h.price - h.avgCost) / h.avgCost) * 100;
               const isActive = h.ticker === selectedTicker;
               return (
@@ -77,13 +157,9 @@ export default function PortfolioStocks({
                       {weight.toFixed(0)}%
                     </div>
                     <div className="flex justify-end">
-                      <ChangePill value={stockByTicker[h.ticker]?.changePct ?? 0} size="xs" />
+                      {h.dayPct != null ? <ChangePill value={h.dayPct} size="xs" /> : <span className="text-xs text-slate-600">—</span>}
                     </div>
-                    <div
-                      className={`text-right font-mono text-sm tnum ${
-                        pl >= 0 ? "text-up" : "text-down"
-                      }`}
-                    >
+                    <div className={`text-right font-mono text-sm tnum ${pl >= 0 ? "text-up" : "text-down"}`}>
                       {fmtPct(pl)}
                     </div>
                   </button>
@@ -100,25 +176,25 @@ export default function PortfolioStocks({
               <TickerChip ticker={selected.ticker} active />
               <h3 className="mt-2 font-display text-lg font-semibold text-white">{selected.name}</h3>
               <p className="text-xs text-slate-500">
-                {selected.sector} · {selected.geo}
+                {[selected.sector, selected.geo].filter(Boolean).join(" · ") || "—"}
               </p>
             </div>
             <div className="text-right">
-              <div className="font-mono text-xl tnum text-white">{fmtPrice(selected.price)}</div>
+              <div className="font-mono text-xl tnum text-white">{curSym(selected.currency)}{fmtPrice(selected.price)}</div>
               <div className="mt-1 flex justify-end">
-                <ChangePill value={stockByTicker[selected.ticker]?.changePct ?? 0} />
+                {selected.dayPct != null ? <ChangePill value={selected.dayPct} /> : <span className="text-xs text-slate-600">—</span>}
               </div>
             </div>
           </div>
 
           <div className="mt-4">
-            <Sparkline data={spark} dir={dirOf(stockByTicker[selected.ticker]?.changePct ?? 0)} className="h-12 w-full" />
+            <Sparkline data={spark} dir={dirOf(selected.dayPct ?? 0)} className="h-12 w-full" />
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-3 border-t border-white/[0.06] pt-4">
             {[
               { k: "Shares", v: selected.shares.toLocaleString() },
-              { k: "Avg cost", v: fmtPrice(selected.avgCost) },
+              { k: "Avg cost", v: `${curSym(selected.currency)}${fmtPrice(selected.avgCost)}` },
               { k: "Weight", v: `${selWeight.toFixed(1)}%` },
               { k: "Unrealized", v: fmtPct(selPL) },
             ].map((s) => (

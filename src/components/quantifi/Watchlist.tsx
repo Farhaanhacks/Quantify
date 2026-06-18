@@ -92,22 +92,6 @@ export default function Watchlist({ heading = true }: { heading?: boolean }) {
               ))}
             </div>
           </GlassCard>
-
-          <GlassCard className="p-5 sm:p-6">
-            <h3 className="font-display text-lg font-semibold text-white">
-              Saved famous takes
-            </h3>
-            <ul className="mt-4 space-y-2">
-              {watchlist.savedTakes.map((t) => (
-                <li
-                  key={t.id}
-                  className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-sm text-slate-300"
-                >
-                  {t.label}
-                </li>
-              ))}
-            </ul>
-          </GlassCard>
         </div>
       </div>
 

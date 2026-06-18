@@ -21,8 +21,8 @@ export default function Hero() {
           </h1>
 
           <p className="mt-6 max-w-xl text-base leading-relaxed text-slate-400">
-            Quantifi turns market news, insider activity, portfolio risk, and famous investor
-            narratives into clear research signals.
+            Quantifi turns market news, insider activity, and portfolio risk into clear
+            research signals.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-3">

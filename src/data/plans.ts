@@ -39,7 +39,7 @@ export const PLANS: Plan[] = [
       "Everything in Explorer",
       "Full Quantifi Score & fair value",
       "Unlimited screener & watchlists",
-      "Insider activity & famous takes",
+      "Insider activity tracking",
       "News impact chains for every story",
     ],
     priceEnv: "STRIPE_PRICE_PLUS",
