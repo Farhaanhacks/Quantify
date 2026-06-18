@@ -11,9 +11,9 @@ const CURRENCIES = [
 async function fetchRate(from: string, to: string): Promise<number | null> {
   if (from === to) return 1;
   try {
-    const r = await fetch(`/api/quote/${encodeURIComponent(`${from}${to}=X`)}`);
+    const r = await fetch(`/api/fx?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
     const d = await r.json();
-    return d.valid && typeof d.price === "number" ? d.price : null;
+    return d.valid && typeof d.rate === "number" ? d.rate : null;
   } catch {
     return null;
   }

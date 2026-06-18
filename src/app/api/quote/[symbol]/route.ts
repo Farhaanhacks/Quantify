@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { stockByTicker } from "@/data/demo";
+import { getStooqSeries } from "@/lib/stooq";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +47,23 @@ export async function GET(
     console.error("[quote] Yahoo failed:", err);
   }
 
-  // Fallback: demo names are always considered valid.
+  // Fallback 1: Stooq (free EOD) — last close as the price.
+  try {
+    const stooq = await getStooqSeries(symbol);
+    if (stooq && stooq.length) {
+      return NextResponse.json({
+        valid: true,
+        price: stooq[stooq.length - 1].value,
+        currency: symbol.endsWith(".NS") ? "INR" : "USD",
+        name: symbol,
+        source: "stooq",
+      });
+    }
+  } catch (err) {
+    console.error("[quote] Stooq failed:", err);
+  }
+
+  // Fallback 2: demo names are always considered valid.
   const demo = stockByTicker[symbol];
   if (demo) {
     return NextResponse.json({

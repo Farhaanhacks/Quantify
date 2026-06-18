@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { stockByTicker } from "@/data/demo";
+import { getStooqSeries, type StooqPoint } from "@/lib/stooq";
 
 // Personal-use price history. Pulls daily closes from Yahoo Finance's (unofficial)
 // chart endpoint and falls back to synthesized demo data if Yahoo is unavailable,
@@ -97,6 +98,33 @@ async function yahooSeries(symbol: string, range: string) {
   };
 }
 
+const RANGE_COUNT: Record<string, number> = {
+  "1mo": 22,
+  "6mo": 126,
+  "1y": 252,
+  "5y": 1260,
+  max: 100000,
+};
+
+function fromStooq(symbol: string, points: StooqPoint[], range: string) {
+  const n = RANGE_COUNT[range] ?? 252;
+  const sliced = points.slice(-n);
+  const last = sliced[sliced.length - 1]?.value ?? 0;
+  const prev = sliced[sliced.length - 2]?.value ?? last;
+  return {
+    symbol,
+    points: sliced,
+    meta: {
+      price: last,
+      change: Number((last - prev).toFixed(2)),
+      changePct: prev ? Number((((last - prev) / prev) * 100).toFixed(2)) : 0,
+      currency: symbol.toUpperCase().endsWith(".NS") ? "INR" : "USD",
+    },
+    live: true,
+    source: "stooq",
+  };
+}
+
 export async function GET(
   req: Request,
   { params }: { params: { symbol: string } }
@@ -105,11 +133,22 @@ export async function GET(
   const allowed = ["1mo", "6mo", "1y", "5y", "max"];
   const reqRange = new URL(req.url).searchParams.get("range") ?? "1y";
   const range = allowed.includes(reqRange) ? reqRange : "1y";
+
+  // 1) Yahoo (broadest coverage)
   try {
-    const data = await yahooSeries(symbol, range);
-    return NextResponse.json(data);
+    return NextResponse.json(await yahooSeries(symbol, range));
   } catch (err) {
-    console.error("[timeseries] Yahoo failed, using demo:", err);
-    return NextResponse.json(demoSeries(symbol));
+    console.error("[timeseries] Yahoo failed:", err);
   }
+
+  // 2) Stooq fallback (free EOD)
+  try {
+    const stooq = await getStooqSeries(symbol);
+    if (stooq) return NextResponse.json(fromStooq(symbol, stooq, range));
+  } catch (err) {
+    console.error("[timeseries] Stooq failed:", err);
+  }
+
+  // 3) Demo so the chart never breaks
+  return NextResponse.json(demoSeries(symbol));
 }
