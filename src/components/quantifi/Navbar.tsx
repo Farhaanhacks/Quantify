@@ -21,10 +21,9 @@ const links = [
 
 function BrandMark() {
   return (
-    <Link href="/" className="flex items-center gap-2.5" aria-label="Quantifi home">
-      <span className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-gold/30 to-teal/20 ring-1 ring-white/10">
-        <span className="font-display text-lg font-bold text-gradient-gold">Q</span>
-      </span>
+    <Link href="/" className="flex items-center gap-2" aria-label="Quantifi home">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/logo-icon.png" alt="Quantifi" className="h-8 w-auto" />
       <span className="font-display text-lg font-semibold tracking-tight text-white">
         Quantifi
       </span>
@@ -44,12 +43,12 @@ export default function Navbar() {
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
         <BrandMark />
 
-        <div className="hidden items-center gap-1 lg:flex">
+        <div className="hidden items-center gap-0.5 lg:flex">
           {links.map((l) => (
             <Link
               key={l.href}
               href={l.href}
-              className={`rounded-full px-3 py-1.5 text-[0.82rem] transition ${
+              className={`whitespace-nowrap rounded-full px-2 py-1.5 text-[0.72rem] transition ${
                 isActive(l.href)
                   ? "bg-white/10 text-white"
                   : "text-slate-400 hover:text-white"
