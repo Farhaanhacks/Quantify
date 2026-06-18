@@ -68,7 +68,7 @@ export default function PortfolioStocks({
           ticker: h.ticker,
           name: q?.name ?? resolveName(h.ticker) ?? h.ticker,
           sector: sd?.sector,
-          geo: sd?.geo,
+          geo: sd?.region,
           shares: h.shares,
           avgCost: h.avgCost,
           price: q?.price ?? h.price,
