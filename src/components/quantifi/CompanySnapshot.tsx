@@ -40,6 +40,8 @@ export default function CompanySnapshot({
   const resolvedName = name ?? stockByTicker[ticker]?.name ?? ticker;
   if (!a || resolvedPrice == null) return null;
 
+  const cur = /\.(NS|BO)$/i.test(ticker) ? "₹" : "$";
+
   const total = overallScore(a); // 0–30
   const radarValues = SCORE_AXES.map((axis) => a.scores[axis.key].score);
   const radarLabels = SCORE_AXES.map((axis) => axis.label.split(" ")[0]);
@@ -126,11 +128,11 @@ export default function CompanySnapshot({
           <div className="flex items-center gap-6">
             <div>
               <div className="text-xs text-slate-500">Current</div>
-              <div className="font-mono text-xl font-semibold tnum text-white">${fmtPrice(resolvedPrice)}</div>
+              <div className="font-mono text-xl font-semibold tnum text-white">{cur}{fmtPrice(resolvedPrice)}</div>
             </div>
             <div>
               <div className="text-xs text-slate-500">Fair value</div>
-              <div className="font-mono text-xl font-semibold tnum text-white">${fmtPrice(a.fairValue.estimate)}</div>
+              <div className="font-mono text-xl font-semibold tnum text-white">{cur}{fmtPrice(a.fairValue.estimate)}</div>
             </div>
             <Tag tone={under ? "up" : "down"}>
               {under ? "Below" : "Above"} fair value · {Math.abs(gap).toFixed(0)}%

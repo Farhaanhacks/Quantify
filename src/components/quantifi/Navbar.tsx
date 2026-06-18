@@ -8,6 +8,7 @@ const links = [
   { href: "/", label: "Home" },
   { href: "/news", label: "News Impact" },
   { href: "/ideas", label: "Ideas" },
+  { href: "/rare-finds", label: "Rare Finds" },
   { href: "/insider-activity", label: "Insider Activity" },
   { href: "/famous-takes", label: "Famous Takes" },
   { href: "/explore", label: "Explore" },

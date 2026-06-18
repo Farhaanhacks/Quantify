@@ -247,9 +247,9 @@ export const tradingIdeas: TradingIdea[] = [
     title: "Recent IPOs to Track",
     category: "Recent IPOs",
     tagline: "Newly public names finding their footing",
-    description: "Companies in their first few quarters as public entities, where the narrative and float are still settling.",
+    description: "Companies in their first few quarters as public entities, where the narrative and float are still settling — headlined by SpaceX's record June 2026 listing.",
     riskLens: "Thin trading history and lock-up expiries can amplify volatility.",
-    tickers: ["RKLB", "ASTS"],
+    tickers: ["SPCX", "RKLB", "ASTS"],
     signal: "Elevated volatility typical of post-listing price discovery",
   },
   {
@@ -257,9 +257,9 @@ export const tradingIdeas: TradingIdea[] = [
     title: "Global Space Race",
     category: "Global Space Race Stocks",
     tagline: "Launch, satellites and orbital infrastructure",
-    description: "Names exposed to government and commercial demand for launch cadence and space-based connectivity.",
+    description: "Names exposed to government and commercial demand for launch cadence and space-based connectivity — now including SpaceX itself after its June 2026 listing.",
     riskLens: "Long timelines, mission risk, and program-funding sensitivity.",
-    tickers: ["RKLB", "ASTS"],
+    tickers: ["SPCX", "RKLB", "ASTS"],
     signal: "Launch-cadence and contract-award headlines driving sentiment",
   },
   {
