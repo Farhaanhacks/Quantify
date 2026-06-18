@@ -30,9 +30,11 @@ const NAME_MAP = popularTickers
 const ALIASES: { re: RegExp; ticker: string }[] = [
   { re: /\bs&p\s*500\b|\bsp\s*500\b|\bspx\b|\bs and p 500\b/i, ticker: "SPY" },
   { re: /\bnasdaq\s*100\b|\bnasdaq\b|\bndx\b/i, ticker: "QQQ" },
-  { re: /\bdow jones\b|\bdjia\b|\bdow industrials\b/i, ticker: "DIA" },
+  { re: /\bdow jones\b|\bdjia\b|\bdow industrials\b|\bthe dow\b/i, ticker: "DIA" },
   { re: /\brussell\s*2000\b/i, ticker: "IWM" },
   { re: /\bsemiconductor(s)?\b|\bchip stocks\b|\bsox\b/i, ticker: "SOXX" },
+  { re: /\bwall street\b|\bu\.?s\.? stocks\b|\bamerican (stocks|market|markets|equities|shares)\b|\bus equities\b/i, ticker: "SPY" },
+  { re: /\bsensex\b|\bnifty\b|\bnse\b|\bbse\b|\bdalal street\b|\bindian (stocks|shares|equities|market|markets)\b/i, ticker: "NIFTYBEES.NS" },
 ];
 
 function detectTickers(text: string): string[] {

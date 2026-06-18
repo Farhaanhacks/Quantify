@@ -108,4 +108,6 @@ export const popularTickers: TickerSuggestion[] = [
   { s: "HCLTECH.NS", n: "HCL Technologies" },
   { s: "JIOFIN.NS", n: "Jio Financial" },
   { s: "ZOMATO.NS", n: "Zomato" },
+  { s: "SPCX", n: "SpaceX" },
+  { s: "NIFTYBEES.NS", n: "Nippon India Nifty 50 ETF (NIFTYBEES)" },
 ];
