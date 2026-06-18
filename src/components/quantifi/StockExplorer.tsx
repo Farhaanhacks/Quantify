@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import TradingViewWidget from "@/components/quantifi/TradingViewWidget";
 import PriceChart from "@/components/quantifi/PriceChart";
 import CompanySnapshot from "@/components/quantifi/CompanySnapshot";
+import CompanyDetails from "@/components/quantifi/CompanyDetails";
 import { GlassCard, TickerChip } from "@/components/quantifi/Cards";
 import { tvSymbol } from "@/lib/tvSymbol";
 import { stockByTicker, type CompanyAnalytics } from "@/data/demo";
@@ -66,9 +67,21 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
     };
   }, [ticker]);
 
-  const commit = () => {
-    const t = input.trim().toUpperCase();
-    if (t) setTicker(t);
+  const commit = async () => {
+    const raw = input.trim();
+    if (!raw) return;
+    const t = raw.toUpperCase();
+    setTicker(t); // optimistic
+    try {
+      const r = await fetch(`/api/resolve?q=${encodeURIComponent(raw)}`);
+      const d = await r.json();
+      if (d.symbol && String(d.symbol).toUpperCase() !== t) {
+        setTicker(String(d.symbol).toUpperCase());
+        setInput(String(d.symbol).toUpperCase());
+      }
+    } catch {
+      /* keep optimistic value */
+    }
   };
 
   const tvSym = toTvSymbol(ticker);
@@ -204,6 +217,8 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
           </GlassCard>
         </section>
       )}
+
+      <CompanyDetails symbol={ticker} />
     </>
   );
 }

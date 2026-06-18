@@ -54,12 +54,20 @@ function Compare() {
     setRows(null);
     const res = await Promise.all(
       symbols.map(async (s): Promise<ScoreRow> => {
+        let sym = s;
         try {
-          const r = await fetch(`/api/score/${encodeURIComponent(s)}`);
-          const d = await r.json();
-          return { symbol: s, ...d };
+          const rr = await fetch(`/api/resolve?q=${encodeURIComponent(s)}`);
+          const rd = await rr.json();
+          if (rd.symbol) sym = String(rd.symbol).toUpperCase();
         } catch {
-          return { symbol: s, available: false };
+          /* fall back to typed symbol */
+        }
+        try {
+          const r = await fetch(`/api/score/${encodeURIComponent(sym)}`);
+          const d = await r.json();
+          return { symbol: sym, ...d };
+        } catch {
+          return { symbol: sym, available: false };
         }
       })
     );

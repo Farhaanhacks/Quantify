@@ -9,7 +9,6 @@ export interface TickerSuggestion {
 }
 
 export const popularTickers: TickerSuggestion[] = [
-  // US — mega/large cap tech
   { s: "AAPL", n: "Apple" },
   { s: "MSFT", n: "Microsoft" },
   { s: "NVDA", n: "NVIDIA" },
@@ -34,7 +33,6 @@ export const popularTickers: TickerSuggestion[] = [
   { s: "ABNB", n: "Airbnb" },
   { s: "SHOP", n: "Shopify" },
   { s: "COIN", n: "Coinbase" },
-  // US — finance & consumer
   { s: "JPM", n: "JPMorgan Chase" },
   { s: "BAC", n: "Bank of America" },
   { s: "GS", n: "Goldman Sachs" },
@@ -51,7 +49,6 @@ export const popularTickers: TickerSuggestion[] = [
   { s: "PEP", n: "PepsiCo" },
   { s: "PG", n: "Procter & Gamble" },
   { s: "DIS", n: "Disney" },
-  // US — healthcare & energy & industrial
   { s: "JNJ", n: "Johnson & Johnson" },
   { s: "UNH", n: "UnitedHealth" },
   { s: "PFE", n: "Pfizer" },
@@ -62,7 +59,6 @@ export const popularTickers: TickerSuggestion[] = [
   { s: "GE", n: "GE Aerospace" },
   { s: "F", n: "Ford" },
   { s: "T", n: "AT&T" },
-  // ETFs
   { s: "SPY", n: "SPDR S&P 500 ETF" },
   { s: "VOO", n: "Vanguard S&P 500 ETF" },
   { s: "QQQ", n: "Invesco QQQ Trust" },
@@ -74,7 +70,6 @@ export const popularTickers: TickerSuggestion[] = [
   { s: "ARKK", n: "ARK Innovation ETF" },
   { s: "SCHD", n: "Schwab US Dividend ETF" },
   { s: "GLD", n: "SPDR Gold Shares" },
-  // India (NSE)
   { s: "RELIANCE.NS", n: "Reliance Industries" },
   { s: "TCS.NS", n: "Tata Consultancy Services" },
   { s: "INFY.NS", n: "Infosys" },
@@ -90,4 +85,27 @@ export const popularTickers: TickerSuggestion[] = [
   { s: "MARUTI.NS", n: "Maruti Suzuki" },
   { s: "TATAMOTORS.NS", n: "Tata Motors" },
   { s: "ADANIENT.NS", n: "Adani Enterprises" },
+  { s: "ACN", n: "Accenture" },
+  { s: "MU", n: "Micron" },
+  { s: "PYPL", n: "PayPal" },
+  { s: "PANW", n: "Palo Alto Networks" },
+  { s: "WFC", n: "Wells Fargo" },
+  { s: "C", n: "Citigroup" },
+  { s: "MS", n: "Morgan Stanley" },
+  { s: "AXP", n: "American Express" },
+  { s: "MRK", n: "Merck" },
+  { s: "ABBV", n: "AbbVie" },
+  { s: "CAT", n: "Caterpillar" },
+  { s: "GM", n: "General Motors" },
+  { s: "EXE", n: "Expand Energy" },
+  { s: "CDE", n: "Coeur Mining" },
+  { s: "AMRC", n: "Ameresco" },
+  { s: "IAG", n: "Iamgold" },
+  { s: "ADANIPORTS.NS", n: "Adani Ports" },
+  { s: "KOTAKBANK.NS", n: "Kotak Mahindra Bank" },
+  { s: "AXISBANK.NS", n: "Axis Bank" },
+  { s: "TATASTEEL.NS", n: "Tata Steel" },
+  { s: "HCLTECH.NS", n: "HCL Technologies" },
+  { s: "JIOFIN.NS", n: "Jio Financial" },
+  { s: "ZOMATO.NS", n: "Zomato" },
 ];
