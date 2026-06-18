@@ -1,67 +1,178 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { GlassCard, SectionHeading, TickerChip, Tag } from "@/components/quantifi/Cards";
-import { insiderEvents, insiderTypes, type InsiderType } from "@/data/demo";
+import { insiderEvents, fmtCompact } from "@/data/demo";
 
-function typeTone(t: InsiderType): "up" | "down" | "gold" | "teal" | "neutral" {
-  if (t === "Insider Buying" || t === "Pledge Released") return "up";
-  if (t === "Insider Selling" || t === "Repeated Selling" || t === "Pledge Created") return "down";
-  if (t === "Unusual Activity" || t === "Large Transaction") return "gold";
-  return "teal";
+interface ApiTrade {
+  id: string;
+  ticker: string;
+  company: string;
+  person: string;
+  role: string;
+  action: string;
+  acquired: boolean;
+  shares: number;
+  price: number;
+  value: number;
+  date: string;
+  planned: boolean;
+  planDate?: string;
+  code: string;
 }
+
+interface Row {
+  id: string;
+  ticker: string;
+  company: string;
+  person: string;
+  role: string;
+  actionLabel: string;
+  acquired: boolean;
+  planned: boolean;
+  planDate?: string;
+  valueText: string;
+  sharesText: string;
+  dateText: string;
+}
+
+type Filter = "All" | "Buys" | "Sells" | "Planned";
+
+function fmtDate(d: string): string {
+  const t = Date.parse(d);
+  if (isNaN(t)) return d;
+  return new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function tradeToRow(t: ApiTrade): Row {
+  return {
+    id: t.id,
+    ticker: t.ticker,
+    company: t.company,
+    person: t.person,
+    role: t.role,
+    actionLabel: t.action,
+    acquired: t.acquired,
+    planned: t.planned,
+    planDate: t.planDate,
+    valueText: t.value ? `$${fmtCompact(t.value)}` : t.price ? `$${t.price.toFixed(2)}` : "—",
+    sharesText: t.shares ? t.shares.toLocaleString() : "—",
+    dateText: fmtDate(t.date),
+  };
+}
+
+const demoRows: Row[] = insiderEvents.map((e) => ({
+  id: e.id,
+  ticker: e.ticker,
+  company: e.company,
+  person: e.person,
+  role: e.role,
+  actionLabel: e.type,
+  acquired: /buying|released/i.test(e.type),
+  planned: /pre-arranged|trading plan|10b5/i.test(e.note),
+  valueText: e.value,
+  sharesText: e.shares,
+  dateText: e.date,
+}));
 
 export default function InsiderActivity({
   showFilter = true,
   limit,
   heading = true,
+  ticker,
 }: {
   showFilter?: boolean;
   limit?: number;
   heading?: boolean;
+  ticker?: string;
 }) {
-  const [active, setActive] = useState<"All" | InsiderType>("All");
+  const [trades, setTrades] = useState<ApiTrade[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<Filter>("All");
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    const url = ticker ? `/api/insider/${encodeURIComponent(ticker)}` : "/api/insider-feed";
+    (async () => {
+      try {
+        const r = await fetch(url);
+        const d = (await r.json()) as { available?: boolean; trades?: ApiTrade[] };
+        if (cancelled) return;
+        setTrades(d.available && Array.isArray(d.trades) ? d.trades : []);
+      } catch {
+        if (!cancelled) setTrades([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ticker]);
+
+  const live = !!trades && trades.length > 0;
+  // For a specific company we don't fall back to unrelated demo rows.
+  const source: Row[] = useMemo(() => {
+    if (live) return (trades as ApiTrade[]).map(tradeToRow);
+    if (ticker) return [];
+    return demoRows;
+  }, [live, trades, ticker]);
 
   const filtered = useMemo(() => {
-    const list =
-      active === "All" ? insiderEvents : insiderEvents.filter((e) => e.type === active);
-    return limit ? list.slice(0, limit) : list;
-  }, [active, limit]);
+    const out = source.filter((r) => {
+      if (filter === "Buys") return r.acquired;
+      if (filter === "Sells") return !r.acquired;
+      if (filter === "Planned") return r.planned;
+      return true;
+    });
+    return limit ? out.slice(0, limit) : out;
+  }, [source, filter, limit]);
+
+  const filters: Filter[] = ["All", "Buys", "Sells", "Planned"];
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
       {heading ? (
         <SectionHeading
           eyebrow="Insider Activity"
-          title="Insider & promoter activity"
-          subtitle="Context on who is buying, selling or changing stakes. Useful background — never a signal on its own."
-          href="/insider-activity"
-          cta="All activity"
+          title={ticker ? `Insider trades · ${ticker}` : "Who is buying and selling"}
+          subtitle="Real Form 4 filings from SEC EDGAR — directors and officers, with a 10b5-1 flag when the trade was pre-arranged. Disclosed after the fact; never a signal on its own."
+          href={ticker ? undefined : "/insider-activity"}
+          cta={ticker ? undefined : "All activity"}
         />
       ) : null}
 
-      {showFilter ? (
-        <div className="mt-6 flex flex-wrap gap-2">
-          {(["All", ...insiderTypes] as ("All" | InsiderType)[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setActive(t)}
-              className={`rounded-full border px-3 py-1.5 text-xs transition ${
-                active === t
-                  ? "border-gold/50 bg-gold/15 text-gold"
-                  : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-      ) : null}
+      <div className="mt-6 flex flex-wrap items-center gap-2">
+        <span
+          className={`rounded-full border px-2 py-0.5 text-[0.6rem] uppercase tracking-[0.12em] ${
+            live
+              ? "border-up/30 bg-up/10 text-up"
+              : "border-white/10 bg-white/[0.03] text-slate-500"
+          }`}
+        >
+          {loading ? "Loading…" : live ? "Live · SEC EDGAR" : ticker ? "No filings" : "Demo"}
+        </span>
+        {showFilter
+          ? filters.map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setFilter(t)}
+                className={`rounded-full border px-3 py-1.5 text-xs transition ${
+                  filter === t
+                    ? "border-gold/50 bg-gold/15 text-gold"
+                    : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
+                }`}
+              >
+                {t === "Planned" ? "Planned (10b5-1)" : t}
+              </button>
+            ))
+          : null}
+      </div>
 
       <GlassCard className="mt-6 overflow-hidden">
-        {/* header row (hidden on mobile) */}
-        <div className="hidden grid-cols-[1.4fr_1fr_1.2fr_0.8fr_0.8fr] gap-3 border-b border-white/[0.06] px-5 py-3 text-[0.62rem] uppercase tracking-[0.16em] text-slate-500 lg:grid">
+        <div className="hidden grid-cols-[1.3fr_1.1fr_1fr_0.8fr_0.8fr] gap-3 border-b border-white/[0.06] px-5 py-3 text-[0.62rem] uppercase tracking-[0.16em] text-slate-500 lg:grid">
           <span>Company</span>
           <span>Person / role</span>
           <span>Activity</span>
@@ -70,33 +181,49 @@ export default function InsiderActivity({
         </div>
 
         <ul className="divide-y divide-white/[0.05]">
-          {filtered.map((e) => (
+          {filtered.map((r) => (
             <li
-              key={e.id}
-              className="grid grid-cols-2 gap-3 px-5 py-4 lg:grid-cols-[1.4fr_1fr_1.2fr_0.8fr_0.8fr] lg:items-center"
+              key={r.id}
+              className="grid grid-cols-2 gap-3 px-5 py-4 lg:grid-cols-[1.3fr_1.1fr_1fr_0.8fr_0.8fr] lg:items-center"
             >
               <div className="flex items-center gap-2.5">
-                <TickerChip ticker={e.ticker} />
-                <span className="hidden text-sm text-slate-300 sm:inline">{e.company}</span>
+                <TickerChip ticker={r.ticker} />
+                <span className="hidden text-sm text-slate-300 sm:inline">{r.company}</span>
               </div>
               <div className="text-xs text-slate-400">
-                <div className="text-slate-200">{e.person}</div>
-                <div>{e.role}</div>
+                <div className="text-slate-200">{r.person}</div>
+                <div>{r.role}</div>
               </div>
-              <div>
-                <Tag tone={typeTone(e.type)}>{e.type}</Tag>
-                <p className="mt-1 hidden text-[0.7rem] text-slate-500 lg:block">{e.note}</p>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Tag tone={r.acquired ? "up" : "down"}>{r.actionLabel}</Tag>
+                {r.planned ? (
+                  <span
+                    className="rounded-full border border-gold/40 bg-gold/10 px-1.5 py-0.5 text-[0.6rem] tracking-wide text-gold"
+                    title={r.planDate ? `Rule 10b5-1 plan adopted ${r.planDate}` : "Executed under a Rule 10b5-1 plan"}
+                  >
+                    10b5-1{r.planDate ? ` · ${r.planDate}` : ""}
+                  </span>
+                ) : null}
+                <p className="mt-1 hidden w-full text-[0.7rem] text-slate-500 lg:block">
+                  {r.sharesText !== "—" ? `${r.sharesText} sh` : ""}
+                </p>
               </div>
-              <div className="text-right font-mono text-sm tnum text-white">{e.value}</div>
-              <div className="text-right text-xs text-slate-500">{e.date}</div>
+              <div className="text-right font-mono text-sm tnum text-white">{r.valueText}</div>
+              <div className="text-right text-xs text-slate-500">{r.dateText}</div>
             </li>
           ))}
         </ul>
 
-        {filtered.length === 0 ? (
+        {!loading && filtered.length === 0 ? (
           <div className="px-5 py-10 text-center text-sm text-slate-500">
-            No activity of this type in the demo set. Try another filter.
+            {ticker
+              ? `No recent insider (Form 4) filings found for ${ticker}. This is US-listed data — non-US tickers won't appear.`
+              : "No activity matches this filter."}
           </div>
+        ) : null}
+
+        {loading && filtered.length === 0 ? (
+          <div className="px-5 py-10 text-center text-sm text-slate-500">Loading insider filings…</div>
         ) : null}
       </GlassCard>
     </section>

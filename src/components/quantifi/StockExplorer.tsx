@@ -5,6 +5,7 @@ import TradingViewWidget from "@/components/quantifi/TradingViewWidget";
 import PriceChart from "@/components/quantifi/PriceChart";
 import CompanySnapshot from "@/components/quantifi/CompanySnapshot";
 import CompanyDetails from "@/components/quantifi/CompanyDetails";
+import InsiderActivity from "@/components/quantifi/InsiderActivity";
 import { GlassCard, TickerChip } from "@/components/quantifi/Cards";
 import { tvSymbol } from "@/lib/tvSymbol";
 import { stockByTicker, type CompanyAnalytics } from "@/data/demo";
@@ -219,6 +220,7 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
       )}
 
       <CompanyDetails symbol={ticker} />
+      <InsiderActivity ticker={ticker} heading showFilter />
     </>
   );
 }
