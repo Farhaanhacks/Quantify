@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import AuthButton from "@/components/quantifi/AuthButton";
 
 const links = [
   { href: "/", label: "Home" },
@@ -61,6 +62,7 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-2">
+          <AuthButton />
           <Link
             href="/watchlist"
             className="hidden rounded-full bg-gradient-to-r from-gold/90 to-gold-600 px-4 py-2 text-sm font-medium text-ink transition hover:opacity-90 sm:inline-flex"
