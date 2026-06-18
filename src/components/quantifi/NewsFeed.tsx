@@ -26,12 +26,25 @@ const NAME_MAP = popularTickers
   }))
   .filter((x) => x.kw.length >= 4);
 
+// Index / common-phrase aliases → the ETF that tracks them.
+const ALIASES: { re: RegExp; ticker: string }[] = [
+  { re: /\bs&p\s*500\b|\bsp\s*500\b|\bspx\b|\bs and p 500\b/i, ticker: "SPY" },
+  { re: /\bnasdaq\s*100\b|\bnasdaq\b|\bndx\b/i, ticker: "QQQ" },
+  { re: /\bdow jones\b|\bdjia\b|\bdow industrials\b/i, ticker: "DIA" },
+  { re: /\brussell\s*2000\b/i, ticker: "IWM" },
+  { re: /\bsemiconductor(s)?\b|\bchip stocks\b|\bsox\b/i, ticker: "SOXX" },
+];
+
 function detectTickers(text: string): string[] {
-  const norm = ` ${text.toLowerCase().replace(/[^a-z0-9]/g, " ").replace(/\s+/g, " ")} `;
   const found = new Set<string>();
+  // 1) index/phrase aliases (e.g. "S&P 500" -> SPY)
+  for (const { re, ticker } of ALIASES) if (re.test(text)) found.add(ticker);
+  // 2) company names
+  const norm = ` ${text.toLowerCase().replace(/[^a-z0-9]/g, " ").replace(/\s+/g, " ")} `;
   for (const { kw, ticker } of NAME_MAP) {
     if (norm.includes(` ${kw} `)) found.add(ticker);
   }
+  // 3) explicit ticker symbols (3+ chars to avoid noise)
   const upper = text.toUpperCase();
   for (const p of popularTickers) {
     const sym = p.s.replace(/\.(NS|BO)$/, "");

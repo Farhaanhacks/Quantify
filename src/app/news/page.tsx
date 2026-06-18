@@ -8,7 +8,7 @@ export const metadata = {
 
 // Auto-refresh: Vercel regenerates this page in the background every 30 minutes,
 // so the feed stays current without anyone touching it.
-export const revalidate = 1800;
+export const revalidate = 600;
 
 export default async function NewsPage() {
   const items = await getMarketNews();

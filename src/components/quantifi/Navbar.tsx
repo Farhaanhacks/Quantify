@@ -15,6 +15,7 @@ const links = [
   { href: "/stock-analysis", label: "Stock Analysis" },
   { href: "/portfolio", label: "Portfolio" },
   { href: "/currencies", label: "Currencies" },
+  { href: "/tools", label: "Tools" },
   { href: "/watchlist", label: "Watchlist" },
   { href: "/pricing", label: "Pricing" },
 ];
