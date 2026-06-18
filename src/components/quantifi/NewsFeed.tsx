@@ -16,7 +16,7 @@ function timeAgo(ms: number): string {
   return `${Math.round(h / 24)}d ago`;
 }
 
-// ── Lightweight, keyless analysis of an article ──────────────────────────────
+// ── Keyless analysis helpers ─────────────────────────────────────────────────
 const STRIP = /\b(inc|incorporated|corp|corporation|ltd|limited|plc|co|company|platforms|industries|technologies|enterprises|holdings|group|motors|bank|the)\b/gi;
 
 const NAME_MAP = popularTickers
@@ -43,7 +43,9 @@ function detectTickers(text: string): string[] {
 const POS = ["surge", "jump", "gain", "beat", "rally", "soar", "record", "upgrade", "profit", "rise", "rose", "boost", "outperform", "strong", "high"];
 const NEG = ["plunge", "fall", "fell", "drop", "miss", "cut", "loss", "downgrade", "slump", "crash", "lawsuit", "probe", "warn", "weak", "decline", "tumble", "sink", "fear", "selloff", "sell-off"];
 
-function sentiment(text: string): "positive" | "negative" | "mixed" | "neutral" {
+type Tone = "positive" | "negative" | "mixed" | "neutral";
+
+function sentiment(text: string): Tone {
   const t = text.toLowerCase();
   let p = 0, n = 0;
   for (const w of POS) if (t.includes(w)) p++;
@@ -54,12 +56,53 @@ function sentiment(text: string): "positive" | "negative" | "mixed" | "neutral" 
   return "neutral";
 }
 
+function themeNote(text: string): string {
+  const t = text.toLowerCase();
+  if (/earnings|results|revenue|quarter|guidance|\beps\b/.test(t))
+    return "Earnings and guidance move a stock quickly and often ripple to peers in the same space.";
+  if (/\bfed\b|interest rate|rate cut|rate hike|inflation|\bcpi\b|jobs report|\bgdp\b/.test(t))
+    return "Macro news like this tends to move whole sectors and indices, not just one name.";
+  if (/acquir|merger|buyout|\bdeal\b|takeover|stake/.test(t))
+    return "Deals reprice the companies involved — and frequently their competitors too.";
+  if (/lawsuit|probe|investigat|regulat|antitrust|\bfine\b|\bban\b/.test(t))
+    return "Legal and regulatory headlines can weigh on sentiment well beyond the case itself.";
+  if (/launch|unveil|product|\bchip\b|partnership/.test(t))
+    return "Product and partnership news shapes the longer-term growth story more than the next print.";
+  if (/upgrade|downgrade|price target|analyst|rating/.test(t))
+    return "Analyst rating moves nudge short-term sentiment but aren't fundamentals themselves.";
+  return "Read it alongside the company's fundamentals before drawing any conclusion.";
+}
+
+function significance(text: string, tickers: string[], tone: Tone): string {
+  const names = tickers.length ? tickers.slice(0, 3).join(", ") : "the broader market";
+  const toneWord =
+    tone === "positive" ? "a potential tailwind" :
+    tone === "negative" ? "a potential headwind" :
+    tone === "mixed" ? "a mixed signal" : "context";
+  return `Reads as ${toneWord} for ${names}. ${themeNote(text)}`;
+}
+
 const REGIONS = ["All", "US", "India", "Global"] as const;
+
+function Capsule({ t }: { t: string }) {
+  return (
+    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 font-mono text-[0.62rem] text-slate-300">
+      {t}
+    </span>
+  );
+}
 
 export default function NewsFeed({ items }: { items: NewsArticle[] }) {
   const [region, setRegion] = useState<(typeof REGIONS)[number]>("All");
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState<NewsArticle | null>(null);
+
+  // Precompute detected tickers per article once.
+  const tickersByLink = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const a of items) m.set(a.link, detectTickers(`${a.title} ${a.summary}`));
+    return m;
+  }, [items]);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -78,21 +121,21 @@ export default function NewsFeed({ items }: { items: NewsArticle[] }) {
   }, [selected]);
 
   const detail = selected
-    ? {
-        tickers: detectTickers(`${selected.title} ${selected.summary}`),
-        tone: sentiment(`${selected.title} ${selected.summary}`),
-      }
+    ? (() => {
+        const tickers = tickersByLink.get(selected.link) ?? [];
+        const tone = sentiment(`${selected.title} ${selected.summary}`);
+        return { tickers, tone, why: significance(`${selected.title} ${selected.summary}`, tickers, tone) };
+      })()
     : null;
 
-  const toneTag = (tone: string) =>
-    tone === "positive" ? "up" : tone === "negative" ? "down" : "teal";
+  const toneTag = (tone: Tone) => (tone === "positive" ? "up" : tone === "negative" ? "down" : "teal");
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
       <SectionHeading
         eyebrow="News Impact"
         title="Live market news"
-        subtitle="A continuously updating feed from multiple sources. Tap any story to see the companies in it and how it reads — then drill into each stock."
+        subtitle="A continuously updating feed from multiple sources. Each story shows the stocks it touches; tap for the tone and why it matters, then drill into any name."
       />
 
       <div className="mt-6 flex flex-wrap items-center gap-2">
@@ -121,23 +164,32 @@ export default function NewsFeed({ items }: { items: NewsArticle[] }) {
       <p className="mt-3 text-xs text-slate-500">{filtered.length} stories</p>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((a, i) => (
-          <button key={`${a.link}-${i}`} type="button" onClick={() => setSelected(a)} className="text-left">
-            <GlassCard hover className="flex h-full flex-col p-4">
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-xs font-medium text-teal">{a.source}</span>
-                <Tag tone={a.region === "India" ? "gold" : "teal"}>{a.region}</Tag>
-              </div>
-              <h3 className="mt-2 line-clamp-3 font-display text-[0.95rem] font-semibold leading-snug text-white">
-                {a.title}
-              </h3>
-              {a.summary ? (
-                <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-slate-400">{a.summary}</p>
-              ) : null}
-              <div className="mt-auto pt-3 text-[0.7rem] text-slate-500">{timeAgo(a.publishedMs)}</div>
-            </GlassCard>
-          </button>
-        ))}
+        {filtered.map((a, i) => {
+          const ts = tickersByLink.get(a.link) ?? [];
+          return (
+            <button key={`${a.link}-${i}`} type="button" onClick={() => setSelected(a)} className="text-left">
+              <GlassCard hover className="flex h-full flex-col p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-xs font-medium text-teal">{a.source}</span>
+                  <Tag tone={a.region === "India" ? "gold" : "teal"}>{a.region}</Tag>
+                </div>
+                <h3 className="mt-2 line-clamp-3 font-display text-[0.95rem] font-semibold leading-snug text-white">
+                  {a.title}
+                </h3>
+                {a.summary ? (
+                  <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-slate-400">{a.summary}</p>
+                ) : null}
+                {ts.length ? (
+                  <div className="mt-2.5 flex flex-wrap gap-1">
+                    {ts.slice(0, 4).map((t) => <Capsule key={t} t={t} />)}
+                    {ts.length > 4 ? <span className="text-[0.62rem] text-slate-500">+{ts.length - 4}</span> : null}
+                  </div>
+                ) : null}
+                <div className="mt-auto pt-3 text-[0.7rem] text-slate-500">{timeAgo(a.publishedMs)}</div>
+              </GlassCard>
+            </button>
+          );
+        })}
       </div>
 
       {filtered.length === 0 ? (
@@ -176,9 +228,16 @@ export default function NewsFeed({ items }: { items: NewsArticle[] }) {
               <p className="mt-3 text-sm leading-relaxed text-slate-300">{selected.summary}</p>
             ) : null}
 
-            <div className="mt-6">
+            {/* Why it matters */}
+            <div className="mt-5 rounded-xl border border-gold/20 bg-gold/[0.06] p-4">
+              <div className="text-[0.62rem] uppercase tracking-[0.16em] text-gold/80">Why it matters</div>
+              <p className="mt-1.5 text-sm leading-relaxed text-slate-200">{detail.why}</p>
+            </div>
+
+            {/* Affected stocks */}
+            <div className="mt-5">
               <div className="text-[0.62rem] uppercase tracking-[0.16em] text-slate-500">
-                Companies in this story — tap for full analysis
+                Stocks affected — tap for full analysis
               </div>
               {detail.tickers.length ? (
                 <div className="mt-2.5 flex flex-wrap gap-2">
@@ -187,7 +246,7 @@ export default function NewsFeed({ items }: { items: NewsArticle[] }) {
                       key={t}
                       href={`/stock-analysis?symbol=${t}`}
                       onClick={() => setSelected(null)}
-                      className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 font-mono text-sm text-slate-200 transition hover:border-gold/40 hover:text-white"
+                      className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 font-mono text-sm text-slate-200 transition hover:border-gold/40 hover:text-white"
                     >
                       {t}
                       <span className={detail.tone === "positive" ? "text-up" : detail.tone === "negative" ? "text-down" : "text-slate-500"}>
@@ -197,9 +256,7 @@ export default function NewsFeed({ items }: { items: NewsArticle[] }) {
                   ))}
                 </div>
               ) : (
-                <p className="mt-2 text-sm text-slate-500">
-                  No tracked companies were detected by name in this headline.
-                </p>
+                <p className="mt-2 text-sm text-slate-500">No tracked companies were detected by name in this headline.</p>
               )}
             </div>
 
@@ -213,7 +270,7 @@ export default function NewsFeed({ items }: { items: NewsArticle[] }) {
                 Read full article ↗
               </a>
               <p className="text-xs text-slate-500">
-                Companies and tone are detected automatically from the text — a quick read, not a verdict.
+                Stocks and significance are auto-detected from the text — a quick read, not a verdict.
               </p>
             </div>
           </div>
