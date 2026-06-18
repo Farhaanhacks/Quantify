@@ -1,12 +1,12 @@
-import { marketPulse, topMovers, fmtPct, fmtPrice } from "@/data/demo";
-import { getQuotes, isLiveConfigured } from "@/lib/marketData";
+import { fmtPct, fmtPrice } from "@/data/demo";
+import { getPulse, type PulseEntry } from "@/lib/marketPulse";
 
-function PulseRow() {
+function PulseRow({ items }: { items: PulseEntry[] }) {
   // Duplicate the list so the marquee loops seamlessly (-50% translate).
-  const items = [...marketPulse, ...marketPulse];
+  const loop = [...items, ...items];
   return (
     <div className="flex w-max animate-marquee items-center gap-6 pr-6">
-      {items.map((m, i) => {
+      {loop.map((m, i) => {
         const up = m.changePct >= 0;
         return (
           <div key={`${m.label}-${i}`} className="flex items-center gap-2 whitespace-nowrap">
@@ -24,10 +24,7 @@ function PulseRow() {
 }
 
 export default async function MarketPulse() {
-  // Live quotes for the movers strip (falls back to demo automatically).
-  const tickers = topMovers.map((m) => m.ticker);
-  const quotes = await getQuotes(tickers);
-  const live = isLiveConfigured();
+  const { pulse, movers, live } = await getPulse();
 
   return (
     <section className="border-y border-white/[0.06] bg-ink-900/50">
@@ -38,7 +35,7 @@ export default async function MarketPulse() {
             Market Pulse
           </span>
           <div className="mask-fade-x relative flex-1 overflow-hidden">
-            <PulseRow />
+            <PulseRow items={pulse} />
           </div>
         </div>
 
@@ -55,13 +52,13 @@ export default async function MarketPulse() {
               {live ? "LIVE" : "DEMO"}
             </span>
           </span>
-          {quotes.map((q) => {
+          {movers.map((q) => {
             const up = q.changePct >= 0;
             return (
               <span
                 key={q.ticker}
                 className={`chip font-mono tnum ${up ? "text-up" : "text-down"}`}
-                title={`${q.name} · $${fmtPrice(q.price)}`}
+                title={q.price ? `$${fmtPrice(q.price)}` : q.ticker}
               >
                 {q.ticker}
                 <span>{fmtPct(q.changePct)}</span>
