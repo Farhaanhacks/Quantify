@@ -63,12 +63,6 @@ export default function Navbar() {
 
         <div className="flex items-center gap-2">
           <AuthButton />
-          <Link
-            href="/watchlist"
-            className="hidden whitespace-nowrap rounded-full border border-white/15 bg-white/[0.04] px-3 py-2 text-sm text-slate-200 transition hover:bg-white/[0.08] sm:inline-flex"
-          >
-            My Watchlist
-          </Link>
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
