@@ -45,12 +45,12 @@ export default function Navbar() {
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
         <BrandMark />
 
-        <div className="hidden items-center gap-0.5 lg:flex">
+        <div className="hidden items-center gap-0.5 xl:flex">
           {links.map((l) => (
             <Link
               key={l.href}
               href={l.href}
-              className={`whitespace-nowrap rounded-full px-2 py-1.5 text-[0.72rem] transition ${
+              className={`whitespace-nowrap rounded-full px-1.5 py-1.5 text-[0.72rem] transition ${
                 isActive(l.href)
                   ? "bg-white/10 text-white"
                   : "text-slate-400 hover:text-white"
@@ -74,7 +74,7 @@ export default function Navbar() {
             onClick={() => setOpen((v) => !v)}
             aria-label="Toggle menu"
             aria-expanded={open}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-200 lg:hidden"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-200 xl:hidden"
           >
             <span className="text-lg leading-none">{open ? "✕" : "≡"}</span>
           </button>
@@ -82,7 +82,7 @@ export default function Navbar() {
       </nav>
 
       {open ? (
-        <div className="border-t border-white/[0.06] bg-ink/95 px-4 pb-4 pt-2 lg:hidden">
+        <div className="border-t border-white/[0.06] bg-ink/95 px-4 pb-4 pt-2 xl:hidden">
           <div className="grid grid-cols-2 gap-1">
             {links.map((l) => (
               <Link
