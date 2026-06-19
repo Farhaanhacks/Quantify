@@ -65,7 +65,7 @@ export default function Navbar() {
           <AuthButton />
           <Link
             href="/watchlist"
-            className="hidden rounded-full bg-gradient-to-r from-gold/90 to-gold-600 px-4 py-2 text-sm font-medium text-ink transition hover:opacity-90 sm:inline-flex"
+            className="hidden whitespace-nowrap rounded-full border border-white/15 bg-white/[0.04] px-3 py-2 text-sm text-slate-200 transition hover:bg-white/[0.08] sm:inline-flex"
           >
             My Watchlist
           </Link>
