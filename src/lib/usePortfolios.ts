@@ -32,21 +32,6 @@ export const resolvePrice = (ticker: string, fallback = 0): number =>
 export const resolveName = (ticker: string): string | undefined =>
   stockByTicker[ticker.toUpperCase()]?.name;
 
-function seedPortfolios(): UserPortfolio[] {
-  const sample = [
-    { ticker: "NVDA", shares: 12, avgCost: 110 },
-    { ticker: "MSFT", shares: 5, avgCost: 410 },
-    { ticker: "AMD", shares: 20, avgCost: 120 },
-  ].map((h) => ({
-    id: uid(),
-    ticker: h.ticker,
-    shares: h.shares,
-    avgCost: h.avgCost,
-    price: resolvePrice(h.ticker, h.avgCost),
-  }));
-  return [{ id: uid(), name: "My Portfolio", holdings: sample, createdAt: Date.now() }];
-}
-
 export function usePortfolios() {
   const [portfolios, setPortfolios] = useState<UserPortfolio[]>([]);
   const [ready, setReady] = useState(false);
@@ -56,9 +41,9 @@ export function usePortfolios() {
     try {
       const raw = localStorage.getItem(KEY);
       const parsed = raw ? (JSON.parse(raw) as UserPortfolio[]) : null;
-      setPortfolios(parsed && parsed.length ? parsed : seedPortfolios());
+      setPortfolios(parsed && parsed.length ? parsed : []);
     } catch {
-      setPortfolios(seedPortfolios());
+      setPortfolios([]);
     }
     setReady(true);
   }, []);
