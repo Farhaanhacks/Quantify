@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { stockByTicker } from "@/data/demo";
+import { useSyncedState } from "@/lib/useSyncedState";
 
 export interface UserHolding {
   id: string;
@@ -18,8 +19,6 @@ export interface UserPortfolio {
   createdAt: number;
 }
 
-const KEY = "quantifi.portfolios.v1";
-
 const uid = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
@@ -33,71 +32,63 @@ export const resolveName = (ticker: string): string | undefined =>
   stockByTicker[ticker.toUpperCase()]?.name;
 
 export function usePortfolios() {
-  const [portfolios, setPortfolios] = useState<UserPortfolio[]>([]);
-  const [ready, setReady] = useState(false);
+  const { value: portfolios, setValue, ready, scope } = useSyncedState<UserPortfolio[]>(
+    "portfolios",
+    []
+  );
 
-  // Load once on mount (localStorage is only available in the browser).
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(KEY);
-      const parsed = raw ? (JSON.parse(raw) as UserPortfolio[]) : null;
-      setPortfolios(parsed && parsed.length ? parsed : []);
-    } catch {
-      setPortfolios([]);
-    }
-    setReady(true);
-  }, []);
+  const createPortfolio = useCallback(
+    (name: string) => {
+      const p: UserPortfolio = {
+        id: uid(),
+        name: name.trim() || "Untitled portfolio",
+        holdings: [],
+        createdAt: Date.now(),
+      };
+      setValue((prev) => [...prev, p]);
+      return p.id;
+    },
+    [setValue]
+  );
 
-  // Persist on every change once loaded.
-  useEffect(() => {
-    if (!ready) return;
-    try {
-      localStorage.setItem(KEY, JSON.stringify(portfolios));
-    } catch {
-      /* storage full or blocked — ignore */
-    }
-  }, [portfolios, ready]);
+  const renamePortfolio = useCallback(
+    (id: string, name: string) => {
+      setValue((prev) => prev.map((p) => (p.id === id ? { ...p, name: name.trim() || p.name } : p)));
+    },
+    [setValue]
+  );
 
-  const createPortfolio = useCallback((name: string) => {
-    const p: UserPortfolio = {
-      id: uid(),
-      name: name.trim() || "Untitled portfolio",
-      holdings: [],
-      createdAt: Date.now(),
-    };
-    setPortfolios((prev) => [...prev, p]);
-    return p.id;
-  }, []);
+  const deletePortfolio = useCallback(
+    (id: string) => {
+      setValue((prev) => prev.filter((p) => p.id !== id));
+    },
+    [setValue]
+  );
 
-  const renamePortfolio = useCallback((id: string, name: string) => {
-    setPortfolios((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, name: name.trim() || p.name } : p))
-    );
-  }, []);
+  const addHolding = useCallback(
+    (pid: string, h: Omit<UserHolding, "id">) => {
+      setValue((prev) =>
+        prev.map((p) => (p.id === pid ? { ...p, holdings: [...p.holdings, { ...h, id: uid() }] } : p))
+      );
+    },
+    [setValue]
+  );
 
-  const deletePortfolio = useCallback((id: string) => {
-    setPortfolios((prev) => prev.filter((p) => p.id !== id));
-  }, []);
-
-  const addHolding = useCallback((pid: string, h: Omit<UserHolding, "id">) => {
-    setPortfolios((prev) =>
-      prev.map((p) =>
-        p.id === pid ? { ...p, holdings: [...p.holdings, { ...h, id: uid() }] } : p
-      )
-    );
-  }, []);
-
-  const removeHolding = useCallback((pid: string, hid: string) => {
-    setPortfolios((prev) =>
-      prev.map((p) =>
-        p.id === pid ? { ...p, holdings: p.holdings.filter((h) => h.id !== hid) } : p
-      )
-    );
-  }, []);
+  const removeHolding = useCallback(
+    (pid: string, hid: string) => {
+      setValue((prev) =>
+        prev.map((p) =>
+          p.id === pid ? { ...p, holdings: p.holdings.filter((h) => h.id !== hid) } : p
+        )
+      );
+    },
+    [setValue]
+  );
 
   return {
     portfolios,
     ready,
+    scope,
     createPortfolio,
     renamePortfolio,
     deletePortfolio,

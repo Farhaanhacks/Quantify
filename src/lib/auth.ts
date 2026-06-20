@@ -74,3 +74,10 @@ export function readCookie(req: Request, name: string): string | undefined {
   const m = raw.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
   return m ? decodeURIComponent(m[1]) : undefined;
 }
+
+// Resolve the signed-in user from the request's session cookie, or null.
+export function getUser(req: Request): SessionUser | null {
+  const { secret } = authConfig();
+  if (!secret) return null;
+  return verifySession(readCookie(req, SESSION_COOKIE), secret);
+}
