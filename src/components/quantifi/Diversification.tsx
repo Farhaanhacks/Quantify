@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   GlassCard,
   SectionHeading,
@@ -14,9 +15,9 @@ import {
   concentrationNotes,
   holdings as sampleHoldings,
   holdingValue,
-  stockByTicker,
 } from "@/data/demo";
 import { usePortfolios } from "@/lib/usePortfolios";
+import { sectorForTicker, regionForTicker } from "@/data/sectors";
 
 type Level = "Moderate" | "Elevated" | "High";
 const levelTone: Record<Level, "up" | "gold" | "down"> = {
@@ -38,7 +39,14 @@ interface Note {
   level: Level;
 }
 
-function computeBook(items: { ticker: string; value: number }[]) {
+interface ResolvedItem {
+  ticker: string;
+  value: number;
+  sector: string;
+  region: string;
+}
+
+function computeBook(items: ResolvedItem[]) {
   const total = items.reduce((s, i) => s + i.value, 0) || 1;
   const weights = items
     .map((i) => ({ ticker: i.ticker, pct: Math.round((i.value / total) * 100) }))
@@ -47,8 +55,7 @@ function computeBook(items: { ticker: string; value: number }[]) {
   const agg = (key: "sector" | "region"): Seg[] => {
     const m: Record<string, number> = {};
     for (const i of items) {
-      const sd = stockByTicker[i.ticker.toUpperCase()];
-      const k = ((sd?.[key] as string) || "Other").toString();
+      const k = (i[key] || "Other").toString();
       m[k] = (m[k] ?? 0) + i.value;
     }
     return Object.entries(m)
@@ -63,13 +70,13 @@ function computeBook(items: { ticker: string; value: number }[]) {
     {
       label: "Single-name concentration",
       detail: weights[0]
-        ? `${weights[0].ticker} is your largest position at ${weights[0].pct}% of the book.`
+        ? `${weights[0].ticker} is your largest position at ${weights[0].pct}% of your portfolio.`
         : "No positions yet.",
       level: toneFor(weights[0]?.pct ?? 0),
     },
     {
       label: "Sector concentration",
-      detail: sectorSegs[0] ? `${sectorSegs[0].name} leads your book at ${sectorSegs[0].pct}%.` : "—",
+      detail: sectorSegs[0] ? `${sectorSegs[0].name} leads your portfolio at ${sectorSegs[0].pct}%.` : "—",
       level: toneFor(sectorSegs[0]?.pct ?? 0),
     },
     {
@@ -86,9 +93,49 @@ export default function Diversification({ heading = true }: { heading?: boolean 
   const saved = ready ? portfolios[0]?.holdings ?? [] : [];
   const isReal = saved.length > 0;
 
-  const book = isReal
-    ? computeBook(saved.map((h) => ({ ticker: h.ticker, value: h.shares * h.price })))
-    : null;
+  // For any held ticker not in the static sector map, fetch its real sector live.
+  const [liveSectors, setLiveSectors] = useState<Record<string, string>>({});
+  const tickersKey = saved.map((h) => h.ticker.toUpperCase()).sort().join(",");
+  useEffect(() => {
+    if (!tickersKey) return;
+    const unknown = tickersKey.split(",").filter(Boolean).filter((t) => !sectorForTicker(t));
+    if (!unknown.length) return;
+    let cancelled = false;
+    (async () => {
+      const found: Record<string, string> = {};
+      await Promise.all(
+        unknown.map(async (t) => {
+          try {
+            const r = await fetch(`/api/company/${encodeURIComponent(t)}`);
+            const d = await r.json();
+            const sec = d?.data?.sector;
+            if (typeof sec === "string" && sec.trim()) found[t] = sec.trim();
+          } catch {
+            /* leave as Other */
+          }
+        })
+      );
+      if (!cancelled && Object.keys(found).length) {
+        setLiveSectors((prev) => ({ ...prev, ...found }));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tickersKey]);
+
+  const resolved: ResolvedItem[] = saved.map((h) => {
+    const t = h.ticker.toUpperCase();
+    return {
+      ticker: h.ticker,
+      value: h.shares * h.price,
+      sector: sectorForTicker(t) ?? liveSectors[t] ?? "Other",
+      region: regionForTicker(t),
+    };
+  });
+
+  const book = isReal ? computeBook(resolved) : null;
 
   const sampleWeights = sampleHoldings
     .map((h) => ({ ticker: h.ticker, value: holdingValue(h) }))
@@ -109,7 +156,7 @@ export default function Diversification({ heading = true }: { heading?: boolean 
       {heading ? (
         <SectionHeading
           eyebrow="Diversification & Risk"
-          title="How concentrated is the book?"
+          title="How concentrated is your Portfolio?"
           subtitle="A risk lens across sectors, individual holdings and where they're listed."
         />
       ) : null}
