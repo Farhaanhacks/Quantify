@@ -30,9 +30,15 @@ export async function GET(
       const meta = json?.chart?.result?.[0]?.meta;
       const price = meta?.regularMarketPrice;
       if (meta && typeof price === "number" && isFinite(price)) {
+        const prevRaw = meta.chartPreviousClose ?? meta.previousClose;
+        const prev =
+          typeof prevRaw === "number" && isFinite(prevRaw) && prevRaw > 0 ? prevRaw : price;
+        const changePct = prev ? Number((((price - prev) / prev) * 100).toFixed(2)) : 0;
         return NextResponse.json({
           valid: true,
           price: Number(price.toFixed(2)),
+          prevClose: Number(prev.toFixed(2)),
+          changePct,
           currency:
             (typeof meta.currency === "string" && meta.currency) ||
             (symbol.endsWith(".NS") ? "INR" : "USD"),
@@ -51,9 +57,14 @@ export async function GET(
   try {
     const stooq = await getStooqSeries(symbol);
     if (stooq && stooq.length) {
+      const last = stooq[stooq.length - 1].value;
+      const prev = stooq.length >= 2 ? stooq[stooq.length - 2].value : last;
+      const changePct = prev ? Number((((last - prev) / prev) * 100).toFixed(2)) : 0;
       return NextResponse.json({
         valid: true,
-        price: stooq[stooq.length - 1].value,
+        price: last,
+        prevClose: prev,
+        changePct,
         currency: symbol.endsWith(".NS") ? "INR" : "USD",
         name: symbol,
         source: "stooq",
@@ -69,6 +80,8 @@ export async function GET(
     return NextResponse.json({
       valid: true,
       price: demo.price,
+      prevClose: Number((demo.price / (1 + demo.changePct / 100)).toFixed(2)),
+      changePct: demo.changePct,
       currency: "USD",
       name: demo.name,
     });

@@ -1,6 +1,7 @@
 import Hero from "@/components/quantifi/Hero";
 import MarketPulse from "@/components/quantifi/MarketPulse";
 import PortfolioStocks from "@/components/quantifi/PortfolioStocks";
+import PortfolioToday from "@/components/quantifi/PortfolioToday";
 import Diversification from "@/components/quantifi/Diversification";
 import TradingIdeas from "@/components/quantifi/TradingIdeas";
 import NewsImpact from "@/components/quantifi/NewsImpact";
@@ -12,6 +13,7 @@ export default function HomePage() {
     <>
       <Hero />
       <MarketPulse />
+      <PortfolioToday />
       <PortfolioStocks limit={4} />
       <Diversification />
       <TradingIdeas showFilter={false} limit={6} />
