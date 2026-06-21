@@ -37,8 +37,6 @@ export default function Watchlist({ heading = true }: { heading?: boolean }) {
     scope,
     addStock,
     removeStock,
-    addTheme,
-    removeTheme,
     addAlert,
     toggleAlert,
     removeAlert,
@@ -116,14 +114,6 @@ export default function Watchlist({ heading = true }: { heading?: boolean }) {
     }
   };
 
-  // --- add-theme form ---
-  const [themeInput, setThemeInput] = useState("");
-  const handleAddTheme = () => {
-    if (!themeInput.trim()) return;
-    addTheme(themeInput);
-    setThemeInput("");
-  };
-
   // --- add-alert form ---
   const [alertTicker, setAlertTicker] = useState("");
   const [alertText, setAlertText] = useState("");
@@ -149,7 +139,7 @@ export default function Watchlist({ heading = true }: { heading?: boolean }) {
         <SectionHeading
           eyebrow="Watchlist"
           title="Everything you're tracking"
-          subtitle="Add the stocks, themes and alerts you care about. Everything here is yours — edit it any time."
+          subtitle="Add the stocks and alerts you care about. Everything here is yours — edit it any time."
         />
       ) : null}
 
@@ -162,9 +152,8 @@ export default function Watchlist({ heading = true }: { heading?: boolean }) {
         </p>
       ) : null}
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-        {/* Saved stocks */}
-        <GlassCard className="p-5 sm:p-6">
+      {/* Saved stocks */}
+      <GlassCard className="mt-6 p-5 sm:p-6">
           <div className="flex items-center justify-between">
             <h3 className="font-display text-lg font-semibold text-white">Saved stocks</h3>
             <span className="text-xs text-slate-500">{data.stocks.length} tracked</span>
@@ -227,45 +216,6 @@ export default function Watchlist({ heading = true }: { heading?: boolean }) {
             </ul>
           )}
         </GlassCard>
-
-        {/* Saved themes */}
-        <GlassCard className="p-5 sm:p-6">
-          <h3 className="font-display text-lg font-semibold text-white">Saved themes</h3>
-          <p className="mt-1 text-xs text-slate-500">
-            Narratives you&apos;re following — type one and hit Add.
-          </p>
-          <div className="mt-4 flex gap-2">
-            <input
-              value={themeInput}
-              onChange={(e) => setThemeInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddTheme()}
-              placeholder="e.g. AI Infrastructure"
-              className={`${inputCls} flex-1`}
-            />
-            <button onClick={handleAddTheme} className={btnCls}>
-              Add
-            </button>
-          </div>
-          {data.themes.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-500">No themes saved yet.</p>
-          ) : (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {data.themes.map((t) => (
-                <span key={t} className="inline-flex items-center gap-1.5">
-                  <Tag tone="teal">{t}</Tag>
-                  <button
-                    onClick={() => removeTheme(t)}
-                    aria-label={`Remove ${t}`}
-                    className="flex h-5 w-5 items-center justify-center rounded-full border border-white/10 text-xs text-slate-500 transition hover:border-down/40 hover:text-down"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-        </GlassCard>
-      </div>
 
       {/* Alerts */}
       <GlassCard className="mt-4 p-5 sm:p-6">
