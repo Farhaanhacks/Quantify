@@ -1,11 +1,12 @@
 import PortfolioManager from "@/components/quantifi/PortfolioManager";
-import NewsImpact from "@/components/quantifi/NewsImpact";
+import PortfolioSnowflake from "@/components/quantifi/PortfolioSnowflake";
+import PortfolioNews from "@/components/quantifi/PortfolioNews";
 import InsiderActivity from "@/components/quantifi/InsiderActivity";
 import { Eyebrow } from "@/components/quantifi/Cards";
 
 export const metadata = {
   title: "Portfolio · Quantifi",
-  description: "Build and track multiple portfolios, then see the news and insider activity around your names.",
+  description: "Build and track multiple portfolios, then see the quality snowflake and live news around the names you actually hold.",
 };
 
 export default function PortfolioPage() {
@@ -18,13 +19,14 @@ export default function PortfolioPage() {
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-400">
           Create multiple portfolios, add holdings by hand, and watch value and
-          gain/loss update as you go. Below, the market context around the kinds of
-          names you track. Demo and self-entered data — educational only.
+          gain/loss update as you go. Below, a quality snowflake and live news for the
+          names you actually hold. Self-entered data — educational only.
         </p>
       </section>
 
       <PortfolioManager />
-      <NewsImpact limit={3} />
+      <PortfolioSnowflake />
+      <PortfolioNews />
       <InsiderActivity showFilter={false} limit={5} />
     </>
   );

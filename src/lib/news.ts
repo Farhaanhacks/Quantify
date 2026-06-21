@@ -106,6 +106,24 @@ async function fetchFeed(feed: Feed): Promise<NewsArticle[]> {
   }
 }
 
+// News about a single company, via a focused Google News search. Reuses the
+// same RSS parser as the market feed.
+export async function getCompanyNews(query: string): Promise<NewsArticle[]> {
+  const url = `https://news.google.com/rss/search?q=${encodeURIComponent(
+    query
+  )}&hl=en-US&gl=US&ceid=US:en`;
+  const arts = await fetchFeed({ url, source: "Google News", region: "Global" });
+  const seen = new Map<string, NewsArticle>();
+  for (const a of arts) {
+    const key = a.title.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 60);
+    const existing = seen.get(key);
+    if (!existing || a.publishedMs > existing.publishedMs) seen.set(key, a);
+  }
+  return Array.from(seen.values())
+    .sort((a, b) => b.publishedMs - a.publishedMs)
+    .slice(0, 8);
+}
+
 export async function getMarketNews(): Promise<NewsArticle[]> {
   const results = await Promise.all(FEEDS.map(fetchFeed));
   const all = results.flat();
