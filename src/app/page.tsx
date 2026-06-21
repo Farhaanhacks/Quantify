@@ -19,7 +19,7 @@ export default function HomePage() {
       <TradingIdeas showFilter={false} limit={6} />
       <NewsImpact limit={4} />
       <InsiderActivity showFilter={false} limit={5} />
-      <ExploreCompanies />
+      <ExploreCompanies preview />
     </>
   );
 }

@@ -27,7 +27,13 @@ const marketRows: { region: Exclude<MarketRegion, "Global">; venues: string[]; n
   { region: "India", venues: ["NSE", "BSE"], note: "IT services and large-cap conglomerate exposure." },
 ];
 
-export default function ExploreCompanies({ heading = true }: { heading?: boolean }) {
+export default function ExploreCompanies({
+  heading = true,
+  preview = false,
+}: {
+  heading?: boolean;
+  preview?: boolean;
+}) {
   const [tab, setTab] = useState<Tab>("Browse All Stocks");
   const [region, setRegion] = useState<MarketRegion>("Global");
 
@@ -36,6 +42,8 @@ export default function ExploreCompanies({ heading = true }: { heading?: boolean
     [region],
   );
 
+  const shownStocks = preview ? visibleStocks.slice(0, 6) : visibleStocks;
+
   return (
     <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
       {heading ? (
@@ -43,8 +51,8 @@ export default function ExploreCompanies({ heading = true }: { heading?: boolean
           eyebrow="Explore"
           title="Explore companies & ETFs"
           subtitle="Browse the demo universe by idea, by name, or by market. A discovery surface, not a screener of recommendations."
-          href="/explore"
-          cta="Open explorer"
+          href={preview ? "/explore" : undefined}
+          cta={preview ? "Open explorer" : undefined}
         />
       ) : null}
 
@@ -88,8 +96,9 @@ export default function ExploreCompanies({ heading = true }: { heading?: boolean
       {/* Tab content */}
       <div className="mt-6">
         {tab === "Browse All Stocks" ? (
+          <>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {visibleStocks.map((s) => (
+            {shownStocks.map((s) => (
               <Link key={s.ticker} href={`/stock-analysis?symbol=${s.ticker}`}>
                 <GlassCard hover className="h-full p-4">
                   <div className="flex items-start justify-between">
@@ -114,6 +123,17 @@ export default function ExploreCompanies({ heading = true }: { heading?: boolean
               <p className="text-sm text-slate-500">No demo names for this market yet.</p>
             ) : null}
           </div>
+          {preview && visibleStocks.length > shownStocks.length ? (
+            <div className="mt-4 text-center">
+              <Link
+                href="/explore"
+                className="inline-flex items-center gap-1 rounded-full border border-gold/30 bg-gold/10 px-4 py-2 text-sm text-gold transition hover:bg-gold/20"
+              >
+                View all {visibleStocks.length} companies →
+              </Link>
+            </div>
+          ) : null}
+          </>
         ) : null}
 
         {tab === "Investing Ideas" ? (
