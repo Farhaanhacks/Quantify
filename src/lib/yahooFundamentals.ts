@@ -18,6 +18,10 @@ export interface LiveScore {
   recommendation?: string;
   numAnalysts?: number;
   marketCap?: number;
+  revenueGrowth?: number;
+  earningsGrowth?: number;
+  priceToSales?: number;
+  trailingPE?: number;
 }
 
 const UA =
@@ -113,6 +117,8 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   const recommendation = str(fd.recommendationKey);
   const numAnalysts = num(fd.numberOfAnalystOpinions);
   const marketCap = num(sd.marketCap) ?? num(pr.marketCap);
+  const priceToSales =
+    num(sd.priceToSalesTrailing12Months) ?? num(ks.priceToSalesTrailing12Months);
   const name = str(pr.longName) ?? str(pr.shortName) ?? symbol.toUpperCase();
 
   // No company fundamentals (e.g. ETF/index) → score doesn't apply.
@@ -178,5 +184,17 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
     riskFlags: riskFlags.slice(0, 4),
   };
 
-  return { analytics, price, name, target, recommendation, numAnalysts, marketCap };
+  return {
+    analytics,
+    price,
+    name,
+    target,
+    recommendation,
+    numAnalysts,
+    marketCap,
+    revenueGrowth: revGrowth,
+    earningsGrowth: earnGrowth,
+    priceToSales,
+    trailingPE: pe,
+  };
 }

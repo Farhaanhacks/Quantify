@@ -24,6 +24,10 @@ export async function GET(
         recommendation: y.recommendation,
         numAnalysts: y.numAnalysts,
         marketCap: y.marketCap,
+        revenueGrowth: y.revenueGrowth,
+        earningsGrowth: y.earningsGrowth,
+        priceToSales: y.priceToSales,
+        trailingPE: y.trailingPE,
       });
     }
   } catch (err) {

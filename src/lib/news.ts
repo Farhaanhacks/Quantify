@@ -21,23 +21,56 @@ interface Feed {
   region: NewsArticle["region"];
 }
 
-// Keyless RSS feeds. Google News search feeds are reliable and dense.
+// Keyless RSS feeds. Google News search feeds are reliable and dense; the
+// Indian business wires + corporate-action queries make sure big filings
+// (IPOs, M&A) in either market actually surface.
 const FEEDS: Feed[] = [
+  // US / global markets
   {
     url: "https://news.google.com/rss/search?q=stock%20market%20OR%20earnings%20OR%20nasdaq%20OR%20wall%20street&hl=en-US&gl=US&ceid=US:en",
     source: "Google News",
     region: "US",
   },
   {
-    url: "https://news.google.com/rss/search?q=sensex%20OR%20nifty%20OR%20NSE%20OR%20BSE%20OR%20indian%20stocks&hl=en-IN&gl=IN&ceid=IN:en",
-    source: "Google News",
-    region: "India",
-  },
-  {
     url: "https://news.google.com/rss/search?q=federal%20reserve%20OR%20inflation%20OR%20S%26P%20500%20OR%20bonds&hl=en-US&gl=US&ceid=US:en",
     source: "Google News",
     region: "US",
   },
+  // Corporate actions worldwide — IPOs, M&A, big moves
+  {
+    url: "https://news.google.com/rss/search?q=IPO%20OR%20%22files%20for%20IPO%22%20OR%20DRHP%20OR%20merger%20OR%20acquisition%20OR%20%22stake%20sale%22&hl=en-US&gl=US&ceid=US:en",
+    source: "Google News",
+    region: "Global",
+  },
+  // India markets — broad index/exchange terms
+  {
+    url: "https://news.google.com/rss/search?q=sensex%20OR%20nifty%20OR%20NSE%20OR%20BSE%20OR%20%22Indian%20stocks%22&hl=en-IN&gl=IN&ceid=IN:en",
+    source: "Google News",
+    region: "India",
+  },
+  // India corporate news — IPOs and the big houses (catches Reliance/Jio/Adani/Tata)
+  {
+    url: "https://news.google.com/rss/search?q=India%20IPO%20OR%20Reliance%20OR%20Jio%20OR%20Adani%20OR%20Tata%20OR%20SEBI&hl=en-IN&gl=IN&ceid=IN:en",
+    source: "Google News",
+    region: "India",
+  },
+  // Indian business wires (real publishers)
+  {
+    url: "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms",
+    source: "Economic Times",
+    region: "India",
+  },
+  {
+    url: "https://www.moneycontrol.com/rss/MCtopnews.xml",
+    source: "Moneycontrol",
+    region: "India",
+  },
+  {
+    url: "https://www.business-standard.com/rss/markets-106.rss",
+    source: "Business Standard",
+    region: "India",
+  },
+  // Global wires
   {
     url: "https://finance.yahoo.com/news/rssindex",
     source: "Yahoo Finance",
