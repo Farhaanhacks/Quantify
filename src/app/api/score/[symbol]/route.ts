@@ -20,6 +20,10 @@ export async function GET(
         analytics: y.analytics,
         price: y.price,
         name: y.name,
+        target: y.target,
+        recommendation: y.recommendation,
+        numAnalysts: y.numAnalysts,
+        marketCap: y.marketCap,
       });
     }
   } catch (err) {

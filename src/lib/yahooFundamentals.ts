@@ -14,6 +14,10 @@ export interface LiveScore {
   analytics: CompanyAnalytics;
   price?: number;
   name?: string;
+  target?: number;
+  recommendation?: string;
+  numAnalysts?: number;
+  marketCap?: number;
 }
 
 const UA =
@@ -106,6 +110,9 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   const payout = num(sd.payoutRatio); // fraction
   const price = num(fd.currentPrice) ?? num(pr.regularMarketPrice);
   const target = num(fd.targetMeanPrice);
+  const recommendation = str(fd.recommendationKey);
+  const numAnalysts = num(fd.numberOfAnalystOpinions);
+  const marketCap = num(sd.marketCap) ?? num(pr.marketCap);
   const name = str(pr.longName) ?? str(pr.shortName) ?? symbol.toUpperCase();
 
   // No company fundamentals (e.g. ETF/index) → score doesn't apply.
@@ -171,5 +178,5 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
     riskFlags: riskFlags.slice(0, 4),
   };
 
-  return { analytics, price, name };
+  return { analytics, price, name, target, recommendation, numAnalysts, marketCap };
 }
