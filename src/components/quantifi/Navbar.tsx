@@ -25,7 +25,7 @@ const links = [
 function BrandMark() {
   return (
     <Link href="/" className="flex items-center" aria-label="Quantifi home">
-      <BrandLogo className="h-10" />
+      <BrandLogo className="h-8" />
     </Link>
   );
 }
