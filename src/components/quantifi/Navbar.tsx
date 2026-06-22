@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import AuthButton from "@/components/quantifi/AuthButton";
+import BrandLogo from "@/components/quantifi/BrandLogo";
 
 const links = [
   { href: "/", label: "Home" },
@@ -24,8 +25,7 @@ const links = [
 function BrandMark() {
   return (
     <Link href="/" className="flex items-center gap-2" aria-label="Quantifi home">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo-icon.png" alt="Quantifi" className="h-8 w-auto" />
+      <BrandLogo className="h-8" />
       <span className="font-display text-lg font-semibold tracking-tight text-white">
         Quantifi
       </span>

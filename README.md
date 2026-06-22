@@ -110,30 +110,42 @@ works with zero configuration. To switch to live data:
 > Important: most providers' **free tiers prohibit commercial/paid use**. If you
 > charge for the product, you need a paid commercial data licence.
 
-## Payments (Stripe)
+## Quantifi Pro (Razorpay)
 
-Checkout is wired through Stripe Checkout (hosted — no card data touches this
-site). It stays dormant until you add keys, so the app builds without them.
+Everything in Quantifi is free except three Pro-only research surfaces — **Stock
+Analysis**, **Insider Activity** and **Rare Finds** — which unlock with a
+**Quantifi Pro** subscription of **₹79/month**, billed through Razorpay. The
+flow stays dormant until you add keys, so the app builds without them. Talking
+to Razorpay uses plain REST (no SDK), so nothing can break the build.
 
-1. Create a free Stripe account and grab your **test** secret key (`sk_test_…`).
-2. In the Stripe dashboard create two recurring Prices and note their IDs.
+1. Create a free Razorpay account and grab your **test** keys
+   (`rzp_test_…` + secret).
+2. In the Razorpay dashboard create a recurring **Plan** of ₹79/month and note
+   its Plan ID (`plan_…`).
 3. In `.env.local` set:
    ```
-   STRIPE_SECRET_KEY=sk_test_...
-   STRIPE_PRICE_PLUS=price_...
-   STRIPE_PRICE_PRO=price_...
-   NEXT_PUBLIC_BASE_URL=http://localhost:3000
+   RAZORPAY_KEY_ID=rzp_test_...
+   NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_test_...   # same value, exposed to Checkout
+   RAZORPAY_KEY_SECRET=...
+   RAZORPAY_PLAN_PRO=plan_...
+   RAZORPAY_WEBHOOK_SECRET=...                # optional, for the webhook
    ```
-4. Run the app, open `/pricing`, click a paid plan, and pay with Stripe's test
-   card `4242 4242 4242 4242` (any future expiry / any CVC).
-5. For subscription events, set up a webhook to `/api/webhook` and add
-   `STRIPE_WEBHOOK_SECRET`. Granting access on payment needs a user/database
-   layer (not included in this prototype — see the TODOs in the webhook route).
+4. Pro access is recorded per signed-in user in KV (Upstash) under
+   `pro:<email>`, so set `KV_REST_API_URL` / `KV_REST_API_TOKEN` to persist it
+   (see Google sign-in + KV setup above). You can also grant access manually
+   with a comma-separated allowlist:
+   ```
+   PRO_EMAILS=you@example.com,teammate@example.com
+   ```
+5. Run the app, sign in, open `/pricing`, click **Upgrade to Pro**, and pay in
+   the Razorpay test checkout. On success `/api/razorpay/verify` checks the
+   signature and marks you Pro; the paid logo turns gold.
+6. For subscription lifecycle (renewals / cancellations) point a Razorpay
+   webhook at `/api/webhook` and set `RAZORPAY_WEBHOOK_SECRET`.
 
 > Test mode needs no business. Accepting **real** payments requires an activated
-> Stripe account (a registered business + KYC), and charging fees for
-> stock-related research may carry regulatory obligations — get professional
-> advice first.
+> Razorpay account (KYC), and charging fees for stock-related research may carry
+> regulatory obligations — get professional advice first.
 
 ## Deploying with env vars on Vercel
 

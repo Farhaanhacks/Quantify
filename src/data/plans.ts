@@ -1,65 +1,47 @@
-// Pricing plans. Paid plans map to a Stripe Price ID supplied via env var
-// (so no secret/price IDs are committed). Create the Prices in your Stripe
-// dashboard, then set STRIPE_PRICE_PLUS / STRIPE_PRICE_PRO.
+// Quantifi pricing. A single paid tier — Quantifi Pro at ₹79/month, billed
+// through Razorpay — unlocks the Pro-only research surfaces. Everything else
+// stays free. The Razorpay Plan ID lives in env (RAZORPAY_PLAN_PRO), so no
+// billing identifiers are committed.
 
-export interface Plan {
-  id: "free" | "plus" | "pro";
+// Routes that require an active Quantifi Pro subscription. Used by the ProGate
+// wrapper and surfaced on the pricing page.
+export const PRO_FEATURES = [
+  "Stock Analysis",
+  "Insider Activity",
+  "Rare Finds",
+] as const;
+
+// What free (Explorer) accounts get — i.e. everything that isn't Pro-gated.
+export const FREE_FEATURES = [
+  "Market Pulse & News Impact",
+  "Explore companies & Screener",
+  "Trading Ideas & Famous Takes",
+  "Portfolio tracker & Watchlist",
+  "Currency tools",
+] as const;
+
+export interface ProPlan {
+  id: "pro";
   name: string;
   price: string; // display only
+  amount: number; // in the smallest currency unit (paise) — ₹79 = 7900
+  currency: "INR";
   period: string;
   tagline: string;
-  features: string[];
-  priceEnv?: string; // env var holding the Stripe Price ID (paid plans only)
-  highlight?: boolean;
+  proFeatures: readonly string[];
+  freeFeatures: readonly string[];
   cta: string;
 }
 
-export const PLANS: Plan[] = [
-  {
-    id: "free",
-    name: "Explorer",
-    price: "₹0",
-    period: "forever",
-    tagline: "Discover what's moving across markets.",
-    features: [
-      "Market Pulse & news impact",
-      "Quantifi Score (limited names)",
-      "Basic screener filters",
-      "1 watchlist",
-    ],
-    cta: "Current plan",
-  },
-  {
-    id: "plus",
-    name: "Plus",
-    price: "₹499",
-    period: "per month",
-    tagline: "Deeper research across the full universe.",
-    features: [
-      "Everything in Explorer",
-      "Full Quantifi Score & fair value",
-      "Unlimited screener & watchlists",
-      "Insider activity tracking",
-      "News impact chains for every story",
-    ],
-    priceEnv: "STRIPE_PRICE_PLUS",
-    highlight: true,
-    cta: "Upgrade to Plus",
-  },
-  {
-    id: "pro",
-    name: "Pro",
-    price: "₹1,299",
-    period: "per month",
-    tagline: "For serious, daily portfolio research.",
-    features: [
-      "Everything in Plus",
-      "Portfolio command center & alerts",
-      "Priority data refresh",
-      "Export & CSV import",
-      "Early access to new tools",
-    ],
-    priceEnv: "STRIPE_PRICE_PRO",
-    cta: "Upgrade to Pro",
-  },
-];
+export const QUANTIFI_PRO: ProPlan = {
+  id: "pro",
+  name: "Quantifi Pro",
+  price: "₹79",
+  amount: 7900,
+  currency: "INR",
+  period: "month",
+  tagline: "Unlock the full research suite.",
+  proFeatures: [...PRO_FEATURES],
+  freeFeatures: [...FREE_FEATURES],
+  cta: "Upgrade to Pro",
+};

@@ -1,45 +1,48 @@
 import { NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
-import { PLANS } from "@/data/plans";
+import { getUser } from "@/lib/auth";
+import { createProSubscription, isRazorpayConfigured, razorpayConfig } from "@/lib/razorpay";
+import { QUANTIFI_PRO } from "@/data/plans";
 
+export const dynamic = "force-dynamic";
+
+// Starts a Quantifi Pro subscription with Razorpay and returns the details the
+// browser needs to open Razorpay Checkout.
 export async function POST(req: Request) {
-  if (!stripe) {
+  if (!isRazorpayConfigured()) {
     return NextResponse.json(
-      { error: "Payments aren't configured yet. Add STRIPE_SECRET_KEY to enable checkout." },
+      { error: "Payments aren't configured yet. Add RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET." },
       { status: 503 }
     );
   }
 
+  const { planId, keyId } = razorpayConfig();
+  if (!planId) {
+    return NextResponse.json(
+      { error: "Missing Razorpay plan. Set RAZORPAY_PLAN_PRO to your ₹79/month Plan ID." },
+      { status: 500 }
+    );
+  }
+
+  const user = getUser(req);
+  if (!user?.email) {
+    return NextResponse.json(
+      { error: "Please sign in before upgrading so we can link Pro to your account." },
+      { status: 401 }
+    );
+  }
+
   try {
-    const { plan } = (await req.json()) as { plan?: string };
-    const cfg = PLANS.find((p) => p.id === plan);
-
-    if (!cfg || !cfg.priceEnv) {
-      return NextResponse.json({ error: "Unknown or non-paid plan." }, { status: 400 });
-    }
-
-    const priceId = process.env[cfg.priceEnv];
-    if (!priceId) {
-      return NextResponse.json(
-        { error: `Missing Stripe Price ID. Set ${cfg.priceEnv} in your environment.` },
-        { status: 500 }
-      );
-    }
-
-    const origin =
-      req.headers.get("origin") ??
-      process.env.NEXT_PUBLIC_BASE_URL ??
-      "http://localhost:3000";
-
-    const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${origin}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/billing/cancel`,
-      allow_promotion_codes: true,
+    const sub = await createProSubscription({
+      email: user.email.toLowerCase(),
+      name: user.name ?? "",
     });
 
-    return NextResponse.json({ url: session.url });
+    return NextResponse.json({
+      subscriptionId: sub.id,
+      keyId,
+      plan: { name: QUANTIFI_PRO.name, price: QUANTIFI_PRO.price, period: QUANTIFI_PRO.period },
+      user: { name: user.name ?? "", email: user.email },
+    });
   } catch (err) {
     console.error("[checkout]", err);
     return NextResponse.json({ error: "Could not start checkout." }, { status: 500 });

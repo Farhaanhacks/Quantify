@@ -1,5 +1,9 @@
 import StockExplorer from "@/components/quantifi/StockExplorer";
 import { Eyebrow } from "@/components/quantifi/Cards";
+import ProGate from "@/components/quantifi/ProGate";
+
+// Access depends on the signed-in user's subscription, so render per request.
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Stock Analysis · Quantifi",
@@ -13,7 +17,7 @@ export default function StockAnalysisPage({
 }) {
   const initial = (searchParams?.symbol ?? "NVDA").toUpperCase();
   return (
-    <>
+    <ProGate feature="Stock Analysis">
       <section className="mx-auto max-w-7xl px-4 pt-12 sm:px-6 lg:px-8">
         <Eyebrow>Stock Analysis</Eyebrow>
         <h1 className="mt-3 max-w-2xl font-display text-3xl font-semibold leading-tight text-white sm:text-4xl">
@@ -26,6 +30,6 @@ export default function StockAnalysisPage({
         </p>
       </section>
       <StockExplorer initial={initial} />
-    </>
+    </ProGate>
   );
 }

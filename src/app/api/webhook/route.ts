@@ -1,49 +1,63 @@
 import { NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { kvSet } from "@/lib/kv";
+import { isRazorpayConfigured, verifyWebhookSignature } from "@/lib/razorpay";
+import type { ProRecord } from "@/lib/access";
 
-// Stripe webhook. Verifies the signature against STRIPE_WEBHOOK_SECRET, then
-// reacts to subscription lifecycle events. The actual access-granting (e.g.
-// marking a user as subscribed) needs a database/user system, which is left as
-// a TODO since this prototype has no auth layer yet.
+export const dynamic = "force-dynamic";
 
+// Razorpay webhook. Verifies the signature against RAZORPAY_WEBHOOK_SECRET and
+// keeps each user's Pro access in KV in sync with their subscription lifecycle.
+// The subscriber's email is carried in the subscription `notes` we set at
+// checkout time.
 export async function POST(req: Request) {
-  if (!stripe) {
-    return NextResponse.json({ error: "Stripe not configured." }, { status: 503 });
+  if (!isRazorpayConfigured()) {
+    return NextResponse.json({ error: "Razorpay not configured." }, { status: 503 });
   }
 
-  const sig = req.headers.get("stripe-signature");
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const signature = req.headers.get("x-razorpay-signature");
+  const rawBody = await req.text();
 
-  if (!sig || !webhookSecret) {
-    return NextResponse.json(
-      { error: "Missing Stripe signature or STRIPE_WEBHOOK_SECRET." },
-      { status: 400 }
-    );
-  }
-
-  // Raw body is required for signature verification.
-  const body = await req.text();
-
-  let event;
-  try {
-    event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
-  } catch (err) {
-    console.error("[webhook] signature verification failed:", err);
+  if (!verifyWebhookSignature(rawBody, signature)) {
     return NextResponse.json({ error: "Invalid signature." }, { status: 400 });
   }
 
-  switch (event.type) {
-    case "checkout.session.completed":
-      // TODO: grant access — look up the customer and mark them subscribed.
-      break;
-    case "customer.subscription.updated":
-      // TODO: sync plan changes.
-      break;
-    case "customer.subscription.deleted":
-      // TODO: revoke access when a subscription ends.
-      break;
-    default:
-      break;
+  let event: {
+    event?: string;
+    payload?: { subscription?: { entity?: { id?: string; current_end?: number; notes?: Record<string, string> } } };
+  };
+  try {
+    event = JSON.parse(rawBody);
+  } catch {
+    return NextResponse.json({ error: "Bad payload." }, { status: 400 });
+  }
+
+  const sub = event.payload?.subscription?.entity;
+  const email = sub?.notes?.email?.toLowerCase();
+
+  if (email) {
+    switch (event.event) {
+      case "subscription.activated":
+      case "subscription.charged":
+      case "subscription.resumed": {
+        const record: ProRecord = {
+          active: true,
+          subscription_id: sub?.id,
+          current_end: sub?.current_end,
+        };
+        await kvSet(`pro:${email}`, JSON.stringify(record));
+        break;
+      }
+      case "subscription.cancelled":
+      case "subscription.completed":
+      case "subscription.expired":
+      case "subscription.halted": {
+        const record: ProRecord = { active: false, subscription_id: sub?.id };
+        await kvSet(`pro:${email}`, JSON.stringify(record));
+        break;
+      }
+      default:
+        break;
+    }
   }
 
   return NextResponse.json({ received: true });

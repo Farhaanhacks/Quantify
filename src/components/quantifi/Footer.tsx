@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BrandLogo from "@/components/quantifi/BrandLogo";
 
 const columns: { title: string; items: { label: string; href: string }[] }[] = [
   {
@@ -83,8 +84,7 @@ export default function Footer() {
 
         <div className="mt-12 flex flex-col gap-4 border-t border-white/[0.06] pt-8 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2.5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-icon.png" alt="Quantifi" className="h-7 w-auto" />
+            <BrandLogo className="h-7" />
             <span className="font-display font-semibold text-white">Quantifi</span>
           </div>
           <p className="text-xs text-slate-500">
