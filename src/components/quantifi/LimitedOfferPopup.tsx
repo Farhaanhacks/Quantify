@@ -2,16 +2,21 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useProStatus } from "@/lib/useProStatus";
 
 // One-time launch-offer modal. Shows on first app open per browser session
 // (sessionStorage flag), announcing the ₹49/month limited price vs the ₹500
 // standard price. Dismissable; does not reappear until the tab/session resets.
+// Never shown to Pro subscribers — they already have everything it sells.
 const SEEN_KEY = "quantifi:offer-seen";
 
 export default function LimitedOfferPopup() {
+  const { ready, pro } = useProStatus();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
+    // Wait until we know the plan, and never pitch Pro to people who have it.
+    if (!ready || pro) return;
     try {
       if (!sessionStorage.getItem(SEEN_KEY)) {
         // brief delay so it lands after the page paints, not mid-load
@@ -22,7 +27,7 @@ export default function LimitedOfferPopup() {
       /* storage blocked — just show it */
       setOpen(true);
     }
-  }, []);
+  }, [ready, pro]);
 
   const close = () => {
     setOpen(false);

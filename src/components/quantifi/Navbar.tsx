@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import AuthButton from "@/components/quantifi/AuthButton";
 import BrandLogo from "@/components/quantifi/BrandLogo";
+import NotificationBell from "@/components/quantifi/NotificationBell";
 
 const links = [
   { href: "/", label: "Home" },
@@ -59,6 +60,7 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-2">
+          <NotificationBell />
           <AuthButton />
           <button
             type="button"

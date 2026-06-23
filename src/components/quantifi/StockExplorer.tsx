@@ -5,10 +5,12 @@ import TradingViewWidget from "@/components/quantifi/TradingViewWidget";
 import PriceChart from "@/components/quantifi/PriceChart";
 import CompanySnapshot from "@/components/quantifi/CompanySnapshot";
 import CompanyDetails from "@/components/quantifi/CompanyDetails";
+import EtfSnapshot from "@/components/quantifi/EtfSnapshot";
 import InsiderActivity from "@/components/quantifi/InsiderActivity";
 import { GlassCard, TickerChip } from "@/components/quantifi/Cards";
 import { tvSymbol } from "@/lib/tvSymbol";
 import { stockByTicker, type CompanyAnalytics } from "@/data/demo";
+import type { EtfData } from "@/lib/yahooEtf";
 import { popularTickers } from "@/data/popularTickers";
 
 const QUICK = ["NVDA", "AAPL", "MSFT", "TSLA", "AMZN", "GOOGL", "INFY.NS", "RELIANCE.NS"];
@@ -47,20 +49,36 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
   const [engine, setEngine] = useState<Engine>(defaultEngine(initial.toUpperCase()));
   const [score, setScore] = useState<ScoreResponse | null>(null);
   const [scoreLoading, setScoreLoading] = useState(false);
+  const [etf, setEtf] = useState<EtfData | null>(null);
 
   // Reset to the smart default engine whenever the symbol changes.
   useEffect(() => {
     setEngine(defaultEngine(ticker));
   }, [ticker]);
 
-  // Fetch the live Quantifi Score.
+  // Fetch the live Quantifi Score; if the symbol has no company fundamentals
+  // (i.e. it's an ETF/fund), fall back to the ETF X-ray instead.
   useEffect(() => {
     let cancelled = false;
     setScore(null);
+    setEtf(null);
     setScoreLoading(true);
     fetch(`/api/score/${encodeURIComponent(ticker)}`)
       .then((r) => r.json())
-      .then((d: ScoreResponse) => !cancelled && setScore(d))
+      .then(async (d: ScoreResponse) => {
+        if (cancelled) return;
+        setScore(d);
+        if (!d.available) {
+          // Stocks fail here for a reason — try the fund path.
+          try {
+            const er = await fetch(`/api/etf/${encodeURIComponent(ticker)}`);
+            const ed = (await er.json()) as { available: boolean; etf?: EtfData };
+            if (!cancelled && ed.available && ed.etf) setEtf(ed.etf);
+          } catch {
+            /* leave etf null → generic not-available card */
+          }
+        }
+      })
       .catch(() => !cancelled && setScore({ available: false }))
       .finally(() => !cancelled && setScoreLoading(false));
     return () => {
@@ -191,7 +209,7 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
         </div>
       </section>
 
-      {/* Quantifi Score */}
+      {/* Quantifi Score (stocks) → ETF X-ray (funds) → graceful fallback */}
       {score?.available && score.analytics ? (
         <CompanySnapshot
           ticker={ticker}
@@ -200,27 +218,34 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
           name={score.name}
           live={Boolean(score.live)}
         />
+      ) : etf ? (
+        <EtfSnapshot etf={etf} />
       ) : (
         <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
           <GlassCard className="p-6">
             <h3 className="font-display text-base font-semibold text-white">
               {scoreLoading
-                ? `Loading Quantifi Score for ${ticker}…`
-                : `Quantifi Score not available for ${ticker}`}
+                ? `Loading analysis for ${ticker}…`
+                : `Analysis not available for ${ticker}`}
             </h3>
             {!scoreLoading ? (
               <p className="mt-2 text-sm leading-relaxed text-slate-400">
-                We couldn&apos;t pull fundamentals for this symbol — it may be an
-                ETF/index (no company fundamentals), an unrecognized ticker, or Yahoo
-                may be temporarily rate-limiting. The chart above still works.
+                We couldn&apos;t pull fundamentals or fund data for this symbol — it
+                may be an index, an unrecognized ticker, or Yahoo may be temporarily
+                rate-limiting. The chart above still works.
               </p>
             ) : null}
           </GlassCard>
         </section>
       )}
 
-      <CompanyDetails symbol={ticker} />
-      <InsiderActivity ticker={ticker} heading showFilter />
+      {/* Funds have no company filings/insiders — hide those sections for them. */}
+      {etf ? null : (
+        <>
+          <CompanyDetails symbol={ticker} />
+          <InsiderActivity ticker={ticker} heading showFilter />
+        </>
+      )}
     </>
   );
 }
