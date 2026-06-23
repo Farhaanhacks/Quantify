@@ -4,11 +4,12 @@ import type {
   ScoreCheck,
   ScoreAxisKey,
 } from "@/data/demo";
+import { yahooQuoteSummary, resolveYahooSymbol } from "@/lib/yahooCrumb";
 
-// Calls Yahoo Finance's quoteSummary endpoint directly (no library) for personal,
-// non-commercial use. Yahoo now requires a cookie + crumb handshake; we fetch one,
-// then request the fundamentals modules. Returns null on any failure so callers fall
-// back gracefully.
+// Builds a Quantifi Score from Yahoo Finance fundamentals (keyless, personal
+// non-commercial use). The cookie/crumb handshake and retries live in
+// yahooCrumb.ts so every Yahoo lib shares one cached, resilient crumb. Returns
+// null on any failure — or for funds/indexes — so callers fall back gracefully.
 
 export interface LiveScore {
   analytics: CompanyAnalytics;
@@ -24,9 +25,6 @@ export interface LiveScore {
   trailingPE?: number;
 }
 
-const UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-
 // Yahoo wraps numbers as { raw: number, fmt: string }; read the raw value.
 const num = (x: unknown): number | undefined => {
   if (typeof x === "number" && isFinite(x)) return x;
@@ -40,27 +38,6 @@ const num = (x: unknown): number | undefined => {
 const str = (x: unknown): string | undefined =>
   typeof x === "string" && x.length ? x : undefined;
 
-async function getCrumb(): Promise<{ crumb: string; cookie: string } | null> {
-  try {
-    const r1 = await fetch("https://fc.yahoo.com/", {
-      headers: { "User-Agent": UA },
-    });
-    const setCookie = r1.headers.get("set-cookie") ?? "";
-    const cookie = setCookie.split(";")[0];
-    if (!cookie) return null;
-
-    const r2 = await fetch(
-      "https://query2.finance.yahoo.com/v1/test/getcrumb",
-      { headers: { "User-Agent": UA, Cookie: cookie, Accept: "text/plain" } }
-    );
-    const crumb = (await r2.text()).trim();
-    if (!crumb || crumb.length > 40 || crumb.includes("<")) return null;
-    return { crumb, cookie };
-  } catch {
-    return null;
-  }
-}
-
 function axis(checks: ScoreCheck[]): ScoreAxis {
   const passed = checks.filter((c) => c.pass).length;
   const score = checks.length ? Math.round((passed / checks.length) * 6) : 0;
@@ -72,26 +49,14 @@ const fpct = (x: number | undefined): string =>
   x == null ? "—" : `${(x * 100).toFixed(0)}%`;
 
 export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
-  const cc = await getCrumb();
-  if (!cc) return null;
-
-  let result: Record<string, unknown> | undefined;
-  try {
-    const modules = "quoteType,summaryDetail,defaultKeyStatistics,financialData,price";
-    const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(
-      symbol
-    )}?modules=${modules}&crumb=${encodeURIComponent(cc.crumb)}`;
-    const res = await fetch(url, {
-      headers: { "User-Agent": UA, Cookie: cc.cookie },
-      next: { revalidate: 3600 },
-    });
-    if (!res.ok) return null;
-    const json = (await res.json()) as {
-      quoteSummary?: { result?: Record<string, unknown>[] };
-    };
-    result = json?.quoteSummary?.result?.[0];
-  } catch {
-    return null;
+  const modules = "quoteType,summaryDetail,defaultKeyStatistics,financialData,price";
+  let result = await yahooQuoteSummary(symbol, modules);
+  // Some inputs need normalising (a company name, or a missing exchange suffix);
+  // resolve and retry once so valid names don't read as "not available".
+  if (!result) {
+    const resolved = await resolveYahooSymbol(symbol);
+    if (resolved && resolved.symbol.toUpperCase() !== symbol.toUpperCase())
+      result = await yahooQuoteSummary(resolved.symbol, modules);
   }
   if (!result) return null;
 

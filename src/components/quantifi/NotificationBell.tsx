@@ -1,8 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useWatchlist } from "@/lib/useWatchlist";
 import { usePortfolios } from "@/lib/usePortfolios";
+
+// Every alert points at the in-app Stock Analysis page for its ticker.
+const analysisHref = (ticker: string) =>
+  `/stock-analysis?symbol=${encodeURIComponent(ticker.toUpperCase())}`;
 
 interface Notif {
   id: string;
@@ -86,11 +91,12 @@ export default function NotificationBell() {
           icon: "/logo-icon.png",
           tag: n.id,
         });
-        if (n.url)
-          note.onclick = () => {
-            window.open(n.url, "_blank", "noopener");
-            note.close();
-          };
+        // Clicking the OS notification opens that stock's analysis page.
+        note.onclick = () => {
+          window.focus();
+          window.open(analysisHref(n.ticker), "_blank");
+          note.close();
+        };
         pushed.add(n.id);
       } catch {
         /* ignore */
@@ -248,41 +254,50 @@ export default function NotificationBell() {
               <ul className="divide-y divide-white/[0.05]">
                 {notifs.map((n) => {
                   const isNew = n.ts > seen;
-                  const body = (
-                    <div className="flex gap-3 px-4 py-3">
-                      <span
-                        className={`mt-0.5 flex h-7 w-7 flex-none items-center justify-center rounded-full text-xs ${
-                          n.type === "move"
-                            ? n.title.includes(" up ")
-                              ? "bg-up/15 text-up"
-                              : "bg-down/15 text-down"
-                            : "bg-teal/15 text-teal"
-                        }`}
-                      >
-                        {n.type === "move" ? "％" : "▤"}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-[0.7rem] text-gold">{n.ticker}</span>
-                          {isNew ? <span className="h-1.5 w-1.5 rounded-full bg-gold" /> : null}
-                          <span className="ml-auto text-[0.65rem] text-slate-500">{rel(n.ts)}</span>
-                        </div>
-                        <p className="mt-0.5 text-sm leading-snug text-slate-200">{n.title}</p>
-                        {n.source ? (
-                          <p className="mt-0.5 text-[0.65rem] text-slate-500">{n.source}</p>
-                        ) : null}
-                      </div>
-                    </div>
-                  );
                   return (
                     <li key={n.id} className="transition hover:bg-white/[0.03]">
+                      {/* Whole row → that stock's analysis page. */}
+                      <Link
+                        href={analysisHref(n.ticker)}
+                        onClick={() => setOpen(false)}
+                        className="block"
+                      >
+                        <div className="flex gap-3 px-4 py-3">
+                          <span
+                            className={`mt-0.5 flex h-7 w-7 flex-none items-center justify-center rounded-full text-xs ${
+                              n.type === "move"
+                                ? n.title.includes(" up ")
+                                  ? "bg-up/15 text-up"
+                                  : "bg-down/15 text-down"
+                                : "bg-teal/15 text-teal"
+                            }`}
+                          >
+                            {n.type === "move" ? "％" : "▤"}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-[0.7rem] text-gold">{n.ticker}</span>
+                              {isNew ? <span className="h-1.5 w-1.5 rounded-full bg-gold" /> : null}
+                              <span className="ml-auto text-[0.65rem] text-slate-500">{rel(n.ts)}</span>
+                            </div>
+                            <p className="mt-0.5 text-sm leading-snug text-slate-200">{n.title}</p>
+                            <p className="mt-1 text-[0.65rem] font-medium text-teal">
+                              View {n.ticker} analysis →
+                            </p>
+                          </div>
+                        </div>
+                      </Link>
+                      {/* Keep the original news source one tap away. */}
                       {n.url ? (
-                        <a href={n.url} target="_blank" rel="noopener noreferrer" className="block">
-                          {body}
+                        <a
+                          href={n.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block pb-2.5 pl-[3.75rem] pr-4 text-[0.65rem] text-slate-500 transition hover:text-teal"
+                        >
+                          {n.source ? `${n.source} · ` : ""}Read full story ↗
                         </a>
-                      ) : (
-                        body
-                      )}
+                      ) : null}
                     </li>
                   );
                 })}

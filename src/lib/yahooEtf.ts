@@ -5,8 +5,7 @@
 // big/liquid it is, its income and its track record. Returns null for anything
 // that isn't a fund so callers fall back to the company path.
 
-const UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+import { yahooQuoteSummary, resolveYahooSymbol } from "@/lib/yahooCrumb";
 
 const num = (x: unknown): number | undefined => {
   if (typeof x === "number" && isFinite(x)) return x;
@@ -86,22 +85,6 @@ const SECTOR_LABELS: Record<string, string> = {
   energy: "Energy",
   healthcare: "Healthcare",
 };
-
-async function getCrumb(): Promise<{ crumb: string; cookie: string } | null> {
-  try {
-    const r1 = await fetch("https://fc.yahoo.com/", { headers: { "User-Agent": UA } });
-    const cookie = (r1.headers.get("set-cookie") ?? "").split(";")[0];
-    if (!cookie) return null;
-    const r2 = await fetch("https://query2.finance.yahoo.com/v1/test/getcrumb", {
-      headers: { "User-Agent": UA, Cookie: cookie, Accept: "text/plain" },
-    });
-    const crumb = (await r2.text()).trim();
-    if (!crumb || crumb.length > 40 || crumb.includes("<")) return null;
-    return { crumb, cookie };
-  } catch {
-    return null;
-  }
-}
 
 // ── scoring helpers ───────────────────────────────────────────────────────────
 // Each axis returns 0..6 so it slots straight into the existing 5-axis snowflake
@@ -261,30 +244,18 @@ function buildRating(d: {
 }
 
 export async function getYahooEtf(input: string): Promise<EtfData | null> {
-  const cc = await getCrumb();
-  if (!cc) return null;
-
-  const symbol = input.toUpperCase();
+  let symbol = input.toUpperCase();
   const modules =
     "quoteType,price,summaryDetail,defaultKeyStatistics,topHoldings,fundProfile,fundPerformance";
 
-  let result: Record<string, unknown> | undefined;
-  try {
-    const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(
-      symbol
-    )}?modules=${modules}&crumb=${encodeURIComponent(cc.crumb)}`;
-    const res = await fetch(url, {
-      headers: { "User-Agent": UA, Cookie: cc.cookie },
-      next: { revalidate: 3600 },
-      signal: AbortSignal.timeout(9000),
-    });
-    if (!res.ok) return null;
-    const json = (await res.json()) as {
-      quoteSummary?: { result?: Record<string, unknown>[] };
-    };
-    result = json?.quoteSummary?.result?.[0];
-  } catch {
-    return null;
+  let result = await yahooQuoteSummary(symbol, modules);
+  // Resolve names / odd inputs and retry once before giving up.
+  if (!result) {
+    const resolved = await resolveYahooSymbol(input);
+    if (resolved && resolved.symbol.toUpperCase() !== symbol) {
+      symbol = resolved.symbol.toUpperCase();
+      result = await yahooQuoteSummary(symbol, modules);
+    }
   }
   if (!result) return null;
 
