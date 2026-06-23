@@ -48,6 +48,7 @@ export default function PricingPlans() {
       const data = (await res.json()) as {
         subscriptionId?: string;
         keyId?: string;
+        trialDays?: number;
         user?: { name?: string; email?: string };
         error?: string;
       };
@@ -61,7 +62,10 @@ export default function PricingPlans() {
         key: data.keyId,
         subscription_id: data.subscriptionId,
         name: "Quantifi Pro",
-        description: `${QUANTIFI_PRO.price} / ${QUANTIFI_PRO.period}`,
+        description:
+          data.trialDays && data.trialDays > 0
+            ? `1 month free, then ${QUANTIFI_PRO.price}/${QUANTIFI_PRO.period}`
+            : `${QUANTIFI_PRO.price} / ${QUANTIFI_PRO.period}`,
         prefill: { name: data.user?.name, email: data.user?.email },
         theme: { color: "#E9B872" },
         handler: async (resp: RazorpayResponse) => {
@@ -130,8 +134,19 @@ export default function PricingPlans() {
         <div className="mt-3 flex items-baseline gap-1.5">
           <span className="font-display text-3xl font-semibold text-white">{QUANTIFI_PRO.price}</span>
           <span className="text-sm text-slate-500">/ {QUANTIFI_PRO.period}</span>
+          {QUANTIFI_PRO.trialDays > 0 && !pro ? (
+            <span className="ml-1 rounded-full border border-gold/40 bg-gold/10 px-2 py-0.5 text-[0.65rem] font-semibold text-gold">
+              {QUANTIFI_PRO.trialLabel}
+            </span>
+          ) : null}
         </div>
         <p className="mt-2 text-sm text-slate-400">{QUANTIFI_PRO.tagline}</p>
+        {QUANTIFI_PRO.trialDays > 0 && !pro ? (
+          <p className="mt-1 text-xs text-gold/90">
+            Free for the first month — you won&apos;t be charged until it ends, and you can cancel
+            anytime before then.
+          </p>
+        ) : null}
 
         <ul className="mt-5 flex-1 space-y-2.5">
           <li className="flex gap-2.5 text-sm text-slate-300">

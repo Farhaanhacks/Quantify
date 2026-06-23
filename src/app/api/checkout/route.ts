@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
-import { createProSubscription, isRazorpayConfigured, razorpayConfig } from "@/lib/razorpay";
+import {
+  createProSubscription,
+  isRazorpayConfigured,
+  razorpayConfig,
+  trialDays,
+} from "@/lib/razorpay";
 import { QUANTIFI_PRO } from "@/data/plans";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +37,7 @@ export async function POST(req: Request) {
   }
 
   try {
+    const days = trialDays();
     const sub = await createProSubscription({
       email: user.email.toLowerCase(),
       name: user.name ?? "",
@@ -40,6 +46,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       subscriptionId: sub.id,
       keyId,
+      trialDays: days,
       plan: { name: QUANTIFI_PRO.name, price: QUANTIFI_PRO.price, period: QUANTIFI_PRO.period },
       user: { name: user.name ?? "", email: user.email },
     });

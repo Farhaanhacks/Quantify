@@ -7,6 +7,9 @@
 
 import { yahooQuoteSummary, resolveYahooSymbol } from "@/lib/yahooCrumb";
 
+const UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
 const num = (x: unknown): number | undefined => {
   if (typeof x === "number" && isFinite(x)) return x;
   if (x && typeof x === "object" && "raw" in x) {
@@ -243,6 +246,41 @@ function buildRating(d: {
   return { rating, overall };
 }
 
+// Keyless chart endpoint — no crumb, the broadest coverage Yahoo offers. It
+// confirms a symbol's instrument type (ETF / MUTUALFUND / EQUITY …) and returns
+// a price + name even for small or new funds that quoteSummary has no data for.
+async function getChartMeta(symbol: string): Promise<{
+  instrumentType?: string;
+  name?: string;
+  price?: number;
+  prevClose?: number;
+  currency?: string;
+} | null> {
+  try {
+    const r = await fetch(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
+        symbol
+      )}?range=1mo&interval=1d`,
+      { headers: { "User-Agent": UA }, next: { revalidate: 3600 }, signal: AbortSignal.timeout(8000) }
+    );
+    if (!r.ok) return null;
+    const j = (await r.json()) as {
+      chart?: { result?: { meta?: Record<string, unknown> }[] };
+    };
+    const meta = j?.chart?.result?.[0]?.meta;
+    if (!meta) return null;
+    return {
+      instrumentType: str(meta.instrumentType),
+      name: str(meta.longName) ?? str(meta.shortName),
+      price: num(meta.regularMarketPrice),
+      prevClose: num(meta.chartPreviousClose) ?? num(meta.previousClose),
+      currency: str(meta.currency),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function getYahooEtf(input: string): Promise<EtfData | null> {
   let symbol = input.toUpperCase();
   const modules =
@@ -257,21 +295,32 @@ export async function getYahooEtf(input: string): Promise<EtfData | null> {
       result = await yahooQuoteSummary(symbol, modules);
     }
   }
-  if (!result) return null;
 
-  const qt = (result.quoteType ?? {}) as Record<string, unknown>;
-  const type = str(qt.quoteType);
-  // Only funds get this treatment.
+  // Always pull the keyless chart meta too — it's our fund-type + price/name
+  // fallback when quoteSummary has no coverage (common for small/new ETFs).
+  const chart = await getChartMeta(symbol);
+
+  const res = result ?? {};
+  const qt = (res.quoteType ?? {}) as Record<string, unknown>;
+  // Identify the fund from quoteSummary, else from the chart's instrumentType.
+  const type =
+    str(qt.quoteType) ??
+    (chart?.instrumentType === "ETF" || chart?.instrumentType === "MUTUALFUND"
+      ? chart.instrumentType
+      : undefined);
+  // Only funds get this treatment. (If neither source calls it a fund, bail so
+  // the caller can fall back to the company score.)
   if (type !== "ETF" && type !== "MUTUALFUND") return null;
 
-  const pr = (result.price ?? {}) as Record<string, unknown>;
-  const sd = (result.summaryDetail ?? {}) as Record<string, unknown>;
-  const ks = (result.defaultKeyStatistics ?? {}) as Record<string, unknown>;
-  const th = (result.topHoldings ?? {}) as Record<string, unknown>;
-  const fp = (result.fundProfile ?? {}) as Record<string, unknown>;
-  const perf = (result.fundPerformance ?? {}) as Record<string, unknown>;
+  const pr = (res.price ?? {}) as Record<string, unknown>;
+  const sd = (res.summaryDetail ?? {}) as Record<string, unknown>;
+  const ks = (res.defaultKeyStatistics ?? {}) as Record<string, unknown>;
+  const th = (res.topHoldings ?? {}) as Record<string, unknown>;
+  const fp = (res.fundProfile ?? {}) as Record<string, unknown>;
+  const perf = (res.fundPerformance ?? {}) as Record<string, unknown>;
 
-  const name = str(pr.longName) ?? str(pr.shortName) ?? str(qt.longName) ?? symbol;
+  const name =
+    str(pr.longName) ?? str(pr.shortName) ?? str(qt.longName) ?? chart?.name ?? symbol;
 
   // Holdings
   const holdRaw = Array.isArray(th.holdings) ? (th.holdings as Record<string, unknown>[]) : [];
@@ -373,8 +422,8 @@ export async function getYahooEtf(input: string): Promise<EtfData | null> {
     kind: type === "ETF" ? "ETF" : "Mutual fund",
     category: str(fp.categoryName),
     family: str(fp.family),
-    currency: str(pr.currency) ?? str(sd.currency),
-    price: num(pr.regularMarketPrice) ?? num(sd.navPrice),
+    currency: str(pr.currency) ?? str(sd.currency) ?? chart?.currency,
+    price: num(pr.regularMarketPrice) ?? num(sd.navPrice) ?? chart?.price,
     navPrice: num(sd.navPrice),
     expenseRatio,
     yield: fundYield,

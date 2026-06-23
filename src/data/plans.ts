@@ -27,6 +27,8 @@ export interface ProPlan {
   amount: number; // in the smallest currency unit (paise) — ₹49 = 4900
   currency: "INR";
   period: string;
+  trialDays: number; // free-trial length before the first charge (0 = none)
+  trialLabel: string; // short marketing label for the trial
   tagline: string;
   proFeatures: readonly string[];
   freeFeatures: readonly string[];
@@ -40,8 +42,10 @@ export const QUANTIFI_PRO: ProPlan = {
   amount: 4900,
   currency: "INR",
   period: "month",
-  tagline: "Limited offer — ₹49/mo (normally ₹500). Unlock the full research suite.",
+  trialDays: 30,
+  trialLabel: "1 month free",
+  tagline: "Start with 1 month free, then ₹49/mo (normally ₹500). Cancel anytime.",
   proFeatures: [...PRO_FEATURES],
   freeFeatures: [...FREE_FEATURES],
-  cta: "Upgrade to Pro",
+  cta: "Start 1-month free trial",
 };

@@ -7,9 +7,19 @@
 //   RAZORPAY_KEY_SECRET     — the matching secret
 //   RAZORPAY_PLAN_PRO       — Plan ID for the ₹49/month Quantifi Pro plan
 //   RAZORPAY_WEBHOOK_SECRET — (optional) secret configured on the webhook
+//   RAZORPAY_TRIAL_DAYS     — (optional) free-trial length; defaults to 30
 // The Key ID is also exposed to the browser as NEXT_PUBLIC_RAZORPAY_KEY_ID for
 // the Checkout widget.
 import { createHmac } from "crypto";
+import { QUANTIFI_PRO } from "@/data/plans";
+
+// Free-trial length (days) before the first charge. Defaults to the plan's
+// trialDays, overridable with RAZORPAY_TRIAL_DAYS once the gateway is live.
+export function trialDays(): number {
+  const env = Number(process.env.RAZORPAY_TRIAL_DAYS);
+  if (Number.isFinite(env) && env >= 0) return Math.floor(env);
+  return QUANTIFI_PRO.trialDays;
+}
 
 export function razorpayConfig() {
   return {
@@ -38,20 +48,31 @@ export interface RazorpaySubscription {
 }
 
 // Create a recurring subscription against the Pro plan. `total_count` is the
-// number of billing cycles Razorpay will attempt (12 months here).
+// number of billing cycles Razorpay will attempt (12 months here). When a trial
+// is configured we set `start_at` to the trial's end, so Razorpay only
+// authorises the mandate now and defers the first real charge — i.e. the first
+// month is free. The customer can cancel before `start_at` at no cost.
 export async function createProSubscription(
-  notes: Record<string, string>
+  notes: Record<string, string>,
+  opts?: { trialDays?: number }
 ): Promise<RazorpaySubscription> {
   const { planId } = razorpayConfig();
+  const days = opts?.trialDays ?? trialDays();
+
+  const body: Record<string, unknown> = {
+    plan_id: planId,
+    total_count: 12,
+    customer_notify: 1,
+    notes,
+  };
+  if (days > 0) {
+    body.start_at = Math.floor(Date.now() / 1000) + days * 24 * 60 * 60;
+  }
+
   const res = await fetch("https://api.razorpay.com/v1/subscriptions", {
     method: "POST",
     headers: { Authorization: authHeader(), "Content-Type": "application/json" },
-    body: JSON.stringify({
-      plan_id: planId,
-      total_count: 12,
-      customer_notify: 1,
-      notes,
-    }),
+    body: JSON.stringify(body),
     cache: "no-store",
   });
   const data = (await res.json()) as RazorpaySubscription & { error?: { description?: string } };
