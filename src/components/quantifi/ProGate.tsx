@@ -35,6 +35,14 @@ export default async function ProGate({
           . Everything else in Quantifi stays free.
         </p>
 
+        {signedIn ? (
+          <p className="mx-auto mt-3 max-w-md text-xs leading-relaxed text-slate-500">
+            Signed in as <span className="text-slate-300">{user!.email}</span>. If you
+            just upgraded (or were granted Pro), refresh this page — it can take a
+            moment. Still locked? Make sure this is the exact email on your Pro plan.
+          </p>
+        ) : null}
+
         <ul className="mx-auto mt-6 inline-flex flex-col gap-2 text-left text-sm text-slate-300">
           {QUANTIFI_PRO.proFeatures.map((f) => (
             <li key={f} className="flex items-center gap-2.5">

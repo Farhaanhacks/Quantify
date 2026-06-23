@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   const { planId, keyId } = razorpayConfig();
   if (!planId) {
     return NextResponse.json(
-      { error: "Missing Razorpay plan. Set RAZORPAY_PLAN_PRO to your ₹79/month Plan ID." },
+      { error: "Missing Razorpay plan. Set RAZORPAY_PLAN_PRO to your ₹49/month Plan ID." },
       { status: 500 }
     );
   }

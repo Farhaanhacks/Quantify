@@ -9,9 +9,13 @@ export async function GET(req: Request) {
   const token = readCookie(req, SESSION_COOKIE);
   const user = secret ? verifySession(token, secret) : null;
   const pro = user?.email ? await isEmailPro(user.email) : false;
-  return NextResponse.json({
-    configured: !!clientId,
-    pro,
-    user: user ? { name: user.name, email: user.email, picture: user.picture } : null,
-  });
+  return NextResponse.json(
+    {
+      configured: !!clientId,
+      pro,
+      user: user ? { name: user.name, email: user.email, picture: user.picture } : null,
+    },
+    // Never cache plan status — it must flip the instant a user upgrades.
+    { headers: { "Cache-Control": "no-store, must-revalidate" } }
+  );
 }

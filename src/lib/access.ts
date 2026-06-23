@@ -12,10 +12,19 @@ export interface ProRecord {
   current_end?: number; // unix seconds; access lapses after this
 }
 
+// Owner / comp allowlist. Tolerant by design: accepts a few common env-var
+// names (in case the var was added as PRO_EMAIL or with the NEXT_PUBLIC_ prefix)
+// and splits on commas, semicolons or whitespace so a stray separator can't
+// silently lock the owner out.
 function proEmailAllowlist(): Set<string> {
+  const raw =
+    process.env.PRO_EMAILS ||
+    process.env.PRO_EMAIL ||
+    process.env.NEXT_PUBLIC_PRO_EMAILS ||
+    "";
   return new Set(
-    (process.env.PRO_EMAILS || "")
-      .split(",")
+    raw
+      .split(/[\s,;]+/)
       .map((e) => e.trim().toLowerCase())
       .filter(Boolean)
   );
@@ -23,12 +32,13 @@ function proEmailAllowlist(): Set<string> {
 
 export async function isEmailPro(email?: string | null): Promise<boolean> {
   if (!email) return false;
-  const e = email.toLowerCase();
+  const e = email.trim().toLowerCase();
   if (proEmailAllowlist().has(e)) return true;
 
-  const raw = await kvGet(`pro:${e}`);
-  if (!raw) return false;
+  // Paid path via KV — never let a KV error throw and break a gated page.
   try {
+    const raw = await kvGet(`pro:${e}`);
+    if (!raw) return false;
     const rec = JSON.parse(raw) as ProRecord;
     if (!rec.active) return false;
     if (rec.current_end && Date.now() / 1000 > rec.current_end) return false;

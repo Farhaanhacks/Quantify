@@ -1,9 +1,10 @@
 import PricingPlans from "@/components/quantifi/PricingPlans";
 import { Eyebrow } from "@/components/quantifi/Cards";
+import { QUANTIFI_PRO } from "@/data/plans";
 
 export const metadata = {
   title: "Quantifi Pro · Pricing",
-  description: "Upgrade to Quantifi Pro for ₹79/month — Stock Analysis, Insider Activity and Rare Finds.",
+  description: `Upgrade to Quantifi Pro for ${QUANTIFI_PRO.price}/month — Stock Analysis, Insider Activity and Rare Finds.`,
 };
 
 export default function PricingPage() {
@@ -12,7 +13,7 @@ export default function PricingPage() {
       <div className="text-center">
         <Eyebrow>Quantifi Pro</Eyebrow>
         <h1 className="mt-3 font-display text-3xl font-semibold text-white sm:text-4xl">
-          Go Pro for ₹79 a month
+          Go Pro for {QUANTIFI_PRO.price} a month
         </h1>
         <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-slate-400">
           Everything in Quantifi stays free. Quantifi Pro adds the deep-research
