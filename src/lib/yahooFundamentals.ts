@@ -77,7 +77,7 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
 
   let result: Record<string, unknown> | undefined;
   try {
-    const modules = "summaryDetail,defaultKeyStatistics,financialData,price";
+    const modules = "quoteType,summaryDetail,defaultKeyStatistics,financialData,price";
     const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(
       symbol
     )}?modules=${modules}&crumb=${encodeURIComponent(cc.crumb)}`;
@@ -94,6 +94,14 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
     return null;
   }
   if (!result) return null;
+
+  // ETFs / mutual funds aren't companies — they have no margins, ROE or growth,
+  // so a company score would read 0/30. Detect them by Yahoo's quoteType and bail
+  // so the caller falls back to the ETF X-ray (yahooEtf.ts) instead.
+  const qt = (result.quoteType ?? {}) as Record<string, unknown>;
+  const quoteType = str(qt.quoteType);
+  if (quoteType === "ETF" || quoteType === "MUTUALFUND" || quoteType === "INDEX")
+    return null;
 
   const sd = (result.summaryDetail ?? {}) as Record<string, unknown>;
   const ks = (result.defaultKeyStatistics ?? {}) as Record<string, unknown>;
@@ -121,8 +129,11 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
     num(sd.priceToSalesTrailing12Months) ?? num(ks.priceToSalesTrailing12Months);
   const name = str(pr.longName) ?? str(pr.shortName) ?? symbol.toUpperCase();
 
-  // No company fundamentals (e.g. ETF/index) → score doesn't apply.
-  if (pe == null && profitMargins == null && roe == null) return null;
+  // No company fundamentals (e.g. ETF/index) → score doesn't apply. A fund can
+  // still report a (basket) P/E, so a lone P/E isn't enough — require at least
+  // one genuinely company-level metric.
+  if (profitMargins == null && roe == null && revGrowth == null && earnGrowth == null)
+    return null;
   if (price == null) return null;
 
   const scores: Record<ScoreAxisKey, ScoreAxis> = {
