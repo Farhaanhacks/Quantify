@@ -131,22 +131,35 @@ export default function PricingPlans() {
           <h3 className="font-display text-lg font-semibold text-white">{QUANTIFI_PRO.name}</h3>
           <Tag tone="gold">{pro ? "Active" : "Pro"}</Tag>
         </div>
-        <div className="mt-3 flex items-baseline gap-1.5">
-          <span className="font-display text-3xl font-semibold text-white">{QUANTIFI_PRO.price}</span>
-          <span className="text-sm text-slate-500">/ {QUANTIFI_PRO.period}</span>
-          {QUANTIFI_PRO.trialDays > 0 && !pro ? (
-            <span className="ml-1 rounded-full border border-gold/40 bg-gold/10 px-2 py-0.5 text-[0.65rem] font-semibold text-gold">
-              {QUANTIFI_PRO.trialLabel}
-            </span>
-          ) : null}
-        </div>
-        <p className="mt-2 text-sm text-slate-400">{QUANTIFI_PRO.tagline}</p>
         {QUANTIFI_PRO.trialDays > 0 && !pro ? (
-          <p className="mt-1 text-xs text-gold/90">
-            Free for the first month — you won&apos;t be charged until it ends, and you can cancel
-            anytime before then.
-          </p>
-        ) : null}
+          <>
+            {/* Big, eye-catching trial line first… */}
+            <div className="mt-3 font-display text-3xl font-bold leading-none text-gradient-gold sm:text-4xl">
+              {QUANTIFI_PRO.trialLabel}
+            </div>
+            {/* …then the price with the standard ₹500 struck out beside it. */}
+            <div className="mt-2.5 flex items-baseline gap-2.5">
+              <span className="font-display text-3xl font-semibold text-white">
+                {QUANTIFI_PRO.price}
+              </span>
+              <span className="text-sm text-slate-500">/ {QUANTIFI_PRO.period}</span>
+              <span className="font-display text-2xl font-semibold text-slate-500 line-through decoration-down decoration-2">
+                ₹500
+              </span>
+            </div>
+            <p className="mt-2 text-sm text-slate-400">
+              then {QUANTIFI_PRO.price}/month — cancel anytime before the trial ends and you
+              won&apos;t be charged.
+            </p>
+          </>
+        ) : (
+          <div className="mt-3 flex items-baseline gap-1.5">
+            <span className="font-display text-3xl font-semibold text-white">
+              {QUANTIFI_PRO.price}
+            </span>
+            <span className="text-sm text-slate-500">/ {QUANTIFI_PRO.period}</span>
+          </div>
+        )}
 
         <ul className="mt-5 flex-1 space-y-2.5">
           <li className="flex gap-2.5 text-sm text-slate-300">

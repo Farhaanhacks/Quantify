@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   GlassCard,
   SectionHeading,
@@ -156,12 +157,28 @@ export default function EtfSnapshot({
             <ul className="mt-3 space-y-2">
               {etf.topHoldings.map((h) => (
                 <li key={h.symbol || h.name} className="flex items-center gap-3">
-                  <span className="w-16 flex-none font-mono text-xs text-gold">
-                    {h.symbol || "—"}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-sm text-slate-300">
-                    {h.name}
-                  </span>
+                  {h.symbol ? (
+                    // Tap a holding to open that stock's analysis page.
+                    <Link
+                      href={`/stock-analysis?symbol=${encodeURIComponent(h.symbol)}`}
+                      className="group flex min-w-0 flex-1 items-center gap-3"
+                      title={`View ${h.symbol} analysis`}
+                    >
+                      <span className="w-16 flex-none font-mono text-xs text-gold underline-offset-2 group-hover:underline">
+                        {h.symbol}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-sm text-slate-300 transition group-hover:text-white">
+                        {h.name}
+                      </span>
+                    </Link>
+                  ) : (
+                    <>
+                      <span className="w-16 flex-none font-mono text-xs text-gold">—</span>
+                      <span className="min-w-0 flex-1 truncate text-sm text-slate-300">
+                        {h.name}
+                      </span>
+                    </>
+                  )}
                   <span className="hidden h-1.5 w-24 overflow-hidden rounded-full bg-white/[0.06] sm:block">
                     <span
                       className="block h-full rounded-full bg-teal"

@@ -42,7 +42,7 @@ export interface EtfRatingAxis {
 export interface EtfData {
   symbol: string;
   name: string;
-  kind: "ETF" | "Mutual fund";
+  kind: "ETF" | "Mutual fund" | "Fund";
   category?: string;
   family?: string;
   currency?: string;
@@ -302,20 +302,34 @@ export async function getYahooEtf(input: string): Promise<EtfData | null> {
 
   const res = result ?? {};
   const qt = (res.quoteType ?? {}) as Record<string, unknown>;
-  // Identify the fund from quoteSummary, else from the chart's instrumentType.
-  const type =
-    str(qt.quoteType) ??
-    (chart?.instrumentType === "ETF" || chart?.instrumentType === "MUTUALFUND"
-      ? chart.instrumentType
-      : undefined);
-  // Only funds get this treatment. (If neither source calls it a fund, bail so
-  // the caller can fall back to the company score.)
-  if (type !== "ETF" && type !== "MUTUALFUND") return null;
+  const th = (res.topHoldings ?? {}) as Record<string, unknown>;
+  const holdRaw = Array.isArray(th.holdings) ? (th.holdings as Record<string, unknown>[]) : [];
+
+  // Identify the fund from quoteSummary's quoteType, the chart's instrumentType,
+  // or — for closed-end / holding funds that Yahoo tags as EQUITY (e.g. DXYZ) —
+  // the simple fact that it reports a holdings basket.
+  const qtType = str(qt.quoteType);
+  const chartType = chart?.instrumentType;
+  const hasHoldings = holdRaw.length > 0;
+  const isFund =
+    qtType === "ETF" ||
+    qtType === "MUTUALFUND" ||
+    chartType === "ETF" ||
+    chartType === "MUTUALFUND" ||
+    hasHoldings;
+  // If nothing says "fund", bail so the caller falls back to the company score.
+  if (!isFund) return null;
+
+  const kind: EtfData["kind"] =
+    qtType === "MUTUALFUND" || chartType === "MUTUALFUND"
+      ? "Mutual fund"
+      : qtType === "ETF" || chartType === "ETF"
+      ? "ETF"
+      : "Fund";
 
   const pr = (res.price ?? {}) as Record<string, unknown>;
   const sd = (res.summaryDetail ?? {}) as Record<string, unknown>;
   const ks = (res.defaultKeyStatistics ?? {}) as Record<string, unknown>;
-  const th = (res.topHoldings ?? {}) as Record<string, unknown>;
   const fp = (res.fundProfile ?? {}) as Record<string, unknown>;
   const perf = (res.fundPerformance ?? {}) as Record<string, unknown>;
 
@@ -323,7 +337,6 @@ export async function getYahooEtf(input: string): Promise<EtfData | null> {
     str(pr.longName) ?? str(pr.shortName) ?? str(qt.longName) ?? chart?.name ?? symbol;
 
   // Holdings
-  const holdRaw = Array.isArray(th.holdings) ? (th.holdings as Record<string, unknown>[]) : [];
   const topHoldings: EtfHolding[] = holdRaw
     .map((h) => ({
       symbol: str(h.symbol) ?? "",
@@ -419,7 +432,7 @@ export async function getYahooEtf(input: string): Promise<EtfData | null> {
   return {
     symbol,
     name,
-    kind: type === "ETF" ? "ETF" : "Mutual fund",
+    kind,
     category: str(fp.categoryName),
     family: str(fp.family),
     currency: str(pr.currency) ?? str(sd.currency) ?? chart?.currency,

@@ -49,7 +49,8 @@ const fpct = (x: number | undefined): string =>
   x == null ? "—" : `${(x * 100).toFixed(0)}%`;
 
 export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
-  const modules = "quoteType,summaryDetail,defaultKeyStatistics,financialData,price";
+  const modules =
+    "quoteType,summaryDetail,defaultKeyStatistics,financialData,price,topHoldings";
   let result = await yahooQuoteSummary(symbol, modules);
   // Some inputs need normalising (a company name, or a missing exchange suffix);
   // resolve and retry once so valid names don't read as "not available".
@@ -60,13 +61,19 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   }
   if (!result) return null;
 
-  // ETFs / mutual funds aren't companies — they have no margins, ROE or growth,
-  // so a company score would read 0/30. Detect them by Yahoo's quoteType and bail
-  // so the caller falls back to the ETF X-ray (yahooEtf.ts) instead.
+  // Funds aren't companies — they have no margins, ROE or growth, so a company
+  // score would read ~0/30. Detect them two ways and bail so the caller falls
+  // back to the ETF X-ray (yahooEtf.ts):
+  //   1. Yahoo's quoteType (ETF / mutual fund / index), and
+  //   2. the presence of a holdings basket — this also catches closed-end and
+  //      holding funds (e.g. DXYZ) that Yahoo tags as EQUITY but that hold a
+  //      portfolio rather than operating a business.
   const qt = (result.quoteType ?? {}) as Record<string, unknown>;
   const quoteType = str(qt.quoteType);
   if (quoteType === "ETF" || quoteType === "MUTUALFUND" || quoteType === "INDEX")
     return null;
+  const th = (result.topHoldings ?? {}) as Record<string, unknown>;
+  if (Array.isArray(th.holdings) && th.holdings.length > 0) return null;
 
   const sd = (result.summaryDetail ?? {}) as Record<string, unknown>;
   const ks = (result.defaultKeyStatistics ?? {}) as Record<string, unknown>;
