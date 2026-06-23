@@ -2,13 +2,14 @@
 
 import { useProStatus } from "@/lib/useProStatus";
 
-// Quantifi brand mark — the compact Q icon, swapped by plan:
-//   Pro subscribers → /logo-icon-gold.png  (gold)
-//   Free accounts   → /logo-icon.png       (white)
-// Both files are the same 234×182 artwork, so the size never changes between
-// plans. `object-contain` + `w-auto` keep the aspect ratio at any height.
+// Quantifi stacked lockup (Q-arrow icon over the "QUANTIFI" wordmark),
+// swapped by plan:
+//   Pro subscribers → /logo-gold.png   (all gold)
+//   Free accounts   → /logo-white.png  (all white)
+// `object-contain` + `w-auto` keep the aspect ratio so it never squishes.
+// Default height is set for the stacked artwork so the wordmark stays legible.
 export default function BrandLogo({
-  className = "h-8",
+  className = "h-12",
   forcePro,
 }: {
   className?: string;
@@ -21,7 +22,7 @@ export default function BrandLogo({
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={isPro ? "/logo-icon-gold.png" : "/logo-icon.png"}
+      src={isPro ? "/logo-gold.png" : "/logo-white.png"}
       alt="Quantifi"
       className={`w-auto object-contain ${className}`}
     />

@@ -84,7 +84,7 @@ export default function Footer() {
 
         <div className="mt-12 flex flex-col gap-4 border-t border-white/[0.06] pt-8 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center">
-            <BrandLogo className="h-9" />
+            <BrandLogo className="h-14" />
           </div>
           <p className="text-xs text-slate-500">
             © {new Date().getFullYear()} Quantifi — a market-discovery & analytics prototype.

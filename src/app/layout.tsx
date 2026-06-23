@@ -3,6 +3,7 @@ import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/quantifi/Navbar";
 import Footer from "@/components/quantifi/Footer";
+import LimitedOfferPopup from "@/components/quantifi/LimitedOfferPopup";
 
 const sans = Inter({
   subsets: ["latin"],
@@ -39,6 +40,7 @@ export default function RootLayout({
         <Navbar />
         <main>{children}</main>
         <Footer />
+        <LimitedOfferPopup />
       </body>
     </html>
   );

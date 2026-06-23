@@ -38,7 +38,8 @@ export default function PortfolioStocks({
   const saved = ready ? portfolios[0]?.holdings ?? [] : [];
   const hasHoldings = saved.length > 0;
 
-  const [quotes, setQuotes] = useState<Record<string, { price: number; currency?: string; name?: string }>>({});
+  type Quote = { price: number; currency?: string; name?: string; changePct?: number; spark?: number[] };
+  const [quotes, setQuotes] = useState<Record<string, Quote>>({});
   const savedKey = saved.map((h) => h.ticker).join(",");
 
   useEffect(() => {
@@ -46,11 +47,30 @@ export default function PortfolioStocks({
     let cancelled = false;
     saved.forEach(async (h) => {
       try {
-        const r = await fetch(`/api/quote/${encodeURIComponent(h.ticker)}`);
-        const d = await r.json();
-        if (!cancelled && d.valid && typeof d.price === "number") {
-          setQuotes((q) => ({ ...q, [h.ticker]: { price: d.price, currency: d.currency, name: d.name } }));
+        // Live quote (price + day change) and history (sparkline) — so custom
+        // holdings that aren't in the static demo set still show a chart + move.
+        const [qr, tr] = await Promise.allSettled([
+          fetch(`/api/quote/${encodeURIComponent(h.ticker)}`).then((x) => x.json()),
+          fetch(`/api/timeseries/${encodeURIComponent(h.ticker)}?range=3mo`).then((x) => x.json()),
+        ]);
+        if (cancelled) return;
+        const patch: Quote = { price: h.price };
+        if (qr.status === "fulfilled" && qr.value?.valid && typeof qr.value.price === "number") {
+          patch.price = qr.value.price;
+          patch.currency = qr.value.currency;
+          patch.name = qr.value.name;
+          if (typeof qr.value.changePct === "number") patch.changePct = qr.value.changePct;
         }
+        if (tr.status === "fulfilled" && Array.isArray(tr.value?.points)) {
+          const vals = (tr.value.points as { value: number }[])
+            .map((p) => p.value)
+            .filter((v) => typeof v === "number" && isFinite(v));
+          if (vals.length >= 2) {
+            const step = Math.max(1, Math.floor(vals.length / 40));
+            patch.spark = vals.filter((_, i) => i % step === 0).slice(-44);
+          }
+        }
+        setQuotes((q) => ({ ...q, [h.ticker]: patch }));
       } catch {
         /* keep stored price */
       }
@@ -73,8 +93,8 @@ export default function PortfolioStocks({
           avgCost: h.avgCost,
           price: q?.price ?? h.price,
           currency: q?.currency ?? (/\.(NS|BO)$/i.test(h.ticker) ? "INR" : "USD"),
-          dayPct: sd?.changePct ?? null,
-          spark: sd?.spark ?? null,
+          dayPct: q?.changePct ?? sd?.changePct ?? null,
+          spark: q?.spark ?? sd?.spark ?? null,
         };
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps

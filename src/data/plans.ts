@@ -1,7 +1,7 @@
-// Quantifi pricing. A single paid tier — Quantifi Pro at ₹79/month, billed
-// through Razorpay — unlocks the Pro-only research surfaces. Everything else
-// stays free. The Razorpay Plan ID lives in env (RAZORPAY_PLAN_PRO), so no
-// billing identifiers are committed.
+// Quantifi pricing. A single paid tier — Quantifi Pro at ₹49/month (a limited
+// launch offer; standard price ₹500/month), billed through Razorpay — unlocks
+// the Pro-only research surfaces. Everything else stays free. The Razorpay Plan
+// ID lives in env (RAZORPAY_PLAN_PRO), so no billing identifiers are committed.
 
 // Routes that require an active Quantifi Pro subscription. Used by the ProGate
 // wrapper and surfaced on the pricing page.
@@ -24,7 +24,7 @@ export interface ProPlan {
   id: "pro";
   name: string;
   price: string; // display only
-  amount: number; // in the smallest currency unit (paise) — ₹79 = 7900
+  amount: number; // in the smallest currency unit (paise) — ₹49 = 4900
   currency: "INR";
   period: string;
   tagline: string;
@@ -36,11 +36,11 @@ export interface ProPlan {
 export const QUANTIFI_PRO: ProPlan = {
   id: "pro",
   name: "Quantifi Pro",
-  price: "₹79",
-  amount: 7900,
+  price: "₹49",
+  amount: 4900,
   currency: "INR",
   period: "month",
-  tagline: "Unlock the full research suite.",
+  tagline: "Limited offer — ₹49/mo (normally ₹500). Unlock the full research suite.",
   proFeatures: [...PRO_FEATURES],
   freeFeatures: [...FREE_FEATURES],
   cta: "Upgrade to Pro",

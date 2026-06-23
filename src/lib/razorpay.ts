@@ -5,7 +5,7 @@
 // Required env (set in .env.local / Vercel):
 //   RAZORPAY_KEY_ID         — rzp_test_… or rzp_live_…
 //   RAZORPAY_KEY_SECRET     — the matching secret
-//   RAZORPAY_PLAN_PRO       — Plan ID for the ₹79/month Quantifi Pro plan
+//   RAZORPAY_PLAN_PRO       — Plan ID for the ₹49/month Quantifi Pro plan
 //   RAZORPAY_WEBHOOK_SECRET — (optional) secret configured on the webhook
 // The Key ID is also exposed to the browser as NEXT_PUBLIC_RAZORPAY_KEY_ID for
 // the Checkout widget.

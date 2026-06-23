@@ -5,21 +5,14 @@ import {
   GlassCard,
   SectionHeading,
   TickerChip,
-  Tag,
   Sparkline,
+  ScoreRadar,
 } from "@/components/quantifi/Cards";
-import { fmtPrice } from "@/data/demo";
-import { useWatchlist, type AlertKind } from "@/lib/useWatchlist";
+import { fmtPrice, SCORE_AXES } from "@/data/demo";
+import type { ScoreAxisKey } from "@/data/demo";
+import { useWatchlist } from "@/lib/useWatchlist";
 
-const ALERT_KINDS: AlertKind[] = ["News", "Event", "Insider", "Price"];
-
-function alertTone(kind: AlertKind): "gold" | "teal" | "down" | "neutral" {
-  if (kind === "Insider") return "down";
-  if (kind === "News") return "gold";
-  if (kind === "Event") return "teal";
-  if (kind === "Price") return "teal";
-  return "neutral";
-}
+const EMPTY_LABELS = ["", "", "", "", ""];
 
 function ccy(currency: string | undefined, ticker: string): string {
   if (currency === "INR" || /\.(NS|BO)$/i.test(ticker)) return "₹";
@@ -44,6 +37,7 @@ interface RowData {
   d7?: number;
   d3m?: number;
   dir?: "up" | "down";
+  scores?: Record<ScoreAxisKey, number>; // Quantifi Score axes for the snowflake
 }
 
 // One rich watchlist row — fetches valuation (score) + history (timeseries) on
@@ -73,6 +67,16 @@ function WatchRow({ ticker, onRemove }: { ticker: string; onRemove: () => void }
         }
         if (typeof d.priceToSales === "number") r.ps = d.priceToSales;
         if (typeof d.revenueGrowth === "number") r.growth = d.revenueGrowth;
+        const sc = d.analytics?.scores;
+        if (sc) {
+          r.scores = {
+            value: sc.value?.score ?? 0,
+            growth: sc.growth?.score ?? 0,
+            past: sc.past?.score ?? 0,
+            health: sc.health?.score ?? 0,
+            dividends: sc.dividends?.score ?? 0,
+          };
+        }
       }
 
       if (t.status === "fulfilled" && Array.isArray(t.value?.points)) {
@@ -114,7 +118,19 @@ function WatchRow({ ticker, onRemove }: { ticker: string; onRemove: () => void }
   return (
     <li className="grid grid-cols-2 gap-y-3 gap-x-4 py-4 lg:grid-cols-[1.5fr_1.7fr_0.8fr_0.9fr_1fr_auto] lg:items-center">
       {/* Company */}
-      <div className="col-span-2 flex flex-col gap-1 lg:col-span-1">
+      <div className="col-span-2 flex items-center gap-3 lg:col-span-1">
+        {row?.scores ? (
+          <span className="h-12 w-14 flex-none" title="Quantifi Score snowflake">
+            <ScoreRadar
+              values={SCORE_AXES.map((a) => row.scores![a.key])}
+              labels={EMPTY_LABELS}
+              size={120}
+            />
+          </span>
+        ) : (
+          <span className="h-12 w-14 flex-none rounded-full bg-white/[0.03]" />
+        )}
+        <div className="flex min-w-0 flex-col gap-1">
         <TickerChip ticker={ticker} />
         <span className="truncate text-xs text-slate-400">{row?.name ?? ticker}</span>
         {row?.d7 != null || row?.d3m != null ? (
@@ -133,6 +149,7 @@ function WatchRow({ ticker, onRemove }: { ticker: string; onRemove: () => void }
             ) : null}
           </div>
         ) : null}
+        </div>
       </div>
 
       {/* Price & valuation */}
@@ -215,16 +232,7 @@ function WatchRow({ ticker, onRemove }: { ticker: string; onRemove: () => void }
 }
 
 export default function Watchlist({ heading = true }: { heading?: boolean }) {
-  const {
-    data,
-    ready,
-    scope,
-    addStock,
-    removeStock,
-    addAlert,
-    toggleAlert,
-    removeAlert,
-  } = useWatchlist();
+  const { data, ready, scope, addStock, removeStock } = useWatchlist();
 
   // --- add-stock form ---
   const [stockInput, setStockInput] = useState("");
@@ -256,20 +264,6 @@ export default function Watchlist({ heading = true }: { heading?: boolean }) {
     }
   };
 
-  // --- add-alert form ---
-  const [alertTicker, setAlertTicker] = useState("");
-  const [alertText, setAlertText] = useState("");
-  const [alertKind, setAlertKind] = useState<AlertKind>("News");
-  const handleAddAlert = () => {
-    const tk = alertTicker.trim().toUpperCase();
-    const tx = alertText.trim();
-    if (!tk || !tx) return;
-    addAlert({ ticker: tk, text: tx, kind: alertKind });
-    setAlertTicker("");
-    setAlertText("");
-    setAlertKind("News");
-  };
-
   const inputCls =
     "rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-slate-500 outline-none focus:border-gold/40";
   const btnCls =
@@ -281,7 +275,7 @@ export default function Watchlist({ heading = true }: { heading?: boolean }) {
         <SectionHeading
           eyebrow="Watchlist"
           title="Everything you're tracking"
-          subtitle="Add the stocks and alerts you care about. Everything here is yours — edit it any time."
+          subtitle="Add the stocks you care about. Everything here is yours — edit it any time."
         />
       ) : null}
 
@@ -340,100 +334,6 @@ export default function Watchlist({ heading = true }: { heading?: boolean }) {
               ))}
             </ul>
           </>
-        )}
-      </GlassCard>
-
-      {/* Alerts */}
-      <GlassCard className="mt-4 p-5 sm:p-6">
-        <div className="flex items-center justify-between">
-          <h3 className="font-display text-lg font-semibold text-white">Alerts</h3>
-          <span className="text-xs text-slate-500">
-            {data.alerts.filter((a) => a.on).length} active
-          </span>
-        </div>
-        <p className="mt-1 text-xs text-slate-500">
-          Research reminders you&apos;ve set. Saved to your account — toggle on/off or remove any time.
-        </p>
-
-        {/* add alert */}
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-          <input
-            value={alertTicker}
-            onChange={(e) => setAlertTicker(e.target.value)}
-            placeholder="Ticker"
-            className={`${inputCls} sm:w-28`}
-          />
-          <input
-            value={alertText}
-            onChange={(e) => setAlertText(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleAddAlert()}
-            placeholder="What should this alert remind you to watch?"
-            className={`${inputCls} flex-1`}
-          />
-          <select
-            value={alertKind}
-            onChange={(e) => setAlertKind(e.target.value as AlertKind)}
-            className={`${inputCls} sm:w-32`}
-          >
-            {ALERT_KINDS.map((k) => (
-              <option key={k} value={k} className="bg-ink-900">
-                {k}
-              </option>
-            ))}
-          </select>
-          <button onClick={handleAddAlert} className={btnCls}>
-            Add
-          </button>
-        </div>
-
-        {data.alerts.length === 0 ? (
-          <p className="mt-4 text-sm text-slate-500">
-            No alerts yet. Set one above — e.g. ticker “NVDA”, “Flag any new vendor-financing
-            disclosure”, kind “News”.
-          </p>
-        ) : (
-          <ul className="mt-4 space-y-2.5">
-            {data.alerts.map((a) => (
-              <li
-                key={a.id}
-                className="flex items-center justify-between gap-4 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3"
-              >
-                <div className="flex items-start gap-3">
-                  <TickerChip ticker={a.ticker} />
-                  <div>
-                    <p className="text-sm text-slate-200">{a.text}</p>
-                    <div className="mt-1">
-                      <Tag tone={alertTone(a.kind)}>{a.kind}</Tag>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex flex-none items-center gap-2">
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={a.on}
-                    onClick={() => toggleAlert(a.id)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full border transition ${
-                      a.on ? "border-gold/40 bg-gold/30" : "border-white/10 bg-white/[0.06]"
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
-                        a.on ? "translate-x-6" : "translate-x-1"
-                      }`}
-                    />
-                  </button>
-                  <button
-                    onClick={() => removeAlert(a.id)}
-                    aria-label="Remove alert"
-                    className="flex h-6 w-6 items-center justify-center rounded-full border border-white/10 text-slate-500 transition hover:border-down/40 hover:text-down"
-                  >
-                    ×
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
         )}
       </GlassCard>
     </section>
