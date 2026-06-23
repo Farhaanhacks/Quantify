@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import TradingViewWidget from "@/components/quantifi/TradingViewWidget";
 import PriceChart from "@/components/quantifi/PriceChart";
 import CompanySnapshot from "@/components/quantifi/CompanySnapshot";
@@ -44,12 +45,24 @@ interface ScoreResponse {
 }
 
 export default function StockExplorer({ initial = "NVDA" }: { initial?: string }) {
-  const [input, setInput] = useState(initial);
-  const [ticker, setTicker] = useState(initial.toUpperCase());
-  const [engine, setEngine] = useState<Engine>(defaultEngine(initial.toUpperCase()));
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  // The URL's ?symbol= is the source of truth, so in-app links (e.g. clicking a
+  // notification) load that stock instantly — no manual refresh needed.
+  const urlSymbol = (searchParams.get("symbol") ?? initial).toUpperCase();
+
+  const [input, setInput] = useState(urlSymbol);
+  const [ticker, setTicker] = useState(urlSymbol);
+  const [engine, setEngine] = useState<Engine>(defaultEngine(urlSymbol));
   const [score, setScore] = useState<ScoreResponse | null>(null);
   const [scoreLoading, setScoreLoading] = useState(false);
   const [etf, setEtf] = useState<EtfData | null>(null);
+
+  // Follow URL changes (notification clicks, back/forward) without a reload.
+  useEffect(() => {
+    setTicker(urlSymbol);
+    setInput(urlSymbol);
+  }, [urlSymbol]);
 
   // Reset to the smart default engine whenever the symbol changes.
   useEffect(() => {
@@ -86,21 +99,32 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
     };
   }, [ticker]);
 
+  // Navigate to a symbol via the URL so the address bar, refresh and shareable
+  // links all stay in sync; the urlSymbol effect above updates the view.
+  const go = (sym: string) => {
+    const t = sym.trim().toUpperCase();
+    if (!t) return;
+    setTicker(t);
+    setInput(t);
+    router.replace(`/stock-analysis?symbol=${encodeURIComponent(t)}`, { scroll: false });
+  };
+
   const commit = async () => {
     const raw = input.trim();
     if (!raw) return;
-    const t = raw.toUpperCase();
+    let t = raw.toUpperCase();
     setTicker(t); // optimistic
     try {
       const r = await fetch(`/api/resolve?q=${encodeURIComponent(raw)}`);
       const d = await r.json();
       if (d.symbol && String(d.symbol).toUpperCase() !== t) {
-        setTicker(String(d.symbol).toUpperCase());
-        setInput(String(d.symbol).toUpperCase());
+        t = String(d.symbol).toUpperCase();
+        setInput(t);
       }
     } catch {
       /* keep optimistic value */
     }
+    go(t);
   };
 
   const tvSym = toTvSymbol(ticker);
@@ -157,10 +181,7 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
               <button
                 key={q}
                 type="button"
-                onClick={() => {
-                  setInput(q);
-                  setTicker(q);
-                }}
+                onClick={() => go(q)}
                 className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 font-mono text-xs text-slate-300 transition hover:border-gold/40 hover:text-white"
               >
                 {q}

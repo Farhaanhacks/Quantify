@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import StockExplorer from "@/components/quantifi/StockExplorer";
 import { Eyebrow } from "@/components/quantifi/Cards";
 import ProGate from "@/components/quantifi/ProGate";
@@ -29,7 +30,9 @@ export default function StockAnalysisPage({
           a fundamentals source is connected.
         </p>
       </section>
-      <StockExplorer initial={initial} />
+      <Suspense fallback={null}>
+        <StockExplorer initial={initial} />
+      </Suspense>
     </ProGate>
   );
 }
