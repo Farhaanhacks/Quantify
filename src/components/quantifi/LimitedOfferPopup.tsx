@@ -6,9 +6,9 @@ import { useProStatus } from "@/lib/useProStatus";
 import { QUANTIFI_PRO } from "@/data/plans";
 
 // One-time launch-offer modal. Shows on first app open per browser session
-// (sessionStorage flag), leading with the 1-month free trial and the ₹49/month
-// limited price vs the ₹500 standard price. Dismissable; does not reappear until
-// the tab/session resets. Never shown to Pro subscribers.
+// (sessionStorage flag), leading with the ₹49/month limited launch price vs the
+// ₹500 standard price. Dismissable; does not reappear until the tab/session
+// resets. Never shown to Pro subscribers.
 const SEEN_KEY = "quantifi:offer-seen";
 
 export default function LimitedOfferPopup() {
@@ -68,21 +68,20 @@ export default function LimitedOfferPopup() {
         </button>
 
         <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 px-3 py-1 text-[0.7rem] font-medium uppercase tracking-[0.16em] text-gold">
-          {QUANTIFI_PRO.trialLabel} · limited offer
+          Limited launch offer
         </span>
 
         <h2 className="mt-4 font-display text-2xl font-bold text-white">
-          Try Quantifi Pro free<span className="text-lg font-medium text-slate-400"> for 1 month</span>
+          Unlock Quantifi Pro
         </h2>
 
         <p className="mt-2 text-sm leading-relaxed text-slate-300">
-          Start a <span className="font-semibold text-gold">1-month free trial</span> — full access
-          to the research suite, no charge today. After that it&apos;s just{" "}
+          Full access to the research suite for just{" "}
           <span className="font-semibold text-gold">{QUANTIFI_PRO.price}/month</span> (standard price{" "}
-          <span className="font-semibold text-slate-200 line-through decoration-down/70">
+          <span className="font-semibold text-slate-200 line-through decoration-slate-400/70">
             ₹500/month
           </span>
-          ). Cancel anytime before the trial ends and you won&apos;t be charged.
+          ). Cancel anytime.
         </p>
 
         <div className="mt-6 flex flex-col gap-2 sm:flex-row">
@@ -91,7 +90,7 @@ export default function LimitedOfferPopup() {
             onClick={close}
             className="flex-1 rounded-lg bg-gradient-to-r from-gold-400 to-gold-600 px-5 py-2.5 text-center text-sm font-semibold text-ink transition hover:opacity-90"
           >
-            Start 1 month free →
+            Get Quantifi Pro →
           </Link>
           <button
             onClick={close}

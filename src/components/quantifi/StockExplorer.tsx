@@ -366,16 +366,18 @@ function FreeLimitWall({ ticker, signedIn }: { ticker: string; signedIn: boolean
         <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-400">
           The chart for <span className="font-mono text-slate-200">{ticker}</span> stays free, but
           the full Quantifi Score, fundamentals and insider activity are part of Pro. Unlock
-          unlimited analysis with{" "}
-          <span className="font-semibold text-gold">{QUANTIFI_PRO.trialLabel}</span>, then{" "}
-          {QUANTIFI_PRO.price}/{QUANTIFI_PRO.period}.
+          unlimited analysis for{" "}
+          <span className="font-semibold text-gold">
+            {QUANTIFI_PRO.price}/{QUANTIFI_PRO.period}
+          </span>{" "}
+          <span className="text-slate-500 line-through">₹500</span>.
         </p>
         <div className="mt-7 flex items-center justify-center gap-3">
           <Link
             href="/pricing"
             className="rounded-full bg-gradient-to-r from-gold-400 to-gold-600 px-6 py-2.5 text-sm font-semibold text-ink transition hover:opacity-90"
           >
-            Start 1 month free →
+            Get Quantifi Pro →
           </Link>
           {!signedIn ? (
             <a

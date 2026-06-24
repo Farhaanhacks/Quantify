@@ -65,7 +65,7 @@ export default function PricingPlans() {
         amount: data.amount,
         currency: data.currency,
         name: "Quantifi Pro",
-        description: `${QUANTIFI_PRO.price} · 1 month of Pro`,
+        description: `${QUANTIFI_PRO.price} · Quantifi Pro (1 month)`,
         prefill: { name: data.user?.name, email: data.user?.email },
         theme: { color: "#E9B872" },
         handler: async (resp: RazorpayResponse) => {
@@ -131,25 +131,22 @@ export default function PricingPlans() {
           <h3 className="font-display text-lg font-semibold text-white">{QUANTIFI_PRO.name}</h3>
           <Tag tone="gold">{pro ? "Active" : "Pro"}</Tag>
         </div>
-        {QUANTIFI_PRO.trialDays > 0 && !pro ? (
+        {!pro ? (
           <>
-            {/* Price right under the title: anchor the ₹500 first, then ₹49. */}
+            {/* Anchor the ₹500 first, then ₹49. Keep "₹500/month" one uniform
+                size so the strike is a single clean line (mixed sizes made it
+                look stepped/diagonal), with a neutral grey rule. */}
             <div className="mt-3 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-              <span className="font-display text-2xl font-semibold text-slate-500 line-through decoration-down decoration-[3px]">
-                ₹500<span className="text-base font-normal">/month</span>
+              <span className="font-display text-xl font-medium text-slate-500 line-through decoration-slate-400/70 decoration-2">
+                ₹500/month
               </span>
               <span className="font-display text-4xl font-bold text-white">
                 {QUANTIFI_PRO.price}
               </span>
               <span className="text-sm text-slate-500">/ {QUANTIFI_PRO.period}</span>
             </div>
-            {/* Big, eye-catching trial line. */}
-            <div className="mt-2 font-display text-2xl font-bold leading-none text-gradient-gold sm:text-3xl">
-              {QUANTIFI_PRO.trialLabel}
-            </div>
             <p className="mt-2 text-sm text-slate-400">
-              then {QUANTIFI_PRO.price}/month — cancel anytime before the trial ends and you
-              won&apos;t be charged.
+              Limited launch price — billed {QUANTIFI_PRO.price}/month. Cancel anytime.
             </p>
           </>
         ) : (
