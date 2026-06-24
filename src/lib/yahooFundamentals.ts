@@ -206,7 +206,27 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
 
   // Independent of analysts: a simple 2-stage discounted free-cash-flow estimate
   // of intrinsic value per share, so users can sanity-check the analyst target.
-  const cfPerShare = dcfPerShare(freeCashflow, sharesOutstanding, earnGrowth ?? revGrowth);
+  // We only surface it when its inputs are internally consistent — a wrong DCF
+  // is worse than none, especially now we're live:
+  //   1. Currency — free cash flow, share count and price must be the same
+  //      currency. Otherwise the per-share value mixes units (e.g. an ADR's USD
+  //      cash flow divided by a local share count), which is how a ₹1,050 stock
+  //      ends up "valued" at ₹25.
+  //   2. Plausibility — a per-share estimate below ~10% of, or above ~10x, the
+  //      live price reflects sparse or stale fundamentals, not a real valuation.
+  //      Real over/undervaluation never reaches those extremes, so we drop it
+  //      rather than publish a nonsense figure.
+  const financialCurrency = str(fd.financialCurrency);
+  const priceCurrency = str(pr.currency);
+  const currencyOk =
+    financialCurrency == null ||
+    priceCurrency == null ||
+    financialCurrency === priceCurrency;
+  const cfRaw = dcfPerShare(freeCashflow, sharesOutstanding, earnGrowth ?? revGrowth);
+  const cfPerShare =
+    cfRaw != null && currencyOk && cfRaw >= price * 0.1 && cfRaw <= price * 10
+      ? cfRaw
+      : undefined;
 
   const analytics: CompanyAnalytics = {
     ticker: symbol.toUpperCase(),

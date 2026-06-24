@@ -13,6 +13,7 @@ import {
   type ScoreAxisKey,
   type CompanyAnalytics,
 } from "@/data/demo";
+import { isAiBubbleStock } from "@/data/aiBubble";
 
 function axisColor(score: number): string {
   if (score >= 5) return "#34D399";
@@ -54,6 +55,105 @@ export default function CompanySnapshot({
   const cf = a.cashflowValue;
   const cfGap = cf ? ((cf.estimate - resolvedPrice) / resolvedPrice) * 100 : 0;
   const cfUnder = cfGap > 0;
+
+  // For AI-bubble names, price reflects future expectations more than analyst
+  // targets, so lead with the share-price-vs-future-cash-flow lens instead of
+  // the analyst mean target — but only when we have a trustworthy DCF.
+  const featureCashflow = isAiBubbleStock(ticker) && !!cf;
+
+  const analystCard = (
+    <GlassCard className="mt-4 p-5 sm:p-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div className="text-[0.7rem] uppercase tracking-[0.16em] text-slate-500">
+            Fair value estimate · {a.fairValue.method}
+          </div>
+          <p className="mt-1 max-w-md text-xs text-slate-500">{a.fairValue.note}</p>
+        </div>
+        <div className="flex items-center gap-6">
+          <div>
+            <div className="text-xs text-slate-500">Current</div>
+            <div className="font-mono text-xl font-semibold tnum text-white">{cur}{fmtPrice(resolvedPrice)}</div>
+          </div>
+          <div>
+            <div className="text-xs text-slate-500">Fair value</div>
+            <div className="font-mono text-xl font-semibold tnum text-white">{cur}{fmtPrice(a.fairValue.estimate)}</div>
+          </div>
+          <Tag tone={under ? "up" : "down"}>
+            {under ? "Below" : "Above"} fair value · {Math.abs(gap).toFixed(0)}%
+          </Tag>
+        </div>
+      </div>
+      <div className="mt-5">
+        <div className="relative h-2 rounded-full bg-white/[0.06]">
+          <div className="absolute top-1/2 h-3.5 w-0.5 -translate-y-1/2 bg-teal" style={{ left: `${Math.min(95, Math.max(5, (a.fairValue.estimate / Math.max(a.fairValue.estimate, resolvedPrice)) * 90))}%` }} aria-hidden />
+          <div className="absolute top-1/2 h-3.5 w-0.5 -translate-y-1/2 bg-gold" style={{ left: `${Math.min(95, Math.max(5, (resolvedPrice / Math.max(a.fairValue.estimate, resolvedPrice)) * 90))}%` }} aria-hidden />
+        </div>
+        <div className="mt-2 flex gap-4 text-[0.7rem] text-slate-500">
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-gold" /> Current price</span>
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-teal" /> Fair value{tag}</span>
+        </div>
+      </div>
+    </GlassCard>
+  );
+
+  const cashflowCard = cf ? (
+    <GlassCard className="mt-4 p-5 sm:p-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div className="text-[0.7rem] uppercase tracking-[0.16em] text-slate-500">
+            Share price vs future cash flow value
+          </div>
+          <p className="mt-1 max-w-md text-xs text-slate-500">{cf.note}</p>
+        </div>
+        <div className="flex items-center gap-6">
+          <div>
+            <div className="text-xs text-slate-500">Current</div>
+            <div className="font-mono text-xl font-semibold tnum text-white">
+              {cur}
+              {fmtPrice(resolvedPrice)}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-slate-500">Cash flow value</div>
+            <div className="font-mono text-xl font-semibold tnum text-white">
+              {cur}
+              {fmtPrice(cf.estimate)}
+            </div>
+          </div>
+          <Tag tone={cfUnder ? "up" : "down"}>
+            {cfUnder ? "Below" : "Above"} cash-flow value · {Math.abs(cfGap).toFixed(0)}%
+          </Tag>
+        </div>
+      </div>
+      <div className="mt-5">
+        <div className="relative h-2 rounded-full bg-white/[0.06]">
+          <div
+            className="absolute top-1/2 h-3.5 w-0.5 -translate-y-1/2 bg-teal"
+            style={{
+              left: `${Math.min(95, Math.max(5, (cf.estimate / Math.max(cf.estimate, resolvedPrice)) * 90))}%`,
+            }}
+            aria-hidden
+          />
+          <div
+            className="absolute top-1/2 h-3.5 w-0.5 -translate-y-1/2 bg-gold"
+            style={{
+              left: `${Math.min(95, Math.max(5, (resolvedPrice / Math.max(cf.estimate, resolvedPrice)) * 90))}%`,
+            }}
+            aria-hidden
+          />
+        </div>
+        <div className="mt-2 flex gap-4 text-[0.7rem] text-slate-500">
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-gold" /> Current price
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-teal" /> Cash flow value
+          </span>
+        </div>
+      </div>
+    </GlassCard>
+  ) : null;
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
@@ -121,99 +221,11 @@ export default function CompanySnapshot({
         </GlassCard>
       </div>
 
-      {/* Fair value */}
-      <GlassCard className="mt-4 p-5 sm:p-6">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <div className="text-[0.7rem] uppercase tracking-[0.16em] text-slate-500">
-              Fair value estimate · {a.fairValue.method}
-            </div>
-            <p className="mt-1 max-w-md text-xs text-slate-500">{a.fairValue.note}</p>
-          </div>
-          <div className="flex items-center gap-6">
-            <div>
-              <div className="text-xs text-slate-500">Current</div>
-              <div className="font-mono text-xl font-semibold tnum text-white">{cur}{fmtPrice(resolvedPrice)}</div>
-            </div>
-            <div>
-              <div className="text-xs text-slate-500">Fair value</div>
-              <div className="font-mono text-xl font-semibold tnum text-white">{cur}{fmtPrice(a.fairValue.estimate)}</div>
-            </div>
-            <Tag tone={under ? "up" : "down"}>
-              {under ? "Below" : "Above"} fair value · {Math.abs(gap).toFixed(0)}%
-            </Tag>
-          </div>
-        </div>
-        <div className="mt-5">
-          <div className="relative h-2 rounded-full bg-white/[0.06]">
-            <div className="absolute top-1/2 h-3.5 w-0.5 -translate-y-1/2 bg-teal" style={{ left: `${Math.min(95, Math.max(5, (a.fairValue.estimate / Math.max(a.fairValue.estimate, resolvedPrice)) * 90))}%` }} aria-hidden />
-            <div className="absolute top-1/2 h-3.5 w-0.5 -translate-y-1/2 bg-gold" style={{ left: `${Math.min(95, Math.max(5, (resolvedPrice / Math.max(a.fairValue.estimate, resolvedPrice)) * 90))}%` }} aria-hidden />
-          </div>
-          <div className="mt-2 flex gap-4 text-[0.7rem] text-slate-500">
-            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-gold" /> Current price</span>
-            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-teal" /> Fair value{tag}</span>
-          </div>
-        </div>
-      </GlassCard>
-
-      {/* Share price vs future cash flow value (independent DCF) */}
-      {cf ? (
-        <GlassCard className="mt-4 p-5 sm:p-6">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <div className="text-[0.7rem] uppercase tracking-[0.16em] text-slate-500">
-                Share price vs future cash flow value
-              </div>
-              <p className="mt-1 max-w-md text-xs text-slate-500">{cf.note}</p>
-            </div>
-            <div className="flex items-center gap-6">
-              <div>
-                <div className="text-xs text-slate-500">Current</div>
-                <div className="font-mono text-xl font-semibold tnum text-white">
-                  {cur}
-                  {fmtPrice(resolvedPrice)}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs text-slate-500">Cash flow value</div>
-                <div className="font-mono text-xl font-semibold tnum text-white">
-                  {cur}
-                  {fmtPrice(cf.estimate)}
-                </div>
-              </div>
-              <Tag tone={cfUnder ? "up" : "down"}>
-                {cfUnder ? "Below" : "Above"} cash-flow value · {Math.abs(cfGap).toFixed(0)}%
-              </Tag>
-            </div>
-          </div>
-          <div className="mt-5">
-            <div className="relative h-2 rounded-full bg-white/[0.06]">
-              <div
-                className="absolute top-1/2 h-3.5 w-0.5 -translate-y-1/2 bg-teal"
-                style={{
-                  left: `${Math.min(95, Math.max(5, (cf.estimate / Math.max(cf.estimate, resolvedPrice)) * 90))}%`,
-                }}
-                aria-hidden
-              />
-              <div
-                className="absolute top-1/2 h-3.5 w-0.5 -translate-y-1/2 bg-gold"
-                style={{
-                  left: `${Math.min(95, Math.max(5, (resolvedPrice / Math.max(cf.estimate, resolvedPrice)) * 90))}%`,
-                }}
-                aria-hidden
-              />
-            </div>
-            <div className="mt-2 flex gap-4 text-[0.7rem] text-slate-500">
-              <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-gold" /> Current price
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-teal" /> Cash flow value
-              </span>
-            </div>
-          </div>
-        </GlassCard>
-      ) : null}
+      {/* Valuation. For AI-bubble names the future-cash-flow lens leads (and
+          replaces the analyst target); otherwise the analyst target leads with
+          the cash-flow view below it as an independent cross-check. */}
+      {featureCashflow ? cashflowCard : analystCard}
+      {featureCashflow ? null : cashflowCard}
 
       {/* Risk & reward */}
       <div className="mt-4 grid gap-4 md:grid-cols-2">
