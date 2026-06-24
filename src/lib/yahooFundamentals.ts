@@ -5,6 +5,7 @@ import type {
   ScoreAxisKey,
 } from "@/data/demo";
 import { yahooQuoteSummary, resolveYahooSymbol } from "@/lib/yahooCrumb";
+import { knownFund } from "@/data/knownFunds";
 
 // Builds a Quantifi Score from Yahoo Finance fundamentals (keyless, personal
 // non-commercial use). The cookie/crumb handshake and retries live in
@@ -75,6 +76,10 @@ function dcfPerShare(
 }
 
 export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
+  // Curated funds Yahoo misclassifies as equities (e.g. DXYZ) must never be
+  // company-scored — route them straight to the ETF X-ray.
+  if (knownFund(symbol)) return null;
+
   const modules =
     "quoteType,summaryDetail,defaultKeyStatistics,financialData,price,topHoldings";
   let result = await yahooQuoteSummary(symbol, modules);

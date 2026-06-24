@@ -196,6 +196,9 @@ export default function EtfSnapshot({
               Holdings breakdown isn&apos;t published for this fund.
             </p>
           )}
+          {etf.holdingsNote ? (
+            <p className="mt-3 text-[0.7rem] leading-relaxed text-slate-600">{etf.holdingsNote}</p>
+          ) : null}
         </GlassCard>
 
         {/* Sector mix + allocation */}

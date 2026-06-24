@@ -6,6 +6,7 @@
 // that isn't a fund so callers fall back to the company path.
 
 import { yahooQuoteSummary, resolveYahooSymbol } from "@/lib/yahooCrumb";
+import { knownFund } from "@/data/knownFunds";
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
@@ -61,6 +62,7 @@ export interface EtfData {
   // composition
   topHoldings: EtfHolding[];
   topHoldingsWeight?: number; // sum of the listed holdings' weights
+  holdingsNote?: string; // provenance note when holdings are curated, not from Yahoo
   sectorWeights: EtfSectorWeight[];
   stockPosition?: number; // fraction
   bondPosition?: number;
@@ -315,10 +317,14 @@ export async function getYahooEtf(input: string): Promise<EtfData | null> {
   const fp = (res.fundProfile ?? {}) as Record<string, unknown>;
   const perf = (res.fundPerformance ?? {}) as Record<string, unknown>;
 
-  // Identify the fund from quoteSummary's quoteType, the chart's instrumentType,
-  // or — for closed-end / holding funds that Yahoo tags as EQUITY (e.g. DXYZ) —
-  // any of the tell-tale fund "shapes": a holdings basket, an asset-class split,
-  // a sector mix, a NAV / inception date, or a fund profile/performance block.
+  // Curated override for funds Yahoo misclassifies or barely covers (DXYZ, ARKVX…).
+  const known = knownFund(symbol) ?? knownFund(input);
+
+  // Identify the fund from the curated registry, quoteSummary's quoteType, the
+  // chart's instrumentType, or — for closed-end / holding funds that Yahoo tags
+  // as EQUITY (e.g. DXYZ) — any tell-tale fund "shape": a holdings basket, an
+  // asset-class split, a sector mix, a NAV / inception date, or a fund
+  // profile/performance block.
   const qtType = str(qt.quoteType) ?? str(pr.quoteType);
   const chartType = chart?.instrumentType;
   const hasHoldings = holdRaw.length > 0;
@@ -335,6 +341,7 @@ export async function getYahooEtf(input: string): Promise<EtfData | null> {
     str(fp.family) != null ||
     Object.keys(perf).length > 0;
   const isFund =
+    !!known ||
     qtType === "ETF" ||
     qtType === "MUTUALFUND" ||
     chartType === "ETF" ||
@@ -344,17 +351,19 @@ export async function getYahooEtf(input: string): Promise<EtfData | null> {
   if (!isFund) return null;
 
   const kind: EtfData["kind"] =
-    qtType === "MUTUALFUND" || chartType === "MUTUALFUND"
+    known?.kind ??
+    (qtType === "MUTUALFUND" || chartType === "MUTUALFUND"
       ? "Mutual fund"
       : qtType === "ETF" || chartType === "ETF"
       ? "ETF"
-      : "Fund";
+      : "Fund");
 
   const name =
-    str(pr.longName) ?? str(pr.shortName) ?? str(qt.longName) ?? chart?.name ?? symbol;
+    str(pr.longName) ?? str(pr.shortName) ?? str(qt.longName) ?? chart?.name ?? known?.name ?? symbol;
 
-  // Holdings
-  const topHoldings: EtfHolding[] = holdRaw
+  // Holdings — from Yahoo when available, else the curated registry (Yahoo
+  // publishes nothing for several of these niche funds).
+  let topHoldings: EtfHolding[] = holdRaw
     .map((h) => ({
       symbol: str(h.symbol) ?? "",
       name: str(h.holdingName) ?? str(h.symbol) ?? "",
@@ -362,6 +371,8 @@ export async function getYahooEtf(input: string): Promise<EtfData | null> {
     }))
     .filter((h) => h.name)
     .slice(0, 12);
+  const usingCuratedHoldings = topHoldings.length === 0 && !!known?.holdings?.length;
+  if (usingCuratedHoldings) topHoldings = known!.holdings!.slice(0, 12);
   const topHoldingsWeight = topHoldings.length
     ? topHoldings.reduce((s, h) => s + h.weight, 0)
     : undefined;
@@ -465,6 +476,7 @@ export async function getYahooEtf(input: string): Promise<EtfData | null> {
     fiveYearReturn,
     topHoldings,
     topHoldingsWeight,
+    holdingsNote: usingCuratedHoldings ? known?.holdingsNote : undefined,
     sectorWeights,
     stockPosition,
     bondPosition,

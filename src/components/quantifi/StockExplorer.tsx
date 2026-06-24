@@ -20,6 +20,7 @@ import { popularTickers } from "@/data/popularTickers";
 import { useProStatus } from "@/lib/useProStatus";
 import { QUANTIFI_PRO } from "@/data/plans";
 import { FREE_LIMIT } from "@/lib/freeLimit";
+import { knownFund } from "@/data/knownFunds";
 
 const QUICK = ["NVDA", "AAPL", "MSFT", "TSLA", "AMZN", "GOOGL", "INFY.NS", "RELIANCE.NS"];
 
@@ -40,6 +41,8 @@ function toTvSymbol(raw: string): string {
 function defaultEngine(t: string): Engine {
   const u = t.toUpperCase();
   if (u.endsWith(".NS") || u.endsWith(".BO")) return "quantifi";
+  // Non-exchange-traded funds (e.g. ARKVX) aren't on TradingView's free widget.
+  if (knownFund(u)?.preferQuantifiChart) return "quantifi";
   return "tv";
 }
 
@@ -165,7 +168,12 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
           try {
             const er = await fetch(`/api/etf/${encodeURIComponent(ticker)}`);
             const ed = (await er.json()) as { available: boolean; etf?: EtfData };
-            if (!cancelled && ed.available && ed.etf) setEtf(ed.etf);
+            if (!cancelled && ed.available && ed.etf) {
+              setEtf(ed.etf);
+              // Mutual funds / non-exchange-traded funds aren't on TradingView's
+              // free widget — move straight to the Quantifi (Yahoo) chart.
+              if (ed.etf.kind !== "ETF") setEngine("quantifi");
+            }
           } catch {
             /* leave etf null → generic not-available card */
           }
