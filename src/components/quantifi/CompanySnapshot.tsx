@@ -56,10 +56,22 @@ export default function CompanySnapshot({
   const cfGap = cf ? ((cf.estimate - resolvedPrice) / resolvedPrice) * 100 : 0;
   const cfUnder = cfGap > 0;
 
-  // For AI-bubble names, price reflects future expectations more than analyst
-  // targets, so lead with the share-price-vs-future-cash-flow lens instead of
-  // the analyst mean target — but only when we have a trustworthy DCF.
+  // For AI-bubble names, price reflects future expectations more than near-term
+  // analyst targets, so we LEAD with the share-price-vs-future-cash-flow lens —
+  // but the analyst view always stays visible right below it (both lenses, every
+  // time). Only reorder when we actually have a trustworthy DCF.
   const featureCashflow = isAiBubbleStock(ticker) && !!cf;
+
+  // When the analyst target and the cash-flow value disagree by a wide margin
+  // (>30% of the current price), the two methods are telling different stories —
+  // usually the market pricing in growth that today's cash flows don't yet
+  // support. Flag it so the user weighs both rather than trusting one number.
+  const diverge =
+    cf != null &&
+    a.fairValue?.estimate != null &&
+    resolvedPrice > 0 &&
+    Math.abs(a.fairValue.estimate - cf.estimate) / resolvedPrice >= 0.3;
+  const cfRicher = cf != null && a.fairValue.estimate > cf.estimate;
 
   const analystCard = (
     <GlassCard className="mt-4 p-5 sm:p-6">
@@ -221,11 +233,42 @@ export default function CompanySnapshot({
         </GlassCard>
       </div>
 
-      {/* Valuation. For AI-bubble names the future-cash-flow lens leads (and
-          replaces the analyst target); otherwise the analyst target leads with
-          the cash-flow view below it as an independent cross-check. */}
-      {featureCashflow ? cashflowCard : analystCard}
-      {featureCashflow ? null : cashflowCard}
+      {/* Divergence flag — shown when the two valuation lenses disagree widely. */}
+      {diverge ? (
+        <GlassCard className="mt-4 border-gold/30 bg-gold/[0.06] p-4 sm:p-5">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 text-base text-gold" aria-hidden>⚠</span>
+            <p className="text-sm leading-relaxed text-slate-200">
+              <span className="font-semibold text-white">The two valuation methods disagree.</span>{" "}
+              Analysts&apos; mean target is{" "}
+              <span className="font-mono text-white">{cur}{fmtPrice(a.fairValue.estimate)}</span>,
+              while the future-cash-flow value is{" "}
+              <span className="font-mono text-white">{cur}{fmtPrice(cf!.estimate)}</span> — a gap
+              of {Math.abs(((a.fairValue.estimate - cf!.estimate) / resolvedPrice) * 100).toFixed(0)}%
+              of the share price.{" "}
+              {cfRicher
+                ? "The market is pricing in growth beyond what today's cash flows justify — common for AI names whose current free cash flow is held down by heavy investment."
+                : "Analysts are more cautious than today's cash generation implies."}{" "}
+              Weigh both — neither is advice.
+            </p>
+          </div>
+        </GlassCard>
+      ) : null}
+
+      {/* Valuation. For AI-bubble names the future-cash-flow lens leads; the
+          analyst target always stays visible directly below it (and vice-versa
+          for everyone else), so both lenses are shown every time. */}
+      {featureCashflow ? (
+        <>
+          {cashflowCard}
+          {analystCard}
+        </>
+      ) : (
+        <>
+          {analystCard}
+          {cashflowCard}
+        </>
+      )}
 
       {/* Risk & reward */}
       <div className="mt-4 grid gap-4 md:grid-cols-2">

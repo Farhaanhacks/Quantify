@@ -12,6 +12,7 @@ import {
 import { fmtPrice, SCORE_AXES } from "@/data/demo";
 import type { ScoreAxisKey } from "@/data/demo";
 import { useWatchlist } from "@/lib/useWatchlist";
+import { isAiBubbleStock } from "@/data/aiBubble";
 
 const EMPTY_LABELS = ["", "", "", "", ""];
 
@@ -31,6 +32,7 @@ interface RowData {
   price?: number;
   currency?: string;
   target?: number;
+  cfv?: number; // future cash-flow value (independent DCF), per share
   gap?: number; // % to analyst target ((target-price)/price*100); +ve = undervalued
   ps?: number;
   growth?: number; // revenue growth, fraction
@@ -68,6 +70,8 @@ function WatchRow({ ticker, onRemove }: { ticker: string; onRemove: () => void }
         }
         if (typeof d.priceToSales === "number") r.ps = d.priceToSales;
         if (typeof d.revenueGrowth === "number") r.growth = d.revenueGrowth;
+        const cfv = d.analytics?.cashflowValue?.estimate;
+        if (typeof cfv === "number" && cfv > 0) r.cfv = cfv;
         const sc = d.analytics?.scores;
         if (sc) {
           r.scores = {
@@ -109,12 +113,31 @@ function WatchRow({ ticker, onRemove }: { ticker: string; onRemove: () => void }
     };
   }, [ticker]);
 
+  // On the cover, AI-bubble names lead with the future-cash-flow lens; everyone
+  // else with the analyst target. Both remain visible when you open the stock.
+  const bubble = isAiBubbleStock(ticker);
+  const useCashflow = bubble && row?.cfv != null;
+  const refValue = useCashflow ? row?.cfv : row?.target;
+  const refKind = useCashflow ? "future cash flow" : "analyst target";
+  const refGap =
+    refValue != null && row?.price != null && row.price > 0
+      ? ((refValue - row.price) / row.price) * 100
+      : null;
+
   const gapLabel =
-    row?.gap == null
+    refGap == null
       ? null
-      : row.gap >= 0
-      ? `${row.gap.toFixed(1)}% undervalued`
-      : `${Math.abs(row.gap).toFixed(1)}% overvalued`;
+      : refGap >= 0
+      ? `${refGap.toFixed(1)}% undervalued`
+      : `${Math.abs(refGap).toFixed(1)}% overvalued`;
+
+  // Flag when analyst target and cash-flow value tell different stories.
+  const diverge =
+    row?.target != null &&
+    row?.cfv != null &&
+    row?.price != null &&
+    row.price > 0 &&
+    Math.abs(row.target - row.cfv) / row.price >= 0.3;
 
   return (
     <li className="grid grid-cols-2 gap-y-3 gap-x-4 py-4 lg:grid-cols-[1.5fr_1.7fr_0.8fr_0.9fr_1fr_auto] lg:items-center">
@@ -178,10 +201,21 @@ function WatchRow({ ticker, onRemove }: { ticker: string; onRemove: () => void }
               {row?.price != null ? fmtPrice(row.price) : "—"}
             </span>
             {gapLabel ? (
-              <span
-                className={`text-xs ${row!.gap! >= 0 ? "text-up" : "text-down"}`}
-              >
-                {gapLabel}
+              <span className="flex flex-wrap items-center gap-1.5">
+                <span className={`text-xs ${refGap! >= 0 ? "text-up" : "text-down"}`}>
+                  {gapLabel}
+                </span>
+                <span className="text-[0.6rem] text-slate-600">
+                  vs {useCashflow ? "cash-flow value" : "analyst target"}
+                </span>
+                {diverge ? (
+                  <span
+                    className="rounded-full border border-gold/30 bg-gold/10 px-1.5 py-px text-[0.55rem] font-medium tracking-wide text-gold"
+                    title="Analyst target and future cash-flow value disagree by a wide margin — open the stock to see both."
+                  >
+                    ⚠ models differ
+                  </span>
+                ) : null}
               </span>
             ) : null}
             {row?.spark && row.spark.length >= 2 ? (
@@ -219,13 +253,20 @@ function WatchRow({ ticker, onRemove }: { ticker: string; onRemove: () => void }
         </span>
       </div>
 
-      {/* Analyst target */}
+      {/* Fair value — cash-flow value for AI-bubble names, analyst target otherwise */}
       <div className="flex items-baseline justify-between lg:block lg:text-right">
         <span className="lg:hidden text-[0.6rem] uppercase tracking-[0.12em] text-slate-500">
-          Analyst target
+          {useCashflow ? "Cash-flow value" : "Analyst target"}
         </span>
-        <span className="font-mono text-sm tnum text-white">
-          {row?.target != null ? `${ccy(row?.currency, ticker)}${fmtPrice(row.target)}` : "—"}
+        <span className="lg:flex lg:flex-col lg:items-end">
+          <span className="font-mono text-sm tnum text-white">
+            {refValue != null ? `${ccy(row?.currency, ticker)}${fmtPrice(refValue)}` : "—"}
+          </span>
+          {refValue != null ? (
+            <span className="hidden text-[0.55rem] uppercase tracking-[0.1em] text-slate-600 lg:block">
+              {refKind}
+            </span>
+          ) : null}
         </span>
       </div>
 
@@ -307,7 +348,8 @@ export default function Watchlist({ heading = true }: { heading?: boolean }) {
           <span className="text-xs text-slate-500">{data.stocks.length} tracked</span>
         </div>
         <p className="mt-1 text-xs text-slate-500">
-          Live price, gap to the analysts&apos; fair value, growth and a 6-month trend — at a glance.
+          Live price, fair value, growth and a 6-month trend — at a glance. AI names lead with their
+          future cash-flow value; the rest with the analyst target.
         </p>
 
         {/* add row */}
@@ -337,7 +379,7 @@ export default function Watchlist({ heading = true }: { heading?: boolean }) {
               <span>Price &amp; valuation</span>
               <span className="text-right">Valuation</span>
               <span className="text-right">Growth</span>
-              <span className="text-right">Analyst target</span>
+              <span className="text-right">Fair value</span>
               <span />
             </div>
             <ul className="divide-y divide-white/[0.05]">

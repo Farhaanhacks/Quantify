@@ -62,7 +62,7 @@ function dcfPerShare(
   years = 10
 ): number | undefined {
   if (fcf == null || fcf <= 0 || shares == null || shares <= 0) return undefined;
-  const g = Math.min(0.2, Math.max(0.02, growth ?? 0.05)); // clamp 2%–20%
+  const g = Math.min(0.2, Math.max(0.03, growth ?? 0.05)); // clamp 3%–20%
   let cf = fcf;
   let pv = 0;
   for (let t = 1; t <= years; t++) {
@@ -73,6 +73,23 @@ function dcfPerShare(
   pv += terminal / Math.pow(1 + discount, years);
   const perShare = pv / shares;
   return isFinite(perShare) && perShare > 0 ? perShare : undefined;
+}
+
+// A steadier growth input for the DCF than any single Yahoo field. Revenue
+// growth is the stable anchor; strong earnings growth lifts it (operating
+// leverage), but a noisy low earnings print can no longer drag the estimate
+// below revenue growth and collapse the model to the floor — which is what made
+// fast compounders like AMZN read absurdly cheap (a 20% grower priced as a 2%
+// one). Falls back to whichever single signal exists.
+function forwardGrowth(
+  rev: number | undefined,
+  earn: number | undefined
+): number | undefined {
+  if (rev != null && rev > 0) {
+    return earn != null && earn > rev ? (rev + earn) / 2 : rev;
+  }
+  if (earn != null && earn > 0) return earn;
+  return rev ?? earn;
 }
 
 export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
@@ -222,7 +239,7 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
     financialCurrency == null ||
     priceCurrency == null ||
     financialCurrency === priceCurrency;
-  const cfRaw = dcfPerShare(freeCashflow, sharesOutstanding, earnGrowth ?? revGrowth);
+  const cfRaw = dcfPerShare(freeCashflow, sharesOutstanding, forwardGrowth(revGrowth, earnGrowth));
   const cfPerShare =
     cfRaw != null && currencyOk && cfRaw >= price * 0.1 && cfRaw <= price * 10
       ? cfRaw
