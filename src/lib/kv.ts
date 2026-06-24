@@ -42,3 +42,31 @@ export async function kvSet(key: string, value: string): Promise<boolean> {
     return false;
   }
 }
+
+// List helpers (used for the community question inbox).
+export async function kvRPush(key: string, value: string): Promise<boolean> {
+  try {
+    const r = await command(["RPUSH", key, value]);
+    return typeof r === "number";
+  } catch {
+    return false;
+  }
+}
+
+export async function kvLRange(key: string, start = 0, stop = -1): Promise<string[]> {
+  try {
+    const r = await command(["LRANGE", key, String(start), String(stop)]);
+    return Array.isArray(r) ? r.filter((x): x is string => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function kvLTrim(key: string, start: number, stop: number): Promise<void> {
+  try {
+    await command(["LTRIM", key, String(start), String(stop)]);
+  } catch {
+    /* ignore */
+  }
+}
+

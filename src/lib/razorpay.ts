@@ -91,7 +91,49 @@ export async function fetchSubscription(id: string): Promise<RazorpaySubscriptio
   return (await res.json()) as RazorpaySubscription;
 }
 
-// Checkout success handshake: signature = HMAC_SHA256(payment_id|subscription_id).
+export interface RazorpayOrder {
+  id: string;
+  amount: number;
+  currency: string;
+  status?: string;
+}
+
+// One-time order for Standard Checkout. Used as the active checkout path when no
+// subscription Plan ID is configured (the provided test keys alone are enough).
+// `amount` is in paise (Razorpay minimum is 100).
+export async function createOrder(
+  amountPaise: number,
+  receipt: string,
+  currency = "INR"
+): Promise<RazorpayOrder> {
+  const res = await fetch("https://api.razorpay.com/v1/orders", {
+    method: "POST",
+    headers: { Authorization: authHeader(), "Content-Type": "application/json" },
+    body: JSON.stringify({ amount: amountPaise, currency, receipt }),
+    cache: "no-store",
+  });
+  const data = (await res.json()) as RazorpayOrder & { error?: { description?: string } };
+  if (!res.ok) {
+    throw new Error(data?.error?.description || "Razorpay order create failed");
+  }
+  return data;
+}
+
+// Standard Checkout success: signature = HMAC_SHA256(order_id|payment_id).
+export function verifyOrderSignature(
+  orderId: string,
+  paymentId: string,
+  signature: string
+): boolean {
+  const { keySecret } = razorpayConfig();
+  if (!keySecret || !orderId || !paymentId || !signature) return false;
+  const expected = createHmac("sha256", keySecret)
+    .update(`${orderId}|${paymentId}`)
+    .digest("hex");
+  return timingSafeEqual(expected, signature);
+}
+
+// Subscription checkout success handshake: signature = HMAC_SHA256(payment_id|subscription_id).
 export function verifyPaymentSignature(
   paymentId: string,
   subscriptionId: string,

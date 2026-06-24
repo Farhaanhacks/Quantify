@@ -1,7 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { GlassCard, SectionHeading, Tag, Eyebrow } from "@/components/quantifi/Cards";
+
+interface InboxQuestion {
+  q: string;
+  email?: string;
+  name?: string;
+  ts: number;
+}
 
 interface Contributor {
   name: string;
@@ -64,6 +71,37 @@ const POSTS: Post[] = [
 export default function Community() {
   const [sent, setSent] = useState(false);
   const [question, setQuestion] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [inbox, setInbox] = useState<InboxQuestion[] | null>(null);
+
+  // Owners (PRO_EMAILS) get a 200 with the questions; everyone else gets 403.
+  useEffect(() => {
+    fetch("/api/community/ask")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { questions?: InboxQuestion[] } | null) => {
+        if (d?.questions) setInbox(d.questions);
+      })
+      .catch(() => {});
+  }, []);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = question.trim();
+    if (!q || submitting) return;
+    setSubmitting(true);
+    try {
+      await fetch("/api/community/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: q }),
+      });
+    } catch {
+      /* even if storage fails, acknowledge to the user */
+    } finally {
+      setSubmitting(false);
+      setSent(true);
+    }
+  };
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
@@ -143,13 +181,7 @@ export default function Community() {
                 contributors come online.
               </div>
             ) : (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (question.trim()) setSent(true);
-                }}
-                className="space-y-3"
-              >
+              <form onSubmit={submit} className="space-y-3">
                 <textarea
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}
@@ -158,15 +190,41 @@ export default function Community() {
                 />
                 <button
                   type="submit"
-                  className="w-full rounded-lg bg-gradient-to-r from-gold-400 to-gold-600 px-5 py-2.5 text-sm font-semibold text-ink transition hover:opacity-90"
+                  disabled={submitting}
+                  className="w-full rounded-lg bg-gradient-to-r from-gold-400 to-gold-600 px-5 py-2.5 text-sm font-semibold text-ink transition hover:opacity-90 disabled:opacity-60"
                 >
-                  Post question
+                  {submitting ? "Posting…" : "Post question"}
                 </button>
               </form>
             )}
           </div>
         </div>
       </GlassCard>
+
+      {/* Owner-only inbox: submitted questions land here */}
+      {inbox ? (
+        <div className="mt-10">
+          <Eyebrow>Question inbox · owner only</Eyebrow>
+          <GlassCard className="mt-4 p-5 sm:p-6">
+            {inbox.length === 0 ? (
+              <p className="text-sm text-slate-500">No questions submitted yet.</p>
+            ) : (
+              <ul className="divide-y divide-white/[0.06]">
+                {inbox.map((item, i) => (
+                  <li key={i} className="py-3">
+                    <p className="text-sm text-slate-200">{item.q}</p>
+                    <p className="mt-1 text-[0.7rem] text-slate-500">
+                      {item.name || item.email || "Anonymous"}
+                      {item.email ? ` · ${item.email}` : ""} ·{" "}
+                      {new Date(item.ts).toLocaleString()}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </GlassCard>
+        </div>
+      ) : null}
 
       <p className="mt-6 text-center text-xs text-slate-600">
         Community guidance is educational and reflects contributors&apos; own views — not advice from

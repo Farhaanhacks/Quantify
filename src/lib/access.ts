@@ -30,6 +30,13 @@ function proEmailAllowlist(): Set<string> {
   );
 }
 
+// Owner / comp emails only (the PRO_EMAILS allowlist) — used to gate owner-only
+// surfaces like the community question inbox. KV-paid Pro users are NOT owners.
+export function isOwnerEmail(email?: string | null): boolean {
+  if (!email) return false;
+  return proEmailAllowlist().has(email.trim().toLowerCase());
+}
+
 export async function isEmailPro(email?: string | null): Promise<boolean> {
   if (!email) return false;
   const e = email.trim().toLowerCase();
