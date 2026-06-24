@@ -1,4 +1,5 @@
 import { marketPulse as demoPulse, topMovers } from "@/data/demo";
+import { yahooQuotes } from "@/lib/yahooCrumb";
 
 // Live market pulse — indices, commodities, crypto, rates and movers — pulled
 // from Yahoo's keyless chart endpoint (the same source the charts use). Each
@@ -40,7 +41,7 @@ async function fetchOne(symbol: string): Promise<{ price: number; prev: number }
   try {
     const r = await fetch(
       `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1d&interval=1d`,
-      { headers: { "User-Agent": UA }, next: { revalidate: 300 }, signal: AbortSignal.timeout(7000) }
+      { headers: { "User-Agent": UA }, next: { revalidate: 60 }, signal: AbortSignal.timeout(7000) }
     );
     if (!r.ok) return null;
     const j = (await r.json()) as {
@@ -49,7 +50,9 @@ async function fetchOne(symbol: string): Promise<{ price: number; prev: number }
     const m = j?.chart?.result?.[0]?.meta;
     const price = m?.regularMarketPrice;
     if (typeof price !== "number" || !isFinite(price)) return null;
-    const prev = m?.chartPreviousClose ?? m?.previousClose;
+    // Prefer the official previous close (matches Yahoo's displayed % change);
+    // chartPreviousClose is adjusted and can skew the day-change figure.
+    const prev = m?.previousClose ?? m?.chartPreviousClose;
     return { price, prev: typeof prev === "number" && prev > 0 ? prev : price };
   } catch {
     return null;
@@ -70,8 +73,25 @@ function fmtVal(v: number, fmt: Fmt): string {
 export async function getPulse(): Promise<{ pulse: PulseEntry[]; movers: MoverEntry[]; live: boolean }> {
   let live = false;
 
+  // One batched, authoritative quote call for every symbol on the bar. We use
+  // Yahoo's reported day-change directly so the numbers match what a broker
+  // shows. Anything missing here falls back to the per-symbol chart endpoint,
+  // then to the demo value, so the bar always renders.
+  const quotes = await yahooQuotes([
+    ...SYMBOLS.map((s) => s.symbol),
+    ...topMovers.map((m) => m.ticker),
+  ]);
+
   const idx = await Promise.all(
     SYMBOLS.map(async (s): Promise<PulseEntry | null> => {
+      const q = quotes.get(s.symbol.toUpperCase());
+      if (q && q.price != null && q.changePercent != null) {
+        return {
+          label: s.label,
+          value: fmtVal(q.price, s.fmt),
+          changePct: Number(q.changePercent.toFixed(2)),
+        };
+      }
       const d = await fetchOne(s.symbol);
       if (!d) return null;
       const changePct = d.prev ? ((d.price - d.prev) / d.prev) * 100 : 0;
@@ -89,6 +109,14 @@ export async function getPulse(): Promise<{ pulse: PulseEntry[]; movers: MoverEn
 
   const moverResults = await Promise.all(
     topMovers.map(async (m): Promise<MoverEntry | null> => {
+      const q = quotes.get(m.ticker.toUpperCase());
+      if (q && q.changePercent != null) {
+        return {
+          ticker: m.ticker,
+          changePct: Number(q.changePercent.toFixed(2)),
+          price: q.price ?? 0,
+        };
+      }
       const d = await fetchOne(m.ticker);
       if (!d) return null;
       const changePct = d.prev ? ((d.price - d.prev) / d.prev) * 100 : 0;

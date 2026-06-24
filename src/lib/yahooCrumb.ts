@@ -130,6 +130,79 @@ export async function yahooQuoteSummary(
   return undefined;
 }
 
+export interface YahooQuote {
+  symbol: string;
+  price?: number;
+  // Yahoo's OWN regular-session day change (already a percent, e.g. -6.55), the
+  // exact number Yahoo and brokers display — so we never recompute and drift.
+  changePercent?: number;
+  previousClose?: number;
+  currency?: string;
+  marketState?: string;
+}
+
+// Batched authoritative quotes from Yahoo's v7 quote endpoint. We read Yahoo's
+// reported regularMarketChangePercent directly rather than deriving day change
+// from price minus a previous close — the two diverge (adjusted vs official
+// close, and cache lag), which is exactly what made "Today's movers" show a
+// wrong percentage. One call covers every symbol. Requires the cookie+crumb
+// handshake; refreshes and retries once on 401/403/429. Keyless, personal use.
+export async function yahooQuotes(
+  symbols: string[],
+  revalidate = 60
+): Promise<Map<string, YahooQuote>> {
+  const out = new Map<string, YahooQuote>();
+  if (!symbols.length) return out;
+  const list = symbols.map((s) => encodeURIComponent(s)).join(",");
+  const n = (x: unknown): number | undefined =>
+    typeof x === "number" && isFinite(x) ? x : undefined;
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const cc = await getYahooCrumb(attempt > 0);
+    if (!cc) continue;
+    let authFailed = false;
+    for (const host of ["query1", "query2"]) {
+      try {
+        const url = `https://${host}.finance.yahoo.com/v7/finance/quote?symbols=${list}&crumb=${encodeURIComponent(
+          cc.crumb
+        )}`;
+        const res = await fetch(url, {
+          headers: { "User-Agent": UA, Cookie: cc.cookie },
+          next: { revalidate },
+          signal: AbortSignal.timeout(9000),
+        });
+        if (res.status === 401 || res.status === 403 || res.status === 429) {
+          invalidateYahooCrumb();
+          authFailed = true;
+          break; // refresh crumb on the next attempt
+        }
+        if (!res.ok) continue; // transient — try the other host
+        const json = (await res.json()) as {
+          quoteResponse?: { result?: Record<string, unknown>[] };
+        };
+        for (const q of json?.quoteResponse?.result ?? []) {
+          const symbol = typeof q.symbol === "string" ? q.symbol : undefined;
+          if (!symbol) continue;
+          out.set(symbol.toUpperCase(), {
+            symbol,
+            price: n(q.regularMarketPrice),
+            changePercent: n(q.regularMarketChangePercent),
+            previousClose: n(q.regularMarketPreviousClose),
+            currency: typeof q.currency === "string" ? q.currency : undefined,
+            marketState:
+              typeof q.marketState === "string" ? q.marketState : undefined,
+          });
+        }
+        if (out.size) return out;
+      } catch {
+        invalidateYahooCrumb();
+      }
+    }
+    if (!authFailed) break; // only loop again to recover from an auth failure
+  }
+  return out;
+}
+
 // Resolve a free-text symbol or company name to a real Yahoo symbol. Keyless
 // search endpoint — no crumb required. "ADANIENT" -> "ADANIENT.NS".
 export async function resolveYahooSymbol(
