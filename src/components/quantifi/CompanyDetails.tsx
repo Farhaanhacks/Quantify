@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { GlassCard } from "@/components/quantifi/Cards";
 import type { CompanyData, FinRow } from "@/lib/yahooCompany";
 
-type Tab = "overview" | "statistics" | "financials" | "news";
+type Tab = "overview" | "statistics" | "financials";
 
 const compact = (n?: number): string => {
   if (n == null || !isFinite(n)) return "n/a";
@@ -113,7 +113,6 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
     { key: "overview", label: "Overview" },
     { key: "statistics", label: "Statistics" },
     { key: "financials", label: "Financials" },
-    { key: "news", label: "News" },
   ];
 
   return (
@@ -262,24 +261,6 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
                 ]} />
               </div>
               <p className="text-xs text-slate-500">Most recent reported annual periods, from Yahoo Finance. Values in the listed currency.</p>
-            </div>
-          ) : null}
-
-          {tab === "news" ? (
-            <div className="space-y-2">
-              {data.news && data.news.length ? (
-                data.news.map((n, i) => (
-                  <a key={i} href={n.link} target="_blank" rel="noopener noreferrer"
-                    className="block rounded-lg border border-white/[0.06] bg-white/[0.02] px-4 py-3 transition hover:border-gold/40">
-                    <div className="text-sm font-medium text-slate-100">{n.title}</div>
-                    <div className="mt-1 text-xs text-slate-500">
-                      {n.publisher ?? "News"}{n.time ? ` · ${new Date(n.time * 1000).toLocaleDateString()}` : ""}
-                    </div>
-                  </a>
-                ))
-              ) : (
-                <p className="text-sm text-slate-500">No recent company news found.</p>
-              )}
             </div>
           ) : null}
         </div>

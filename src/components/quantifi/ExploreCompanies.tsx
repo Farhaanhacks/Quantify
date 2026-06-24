@@ -186,8 +186,8 @@ export default function ExploreCompanies({
               <GlassCard className="p-5">
                 <h3 className="font-display text-base font-semibold text-white">More markets</h3>
                 <p className="mt-2 text-sm text-slate-400">
-                  UK (FTSE), Canada (TSX), Australia (ASX) and Japan (NIKKEI) are part of the roadmap
-                  for this prototype.
+                  UK (FTSE), Canada (TSX), Australia (ASX) and Japan (NIKKEI) are part of the
+                  roadmap.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {["FTSE", "TSX", "ASX", "NIKKEI"].map((v) => (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   GlassCard,
   SectionHeading,
@@ -117,39 +118,50 @@ function WatchRow({ ticker, onRemove }: { ticker: string; onRemove: () => void }
 
   return (
     <li className="grid grid-cols-2 gap-y-3 gap-x-4 py-4 lg:grid-cols-[1.5fr_1.7fr_0.8fr_0.9fr_1fr_auto] lg:items-center">
-      {/* Company */}
-      <div className="col-span-2 flex items-center gap-3 lg:col-span-1">
-        {row?.scores ? (
-          <span className="h-12 w-14 flex-none" title="Quantifi Score snowflake">
-            <ScoreRadar
-              values={SCORE_AXES.map((a) => row.scores![a.key])}
-              labels={EMPTY_LABELS}
-              size={120}
-            />
-          </span>
-        ) : (
-          <span className="h-12 w-14 flex-none rounded-full bg-white/[0.03]" />
-        )}
-        <div className="flex min-w-0 flex-col gap-1">
-        <TickerChip ticker={ticker} />
-        <span className="truncate text-xs text-slate-400">{row?.name ?? ticker}</span>
-        {row?.d7 != null || row?.d3m != null ? (
-          <div className="mt-0.5 flex gap-3 text-[0.7rem]">
-            {row?.d7 != null ? (
-              <span>
-                <span className={row.d7 >= 0 ? "text-up" : "text-down"}>{signed(row.d7)}</span>{" "}
-                <span className="text-slate-600">7D</span>
-              </span>
-            ) : null}
-            {row?.d3m != null ? (
-              <span>
-                <span className={row.d3m >= 0 ? "text-up" : "text-down"}>{signed(row.d3m)}</span>{" "}
-                <span className="text-slate-600">3M</span>
-              </span>
+      {/* Company — tap anywhere to open its analysis page */}
+      <div className="col-span-2 lg:col-span-1">
+        <Link
+          href={`/stock-analysis?symbol=${encodeURIComponent(ticker)}`}
+          className="group flex items-center gap-3"
+          title={`Open ${ticker} analysis`}
+        >
+          {row?.scores ? (
+            <span
+              className="relative flex h-16 w-16 flex-none items-center justify-center rounded-xl border border-gold/30 bg-gold/[0.08] shadow-[0_0_20px_-6px_rgba(233,184,114,0.55)] transition group-hover:border-gold/60"
+              title="Quantifi Score snowflake"
+            >
+              <ScoreRadar
+                values={SCORE_AXES.map((a) => row.scores![a.key])}
+                labels={EMPTY_LABELS}
+                size={120}
+              />
+            </span>
+          ) : (
+            <span className="h-16 w-16 flex-none rounded-xl border border-white/[0.06] bg-white/[0.03]" />
+          )}
+          <div className="flex min-w-0 flex-col gap-1">
+            <TickerChip ticker={ticker} />
+            <span className="truncate text-xs text-slate-400 transition group-hover:text-white">
+              {row?.name ?? ticker}
+            </span>
+            {row?.d7 != null || row?.d3m != null ? (
+              <div className="mt-0.5 flex gap-3 text-[0.7rem]">
+                {row?.d7 != null ? (
+                  <span>
+                    <span className={row.d7 >= 0 ? "text-up" : "text-down"}>{signed(row.d7)}</span>{" "}
+                    <span className="text-slate-600">7D</span>
+                  </span>
+                ) : null}
+                {row?.d3m != null ? (
+                  <span>
+                    <span className={row.d3m >= 0 ? "text-up" : "text-down"}>{signed(row.d3m)}</span>{" "}
+                    <span className="text-slate-600">3M</span>
+                  </span>
+                ) : null}
+              </div>
             ) : null}
           </div>
-        ) : null}
-        </div>
+        </Link>
       </div>
 
       {/* Price & valuation */}

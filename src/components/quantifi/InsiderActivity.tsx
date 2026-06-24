@@ -90,10 +90,18 @@ export default function InsiderActivity({
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("All");
 
+  // Standalone (no fixed ticker) page lets the user search a company. `query`
+  // is the searched symbol; when set it overrides the default feed.
+  const [queryInput, setQueryInput] = useState("");
+  const [query, setQuery] = useState<string | undefined>(undefined);
+  const activeTicker = ticker ?? query;
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    const url = ticker ? `/api/insider/${encodeURIComponent(ticker)}` : "/api/insider-feed";
+    const url = activeTicker
+      ? `/api/insider/${encodeURIComponent(activeTicker)}`
+      : "/api/insider-feed";
     (async () => {
       try {
         const r = await fetch(url);
@@ -109,15 +117,20 @@ export default function InsiderActivity({
     return () => {
       cancelled = true;
     };
-  }, [ticker]);
+  }, [activeTicker]);
 
   const live = !!trades && trades.length > 0;
   // For a specific company we don't fall back to unrelated demo rows.
   const source: Row[] = useMemo(() => {
     if (live) return (trades as ApiTrade[]).map(tradeToRow);
-    if (ticker) return [];
+    if (activeTicker) return [];
     return demoRows;
-  }, [live, trades, ticker]);
+  }, [live, trades, activeTicker]);
+
+  const runSearch = () => {
+    const t = queryInput.trim().toUpperCase();
+    setQuery(t || undefined);
+  };
 
   const filtered = useMemo(() => {
     const out = source.filter((r) => {
@@ -136,14 +149,46 @@ export default function InsiderActivity({
       {heading ? (
         <SectionHeading
           eyebrow="Insider Activity"
-          title={ticker ? `Insider trades · ${ticker}` : "Who is buying and selling"}
+          title={activeTicker ? `Insider trades · ${activeTicker}` : "Who is buying and selling"}
           subtitle="Real Form 4 filings from SEC EDGAR — directors and officers, with a 10b5-1 flag when the trade was pre-arranged. Disclosed after the fact; never a signal on its own."
           href={ticker ? undefined : "/insider-activity"}
           cta={ticker ? undefined : "All activity"}
         />
       ) : null}
 
-      <div className="mt-6 flex flex-wrap items-center gap-2">
+      {/* Search a specific company (standalone page only) */}
+      {!ticker ? (
+        <div className="mt-6 flex flex-wrap items-center gap-2">
+          <input
+            value={queryInput}
+            onChange={(e) => setQueryInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && runSearch()}
+            placeholder="Search a company's insider trades — e.g. AAPL, NVDA, TSLA"
+            className="min-w-[16rem] flex-1 rounded-lg border border-white/10 bg-ink-800 px-3 py-2.5 text-sm text-white outline-none focus:border-gold/40"
+          />
+          <button
+            type="button"
+            onClick={runSearch}
+            className="rounded-lg bg-gradient-to-r from-gold-400 to-gold-600 px-5 py-2.5 text-sm font-semibold text-ink transition hover:opacity-90"
+          >
+            Search
+          </button>
+          {query ? (
+            <button
+              type="button"
+              onClick={() => {
+                setQuery(undefined);
+                setQueryInput("");
+              }}
+              className="rounded-lg border border-white/10 px-4 py-2.5 text-sm text-slate-300 transition hover:border-white/30 hover:text-white"
+            >
+              Back to feed
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
         <span
           className={`rounded-full border px-2 py-0.5 text-[0.6rem] uppercase tracking-[0.12em] ${
             live
@@ -216,8 +261,8 @@ export default function InsiderActivity({
 
         {!loading && filtered.length === 0 ? (
           <div className="px-5 py-10 text-center text-sm text-slate-500">
-            {ticker
-              ? `No recent insider (Form 4) filings found for ${ticker}. This is US-listed data — non-US tickers won't appear.`
+            {activeTicker
+              ? `No recent insider (Form 4) filings found for ${activeTicker}. This is US-listed data — non-US tickers won't appear.`
               : "No activity matches this filter."}
           </div>
         ) : null}

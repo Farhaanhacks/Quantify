@@ -17,7 +17,6 @@ export const FREE_FEATURES = [
   "Explore companies & Screener",
   "Trading Ideas & Famous Takes",
   "Portfolio tracker & Watchlist",
-  "Currency tools",
 ] as const;
 
 export interface ProPlan {

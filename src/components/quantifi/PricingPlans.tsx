@@ -133,19 +133,19 @@ export default function PricingPlans() {
         </div>
         {QUANTIFI_PRO.trialDays > 0 && !pro ? (
           <>
-            {/* Big, eye-catching trial line first… */}
-            <div className="mt-3 font-display text-3xl font-bold leading-none text-gradient-gold sm:text-4xl">
-              {QUANTIFI_PRO.trialLabel}
-            </div>
-            {/* …then the price with the standard ₹500 struck out beside it. */}
-            <div className="mt-2.5 flex items-baseline gap-2.5">
-              <span className="font-display text-3xl font-semibold text-white">
+            {/* Price right under the title: anchor the ₹500 first, then ₹49. */}
+            <div className="mt-3 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+              <span className="font-display text-2xl font-semibold text-slate-500 line-through decoration-down decoration-[3px]">
+                ₹500<span className="text-base font-normal">/month</span>
+              </span>
+              <span className="font-display text-4xl font-bold text-white">
                 {QUANTIFI_PRO.price}
               </span>
               <span className="text-sm text-slate-500">/ {QUANTIFI_PRO.period}</span>
-              <span className="font-display text-2xl font-semibold text-slate-500 line-through decoration-down decoration-2">
-                ₹500
-              </span>
+            </div>
+            {/* Big, eye-catching trial line. */}
+            <div className="mt-2 font-display text-2xl font-bold leading-none text-gradient-gold sm:text-3xl">
+              {QUANTIFI_PRO.trialLabel}
             </div>
             <p className="mt-2 text-sm text-slate-400">
               then {QUANTIFI_PRO.price}/month — cancel anytime before the trial ends and you
