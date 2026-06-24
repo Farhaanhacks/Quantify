@@ -48,6 +48,32 @@ const c = (label: string, pass: boolean): ScoreCheck => ({ label, pass });
 const fpct = (x: number | undefined): string =>
   x == null ? "—" : `${(x * 100).toFixed(0)}%`;
 
+// A deliberately simple 2-stage discounted free-cash-flow model: grow this
+// year's FCF for 10 years, add a Gordon-growth terminal value, discount it all
+// back at a flat cost of equity, then divide by shares. Returns undefined when
+// the inputs don't support a meaningful estimate (e.g. negative FCF).
+function dcfPerShare(
+  fcf: number | undefined,
+  shares: number | undefined,
+  growth: number | undefined,
+  discount = 0.09,
+  termGrowth = 0.025,
+  years = 10
+): number | undefined {
+  if (fcf == null || fcf <= 0 || shares == null || shares <= 0) return undefined;
+  const g = Math.min(0.2, Math.max(0.02, growth ?? 0.05)); // clamp 2%–20%
+  let cf = fcf;
+  let pv = 0;
+  for (let t = 1; t <= years; t++) {
+    cf *= 1 + g;
+    pv += cf / Math.pow(1 + discount, t);
+  }
+  const terminal = (cf * (1 + termGrowth)) / (discount - termGrowth);
+  pv += terminal / Math.pow(1 + discount, years);
+  const perShare = pv / shares;
+  return isFinite(perShare) && perShare > 0 ? perShare : undefined;
+}
+
 export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   const modules =
     "quoteType,summaryDetail,defaultKeyStatistics,financialData,price,topHoldings";
@@ -99,6 +125,8 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   const marketCap = num(sd.marketCap) ?? num(pr.marketCap);
   const priceToSales =
     num(sd.priceToSalesTrailing12Months) ?? num(ks.priceToSalesTrailing12Months);
+  const freeCashflow = num(fd.freeCashflow) ?? num(fd.operatingCashflow);
+  const sharesOutstanding = num(ks.sharesOutstanding) ?? num(pr.sharesOutstanding);
   const name = str(pr.longName) ?? str(pr.shortName) ?? symbol.toUpperCase();
 
   // No company fundamentals (e.g. ETF/index) → score doesn't apply. A fund can
@@ -155,14 +183,25 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   if (rewards.length === 0) rewards.push("No standout strengths in the available fundamentals.");
   if (riskFlags.length === 0) riskFlags.push("No major red flags in the available fundamentals.");
 
+  // Independent of analysts: a simple 2-stage discounted free-cash-flow estimate
+  // of intrinsic value per share, so users can sanity-check the analyst target.
+  const cfPerShare = dcfPerShare(freeCashflow, sharesOutstanding, earnGrowth ?? revGrowth);
+
   const analytics: CompanyAnalytics = {
     ticker: symbol.toUpperCase(),
     scores,
     fairValue: {
       estimate: target ?? price,
-      method: "Analyst mean target (Yahoo)",
+      method: "Analyst mean target",
       note: "Analysts' average price target vs the current price — a research input, not advice.",
     },
+    cashflowValue:
+      cfPerShare != null
+        ? {
+            estimate: cfPerShare,
+            note: "A 2-stage discounted free-cash-flow estimate of intrinsic value — independent of analyst targets. Model-based, not advice.",
+          }
+        : undefined,
     rewards: rewards.slice(0, 4),
     riskFlags: riskFlags.slice(0, 4),
   };

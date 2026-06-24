@@ -642,6 +642,8 @@ export interface CompanyAnalytics {
   ticker: string;
   scores: Record<ScoreAxisKey, ScoreAxis>;
   fairValue: { estimate: number; method: string; note: string };
+  // Optional 2-stage discounted-cash-flow intrinsic value per share.
+  cashflowValue?: { estimate: number; note: string };
   rewards: string[];
   riskFlags: string[];
 }

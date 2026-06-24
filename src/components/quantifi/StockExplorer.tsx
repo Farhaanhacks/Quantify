@@ -10,6 +10,7 @@ import CompanyDetails from "@/components/quantifi/CompanyDetails";
 import EtfSnapshot from "@/components/quantifi/EtfSnapshot";
 import Competitors from "@/components/quantifi/Competitors";
 import CompanyNewsSection from "@/components/quantifi/CompanyNewsSection";
+import MyNotes from "@/components/quantifi/MyNotes";
 import InsiderActivity from "@/components/quantifi/InsiderActivity";
 import { GlassCard, TickerChip, Eyebrow } from "@/components/quantifi/Cards";
 import { tvSymbol } from "@/lib/tvSymbol";
@@ -336,6 +337,9 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
           {hasAnalysis ? (
             <CompanyNewsSection symbol={ticker} name={score?.name ?? etf?.name} />
           ) : null}
+
+          {/* Personal notes for this ticker. */}
+          <MyNotes ticker={ticker} />
 
           {/* Funds have no company filings/insiders — hide those sections for them. */}
           {etf ? null : (
