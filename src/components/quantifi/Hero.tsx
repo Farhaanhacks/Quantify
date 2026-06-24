@@ -12,15 +12,16 @@ export default function Hero() {
             Market-discovery & portfolio intelligence
           </div>
 
-          <h1 className="mt-6 font-display text-4xl font-semibold leading-[1.05] tracking-tight text-white sm:text-5xl lg:text-6xl">
-            See what&apos;s moving,
-            <br />
-            <span className="text-gradient-gold">why it&apos;s moving,</span>
-            <br />
-            and which stocks are affected.
+          <h1 className="mt-6 font-display text-5xl font-semibold leading-[1.03] tracking-tight text-white sm:text-6xl lg:text-7xl">
+            Markets move.{" "}
+            <span className="text-gradient-gold">Know why.</span>
           </h1>
 
-          <p className="mt-6 max-w-xl text-base leading-relaxed text-slate-400">
+          <p className="mt-5 max-w-xl font-display text-xl font-medium leading-snug text-slate-200 sm:text-2xl">
+            See what&apos;s shifting, why it&apos;s breaking, and how.
+          </p>
+
+          <p className="mt-4 max-w-xl text-base leading-relaxed text-slate-400">
             Quantifi turns market news, insider activity, and portfolio risk into clear
             research signals.
           </p>
