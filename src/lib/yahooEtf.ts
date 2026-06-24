@@ -256,29 +256,34 @@ async function getChartMeta(symbol: string): Promise<{
   prevClose?: number;
   currency?: string;
 } | null> {
-  try {
-    const r = await fetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
-        symbol
-      )}?range=1mo&interval=1d`,
-      { headers: { "User-Agent": UA }, next: { revalidate: 3600 }, signal: AbortSignal.timeout(8000) }
-    );
-    if (!r.ok) return null;
-    const j = (await r.json()) as {
-      chart?: { result?: { meta?: Record<string, unknown> }[] };
-    };
-    const meta = j?.chart?.result?.[0]?.meta;
-    if (!meta) return null;
-    return {
-      instrumentType: str(meta.instrumentType),
-      name: str(meta.longName) ?? str(meta.shortName),
-      price: num(meta.regularMarketPrice),
-      prevClose: num(meta.chartPreviousClose) ?? num(meta.previousClose),
-      currency: str(meta.currency),
-    };
-  } catch {
-    return null;
+  // Try both Yahoo hosts — one is often rate-limited while the other answers,
+  // which is the usual reason a small/new ETF read as "no data".
+  for (const host of ["query1", "query2"]) {
+    try {
+      const r = await fetch(
+        `https://${host}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
+          symbol
+        )}?range=1mo&interval=1d`,
+        { headers: { "User-Agent": UA }, next: { revalidate: 3600 }, signal: AbortSignal.timeout(8000) }
+      );
+      if (!r.ok) continue;
+      const j = (await r.json()) as {
+        chart?: { result?: { meta?: Record<string, unknown> }[] };
+      };
+      const meta = j?.chart?.result?.[0]?.meta;
+      if (!meta) continue;
+      return {
+        instrumentType: str(meta.instrumentType),
+        name: str(meta.longName) ?? str(meta.shortName),
+        price: num(meta.regularMarketPrice),
+        prevClose: num(meta.chartPreviousClose) ?? num(meta.previousClose),
+        currency: str(meta.currency),
+      };
+    } catch {
+      /* try the next host */
+    }
   }
+  return null;
 }
 
 export async function getYahooEtf(input: string): Promise<EtfData | null> {
@@ -304,19 +309,37 @@ export async function getYahooEtf(input: string): Promise<EtfData | null> {
   const qt = (res.quoteType ?? {}) as Record<string, unknown>;
   const th = (res.topHoldings ?? {}) as Record<string, unknown>;
   const holdRaw = Array.isArray(th.holdings) ? (th.holdings as Record<string, unknown>[]) : [];
+  const pr = (res.price ?? {}) as Record<string, unknown>;
+  const sd = (res.summaryDetail ?? {}) as Record<string, unknown>;
+  const ks = (res.defaultKeyStatistics ?? {}) as Record<string, unknown>;
+  const fp = (res.fundProfile ?? {}) as Record<string, unknown>;
+  const perf = (res.fundPerformance ?? {}) as Record<string, unknown>;
 
   // Identify the fund from quoteSummary's quoteType, the chart's instrumentType,
   // or — for closed-end / holding funds that Yahoo tags as EQUITY (e.g. DXYZ) —
-  // the simple fact that it reports a holdings basket.
-  const qtType = str(qt.quoteType);
+  // any of the tell-tale fund "shapes": a holdings basket, an asset-class split,
+  // a sector mix, a NAV / inception date, or a fund profile/performance block.
+  const qtType = str(qt.quoteType) ?? str(pr.quoteType);
   const chartType = chart?.instrumentType;
   const hasHoldings = holdRaw.length > 0;
+  const hasFundShape =
+    hasHoldings ||
+    (Array.isArray(th.sectorWeightings) && (th.sectorWeightings as unknown[]).length > 0) ||
+    num(th.stockPosition) != null ||
+    num(th.bondPosition) != null ||
+    num(th.cashPosition) != null ||
+    num(sd.navPrice) != null ||
+    num(ks.navPrice) != null ||
+    num(ks.fundInceptionDate) != null ||
+    str(fp.categoryName) != null ||
+    str(fp.family) != null ||
+    Object.keys(perf).length > 0;
   const isFund =
     qtType === "ETF" ||
     qtType === "MUTUALFUND" ||
     chartType === "ETF" ||
     chartType === "MUTUALFUND" ||
-    hasHoldings;
+    hasFundShape;
   // If nothing says "fund", bail so the caller falls back to the company score.
   if (!isFund) return null;
 
@@ -326,12 +349,6 @@ export async function getYahooEtf(input: string): Promise<EtfData | null> {
       : qtType === "ETF" || chartType === "ETF"
       ? "ETF"
       : "Fund";
-
-  const pr = (res.price ?? {}) as Record<string, unknown>;
-  const sd = (res.summaryDetail ?? {}) as Record<string, unknown>;
-  const ks = (res.defaultKeyStatistics ?? {}) as Record<string, unknown>;
-  const fp = (res.fundProfile ?? {}) as Record<string, unknown>;
-  const perf = (res.fundPerformance ?? {}) as Record<string, unknown>;
 
   const name =
     str(pr.longName) ?? str(pr.shortName) ?? str(qt.longName) ?? chart?.name ?? symbol;

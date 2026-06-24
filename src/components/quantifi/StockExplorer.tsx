@@ -124,14 +124,14 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
   //   signin   → not signed in (quota is per email, so we need one)
   //   reveal   → signed-in free user with slots left
   //   wall     → signed-in free user who has spent every slot
-  type Stage = "loading" | "analysis" | "signin" | "reveal" | "wall";
+  type Stage = "loading" | "analysis" | "reveal" | "wall";
   const resolved = !scoreLoading && score !== null; // know whether there's data to gate
   let stage: Stage = "loading";
   if (!proReady) stage = "loading";
   else if (pro) stage = "analysis";
+  else if (!user) stage = "loading"; // signed-out is handled by the early SignInGate return
   else if (!meterReady) stage = "loading";
   else if (unlocked) stage = "analysis";
-  else if (!user) stage = "signin";
   else if (!resolved) stage = "loading";
   else if (!hasAnalysis) stage = "analysis"; // nothing to reveal → show the free "not available" card, no charge
   else if (limitReached) stage = "wall";
@@ -222,9 +222,13 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
     </button>
   );
 
+  // Signed-out visitors can't analyse at all — the free quota is per email, so we
+  // require sign-in before anything (the chart included) is shown.
+  if (proReady && !user) return <SignInGate />;
+
   return (
     <>
-      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 pb-4 pt-8 sm:px-6 lg:px-8">
         {/* Search */}
         <GlassCard className="p-5">
           <label className="mb-2 block text-[0.7rem] uppercase tracking-[0.16em] text-slate-500">
@@ -273,74 +277,58 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
             stocks). Switch anytime with the toggle.
           </p>
         </GlassCard>
-
-        {/* Live chart with engine toggle */}
-        <div className="mx-auto mt-4 max-w-4xl">
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <TickerChip ticker={ticker} active />
-              <span className="text-xs text-slate-500">
-                Live chart · {engine === "tv" ? "TradingView" : "Quantifi (Yahoo)"}
-              </span>
-            </div>
-            <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] p-0.5 text-xs">
-              {segBtn("tv", "TradingView")}
-              {segBtn("quantifi", "Quantifi")}
-            </div>
-          </div>
-
-          {engine === "tv" ? (
-            <>
-              <TradingViewWidget
-                symbol={tvSym}
-                kind="advanced-chart"
-                height={540}
-                range="12M"
-                allowSymbolChange
-              />
-              <p className="mt-2 text-xs text-slate-500">
-                Seeing “only available on TradingView”? Tap{" "}
-                <span className="text-gold">Quantifi</span> above for the Yahoo-powered chart.
-              </p>
-            </>
-          ) : (
-            <PriceChart symbol={ticker} height={500} />
-          )}
-        </div>
       </section>
 
-      {/* Free-plan meter hint (only once they've unlocked this name). */}
-      {stage === "analysis" && !pro && meterReady ? (
-        <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <p className="text-center text-xs text-slate-500">
-            Free plan · {Math.min(usedCount, FREE_LIMIT)} of {FREE_LIMIT} free analyses used.{" "}
-            <Link href="/pricing" className="text-gold hover:underline">
-              Go Pro for unlimited →
-            </Link>
-          </p>
-        </section>
-      ) : null}
-
-      {stage === "loading" ? (
-        <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
-          <GlassCard className="p-6">
-            <p className="text-sm text-slate-500">Loading analysis…</p>
-          </GlassCard>
-        </section>
-      ) : stage === "signin" ? (
-        <SignInGate ticker={ticker} />
-      ) : stage === "reveal" ? (
-        <RevealGate
-          ticker={ticker}
-          used={usedCount}
-          limit={FREE_LIMIT}
-          revealing={revealing}
-          onReveal={reveal}
-        />
-      ) : stage === "wall" ? (
-        <FreeLimitWall ticker={ticker} signedIn={Boolean(user)} />
-      ) : (
+      {stage === "analysis" ? (
         <>
+          {/* Live chart with engine toggle — only for a revealed name or Pro. */}
+          <section className="mx-auto max-w-7xl px-4 pb-2 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-4xl">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <TickerChip ticker={ticker} active />
+                  <span className="text-xs text-slate-500">
+                    Live chart · {engine === "tv" ? "TradingView" : "Quantifi (Yahoo)"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] p-0.5 text-xs">
+                  {segBtn("tv", "TradingView")}
+                  {segBtn("quantifi", "Quantifi")}
+                </div>
+              </div>
+
+              {engine === "tv" ? (
+                <>
+                  <TradingViewWidget
+                    symbol={tvSym}
+                    kind="advanced-chart"
+                    height={540}
+                    range="12M"
+                    allowSymbolChange
+                  />
+                  <p className="mt-2 text-xs text-slate-500">
+                    Seeing “only available on TradingView”? Tap{" "}
+                    <span className="text-gold">Quantifi</span> above for the Yahoo-powered chart.
+                  </p>
+                </>
+              ) : (
+                <PriceChart symbol={ticker} height={500} />
+              )}
+            </div>
+          </section>
+
+          {/* Free-plan meter hint (only once they've unlocked this name). */}
+          {!pro && meterReady ? (
+            <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              <p className="text-center text-xs text-slate-500">
+                Free plan · {Math.min(usedCount, FREE_LIMIT)} of {FREE_LIMIT} free analyses used.{" "}
+                <Link href="/pricing" className="text-gold hover:underline">
+                  Go Pro for unlimited →
+                </Link>
+              </p>
+            </section>
+          ) : null}
+
           {/* Quantifi Score (stocks) → ETF X-ray (funds) → graceful fallback */}
           {score?.available && score.analytics ? (
             <>
@@ -395,25 +383,43 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
             </>
           ) : null}
         </>
-      )}
+      ) : stage === "loading" ? (
+        <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
+          <GlassCard className="p-6">
+            <p className="text-sm text-slate-500">Loading analysis…</p>
+          </GlassCard>
+        </section>
+      ) : stage === "reveal" ? (
+        <RevealGate
+          ticker={ticker}
+          used={usedCount}
+          limit={FREE_LIMIT}
+          revealing={revealing}
+          onReveal={reveal}
+        />
+      ) : stage === "wall" ? (
+        <FreeLimitWall ticker={ticker} signedIn={Boolean(user)} />
+      ) : null}
     </>
   );
 }
 
-// Free quota is per email, so a signed-out visitor can't get analyses — they
-// could just reload to dodge the limit. Ask them to sign in first.
-function SignInGate({ ticker }: { ticker: string }) {
+// The free quota is per email, so a signed-out visitor can't analyse at all —
+// otherwise they could just reload (or open another device) to dodge the limit.
+// This gates the whole page, chart included.
+function SignInGate() {
   return (
-    <section className="mx-auto max-w-2xl px-4 pb-16 pt-2 sm:px-6">
+    <section className="mx-auto max-w-2xl px-4 pb-16 pt-6 sm:px-6">
       <GlassCard className="border-gold/30 bg-gold/[0.04] p-8 text-center">
         <Eyebrow>Quantifi</Eyebrow>
         <h2 className="mt-4 font-display text-2xl font-semibold text-white sm:text-3xl">
-          Sign in to analyse {ticker}
+          Sign in to analyse stocks &amp; ETFs
         </h2>
         <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-400">
-          The live chart above is free for everyone. The full Quantifi Score, fundamentals
-          and insider activity come with <span className="text-gold">{FREE_LIMIT} free analyses</span>{" "}
-          on every account — sign in so we can keep them tied to you across your devices.
+          Stock Analysis — the live chart, the Quantifi Score, fundamentals and insider
+          activity — is for signed-in members. Every account gets{" "}
+          <span className="text-gold">{FREE_LIMIT} free analyses</span> to start, tied to
+          your account so they follow you across every device.
         </p>
         <div className="mt-7">
           <a
@@ -453,8 +459,9 @@ function RevealGate({
         </h2>
         <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-400">
           You have <span className="font-semibold text-gold">{left}</span> of {limit} free{" "}
-          {limit === 1 ? "analysis" : "analyses"} left. Revealing {ticker} uses one — the chart
-          above stays free, and you can re-open {ticker} anytime at no extra cost.
+          {limit === 1 ? "analysis" : "analyses"} left. Revealing {ticker} uses one and unlocks
+          its live chart, Quantifi Score, fundamentals and insider activity — and you can
+          re-open {ticker} anytime at no extra cost.
         </p>
         <div className="mt-7 flex items-center justify-center gap-3">
           <button
@@ -487,9 +494,9 @@ function FreeLimitWall({ ticker, signedIn }: { ticker: string; signedIn: boolean
           You&apos;ve used your {FREE_LIMIT} free analyses
         </h2>
         <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-400">
-          The chart for <span className="font-mono text-slate-200">{ticker}</span> stays free, but
-          the full Quantifi Score, fundamentals and insider activity are part of Pro. Unlock
-          unlimited analysis for{" "}
+          <span className="font-mono text-slate-200">{ticker}</span> — its chart, the Quantifi
+          Score, fundamentals and insider activity — needs Quantifi Pro now. Unlock unlimited
+          analysis for{" "}
           <span className="font-semibold text-gold">
             {QUANTIFI_PRO.price}/{QUANTIFI_PRO.period}
           </span>{" "}

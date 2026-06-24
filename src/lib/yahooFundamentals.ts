@@ -87,24 +87,40 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   }
   if (!result) return null;
 
-  // Funds aren't companies — they have no margins, ROE or growth, so a company
-  // score would read ~0/30. Detect them two ways and bail so the caller falls
-  // back to the ETF X-ray (yahooEtf.ts):
-  //   1. Yahoo's quoteType (ETF / mutual fund / index), and
-  //   2. the presence of a holdings basket — this also catches closed-end and
-  //      holding funds (e.g. DXYZ) that Yahoo tags as EQUITY but that hold a
-  //      portfolio rather than operating a business.
   const qt = (result.quoteType ?? {}) as Record<string, unknown>;
-  const quoteType = str(qt.quoteType);
-  if (quoteType === "ETF" || quoteType === "MUTUALFUND" || quoteType === "INDEX")
-    return null;
-  const th = (result.topHoldings ?? {}) as Record<string, unknown>;
-  if (Array.isArray(th.holdings) && th.holdings.length > 0) return null;
-
   const sd = (result.summaryDetail ?? {}) as Record<string, unknown>;
   const ks = (result.defaultKeyStatistics ?? {}) as Record<string, unknown>;
   const fd = (result.financialData ?? {}) as Record<string, unknown>;
   const pr = (result.price ?? {}) as Record<string, unknown>;
+  const th = (result.topHoldings ?? {}) as Record<string, unknown>;
+
+  // Funds aren't companies — they have no margins, ROE or growth, so a company
+  // score would read ~0/30. Detect them and bail so the caller falls back to the
+  // ETF X-ray (yahooEtf.ts). We look at three things:
+  //   1. Yahoo's quoteType (ETF / mutual fund / index / currency);
+  //   2. a holdings basket — a holdings list, an asset-class split (stock/bond/
+  //      cash position) or a sector mix. This catches closed-end and holding
+  //      vehicles (e.g. DXYZ) that Yahoo still tags as EQUITY; and
+  //   3. a reported NAV or fund inception date — operating companies have
+  //      neither, only pooled funds do.
+  const quoteType = str(qt.quoteType) ?? str(pr.quoteType);
+  if (
+    quoteType === "ETF" ||
+    quoteType === "MUTUALFUND" ||
+    quoteType === "INDEX" ||
+    quoteType === "CURRENCY"
+  )
+    return null;
+  const looksLikeFund =
+    (Array.isArray(th.holdings) && th.holdings.length > 0) ||
+    (Array.isArray(th.sectorWeightings) && th.sectorWeightings.length > 0) ||
+    num(th.stockPosition) != null ||
+    num(th.bondPosition) != null ||
+    num(th.cashPosition) != null ||
+    num(sd.navPrice) != null ||
+    num(ks.navPrice) != null ||
+    num(ks.fundInceptionDate) != null;
+  if (looksLikeFund) return null;
 
   const pe = num(sd.trailingPE) ?? num(ks.trailingPE);
   const peg = num(ks.pegRatio);
