@@ -19,27 +19,9 @@ import type { EtfData } from "@/lib/yahooEtf";
 import { popularTickers } from "@/data/popularTickers";
 import { useProStatus } from "@/lib/useProStatus";
 import { QUANTIFI_PRO } from "@/data/plans";
+import { FREE_LIMIT } from "@/lib/freeLimit";
 
 const QUICK = ["NVDA", "AAPL", "MSFT", "TSLA", "AMZN", "GOOGL", "INFY.NS", "RELIANCE.NS"];
-
-// Free accounts get a couple of full analyses; beyond that we show a Pro upsell.
-const FREE_LIMIT = 2;
-const USED_KEY = "quantifi:free-analyses";
-function readUsed(): string[] {
-  try {
-    const a = JSON.parse(localStorage.getItem(USED_KEY) || "[]");
-    return Array.isArray(a) ? a.filter((x) => typeof x === "string") : [];
-  } catch {
-    return [];
-  }
-}
-function writeUsed(a: string[]): void {
-  try {
-    localStorage.setItem(USED_KEY, JSON.stringify(a.slice(-50)));
-  } catch {
-    /* storage blocked — meter just won't persist */
-  }
-}
 
 type Engine = "tv" | "quantifi";
 
@@ -83,31 +65,77 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
   const [scoreLoading, setScoreLoading] = useState(false);
   const [etf, setEtf] = useState<EtfData | null>(null);
 
-  // Free-analysis meter (Pro is unlimited).
+  // Free-analysis quota is enforced server-side, per email (Pro is unlimited).
+  // `used` = the symbols this account has already unlocked; loaded from the API
+  // so a refresh or a different device can't reset it.
   const { pro, user, ready: proReady } = useProStatus();
-  const [used, setUsed] = useState<string[]>([]);
+  const [used, setUsed] = useState<string[] | null>(null);
+  const [meterReady, setMeterReady] = useState(false);
+  const [revealing, setRevealing] = useState(false);
+
   useEffect(() => {
-    setUsed(readUsed());
-  }, []);
+    let cancelled = false;
+    setMeterReady(false);
+    fetch("/api/free-analyses")
+      .then((r) => r.json())
+      .then((d: { used?: string[] }) => {
+        if (cancelled) return;
+        setUsed(d.used ?? []);
+        setMeterReady(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setUsed([]);
+        setMeterReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.email, pro]);
 
   const hasAnalysis = Boolean((score?.available && score.analytics) || etf);
-  const counted = used.includes(ticker);
-  const limitReached = used.length >= FREE_LIMIT;
-  // Lock the analysis (not the chart) for a free user opening a new name beyond
-  // their free quota. Already-viewed names stay open; Pro is never locked.
-  const locked = proReady && !pro && hasAnalysis && !counted && limitReached;
+  const usedCount = used?.length ?? 0;
+  const unlocked = pro || (used?.includes(ticker) ?? false);
+  const limitReached = usedCount >= FREE_LIMIT;
 
-  // Count a new analysis once it actually renders for a non-Pro user.
-  useEffect(() => {
-    if (!proReady || pro) return;
-    if (!hasAnalysis || counted || limitReached) return;
-    setUsed((prev) => {
-      if (prev.includes(ticker)) return prev;
-      const next = [...prev, ticker];
-      writeUsed(next);
-      return next;
-    });
-  }, [proReady, pro, hasAnalysis, counted, limitReached, ticker]);
+  // Spend one free analysis on the current symbol (re-opening a revealed name is
+  // free). The server is the source of truth; we just reflect what it returns.
+  const reveal = async () => {
+    if (revealing) return;
+    setRevealing(true);
+    try {
+      const r = await fetch("/api/free-analyses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ symbol: ticker }),
+      });
+      const d = (await r.json()) as { allowed?: boolean; used?: string[] };
+      if (Array.isArray(d.used)) setUsed(d.used);
+    } catch {
+      /* leave the gate up; they can retry */
+    } finally {
+      setRevealing(false);
+    }
+  };
+
+  // What to render in the analysis slot. The chart above is always free.
+  //   loading  → still resolving plan/quota
+  //   analysis → Pro, or a free user who has unlocked this symbol
+  //   signin   → not signed in (quota is per email, so we need one)
+  //   reveal   → signed-in free user with slots left
+  //   wall     → signed-in free user who has spent every slot
+  type Stage = "loading" | "analysis" | "signin" | "reveal" | "wall";
+  const resolved = !scoreLoading && score !== null; // know whether there's data to gate
+  let stage: Stage = "loading";
+  if (!proReady) stage = "loading";
+  else if (pro) stage = "analysis";
+  else if (!meterReady) stage = "loading";
+  else if (unlocked) stage = "analysis";
+  else if (!user) stage = "signin";
+  else if (!resolved) stage = "loading";
+  else if (!hasAnalysis) stage = "analysis"; // nothing to reveal → show the free "not available" card, no charge
+  else if (limitReached) stage = "wall";
+  else stage = "reveal";
 
   // Follow URL changes (notification clicks, back/forward) without a reload.
   useEffect(() => {
@@ -281,11 +309,11 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
         </div>
       </section>
 
-      {/* Free-plan meter hint (only while they still have free analyses left) */}
-      {proReady && !pro && !locked && hasAnalysis ? (
+      {/* Free-plan meter hint (only once they've unlocked this name). */}
+      {stage === "analysis" && !pro && meterReady ? (
         <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <p className="text-center text-xs text-slate-500">
-            Free plan · {Math.min(used.length, FREE_LIMIT)} of {FREE_LIMIT} free analyses used.{" "}
+            Free plan · {Math.min(usedCount, FREE_LIMIT)} of {FREE_LIMIT} free analyses used.{" "}
             <Link href="/pricing" className="text-gold hover:underline">
               Go Pro for unlimited →
             </Link>
@@ -293,7 +321,23 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
         </section>
       ) : null}
 
-      {locked ? (
+      {stage === "loading" ? (
+        <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
+          <GlassCard className="p-6">
+            <p className="text-sm text-slate-500">Loading analysis…</p>
+          </GlassCard>
+        </section>
+      ) : stage === "signin" ? (
+        <SignInGate ticker={ticker} />
+      ) : stage === "reveal" ? (
+        <RevealGate
+          ticker={ticker}
+          used={usedCount}
+          limit={FREE_LIMIT}
+          revealing={revealing}
+          onReveal={reveal}
+        />
+      ) : stage === "wall" ? (
         <FreeLimitWall ticker={ticker} signedIn={Boolean(user)} />
       ) : (
         <>
@@ -341,16 +385,95 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
           {/* Personal notes for this ticker. */}
           <MyNotes ticker={ticker} />
 
-          {/* Funds have no company filings/insiders — hide those sections for them. */}
-          {etf ? null : (
+          {/* Company filings + insiders: stocks only (funds and no-data symbols
+              don't have them, and this keeps insider data out of the free
+              "not available" view). */}
+          {hasAnalysis && !etf ? (
             <>
               <CompanyDetails symbol={ticker} />
               <InsiderActivity ticker={ticker} heading showFilter />
             </>
-          )}
+          ) : null}
         </>
       )}
     </>
+  );
+}
+
+// Free quota is per email, so a signed-out visitor can't get analyses — they
+// could just reload to dodge the limit. Ask them to sign in first.
+function SignInGate({ ticker }: { ticker: string }) {
+  return (
+    <section className="mx-auto max-w-2xl px-4 pb-16 pt-2 sm:px-6">
+      <GlassCard className="border-gold/30 bg-gold/[0.04] p-8 text-center">
+        <Eyebrow>Quantifi</Eyebrow>
+        <h2 className="mt-4 font-display text-2xl font-semibold text-white sm:text-3xl">
+          Sign in to analyse {ticker}
+        </h2>
+        <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-400">
+          The live chart above is free for everyone. The full Quantifi Score, fundamentals
+          and insider activity come with <span className="text-gold">{FREE_LIMIT} free analyses</span>{" "}
+          on every account — sign in so we can keep them tied to you across your devices.
+        </p>
+        <div className="mt-7">
+          <a
+            href="/api/auth/login"
+            className="rounded-full bg-gradient-to-r from-gold-400 to-gold-600 px-6 py-2.5 text-sm font-semibold text-ink transition hover:opacity-90"
+          >
+            Sign in to continue →
+          </a>
+        </div>
+      </GlassCard>
+    </section>
+  );
+}
+
+// Signed-in free user with slots left: the analysis stays hidden until they
+// choose to spend one of their free analyses on this name.
+function RevealGate({
+  ticker,
+  used,
+  limit,
+  revealing,
+  onReveal,
+}: {
+  ticker: string;
+  used: number;
+  limit: number;
+  revealing: boolean;
+  onReveal: () => void;
+}) {
+  const left = Math.max(0, limit - used);
+  return (
+    <section className="mx-auto max-w-2xl px-4 pb-16 pt-2 sm:px-6">
+      <GlassCard className="border-gold/30 bg-gold/[0.04] p-8 text-center">
+        <Eyebrow>Free analysis</Eyebrow>
+        <h2 className="mt-4 font-display text-2xl font-semibold text-white sm:text-3xl">
+          Reveal the full analysis for {ticker}
+        </h2>
+        <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-400">
+          You have <span className="font-semibold text-gold">{left}</span> of {limit} free{" "}
+          {limit === 1 ? "analysis" : "analyses"} left. Revealing {ticker} uses one — the chart
+          above stays free, and you can re-open {ticker} anytime at no extra cost.
+        </p>
+        <div className="mt-7 flex items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={onReveal}
+            disabled={revealing}
+            className="rounded-full bg-gradient-to-r from-gold-400 to-gold-600 px-6 py-2.5 text-sm font-semibold text-ink transition hover:opacity-90 disabled:opacity-60"
+          >
+            {revealing ? "Unlocking…" : `Reveal analysis (uses 1 of ${left})`}
+          </button>
+          <Link
+            href="/pricing"
+            className="rounded-full border border-white/15 px-6 py-2.5 text-sm font-medium text-white transition hover:border-gold/40"
+          >
+            Go Pro · unlimited
+          </Link>
+        </div>
+      </GlassCard>
+    </section>
   );
 }
 

@@ -209,7 +209,7 @@ export default function NotificationBell() {
       </button>
 
       {open ? (
-        <div className="absolute right-0 z-50 mt-2 w-[22rem] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-white/10 bg-ink-900 shadow-2xl">
+        <div className="fixed inset-x-2 top-[4.25rem] z-50 overflow-hidden rounded-2xl border border-white/10 bg-ink-900 shadow-2xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-[24rem]">
           <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
             <span className="font-display text-sm font-semibold text-white">Notifications</span>
             <button
@@ -238,7 +238,7 @@ export default function NotificationBell() {
             </div>
           ) : null}
 
-          <div className="max-h-[24rem] overflow-y-auto">
+          <div className="max-h-[60vh] overflow-y-auto sm:max-h-[24rem]">
             {!ready || (loading && notifs.length === 0) ? (
               <p className="px-4 py-8 text-center text-sm text-slate-500">Loading alerts…</p>
             ) : tickers.length === 0 ? (
