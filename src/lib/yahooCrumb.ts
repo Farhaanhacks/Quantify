@@ -139,6 +139,7 @@ export interface YahooQuote {
   previousClose?: number;
   currency?: string;
   marketState?: string;
+  name?: string;
 }
 
 // Batched authoritative quotes from Yahoo's v7 quote endpoint. We read Yahoo's
@@ -191,6 +192,11 @@ export async function yahooQuotes(
             currency: typeof q.currency === "string" ? q.currency : undefined,
             marketState:
               typeof q.marketState === "string" ? q.marketState : undefined,
+            name:
+              (typeof q.shortName === "string" && q.shortName) ||
+              (typeof q.longName === "string" && q.longName) ||
+              (typeof q.displayName === "string" && q.displayName) ||
+              undefined,
           });
         }
         if (out.size) return out;
