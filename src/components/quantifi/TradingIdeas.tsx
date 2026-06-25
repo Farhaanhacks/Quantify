@@ -707,6 +707,29 @@ function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }
             </div>
           ) : null}
 
+          {/* Methodology — documents the evidence categories used */}
+          <div className="mt-5">
+            <SectionLabel>How we research this</SectionLabel>
+            <div className="mt-2 flex flex-wrap gap-2 text-[0.7rem]">
+              {[
+                "Company filings",
+                "Earnings calls",
+                "Industry & macro data",
+                "Government & policy documents",
+                "Financial news",
+                "Quantifi methodology",
+              ].map((c) => (
+                <span key={c} className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-1 text-slate-400">
+                  {c}
+                </span>
+              ))}
+            </div>
+            <p className="mt-2 text-[0.68rem] leading-relaxed text-slate-600">
+              Per-stock scores and fair values are computed from current fundamentals where available; theme
+              commentary draws on the source categories above. Educational research, not advice.
+            </p>
+          </div>
+
           <p className="mt-6 border-t border-white/[0.06] pt-4 text-xs text-slate-500">
             A research starting point, not a recommendation. Not advice — always do your own work.
           </p>

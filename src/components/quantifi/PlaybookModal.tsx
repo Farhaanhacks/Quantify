@@ -374,6 +374,25 @@ export default function PlaybookModal({ playbook, onClose }: { playbook: Playboo
             </div>
           </div>
 
+          {/* Methodology — documents the evidence categories used */}
+          <div className="mt-5">
+            <SectionLabel>How we research this</SectionLabel>
+            <div className="mt-2 flex flex-wrap gap-2 text-[0.7rem]">
+              {[
+                "Company filings",
+                "Earnings calls",
+                "Industry & macro data",
+                "Government & policy documents",
+                "Financial news",
+                "Quantifi methodology",
+              ].map((c) => (
+                <span key={c} className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-1 text-slate-400">
+                  {c}
+                </span>
+              ))}
+            </div>
+          </div>
+
           <p className="mt-6 border-t border-white/[0.06] pt-4 text-xs text-slate-500">
             Framework analysis only — a research decoder, not a recommendation. Not investment advice.
           </p>

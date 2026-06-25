@@ -23,7 +23,7 @@ const tabs: Tab[] = ["Investing Ideas", "Browse All Stocks", "Markets"];
 const regions: MarketRegion[] = ["Global", "India", "US"];
 
 const marketRows: { region: Exclude<MarketRegion, "Global">; venues: string[]; note: string }[] = [
-  { region: "US", venues: ["NYSE", "NASDAQ"], note: "Deepest pool of demo names in this prototype." },
+  { region: "US", venues: ["NYSE", "NASDAQ"], note: "Deepest coverage — broad large- and mid-cap exposure." },
   { region: "India", venues: ["NSE", "BSE"], note: "IT services and large-cap conglomerate exposure." },
 ];
 

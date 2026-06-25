@@ -14,14 +14,14 @@ const columns: { title: string; items: { label: string; href: string }[] }[] = [
     ],
   },
   {
-    title: "Investing Ideas",
+    title: "Research Themes",
     items: [
-      { label: "Undervalued Companies", href: "/ideas" },
-      { label: "Dividend Powerhouses", href: "/ideas" },
-      { label: "Insider Activity", href: "/insider-activity" },
-      { label: "Artificial Intelligence", href: "/ideas" },
-      { label: "Nuclear Energy", href: "/ideas" },
-      { label: "Cybersecurity", href: "/ideas" },
+      { label: "AI Power Bottleneck", href: "/ideas?theme=ai-power-bottleneck" },
+      { label: "Sovereign AI Stacks", href: "/ideas?theme=sovereign-ai-stacks" },
+      { label: "Global Defence Re-Armament", href: "/ideas?theme=global-defence-rearmament" },
+      { label: "GLP-1 Health Repricing", href: "/ideas?theme=glp1-health-repricing" },
+      { label: "Market Toll Booths", href: "/ideas?theme=market-toll-booths" },
+      { label: "Post-Hype IPO Survivors", href: "/ideas?theme=post-hype-ipo-survivors" },
     ],
   },
   {
@@ -41,7 +41,7 @@ const columns: { title: string; items: { label: string; href: string }[] }[] = [
       { label: "Latest Stock News", href: "/news" },
       { label: "Stocks Affected", href: "/news" },
       { label: "Global Market Insights", href: "/explore" },
-      { label: "Community Narratives", href: "/ideas" },
+      { label: "Community Research", href: "/community" },
       { label: "What's New", href: "/" },
     ],
   },
@@ -87,16 +87,15 @@ export default function Footer() {
             <BrandLogo className="h-14" />
           </div>
           <p className="text-xs text-slate-500">
-            © {new Date().getFullYear()} Quantifi — a market-discovery & analytics prototype.
+            © {new Date().getFullYear()} Quantifi — market-discovery &amp; analytics.
           </p>
         </div>
 
         <p className="mt-6 max-w-4xl text-[0.72rem] leading-relaxed text-slate-600">
-          Quantifi is an educational market research and analytics platform. The information shown
-          is for general informational and educational purposes only and should not be treated as
-          financial advice, investment advice, trading advice, or a recommendation to buy, sell, or
-          hold any security. Data may be delayed, incomplete, or inaccurate. Always verify
-          independently.
+          Quantifi is an educational market-research and analytics platform. Everything shown is for
+          informational and educational purposes only and is not financial, investment or trading
+          advice, nor a recommendation to buy, sell or hold any security. Market data is provided on
+          a best-efforts basis and may be delayed; always verify independently before acting.
         </p>
       </div>
     </footer>

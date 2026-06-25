@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
   GlassCard,
@@ -395,8 +396,12 @@ export default function Screener({ heading = true }: { heading?: boolean }) {
         ) : null}
       </GlassCard>
       <p className="mt-3 text-xs text-slate-600">
-        Tap any row to open its snowflake. The screener covers a curated set of names, and the scores and fair
-        values are illustrative demo data for the prototype — a research starting point, not advice.
+        Tap any row to open its snowflake. The screener covers a curated set of names; the scores and fair
+        values here are illustrative examples — open any stock on the{" "}
+        <Link href="/stock-analysis" className="text-slate-400 underline-offset-2 hover:text-gold hover:underline">
+          Stock Analysis
+        </Link>{" "}
+        page for a live score computed from current fundamentals. A research starting point, not advice.
       </p>
     </section>
   );

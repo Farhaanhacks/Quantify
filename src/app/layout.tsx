@@ -26,7 +26,7 @@ const mono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Quantifi — See what's moving, why, and which stocks are affected",
   description:
-    "Quantifi turns market news, insider activity, and portfolio risk into clear research signals. An educational market-discovery prototype.",
+    "Quantifi turns market news, insider activity, and portfolio risk into clear research signals. An educational market-discovery & analytics platform.",
 };
 
 export default function RootLayout({

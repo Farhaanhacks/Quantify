@@ -1468,10 +1468,10 @@ const TESTS: Record<string, { thesisTests: ThesisTest[]; sourcePack: SourceItem[
       { test: "Valuation cushion", signal: "Rising risk", importance: "High", why: "Rich multiples amplify any disappointment.", metric: "Forward EV/EBITDA vs growth", breaksIf: "Multiples re-rate down on a single guidance miss" },
     ],
     sourcePack: [
-      { type: "Hyperscaler earnings calls", checks: "capex guidance, AI-infrastructure spend, data-centre demand", linked: ["MSFT", "AMZN", "GOOGL", "META", "ORCL"] },
-      { type: "Power & cooling company filings", checks: "backlog, book-to-bill, gross margin, inventory", linked: ["VRT", "ETN", "GEV"] },
-      { type: "Industry data", checks: "data-centre electricity demand, grid bottlenecks, power-demand projections" },
-      { type: "Policy / grid updates", checks: "permitting, interconnection queues, grid investment, data-centre regulation" },
+      { type: "Hyperscaler earnings calls & filings", checks: "capex guidance · AI-infrastructure spend · data-centre demand", linked: ["MSFT", "AMZN", "GOOGL", "META", "ORCL"], usedIn: "Hyperscaler capex guidance", href: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=MSFT&type=10-K" },
+      { type: "Power & cooling company filings", checks: "backlog · book-to-bill · gross margin · inventory", linked: ["VRT", "ETN", "GEV"], usedIn: "Power & cooling backlog", href: "https://www.sec.gov/edgar/search/" },
+      { type: "Industry data — IEA Energy & AI", checks: "data-centre electricity demand · grid bottlenecks · power-demand projections", usedIn: "Grid & interconnection", href: "https://www.iea.org/reports/energy-and-ai" },
+      { type: "Policy / grid updates", checks: "permitting · interconnection queues · grid investment · data-centre regulation", usedIn: "Grid & interconnection", href: "https://www.ferc.gov/" },
     ],
   },
   "spacex-orbital-internet": {
@@ -1558,9 +1558,9 @@ const TESTS: Record<string, { thesisTests: ThesisTest[]; sourcePack: SourceItem[
       { test: "Cycle-aware valuation", signal: "Watch closely", importance: "High", why: "Industrials are cyclical; multiples matter.", metric: "Multiple vs mid-cycle earnings", breaksIf: "Multiples price a peak that fades" },
     ],
     sourcePack: [
-      { type: "Company filings", checks: "order intake · backlog conversion · margin expansion · working capital", linked: ["CAT", "ETN", "GEV", "ABBNY", "SIEGY", "LT.NS"], usedIn: "Order intake" },
-      { type: "Semicap bookings & WFE data", checks: "wafer-fab-equipment bookings · leading-edge capex · book-to-bill", linked: ["AMAT", "LRCX"], usedIn: "Semicap bookings" },
-      { type: "Industry & macro data", checks: "PMI · capex surveys · grid-investment trends · construction/mining demand", usedIn: "Order intake" },
+      { type: "Company filings", checks: "order intake · backlog conversion · margin expansion · working capital", linked: ["CAT", "ETN", "GEV", "ABBNY", "SIEGY", "LT.NS"], usedIn: "Order intake", href: "https://www.sec.gov/edgar/search/" },
+      { type: "Semicap bookings & WFE data", checks: "wafer-fab-equipment bookings · leading-edge capex · book-to-bill", linked: ["AMAT", "LRCX"], usedIn: "Semicap bookings", href: "https://www.semi.org/en/products-services/market-data" },
+      { type: "Industry & macro data", checks: "PMI · capex surveys · grid-investment trends · construction/mining demand", usedIn: "Order intake", href: "https://www.iea.org/" },
       { type: "Policy & infrastructure budgets", checks: "infrastructure outlay · localisation incentives · grid investment", linked: ["LT.NS", "CGPOWER.NS", "BHEL.NS"], usedIn: "India capex delivery" },
       { type: "China industrial data", checks: "automation orders · EV/battery/solar supply chain · overcapacity & utilisation", linked: ["600031.SS", "300124.SZ", "300750.SZ"], usedIn: "Order intake" },
     ],

@@ -442,7 +442,7 @@ export const stockAnalysis: StockAnalysisData = {
   changePct: 2.41,
   marketCap: "$4.2T",
   overview:
-    "NVIDIA designs accelerated-computing hardware and software central to the current AI buildout. Demo overview text for the prototype — use it to study how a single name connects to news, insiders, peers and risk lenses across Quantifi.",
+    "NVIDIA designs accelerated-computing hardware and software central to the current AI buildout — a useful example of how a single name connects to news, insiders, peers and risk lenses across Quantifi.",
   highlights: [
     { label: "Day change", value: "+2.41%" },
     { label: "30-day trend", value: "Higher" },
