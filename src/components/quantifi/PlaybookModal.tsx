@@ -270,13 +270,14 @@ export default function PlaybookModal({ playbook, onClose }: { playbook: Playboo
             </div>
           </div>
 
-          {/* J — Source pack */}
+          {/* J — Source pack — inspectable evidence, one card per source */}
           <div id="sources" className="mt-6 scroll-mt-2">
             <SectionLabel>Source pack</SectionLabel>
-            <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
+            <p className="mt-1 text-xs text-slate-500">External and reference sources — what each one checks, and the thesis test it informs.</p>
+            <div className="mt-2.5 space-y-2">
               {playbook.sourcePack.map((s) => (
-                <div key={s.title} className="flex flex-col rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
-                  <div className="text-sm font-medium text-white">{s.title}</div>
+                <div key={s.title} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
+                  <div className="text-sm font-semibold text-white">{s.title}</div>
                   <p className="mt-1 text-[0.72rem] leading-relaxed text-slate-400">
                     <span className="text-slate-500">Checks: </span>
                     {s.checks}
@@ -287,33 +288,59 @@ export default function PlaybookModal({ playbook, onClose }: { playbook: Playboo
                       <span className="font-mono">{s.linked.join(" · ")}</span>
                     </p>
                   ) : null}
-                  {s.href ? (
-                    <a
-                      href={s.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-auto pt-2 text-[0.65rem] font-medium text-gold/80 hover:text-gold"
-                    >
-                      View source →
-                    </a>
+                  {s.why ? (
+                    <p className="mt-2 text-[0.72rem] leading-relaxed text-slate-400">{s.why}</p>
                   ) : null}
+                  <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.06] pt-2.5">
+                    {s.usedIn ? (
+                      <button
+                        type="button"
+                        onClick={() => go("thesis-tests")}
+                        className="text-left text-[0.68rem] text-slate-400 transition hover:text-white"
+                      >
+                        <span className="text-teal/80">Use in thesis test: </span>
+                        {s.usedIn}
+                      </button>
+                    ) : (
+                      <span />
+                    )}
+                    {s.href ? (
+                      <a
+                        href={s.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-none text-[0.68rem] font-medium text-gold/80 hover:text-gold"
+                      >
+                        Open sources →
+                      </a>
+                    ) : null}
+                  </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* K — Related Quantifi Ideas */}
-          <div id="related" className="mt-6 scroll-mt-2">
+          <div className="my-6 h-px bg-white/[0.06]" />
+
+          {/* K — Related Quantifi Ideas — internal links, kept separate */}
+          <div id="related" className="scroll-mt-2">
             <SectionLabel>Related Quantifi Ideas</SectionLabel>
-            <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
+            <p className="mt-1 text-xs text-slate-500">Internal research themes this framework connects to.</p>
+            <div className="mt-2.5 space-y-2">
               {playbook.linkedIdeas.map((idea) => (
                 <Link
                   key={idea.ideaId}
                   href={`/ideas?theme=${encodeURIComponent(idea.ideaId)}`}
-                  className="group flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 transition hover:border-gold/40"
+                  className="group block rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5 transition hover:border-gold/40"
                 >
-                  <span className="text-sm font-medium text-white">{idea.title}</span>
-                  <span className="text-[0.7rem] font-medium text-gold/80 transition group-hover:text-gold">Open theme →</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-semibold text-white">{idea.title}</span>
+                    <span className="flex-none text-[0.7rem] font-medium text-gold/80 transition group-hover:text-gold">Open theme →</span>
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                    <span className="text-slate-500">Why it connects: </span>
+                    {idea.whyLinked}
+                  </p>
                 </Link>
               ))}
             </div>
