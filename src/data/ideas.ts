@@ -23,6 +23,12 @@ export interface Scenario {
   kind: "Best case" | "Base case" | "Worst case";
   what: string; // what happens
   wins: string; // what tends to win in that scenario
+  redFlag?: string; // the warning sign for that scenario
+}
+
+export interface ThemeMapLink {
+  layer: string; // a value-chain layer
+  symbols: string[];
 }
 
 export interface ChecklistItem {
@@ -57,6 +63,16 @@ export interface TradingIdea {
   scores: IdeaScore[];
   verdict: string; // research framing, never "buy"
   sources?: string[];
+  // Dashboard layer — the one-line hook, a value-chain map, the bull/bear causal
+  // chain, the prove/break test and a quick "theme weather" status.
+  question?: string;
+  themeWeather?: string;
+  swingFactor?: string;
+  themeMap?: ThemeMapLink[];
+  bullRoad?: string[];
+  bearRoad?: string[];
+  proves?: string[];
+  breaks?: string[];
   // Derived for back-compatibility with other surfaces.
   names: IdeaName[];
   tickers: string[];
@@ -1199,6 +1215,262 @@ const RAW: RawIdea[] = [
   },
 ];
 
+// Dashboard layer — keyed by idea id so the rich research-note objects above stay
+// readable. The map below merges these in. redFlags are [best, base, worst].
+interface DashboardExtra {
+  question: string;
+  themeWeather: string;
+  swingFactor: string;
+  themeMap: ThemeMapLink[];
+  bullRoad: string[];
+  bearRoad: string[];
+  proves: string[];
+  breaks: string[];
+  redFlags: [string, string, string];
+}
+
+const DASHBOARD: Record<string, DashboardExtra> = {
+  "ai-power-bottleneck": {
+    question: "Can the power, cooling and grid chain keep up with — and get paid for — AI's electricity demand?",
+    themeWeather: "Hot — capex-driven, priced for growth",
+    swingFactor: "Whether power becomes scarce enough to give the grid & cooling chain real pricing power.",
+    themeMap: [
+      { layer: "Compute & silicon", symbols: ["NVDA", "AVGO"] },
+      { layer: "Networking & data centres", symbols: ["ANET", "EQIX", "DLR"] },
+      { layer: "Power & cooling", symbols: ["VRT", "ETN", "GEV"] },
+      { layer: "India grid & power", symbols: ["ABB.NS", "SIEMENS.NS", "TATAPOWER.NS", "POWERGRID.NS"] },
+    ],
+    bullRoad: ["AI capex keeps rising", "power & cooling go scarce", "backlogs & pricing firm", "margins expand", "infra names re-rate"],
+    bearRoad: ["AI ROI disappoints", "hyperscalers cut capex", "orders slow", "margins compress", "the basket de-rates"],
+    proves: ["Capex guidance keeps rising", "Power/cooling backlogs grow", "Gross margins hold as they scale", "Grid bottlenecks lift pricing", "Data-centre vacancy stays tight"],
+    breaks: ["Hyperscalers cut capex guidance", "Backlogs stall or cancel", "Margins compress on competition", "Cheaper/efficient compute cuts power need", "Rates re-rate long-duration infra down"],
+    redFlags: ["None yet — watch capex commentary", "Margin slippage as volumes scale", "Capex-guidance cuts / order cancellations"],
+  },
+  "spacex-orbital-internet": {
+    question: "Is space becoming real infrastructure, or still a capital-hungry promise?",
+    themeWeather: "Early & speculative — scarcity premium",
+    swingFactor: "Whether Starlink margins and launch cadence scale before the cash runs.",
+    themeMap: [
+      { layer: "Launch", symbols: ["SPCX", "RKLB"] },
+      { layer: "Broadband & comms", symbols: ["SPCX", "ASTS", "IRDM"] },
+      { layer: "Observation & data", symbols: ["PL"] },
+      { layer: "Defence-space primes", symbols: ["LHX", "NOC", "LMT"] },
+      { layer: "India space-industrial", symbols: ["HAL.NS", "BEL.NS", "MTARTECH.NS"] },
+    ],
+    bullRoad: ["Launch cadence rises", "Starlink subs & margins scale", "defence-space orders grow", "cash flow turns", "the basket re-rates"],
+    bearRoad: ["Launch delays mount", "Starlink margins stay thin", "cash burn persists", "dilution / funding rounds", "valuations de-rate"],
+    proves: ["Launch cadence rises on schedule", "Starlink subs & ARPU grow profitably", "Defence-space awards expand", "Cash burn funded to milestones", "Indian space orders scale"],
+    breaks: ["Repeated launch delays", "Starlink margins disappoint", "Funding gaps force dilution", "Valuation runs ahead of delivery", "Mission failures hit confidence"],
+    redFlags: ["None yet — early but funded", "Timeline slippage on key vehicles", "Funding gaps / mission failures"],
+  },
+  "sovereign-ai-stacks": {
+    question: "Will governments keep funding domestic AI fast enough to matter — despite export controls?",
+    themeWeather: "Warm — policy-fuelled, uneven",
+    swingFactor: "Whether AI ROI shows up before policy or chip constraints bite.",
+    themeMap: [
+      { layer: "Chips & foundry", symbols: ["NVDA", "AMD", "SMICY"] },
+      { layer: "Cloud capacity", symbols: ["MSFT", "GOOGL", "ORCL", "AMZN", "BABA", "TCEHY"] },
+      { layer: "Models & platforms", symbols: ["GOOGL", "BIDU", "BABA"] },
+      { layer: "India sovereign stack", symbols: ["RELIANCE.NS", "BHARTIARTL.NS", "TATACOMM.NS"] },
+    ],
+    bullRoad: ["Governments fund domestic AI", "cloud & chip demand rises", "domestic stacks scale", "ROI improves", "leaders re-rate"],
+    bearRoad: ["Export controls tighten", "chip access narrows", "ROI disappoints", "funding slows", "capex names de-rate"],
+    proves: ["National AI funding expands", "Domestic-compute progress is real", "AI ROI shows in customer results", "Cloud capacity stays sold out", "India sovereign tenders land"],
+    breaks: ["Export controls cut addressable market", "Weak ROI slows capex", "Regulation stalls deployment", "Chip constraints bind", "Policy support reverses"],
+    redFlags: ["None yet — funding intact", "Patchy ROI across regions", "Export-control escalation / funding cuts"],
+  },
+  "china-ev-shockwave": {
+    question: "Can China's EV scale turn into profit, or does the price war eat the margin?",
+    themeWeather: "Cooling — scale up, margins down",
+    swingFactor: "Whether scale lowers cost faster than the price war destroys margin.",
+    themeMap: [
+      { layer: "Batteries & cells", symbols: ["300750.SZ", "BYDDF"] },
+      { layer: "China EV makers", symbols: ["BYDDF", "LI", "NIO", "XPEV", "TSLA"] },
+      { layer: "Legacy incumbents", symbols: ["GM", "F"] },
+      { layer: "India auto & components", symbols: ["TATAMOTORS.NS", "M&M.NS", "SONACOMS.NS", "EXIDEIND.NS"] },
+    ],
+    bullRoad: ["China scale lowers cost", "exports expand", "legacy autos lose share", "winners take volume", "leaders re-rate"],
+    bearRoad: ["price war intensifies", "margins compress", "tariffs hit exports", "overcapacity builds", "the basket de-rates"],
+    proves: ["Volume growth turns into profit", "Cell costs keep falling", "Export share keeps rising", "Legacy autos cede ground", "India content wins scale"],
+    breaks: ["Price war erases margins", "Tariffs close export markets", "Overcapacity floods the market", "Battery prices spike", "Demand growth stalls"],
+    redFlags: ["None yet — share gains continue", "Rising marketing & discounting", "Tariffs / margin collapse"],
+  },
+  "global-defence-rearmament": {
+    question: "Is the global re-armament cycle durable enough to justify the re-rating?",
+    themeWeather: "Hot — re-rated on strong order books",
+    swingFactor: "Whether order books convert to delivered, paid-for revenue.",
+    themeMap: [
+      { layer: "US primes", symbols: ["LMT", "RTX", "NOC", "GD"] },
+      { layer: "Drones & defence-AI", symbols: ["PLTR", "AVAV"] },
+      { layer: "India DPSUs", symbols: ["HAL.NS", "BEL.NS", "BDL.NS"] },
+      { layer: "India shipbuilding", symbols: ["MAZDOCK.NS", "COCHINSHIP.NS", "ZENTEC.NS"] },
+    ],
+    bullRoad: ["budgets stay elevated", "order books expand", "deliveries scale", "operating leverage kicks in", "names compound"],
+    bearRoad: ["budgets plateau", "execution slips", "receivables build", "margins disappoint", "rich names correct"],
+    proves: ["Defence budgets keep rising", "Backlog converts on time", "Book-to-bill stays above 1", "India receivables stay healthy", "Margins show operating leverage"],
+    breaks: ["Budget plateaus or cuts", "Program delays mount", "Receivables balloon (India)", "Valuations outrun execution", "Peace/policy reduces urgency"],
+    redFlags: ["None yet — backlog strong", "Delivery delays creeping in", "Receivable build / margin miss"],
+  },
+  "physical-ai-robotics": {
+    question: "Can AI move from screens into machines at an economic unit cost?",
+    themeWeather: "Early — hype ahead of economics",
+    swingFactor: "Whether robot unit economics reach payback at scale.",
+    themeMap: [
+      { layer: "Brains & compute", symbols: ["NVDA", "TSLA"] },
+      { layer: "Industrial robots", symbols: ["ABBNY", "FANUY", "6861.T", "6954.T"] },
+      { layer: "Applied robotics", symbols: ["ISRG", "SYM"] },
+      { layer: "China & India", symbols: ["BYDDF", "1810.HK", "ABB.NS", "LT.NS"] },
+    ],
+    bullRoad: ["models reach the physical world", "robot costs fall", "payback improves", "deployments scale", "the theme re-rates"],
+    bearRoad: ["hardware stays hard", "costs stay high", "regulation delays", "payback fails", "speculative names de-rate"],
+    proves: ["Humanoid/robotaxi milestones hit", "Automation orders grow", "Robot unit economics reach payback", "Regulators enable deployment", "Surgical/warehouse adoption widens"],
+    breaks: ["Costs stay prohibitive", "Regulation blocks autonomy", "Payback never arrives", "Hardware reliability disappoints", "Funding for early names dries up"],
+    redFlags: ["None yet — milestones progressing", "Adoption slower than hype", "Cost/regulation stalls deployment"],
+  },
+  "global-industrial-rebuild": {
+    question: "Is the reindustrialisation capex cycle long enough to reward today's multiples?",
+    themeWeather: "Warm — late-cycle capex",
+    swingFactor: "Whether the capex cycle outlasts the current multiples.",
+    themeMap: [
+      { layer: "Machinery", symbols: ["CAT", "DE"] },
+      { layer: "Electrical & grid", symbols: ["ETN", "GEV", "ABBNY", "SIEGY"] },
+      { layer: "Semicap", symbols: ["AMAT", "LRCX"] },
+      { layer: "India capex", symbols: ["LT.NS", "CUMMINSIND.NS", "CGPOWER.NS", "BHEL.NS"] },
+    ],
+    bullRoad: ["localisation & grid spend rise", "order intake grows", "backlogs build", "margins expand", "industrials re-rate"],
+    bearRoad: ["global growth slows", "capex orders soften", "backlogs shrink", "margins fade", "cyclicals correct"],
+    proves: ["Order intake keeps growing", "Grid & electrification spend accelerates", "Semicap bookings rise", "India infra outlay is delivered", "Margins expand on volume"],
+    breaks: ["A global slowdown hits orders", "Capex is deferred", "Semicap bookings roll over", "India delivery slips", "Multiples re-rate down"],
+    redFlags: ["None yet — orders healthy", "Order intake flattening", "Booking declines / guidance cuts"],
+  },
+  "battery-storage-beyond-evs": {
+    question: "Will grid and data-centre storage become a second demand curve beyond EVs?",
+    themeWeather: "Mixed — demand up, prices soft",
+    swingFactor: "Whether project IRRs hold as cell supply expands.",
+    themeMap: [
+      { layer: "Cells & lithium", symbols: ["300750.SZ", "BYDDF", "ALB"] },
+      { layer: "Integrators & inverters", symbols: ["TSLA", "FLNC", "ENPH", "SEDG"] },
+      { layer: "India power & batteries", symbols: ["TATAPOWER.NS", "JSWENERGY.NS", "EXIDEIND.NS"] },
+    ],
+    bullRoad: ["grid storage scales", "data-centre backup adds demand", "project IRRs hold", "cell makers run hot", "the basket re-rates"],
+    bearRoad: ["cell oversupply builds", "lithium prices weaken", "project IRRs fall", "deployments slow", "names de-rate"],
+    proves: ["Grid-storage deployments accelerate", "Project IRRs stay attractive", "Data-centre backup demand emerges", "Cell pricing stabilises", "Integrator backlogs grow"],
+    breaks: ["Cell oversupply crushes prices", "Project economics turn negative", "Lithium weakness hits producers", "Subsidy/policy support fades", "Deployment timelines slip"],
+    redFlags: ["None yet — demand broadening", "IRR compression on soft pricing", "Oversupply / negative project economics"],
+  },
+  "glp1-health-repricing": {
+    question: "How far do weight-loss drugs reprice healthcare — and who beyond the makers wins?",
+    themeWeather: "Hot — priced for success",
+    swingFactor: "Whether pricing holds as competition and oral GLP-1s arrive.",
+    themeMap: [
+      { layer: "Drug makers", symbols: ["LLY", "NVO", "AZN"] },
+      { layer: "Devices & diagnostics", symbols: ["ABT", "DXCM", "ISRG"] },
+      { layer: "Distribution", symbols: ["MCK"] },
+      { layer: "India pharma & CDMO", symbols: ["SUNPHARMA.NS", "DRREDDY.NS", "BIOCON.NS", "SYNGENE.NS"] },
+    ],
+    bullRoad: ["adoption expands globally", "new indications land", "supply scales", "adjacent sectors reprice", "leaders & suppliers win"],
+    bearRoad: ["competition intensifies", "pricing pressure builds", "orals undercut", "profits compress", "leaders de-rate"],
+    proves: ["New indications expand the market", "Supply capacity keeps up", "Pricing & reimbursement hold", "Adjacent sectors visibly reprice", "India CDMOs win share"],
+    breaks: ["Oral GLP-1s undercut pricing", "Reimbursement tightens", "Side-effect data disappoints", "Supply gluts the market", "Competition erodes leaders"],
+    redFlags: ["None yet — demand outstrips supply", "Competition entering the market", "Pricing pressure / reimbursement cuts"],
+  },
+  "market-toll-booths": {
+    question: "Will rising trading, ETFs and SIPs keep compounding recurring fee revenue?",
+    themeWeather: "Steady — quality, fully valued",
+    swingFactor: "Whether fee compression offsets volume and data growth.",
+    themeMap: [
+      { layer: "Exchanges", symbols: ["CME", "ICE", "NDAQ", "HKXCY", "BSE.NS"] },
+      { layer: "Data, index & ratings", symbols: ["MSCI", "SPGI", "MCO"] },
+      { layer: "Payment rails", symbols: ["V", "MA"] },
+      { layer: "India market plumbing", symbols: ["CDSL.NS", "CAMS.NS", "KFINTECH.NS"] },
+    ],
+    bullRoad: ["trading & ETFs grow", "data demand rises", "SIPs compound (India)", "recurring revenue scales", "quality re-rates"],
+    bearRoad: ["fee compression bites", "a downturn cuts volumes", "regulation caps fees", "growth slows", "high multiples de-rate"],
+    proves: ["Volumes & data subs keep growing", "SIP / demat counts rise (India)", "Pricing power holds", "Recurring mix increases", "Margins stay high"],
+    breaks: ["Fee compression accelerates", "Regulation caps fees", "A market downturn cuts volumes", "Index/ratings demand softens", "Competition undercuts pricing"],
+    redFlags: ["None yet — volumes firm", "Early fee pressure", "Fee caps / volume collapse"],
+  },
+  "great-company-dangerous-price": {
+    question: "Is the business great enough to justify a price that already assumes greatness?",
+    themeWeather: "Overheated — perfection priced in",
+    swingFactor: "Whether growth compounds fast enough to grow into the multiple.",
+    themeMap: [
+      { layer: "US quality at a price", symbols: ["NVDA", "COST", "LLY", "TSLA"] },
+      { layer: "China quality, policy overhang", symbols: ["BYDDF", "TCEHY"] },
+      { layer: "India premium compounders", symbols: ["TRENT.NS", "TITAN.NS", "ETERNAL.NS", "DIXON.NS"] },
+    ],
+    bullRoad: ["growth stays elevated", "margins keep rising", "estimates revise up", "the multiple is earned", "compounding continues"],
+    bearRoad: ["growth merely meets bars", "estimates plateau", "the multiple de-rates", "returns lag the business", "the stock disappoints"],
+    proves: ["Growth justifies the forward multiple", "Estimates keep revising up", "Margins keep improving", "Reinvestment runway is long", "It compounds through cycles"],
+    breaks: ["Growth merely meets expectations", "Estimates roll over", "The multiple de-rates", "A single miss resets sentiment", "Reinvestment returns fade"],
+    redFlags: ["Even good results may not be enough", "Estimate momentum fading", "Any miss vs a priced-for-perfection bar"],
+  },
+  "post-hype-ipo-survivors": {
+    question: "Which IPO stories became real, self-funding businesses after the hype faded?",
+    themeWeather: "Thawing — survivors emerging",
+    swingFactor: "Whether the business turns self-funding before dilution and cycles bite.",
+    themeMap: [
+      { layer: "Fresh IPO / too early", symbols: ["SPCX", "ARM", "RDDT", "CART"] },
+      { layer: "Maturing survivors", symbols: ["HOOD", "COIN", "ETERNAL.NS", "POLICYBZR.NS"] },
+      { layer: "Still proving it", symbols: ["RIVN", "PAYTM.NS", "NYKAA.NS", "DELHIVERY.NS"] },
+      { layer: "Valuation-discipline cases", symbols: ["CAVA", "ARM", "RDDT"] },
+    ],
+    bullRoad: ["hype-fade overshoots", "margins improve", "free cash flow turns positive", "dilution stops", "survivors re-rate"],
+    bearRoad: ["growth slows", "losses persist", "dilution continues", "insiders sell", "the story never becomes earnings"],
+    proves: ["Revenue still grows post-hype", "Gross margin improves", "Operating cash flow turns positive", "Free cash flow covers capex", "Share count stops rising"],
+    breaks: ["Growth slows sharply", "Cash burn continues", "Dilution / heavy SBC persists", "Insiders sell post-lock-up", "Valuation never resets enough"],
+    redFlags: ["None yet — but unproven", "Rising marketing spend / slowing growth", "Falling cash / continued dilution"],
+  },
+  "em-financialisation": {
+    question: "Will India's shift from cash and gold into financial assets keep compounding?",
+    themeWeather: "Warm — structural flows, rich multiples",
+    swingFactor: "Whether flows hold through the next market drawdown.",
+    themeMap: [
+      { layer: "Asset & wealth managers", symbols: ["HDFCAMC.NS", "NAM-INDIA.NS", "ANGELONE.NS"] },
+      { layer: "Market plumbing", symbols: ["BSE.NS", "CDSL.NS", "CAMS.NS", "KFINTECH.NS"] },
+      { layer: "Insurance", symbols: ["ICICIGI.NS", "SBILIFE.NS", "HDFCLIFE.NS"] },
+      { layer: "Global comparison", symbols: ["BLK", "SCHW", "MSCI"] },
+    ],
+    bullRoad: ["SIP flows compound", "demat accounts grow", "insurance penetrates", "recurring AUM scales", "the basket re-rates"],
+    bearRoad: ["a market correction hits", "flows slow", "fee caps bite", "AUM growth stalls", "rich multiples de-rate"],
+    proves: ["SIP & demat counts keep growing", "Insurance penetration rises", "AUM compounds", "Fee structures hold", "Retail participation deepens"],
+    breaks: ["A correction reverses flows", "SEBI fee caps compress economics", "Retail participation fades", "Competition cuts fees", "Multiples re-rate down"],
+    redFlags: ["None yet — flows strong", "Cycle sensitivity in a wobble", "Fee caps / flow reversal"],
+  },
+  "critical-minerals": {
+    question: "Does the AI-and-electrification build create durable demand for scarce resources?",
+    themeWeather: "Cyclical — commodity-led",
+    swingFactor: "Whether demand growth outpaces China supply and new mine capacity.",
+    themeMap: [
+      { layer: "Copper & diversified", symbols: ["FCX", "SCCO", "TECK", "BHP", "RIO"] },
+      { layer: "Lithium & rare earths", symbols: ["ALB", "SQM", "MP"] },
+      { layer: "Uranium", symbols: ["CCJ", "NXE"] },
+      { layer: "India minerals", symbols: ["HINDCOPPER.NS", "NMDC.NS", "GMDC.NS"] },
+    ],
+    bullRoad: ["electrification & AI lift demand", "supply stays tight", "prices firm", "low-cost producers earn", "the basket re-rates"],
+    bearRoad: ["growth slows", "China overcapacity floods supply", "prices fall", "high-cost producers squeezed", "names de-rate"],
+    proves: ["End-demand (grid/EV/defence) accelerates", "Supply stays constrained", "Prices hold above cost curve", "Strategic stockpiling grows", "New mines stay delayed"],
+    breaks: ["Commodity prices fall", "China overcapacity floods supply", "Global growth slows", "Substitution reduces demand", "New supply arrives early"],
+    redFlags: ["None yet — demand building", "Price softness vs cost curve", "China supply glut / demand slowdown"],
+  },
+  "internet-2-0": {
+    question: "Can AI improve commerce, ads, logistics and finance enough to expand platform margins?",
+    themeWeather: "Overheated but improving",
+    swingFactor: "Whether AI improves platform economics or simply increases competition.",
+    themeMap: [
+      { layer: "Ads / search / social", symbols: ["META", "GOOGL", "TCEHY", "BIDU", "NAUKRI.NS"] },
+      { layer: "Commerce", symbols: ["AMZN", "SHOP", "BABA", "PDD", "JD", "NYKAA.NS"] },
+      { layer: "Local & quick commerce", symbols: ["UBER", "DASH", "3690.HK", "ETERNAL.NS", "SWIGGY.NS"] },
+      { layer: "Payments & embedded finance", symbols: ["PAYTM.NS", "POLICYBZR.NS"] },
+    ],
+    bullRoad: ["AI improves recommendations", "conversion & ad pricing rise", "logistics density improves", "margins expand", "platforms re-rate"],
+    bearRoad: ["AI increases competition", "CAC rises", "take rates fall", "regulation tightens", "platforms de-rate"],
+    proves: ["AI lifts ad conversion & pricing", "Quick-commerce losses shrink without killing growth", "Take rates stay stable or rise", "CAC doesn't outrun revenue", "Platforms show operating leverage"],
+    breaks: ["AI agents reduce platform take rates", "Customer-acquisition costs rise", "Regulation caps fees or commissions", "Quick commerce stays structurally low-margin", "India internet names keep diluting"],
+    redFlags: ["None yet", "Rising marketing spend / CAC", "Falling take rates / rising losses"],
+  },
+};
+
 // Flatten grouped names → a de-duplicated list (a name can appear in two groups,
 // e.g. a "valuation discipline case" that is also a "fresh IPO").
 function flattenNames(groups: NameGroup[]): IdeaName[] {
@@ -1213,8 +1485,26 @@ function flattenNames(groups: NameGroup[]): IdeaName[] {
 
 export const tradingIdeas: TradingIdea[] = RAW.map((i) => {
   const names = flattenNames(i.groups);
+  const d = DASHBOARD[i.id];
+  // Attach the [best, base, worst] red flag to the matching scenario by order.
+  const scenarios = d
+    ? i.scenarios.map((s, idx) => ({ ...s, redFlag: d.redFlags[idx] }))
+    : i.scenarios;
   return {
     ...i,
+    ...(d
+      ? {
+          question: d.question,
+          themeWeather: d.themeWeather,
+          swingFactor: d.swingFactor,
+          themeMap: d.themeMap,
+          bullRoad: d.bullRoad,
+          bearRoad: d.bearRoad,
+          proves: d.proves,
+          breaks: d.breaks,
+        }
+      : {}),
+    scenarios,
     names,
     tickers: names.map((n) => n.symbol),
     riskLens: i.riskTag,
