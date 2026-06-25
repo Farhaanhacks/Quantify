@@ -263,34 +263,38 @@ function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }
             <p className="mt-1.5 text-sm leading-relaxed text-slate-300">{idea.whyNow}</p>
           </div>
 
-          {/* Theme map / value chain */}
-          {idea.chain?.length ? (
-            <div>
-              <div className="text-[0.62rem] uppercase tracking-[0.16em] text-slate-500">
-                Theme map — the value chain
-              </div>
-              <div className="mt-2.5 space-y-2">
-                {idea.chain.map((link) => (
+          {/* Scenario map */}
+          <div>
+            <div className="text-[0.62rem] uppercase tracking-[0.16em] text-slate-500">
+              Scenario map
+            </div>
+            <div className="mt-2.5 space-y-2">
+              {idea.scenarios.map((s) => {
+                const tone =
+                  s.kind === "Best case"
+                    ? "border-up/20 bg-up/5 text-up/80"
+                    : s.kind === "Worst case"
+                    ? "border-down/20 bg-down/5 text-down/80"
+                    : "border-white/[0.08] bg-white/[0.02] text-slate-400";
+                return (
                   <div
-                    key={link.layer}
-                    className="flex flex-col gap-1.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 sm:flex-row sm:items-center sm:gap-3"
+                    key={s.kind}
+                    className={`rounded-xl border p-3 sm:flex sm:items-start sm:gap-4 ${tone}`}
                   >
-                    <span className="w-40 flex-none text-xs font-medium text-teal">{link.layer}</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {link.symbols.map((s) => (
-                        <span
-                          key={s}
-                          className="rounded-md border border-white/10 bg-white/[0.03] px-1.5 py-0.5 font-mono text-[0.7rem] text-slate-300"
-                        >
-                          {s}
-                        </span>
-                      ))}
+                    <span className="block w-24 flex-none text-[0.7rem] font-semibold uppercase tracking-wide">
+                      {s.kind}
+                    </span>
+                    <div className="mt-1 sm:mt-0">
+                      <p className="text-sm leading-relaxed text-slate-300">{s.what}</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        <span className="text-slate-400">What tends to win:</span> {s.wins}
+                      </p>
                     </div>
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
-          ) : null}
+          </div>
 
           {/* Bull / bear */}
           <div className="grid gap-3 sm:grid-cols-2">
@@ -319,42 +323,75 @@ function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }
             </ul>
           </div>
 
-          {/* Names with exposure reason — tap to open analysis */}
+          {/* Names grouped by role — tap to open analysis */}
           <div>
             <div className="text-[0.62rem] uppercase tracking-[0.16em] text-slate-500">
-              Names to study — tap to open full analysis
+              Names to study — grouped by role · tap to open full analysis
             </div>
-            <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
-              {idea.names.map((n) => (
-                <Link
-                  key={n.symbol}
-                  href={`/stock-analysis?symbol=${encodeURIComponent(n.symbol)}`}
-                  onClick={onClose}
-                  className="group rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 transition hover:border-gold/40"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-sm text-white">{n.symbol}</span>
-                    <span className="text-gold/70 transition group-hover:translate-x-0.5">→</span>
+            <div className="mt-3 space-y-4">
+              {idea.groups.map((group) => (
+                <div key={group.label}>
+                  <div className="flex flex-wrap items-baseline gap-x-2">
+                    <h5 className="text-xs font-semibold text-teal">{group.label}</h5>
+                    {group.note ? (
+                      <span className="text-[0.7rem] text-slate-500">— {group.note}</span>
+                    ) : null}
                   </div>
-                  <p className="mt-1 text-xs text-slate-400">{n.role}</p>
-                  {n.why ? (
-                    <p className="mt-1.5 text-[0.7rem] leading-relaxed text-slate-500">
-                      <span className="text-slate-400">Why:</span> {n.why}
-                    </p>
-                  ) : null}
-                  {n.risk ? (
-                    <p className="mt-1 text-[0.7rem] leading-relaxed text-slate-500">
-                      <span className="text-down/80">Risk:</span> {n.risk}
-                    </p>
-                  ) : null}
-                  {n.watch ? (
-                    <p className="mt-1 text-[0.7rem] leading-relaxed text-slate-500">
-                      <span className="text-teal/80">Watch:</span> {n.watch}
-                    </p>
-                  ) : null}
-                </Link>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    {group.names.map((n) => (
+                      <Link
+                        key={`${group.label}-${n.symbol}`}
+                        href={`/stock-analysis?symbol=${encodeURIComponent(n.symbol)}`}
+                        onClick={onClose}
+                        className="group rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 transition hover:border-gold/40"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono text-sm text-white">{n.symbol}</span>
+                          <span className="text-gold/70 transition group-hover:translate-x-0.5">→</span>
+                        </div>
+                        <p className="mt-1 text-xs text-slate-400">{n.role}</p>
+                        {n.why ? (
+                          <p className="mt-1.5 text-[0.7rem] leading-relaxed text-slate-500">
+                            <span className="text-slate-400">Why:</span> {n.why}
+                          </p>
+                        ) : null}
+                        {n.risk ? (
+                          <p className="mt-1 text-[0.7rem] leading-relaxed text-slate-500">
+                            <span className="text-down/80">Risk:</span> {n.risk}
+                          </p>
+                        ) : null}
+                        {n.watch ? (
+                          <p className="mt-1 text-[0.7rem] leading-relaxed text-slate-500">
+                            <span className="text-teal/80">Watch:</span> {n.watch}
+                          </p>
+                        ) : null}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
+          </div>
+
+          {/* Research checklist */}
+          <div>
+            <div className="text-[0.62rem] uppercase tracking-[0.16em] text-slate-500">
+              Research checklist
+            </div>
+            <ul className="mt-2.5 space-y-2">
+              {idea.checklist.map((item) => (
+                <li
+                  key={item.question}
+                  className="flex gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5"
+                >
+                  <span className="mt-0.5 text-teal">☐</span>
+                  <div>
+                    <p className="text-sm text-slate-200">{item.question}</p>
+                    <p className="mt-0.5 text-[0.7rem] leading-relaxed text-slate-500">{item.why}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
 
           {/* Quantifi research scorecard */}
