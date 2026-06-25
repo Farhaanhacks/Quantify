@@ -76,6 +76,15 @@ export default function TradingIdeas({
   const [selected, setSelected] = useState<TradingIdea | null>(null);
   const { pro, ready } = useProStatus();
 
+  // Deep link: /ideas?theme=<id> opens that theme directly (used by Community
+  // playbooks). Read from the URL so we don't need a Suspense boundary.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("theme");
+    if (!id) return;
+    const match = tradingIdeas.find((i) => i.id === id);
+    if (match) setSelected(match);
+  }, []);
+
   const filtered = useMemo(() => {
     const list =
       active === "All" ? tradingIdeas : tradingIdeas.filter((i) => i.category === active);

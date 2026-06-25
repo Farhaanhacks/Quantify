@@ -1,9 +1,9 @@
 import Community from "@/components/quantifi/Community";
 
 export const metadata = {
-  title: "Community · Quantifi",
+  title: "Community Research · Quantifi",
   description:
-    "Guidance from verified industry professionals — analysts, portfolio managers and quants — to help you read the market with more context.",
+    "Curated research playbooks, market maps and source-backed analysis — built for study, not recommendations.",
 };
 
 export default function CommunityPage() {
