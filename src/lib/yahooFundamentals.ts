@@ -197,9 +197,13 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   const statements = Array.isArray(cfh.cashflowStatements)
     ? (cfh.cashflowStatements as Record<string, unknown>[])
     : [];
-  // Build oldest → newest series of operating cash flow and free cash flow.
+  // Build oldest → newest series of operating cash flow, free cash flow, and a
+  // per-year "normalised" cash flow (OCF minus only maintenance capex — see
+  // below). The normalised series lets us value through-cycle earning power
+  // rather than a single trough or peak year.
   const ocfSeries: number[] = [];
   const fcfSeries: number[] = [];
+  const normSeries: number[] = [];
   for (let i = statements.length - 1; i >= 0; i--) {
     const st = statements[i];
     const ocf = num(st.totalCashFromOperatingActivities);
@@ -207,6 +211,10 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
     if (ocf != null) {
       ocfSeries.push(ocf);
       fcfSeries.push(capex != null ? ocf + capex : ocf);
+      if (ocf > 0) {
+        const maint = Math.min(capex != null ? Math.abs(capex) : 0, 0.4 * ocf);
+        normSeries.push(ocf - maint);
+      }
     }
   }
   // Cash-flow growth is the truest growth signal for a DCF — far better than a
@@ -224,20 +232,29 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
     num(fd.freeCashflow) ??
     (fcfSeries.length ? fcfSeries[fcfSeries.length - 1] : undefined);
 
-  // Base cash flow for the DCF. We start from operating cash flow and subtract
-  // only *maintenance* capex — capped at 40% of OCF. A fast-growing company
-  // ploughs most of its capex into building future capacity (growth investment),
-  // and the growth rate already credits the cash flows that capacity will throw
-  // off; subtracting all of it (raw free cash flow) double-counts the cost and is
-  // what made capacity-builders read as deeply overvalued against their own
-  // intrinsic value. For asset-light names capex is small, so this collapses back
-  // to ordinary free cash flow.
+  // Base cash flow for the DCF. Two adjustments make this reflect real earning
+  // power rather than an accounting snapshot:
+  //   • Maintenance capex only. We start from operating cash flow and subtract
+  //     just maintenance capex (capped at 40% of OCF). A fast grower ploughs most
+  //     of its capex into building future capacity, and the growth rate already
+  //     credits the cash flows that capacity will produce; subtracting all of it
+  //     (raw free cash flow) double-counts the cost and made capacity-builders
+  //     read as deeply overvalued. Asset-light names have little capex, so this
+  //     collapses back to ordinary free cash flow.
+  //   • Through-cycle normalisation. We take the GREATER of the current run-rate
+  //     and the multi-year average, so a single trough year (e.g. a game studio
+  //     between major releases like TTWO pre-GTA VI) doesn't define intrinsic
+  //     value — the company's better years count too.
+  const avgNorm = normSeries.length
+    ? normSeries.reduce((a, b) => a + b, 0) / normSeries.length
+    : undefined;
   let baseCashflow: number | undefined;
   if (ocfTTM != null && ocfTTM > 0) {
     const capex = fcfTTM != null ? Math.max(0, ocfTTM - fcfTTM) : 0;
-    baseCashflow = ocfTTM - Math.min(capex, 0.4 * ocfTTM);
+    const ttmNorm = ocfTTM - Math.min(capex, 0.4 * ocfTTM);
+    baseCashflow = avgNorm != null ? Math.max(ttmNorm, avgNorm) : ttmNorm;
   } else {
-    baseCashflow = fcfTTM ?? ocfTTM;
+    baseCashflow = avgNorm ?? fcfTTM ?? ocfTTM;
   }
   const sharesOutstanding = num(ks.sharesOutstanding) ?? num(pr.sharesOutstanding);
   const name = str(pr.longName) ?? str(pr.shortName) ?? symbol.toUpperCase();
