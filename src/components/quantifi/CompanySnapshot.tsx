@@ -164,6 +164,14 @@ export default function CompanySnapshot({
           </span>
         </div>
       </div>
+      {/* Standing limitation — this matters for every stock, not just one. */}
+      <p className="mt-4 border-t border-white/[0.06] pt-3 text-[0.7rem] leading-relaxed text-slate-500">
+        Built from <span className="text-slate-400">trailing cash flows</span>. It can&apos;t price
+        in catalysts that haven&apos;t reached the financials yet — a major product launch, a new
+        capacity ramp, or earnings still being suppressed by heavy investment. For pre-launch or
+        heavy-investment names this figure reads conservative by design; weigh it against the
+        analyst target above, which is forward-looking.
+      </p>
     </GlassCard>
   ) : null;
 

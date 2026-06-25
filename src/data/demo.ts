@@ -29,16 +29,10 @@ export interface Holding {
   price: number;
 }
 
-export interface TradingIdea {
-  id: string;
-  title: string;
-  category: string;
-  tagline: string;
-  description: string;
-  riskLens: string;
-  tickers: string[];
-  signal: string; // a neutral "what's notable" stat
-}
+// The thematic research library now lives in ./ideas (richer model). Re-export
+// so existing `@/data/demo` imports keep working.
+export type { TradingIdea } from "./ideas";
+export { ideaCategories, tradingIdeas } from "./ideas";
 
 export interface AffectedStock {
   ticker: string;
@@ -218,121 +212,6 @@ export const stocksToReview = [
 
 // ── Trading / investing ideas ────────────────────────────────────────────────
 
-export const ideaCategories = [
-  "AI Infrastructure",
-  "Recent IPOs",
-  "Global Space Race Stocks",
-  "Undervalued Companies",
-  "Dividend Powerhouses",
-  "Insider Activity",
-  "Nuclear Energy",
-  "Autonomous Vehicles",
-  "Cybersecurity",
-  "Space Economy",
-] as const;
-
-export const tradingIdeas: TradingIdea[] = [
-  {
-    id: "ai-infra",
-    title: "AI Infrastructure Buildout",
-    category: "AI Infrastructure",
-    tagline: "The picks-and-shovels of the AI capex cycle",
-    description: "Compute, memory, networking and power names tied to data-center expansion. A theme to study as hyperscaler capex guidance evolves.",
-    riskLens: "Highly capex-dependent; a single guidance cut can re-rate the whole basket.",
-    tickers: ["NVDA", "AMD", "ORCL", "SMH"],
-    signal: "Hyperscaler capex commentary trending higher across recent calls",
-  },
-  {
-    id: "recent-ipos",
-    title: "Recent IPOs to Track",
-    category: "Recent IPOs",
-    tagline: "Newly public names finding their footing",
-    description: "Companies in their first few quarters as public entities, where the narrative and float are still settling — headlined by SpaceX's record June 2026 listing.",
-    riskLens: "Thin trading history and lock-up expiries can amplify volatility.",
-    tickers: ["SPCX", "RKLB", "ASTS"],
-    signal: "Elevated volatility typical of post-listing price discovery",
-  },
-  {
-    id: "space-race",
-    title: "Global Space Race",
-    category: "Global Space Race Stocks",
-    tagline: "Launch, satellites and orbital infrastructure",
-    description: "Names exposed to government and commercial demand for launch cadence and space-based connectivity — now including SpaceX itself after its June 2026 listing.",
-    riskLens: "Long timelines, mission risk, and program-funding sensitivity.",
-    tickers: ["SPCX", "RKLB", "ASTS"],
-    signal: "Launch-cadence and contract-award headlines driving sentiment",
-  },
-  {
-    id: "undervalued",
-    title: "Potentially Undervalued",
-    category: "Undervalued Companies",
-    tagline: "Lower multiples relative to their own history",
-    description: "A research starting point for names trading below their typical valuation bands — a screen, not a verdict.",
-    riskLens: "Cheap can stay cheap; verify whether the discount is justified.",
-    tickers: ["RELIANCE.NS", "AMZN"],
-    signal: "Trading below 5-year average multiples on demo data",
-  },
-  {
-    id: "dividends",
-    title: "Dividend Powerhouses",
-    category: "Dividend Powerhouses",
-    tagline: "Established payers with steady distribution histories",
-    description: "Large, cash-generative businesses often studied for income characteristics.",
-    riskLens: "Yield traps exist — a high yield can signal stress, not strength.",
-    tickers: ["MSFT", "ORCL", "TCS.NS"],
-    signal: "Consistent distribution history in the demo set",
-  },
-  {
-    id: "insider-cluster",
-    title: "Insider Activity Cluster",
-    category: "Insider Activity",
-    tagline: "Names where insiders have been active",
-    description: "A lens on stocks seeing notable insider buying or selling — useful context, never a signal on its own.",
-    riskLens: "Insider trades have many motives; reading intent is hard.",
-    tickers: ["PLTR", "RELIANCE.NS"],
-    signal: "Multiple insider filings logged in the last 30 days",
-  },
-  {
-    id: "nuclear",
-    title: "Nuclear Energy Revival",
-    category: "Nuclear Energy",
-    tagline: "Powering the AI and electrification era",
-    description: "Interest in baseload nuclear and SMRs as power demand from data centers climbs.",
-    riskLens: "Regulatory timelines and project execution risk are significant.",
-    tickers: ["ORCL", "MSFT"],
-    signal: "Data-center power demand referenced as a key driver",
-  },
-  {
-    id: "autonomous",
-    title: "Autonomous Vehicles",
-    category: "Autonomous Vehicles",
-    tagline: "Self-driving compute, sensors and fleets",
-    description: "The stack behind autonomy — from inference hardware to fleet operators.",
-    riskLens: "Timelines slip; regulation and safety milestones gate adoption.",
-    tickers: ["TSLA", "NVDA"],
-    signal: "Robotaxi and FSD milestones shaping the narrative",
-  },
-  {
-    id: "cyber",
-    title: "Cybersecurity",
-    category: "Cybersecurity",
-    tagline: "Defense layer for an AI-accelerated threat surface",
-    description: "Demand tailwinds as attack surfaces expand with AI tooling and cloud sprawl.",
-    riskLens: "Crowded category; differentiation and retention matter.",
-    tickers: ["MSFT", "PLTR"],
-    signal: "Security budgets cited as resilient in recent commentary",
-  },
-  {
-    id: "space-economy",
-    title: "Space Economy",
-    category: "Space Economy",
-    tagline: "Connectivity, imagery and orbital services",
-    description: "Beyond launch — the services and connectivity layer building on top of orbit.",
-    riskLens: "Capital intensity and uncertain unit economics.",
-    tickers: ["ASTS", "RKLB"],
-    signal: "Direct-to-device connectivity milestones in focus",
-  },
-];
 
 // ── News impact ──────────────────────────────────────────────────────────────
 
