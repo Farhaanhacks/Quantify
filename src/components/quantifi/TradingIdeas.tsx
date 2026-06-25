@@ -247,14 +247,20 @@ function Road({ steps, tone }: { steps: string[]; tone: "up" | "down" }) {
         {tone === "up" ? "Bull road" : "Bear road"}
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
-        {steps.map((s, i) => (
-          <span key={s} className="flex items-center gap-1.5">
-            <span className="rounded-md border border-white/[0.08] bg-white/[0.03] px-2 py-1 text-xs text-slate-200">
-              {s}
+        {steps.map((s, i) => {
+          const last = i === steps.length - 1;
+          const chip = last
+            ? tone === "up"
+              ? "border-up/50 bg-up/15 font-semibold text-up"
+              : "border-down/50 bg-down/15 font-semibold text-down"
+            : "border-white/[0.08] bg-white/[0.03] text-slate-200";
+          return (
+            <span key={s} className="flex items-center gap-1.5">
+              <span className={`rounded-md border px-2 py-1 text-xs ${chip}`}>{s}</span>
+              {!last ? <span className={`text-xs ${color}`} aria-hidden>→</span> : null}
             </span>
-            {i < steps.length - 1 ? <span className={`text-xs ${color}`} aria-hidden>→</span> : null}
-          </span>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -333,25 +339,30 @@ function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }
 
           {/* ── MIDDLE: theme map, scenarios, roads ────────────────────────── */}
 
-          {/* Theme map / value chain */}
+          {/* Theme map / value chain — a vertical causal stack */}
           {idea.themeMap?.length ? (
             <div>
               <SectionLabel>Theme map — the value chain</SectionLabel>
-              <div className="mt-2.5 space-y-1.5">
+              <div className="mt-2.5">
                 {idea.themeMap.map((link, i) => (
                   <div key={link.layer}>
-                    <div className="flex flex-col gap-1.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 sm:flex-row sm:items-center sm:gap-3">
-                      <span className="w-44 flex-none text-xs font-medium text-teal">{link.layer}</span>
-                      <div className="flex flex-wrap gap-1.5">
+                    <div className="rounded-xl border border-teal/15 bg-teal/[0.04] px-3.5 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-5 w-5 flex-none items-center justify-center rounded-full bg-teal/15 font-mono text-[0.6rem] text-teal">
+                          {i + 1}
+                        </span>
+                        <span className="text-xs font-semibold uppercase tracking-[0.08em] text-teal">{link.layer}</span>
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-1.5 pl-7">
                         {link.symbols.map((s) => (
-                          <span key={s} className="rounded-md border border-white/10 bg-white/[0.03] px-1.5 py-0.5 font-mono text-[0.7rem] text-slate-300">
+                          <span key={s} className="rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-0.5 font-mono text-[0.7rem] text-slate-200">
                             {s}
                           </span>
                         ))}
                       </div>
                     </div>
                     {i < idea.themeMap!.length - 1 ? (
-                      <div className="py-0.5 text-center text-xs text-slate-600" aria-hidden>↓</div>
+                      <div className="flex justify-center py-1 text-base leading-none text-teal/50" aria-hidden>↓</div>
                     ) : null}
                   </div>
                 ))}
@@ -372,17 +383,17 @@ function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }
                     : "border-white/[0.08] bg-white/[0.02]";
                 const kindColor = s.kind === "Best case" ? "text-up" : s.kind === "Worst case" ? "text-down" : "text-slate-400";
                 return (
-                  <div key={s.kind} className={`rounded-xl border p-3 ${tone}`}>
+                  <div key={s.kind} className={`rounded-xl border p-3.5 ${tone}`}>
                     <span className={`text-[0.7rem] font-semibold uppercase tracking-wide ${kindColor}`}>{s.kind}</span>
-                    <div className="mt-1.5 grid gap-2 sm:grid-cols-[1.4fr_1fr_1fr]">
-                      <p className="text-sm leading-relaxed text-slate-200">{s.what}</p>
-                      <p className="text-xs text-slate-400">
-                        <span className="text-slate-500">Who benefits: </span>
+                    <p className="mt-1.5 text-sm leading-relaxed text-slate-200">{s.what}</p>
+                    <div className="mt-2.5 space-y-1 border-t border-white/[0.06] pt-2.5">
+                      <p className="text-xs leading-relaxed text-slate-300">
+                        <span className="font-medium text-up/90">Likely beneficiaries: </span>
                         {s.wins}
                       </p>
                       {s.redFlag ? (
-                        <p className="text-xs text-slate-400">
-                          <span className="text-down/80">Red flag: </span>
+                        <p className="text-xs leading-relaxed text-slate-300">
+                          <span className="font-medium text-down/90">Red flag: </span>
                           {s.redFlag}
                         </p>
                       ) : null}
@@ -426,7 +437,7 @@ function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }
 
           {/* ── BOTTOM: names, checklist, prove/break, sources ─────────────── */}
 
-          {/* Names grouped by role */}
+          {/* Names grouped by role — uniform collapsed card; detail on hover */}
           <div>
             <SectionLabel>Names to study — grouped by role · tap to open full analysis</SectionLabel>
             <div className="mt-3 space-y-4">
@@ -437,36 +448,47 @@ function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }
                     {group.note ? <span className="text-[0.7rem] text-slate-500">— {group.note}</span> : null}
                   </div>
                   <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                    {group.names.map((n) => (
-                      <Link
-                        key={`${group.label}-${n.symbol}`}
-                        href={`/stock-analysis?symbol=${encodeURIComponent(n.symbol)}`}
-                        onClick={onClose}
-                        className="group rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 transition hover:border-gold/40"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-mono text-sm text-white">{n.symbol}</span>
-                            {n.tag ? (
-                              <span className={`rounded-full border px-1.5 py-px text-[0.55rem] ${tagTone(n.tag)}`}>
-                                {n.tag}
-                              </span>
-                            ) : null}
+                    {group.names.map((n) => {
+                      const hasDetail = Boolean(n.why || n.risk || n.watch);
+                      return (
+                        <Link
+                          key={`${group.label}-${n.symbol}`}
+                          href={`/stock-analysis?symbol=${encodeURIComponent(n.symbol)}`}
+                          onClick={onClose}
+                          className="group rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 transition hover:border-gold/40"
+                        >
+                          {/* Collapsed: identical structure on every card */}
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono text-sm text-white">{n.symbol}</span>
+                              {n.tag ? (
+                                <span className={`rounded-full border px-1.5 py-px text-[0.55rem] ${tagTone(n.tag)}`}>
+                                  {n.tag}
+                                </span>
+                              ) : null}
+                            </div>
+                            <span className="text-gold/70 transition group-hover:translate-x-0.5">→</span>
                           </div>
-                          <span className="text-gold/70 transition group-hover:translate-x-0.5">→</span>
-                        </div>
-                        <p className="mt-1 text-xs text-slate-400">{n.role}</p>
-                        {n.why ? (
-                          <p className="mt-1.5 text-[0.7rem] leading-relaxed text-slate-500"><span className="text-slate-400">Why:</span> {n.why}</p>
-                        ) : null}
-                        {n.risk ? (
-                          <p className="mt-1 text-[0.7rem] leading-relaxed text-slate-500"><span className="text-down/80">Risk:</span> {n.risk}</p>
-                        ) : null}
-                        {n.watch ? (
-                          <p className="mt-1 text-[0.7rem] leading-relaxed text-slate-500"><span className="text-teal/80">Watch:</span> {n.watch}</p>
-                        ) : null}
-                      </Link>
-                    ))}
+                          <p className="mt-1 text-xs text-slate-400">{n.role}</p>
+                          {hasDetail ? (
+                            <>
+                              <span className="mt-1 block text-[0.6rem] text-slate-600 group-hover:hidden">Hover for detail</span>
+                              <div className="hidden group-hover:block">
+                                {n.why ? (
+                                  <p className="mt-1.5 text-[0.7rem] leading-relaxed text-slate-500"><span className="text-slate-400">Why:</span> {n.why}</p>
+                                ) : null}
+                                {n.risk ? (
+                                  <p className="mt-1 text-[0.7rem] leading-relaxed text-slate-500"><span className="text-down/80">Risk:</span> {n.risk}</p>
+                                ) : null}
+                                {n.watch ? (
+                                  <p className="mt-1 text-[0.7rem] leading-relaxed text-slate-500"><span className="text-teal/80">Watch:</span> {n.watch}</p>
+                                ) : null}
+                              </div>
+                            </>
+                          ) : null}
+                        </Link>
+                      );
+                    })}
                   </div>
                 </div>
               ))}
