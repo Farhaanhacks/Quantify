@@ -49,8 +49,11 @@ export interface Playbook {
   riskLens: string;
   bestFor: string;
   status: string;
+  lastUpdated?: string;
+  updateTrigger?: string;
   coreQuestion: string;
   read: string;
+  whatChanged?: string[];
   summary: PlaybookSummaryCard[];
   linkedIdeas: PlaybookLinkedIdea[];
   bullCase: string;
@@ -82,10 +85,18 @@ export const playbooks: Playbook[] = [
     riskLens: "High uncertainty",
     bestFor: "Macro / geopolitics-aware investors",
     status: "Framework decode",
+    lastUpdated: "26 Jun 2026",
+    updateTrigger: "new hyperscaler earnings / AI policy / export-control change",
     coreQuestion:
       "Is frontier AI becoming strategic infrastructure — and what does that imply for compute, power, chips, cloud, defence and public-market capital flows?",
     read:
       "The Situational Awareness framework is not a stock tip. It is a map of how accelerating AI capability could force governments, hyperscalers and investors to treat compute, power and national-security infrastructure as strategic assets.",
+    whatChanged: [
+      "Hyperscaler capex remains the key signal.",
+      "Power and grid constraints are becoming more visible.",
+      "Sovereign AI policy is moving from theory to funding.",
+      "Defence AI adoption remains early but strategically important.",
+    ],
     summary: [
       { title: "AI acceleration", summary: "Frontier models may improve fast enough to compress investment and policy timelines." },
       { title: "Compute as strategic infrastructure", summary: "Chips, cloud capacity and data centres become national assets, not just corporate capex." },

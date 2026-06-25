@@ -98,6 +98,14 @@ export default function PlaybookModal({ playbook, onClose }: { playbook: Playboo
             ))}
           </div>
           <p className="mt-1.5 text-[0.7rem] text-slate-600">Framework analysis only. Not investment advice.</p>
+          {playbook.lastUpdated ? (
+            <p className="mt-1 text-[0.7rem] text-slate-500">
+              <span className="text-slate-400">Last updated:</span> {playbook.lastUpdated}
+              {playbook.updateTrigger ? (
+                <span className="text-slate-600"> · Update trigger: {playbook.updateTrigger}</span>
+              ) : null}
+            </p>
+          ) : null}
           <nav className="mt-3 flex gap-1 overflow-x-auto">
             {nav.map((n) => (
               <button
@@ -125,6 +133,26 @@ export default function PlaybookModal({ playbook, onClose }: { playbook: Playboo
             <SectionLabel>Quantifi research read</SectionLabel>
             <p className="mt-1.5 text-sm leading-relaxed text-slate-200">{playbook.read}</p>
           </div>
+
+          {/* What changed recently — a reason to revisit */}
+          {playbook.whatChanged?.length ? (
+            <div className="mt-4 rounded-xl border border-teal/20 bg-teal/[0.05] p-4">
+              <div className="flex items-center justify-between gap-2">
+                <SectionLabel>What changed recently</SectionLabel>
+                {playbook.lastUpdated ? (
+                  <span className="text-[0.62rem] text-slate-500">as of {playbook.lastUpdated}</span>
+                ) : null}
+              </div>
+              <ul className="mt-2 space-y-1.5">
+                {playbook.whatChanged.map((c) => (
+                  <li key={c} className="flex gap-2 text-sm leading-relaxed text-slate-300">
+                    <span className="mt-0.5 flex-none text-teal">›</span>
+                    <span>{c}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
           {/* Badges */}
           <div className="mt-4 flex flex-wrap gap-1.5 text-[0.65rem]">
