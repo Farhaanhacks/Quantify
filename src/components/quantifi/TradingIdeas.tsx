@@ -16,6 +16,28 @@ function scoreColor(score: number): string {
   return "#FB7185";
 }
 
+// Colour a thesis-test signal by whether it's encouraging, neutral or a warning.
+function signalTone(signal: string): string {
+  if (signal === "Strengthening") return "border-up/30 bg-up/10 text-up";
+  if (signal === "Weakening" || signal === "Rising risk" || signal === "Critical test")
+    return "border-down/30 bg-down/10 text-down";
+  // Mixed / Early / Unproven / Watch closely
+  return "border-gold/30 bg-gold/10 text-gold";
+}
+
+function importanceTone(importance: string): string {
+  if (importance === "Very high") return "font-semibold text-down";
+  if (importance === "High") return "font-semibold text-gold";
+  return "text-slate-300";
+}
+
+function tagTone(tag: string): string {
+  if (tag === "Direct") return "border-up/30 bg-up/10 text-up";
+  if (tag === "Commodity-linked") return "border-gold/30 bg-gold/10 text-gold";
+  if (tag === "Early-stage") return "border-down/30 bg-down/10 text-down";
+  return "border-white/15 bg-white/[0.04] text-slate-300"; // Indirect
+}
+
 // Multi-region themes lead with a "Global Theme" badge rather than a single
 // region (the old behaviour made a US-China-India theme read as just "India").
 const isGlobalTheme = (idea: TradingIdea) => idea.regions.length > 1;
@@ -422,8 +444,15 @@ function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }
                         onClick={onClose}
                         className="group rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 transition hover:border-gold/40"
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="font-mono text-sm text-white">{n.symbol}</span>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-sm text-white">{n.symbol}</span>
+                            {n.tag ? (
+                              <span className={`rounded-full border px-1.5 py-px text-[0.55rem] ${tagTone(n.tag)}`}>
+                                {n.tag}
+                              </span>
+                            ) : null}
+                          </div>
                           <span className="text-gold/70 transition group-hover:translate-x-0.5">→</span>
                         </div>
                         <p className="mt-1 text-xs text-slate-400">{n.role}</p>
@@ -444,21 +473,43 @@ function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }
             </div>
           </div>
 
-          {/* Research checklist */}
-          <div className="mt-6">
-            <SectionLabel>Research checklist</SectionLabel>
-            <ul className="mt-2.5 space-y-2">
-              {idea.checklist.map((item) => (
-                <li key={item.question} className="flex gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
-                  <span className="mt-0.5 text-teal">☐</span>
-                  <div>
-                    <p className="text-sm text-slate-200">{item.question}</p>
-                    <p className="mt-0.5 text-[0.7rem] leading-relaxed text-slate-500">{item.why}</p>
+          {/* Thesis tests — research signals, not a to-do list */}
+          {idea.thesisTests?.length ? (
+            <div className="mt-6">
+              <SectionLabel>Thesis tests</SectionLabel>
+              <p className="mt-1 text-xs text-slate-500">
+                The signals that decide whether this theme is strengthening or weakening.
+              </p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {idea.thesisTests.map((t) => (
+                  <div key={t.test} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-sm font-medium text-white">{t.test}</span>
+                      <span className={`flex-none rounded-full border px-1.5 py-px text-[0.6rem] ${signalTone(t.signal)}`}>
+                        {t.signal}
+                      </span>
+                    </div>
+                    <div className="mt-1.5 flex items-center gap-1.5 text-[0.62rem]">
+                      <span className="uppercase tracking-[0.12em] text-slate-500">Importance</span>
+                      <span className={importanceTone(t.importance)}>{t.importance}</span>
+                    </div>
+                    <p className="mt-2 text-[0.72rem] leading-relaxed text-slate-400">
+                      <span className="text-slate-500">Why it matters: </span>
+                      {t.why}
+                    </p>
+                    <p className="mt-1 text-[0.72rem] leading-relaxed text-slate-400">
+                      <span className="text-teal/80">Metric to watch: </span>
+                      {t.metric}
+                    </p>
+                    <p className="mt-1 text-[0.72rem] leading-relaxed text-slate-400">
+                      <span className="text-down/80">Breaks thesis if: </span>
+                      {t.breaksIf}
+                    </p>
                   </div>
-                </li>
-              ))}
-            </ul>
-          </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {/* What would prove / break the thesis */}
           {idea.proves?.length || idea.breaks?.length ? (
@@ -492,8 +543,20 @@ function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }
             </div>
           ) : null}
 
-          {/* Sources */}
-          {idea.sources?.length ? (
+          {/* Source pack — typed sources with what each one checks */}
+          {idea.sourcePack?.length ? (
+            <div className="mt-6">
+              <SectionLabel>Source pack</SectionLabel>
+              <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
+                {idea.sourcePack.map((s) => (
+                  <div key={s.type} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+                    <div className="text-sm font-medium text-white">{s.type}</div>
+                    <p className="mt-1 text-[0.72rem] leading-relaxed text-slate-400">{s.checks}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : idea.sources?.length ? (
             <div className="mt-6">
               <SectionLabel>Sources used</SectionLabel>
               <div className="mt-2 flex flex-wrap gap-2">

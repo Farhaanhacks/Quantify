@@ -11,6 +11,7 @@ export interface IdeaName {
   why?: string; // mini-card: why it matters
   risk?: string; // mini-card: main risk
   watch?: string; // mini-card: what to watch
+  tag?: "Direct" | "Indirect" | "Commodity-linked" | "Early-stage"; // exposure type
 }
 
 export interface NameGroup {
@@ -34,6 +35,31 @@ export interface ThemeMapLink {
 export interface ChecklistItem {
   question: string;
   why: string;
+}
+
+// A thesis test reads like a research signal, not a to-do checkbox: it carries a
+// live read (signal), how much it matters (importance), the metric to track and
+// the condition that would break the thesis.
+export interface ThesisTest {
+  test: string;
+  signal:
+    | "Strengthening"
+    | "Mixed"
+    | "Weakening"
+    | "Early"
+    | "Unproven"
+    | "Critical test"
+    | "Rising risk"
+    | "Watch closely";
+  importance: "Low" | "Medium" | "High" | "Very high";
+  why: string;
+  metric: string;
+  breaksIf: string;
+}
+
+export interface SourceItem {
+  type: string; // e.g. "Earnings calls"
+  checks: string; // what that source verifies
 }
 
 export interface IdeaScore {
@@ -73,6 +99,8 @@ export interface TradingIdea {
   bearRoad?: string[];
   proves?: string[];
   breaks?: string[];
+  thesisTests?: ThesisTest[];
+  sourcePack?: SourceItem[];
   // Derived for back-compatibility with other surfaces.
   names: IdeaName[];
   tickers: string[];
@@ -752,53 +780,70 @@ const RAW: RawIdea[] = [
     id: "market-toll-booths",
     title: "Market Toll Booths",
     category: "Financialisation",
-    tagline: "The exchanges, data, depositories and payment rails behind global finance",
+    tagline: "Global exchanges, data, depositories and payment rails — plus India's financialisation",
     description:
-      "Toll-booth businesses: exchanges, depositories, index providers, rating agencies, payment networks and financial infrastructure that earn recurring fees as activity grows.",
+      "Toll-booth businesses: exchanges, depositories, index providers, rating agencies, payment networks and asset managers that earn recurring fees as activity grows. Includes India's financialisation sub-theme — households shifting from cash, gold and property into funds, equities and insurance.",
     whyNow:
-      "More trading, more ETFs, more SIPs and more data usage compound recurring revenue — a quieter, higher-quality way to play financialisation.",
+      "More trading, more ETFs, more SIPs and more data usage compound recurring revenue — a quieter, higher-quality way to play financialisation, with India adding a long structural growth leg.",
     regions: ["US", "China/HK", "India"],
     timeHorizon: "3–10 years",
     maturity: "Mature",
     valuationRisk: "Medium-high",
-    bullCase: "More trading, ETFs, SIPs and data usage increase recurring revenue at high incremental margins.",
+    bullCase: "More trading, ETFs, SIPs, insurance and data usage increase recurring revenue at high incremental margins.",
     bearCase: "Regulation, fee compression, market downturns and lower trading activity hurt growth.",
-    watch: ["Volumes & data subscriptions", "Fee/regulatory pressure", "SIP & demat growth (India)", "Index/ratings demand"],
+    watch: ["Volumes & data subscriptions", "Fee/regulatory pressure", "SIP, demat & insurance growth (India)", "Index/ratings demand"],
     bestFor: "Quality-compounder investors",
     riskTag: "Fee-compression · Regulatory risk",
     groups: [
       {
-        label: "Exchanges & data (US)",
+        label: "US financial infrastructure",
         names: [
-          { symbol: "CME", role: "Derivatives exchange" },
-          { symbol: "ICE", role: "Exchanges & data" },
-          { symbol: "NDAQ", role: "Exchange & market tech" },
-          { symbol: "MSCI", role: "Index & analytics" },
-          { symbol: "SPGI", role: "Ratings, indices & data" },
-          { symbol: "MCO", role: "Credit ratings & analytics" },
+          { symbol: "CME", role: "Derivatives exchange", tag: "Direct" },
+          { symbol: "ICE", role: "Exchanges & data", tag: "Direct" },
+          { symbol: "NDAQ", role: "Exchange & market tech", tag: "Direct" },
+          { symbol: "BLK", role: "Asset manager (ETF/iShares scale)", tag: "Indirect" },
+          { symbol: "SCHW", role: "Brokerage & custody", tag: "Indirect" },
+        ],
+      },
+      {
+        label: "Data, index & rating agencies",
+        names: [
+          { symbol: "MSCI", role: "Index & analytics", tag: "Direct" },
+          { symbol: "SPGI", role: "Ratings, indices & data", tag: "Direct" },
+          { symbol: "MCO", role: "Credit ratings & analytics", tag: "Direct" },
         ],
       },
       {
         label: "Payment networks",
         names: [
-          { symbol: "V", role: "Payment network" },
-          { symbol: "MA", role: "Payment network" },
+          { symbol: "V", role: "Payment network", tag: "Direct" },
+          { symbol: "MA", role: "Payment network", tag: "Direct" },
         ],
       },
       {
-        label: "Asia / India market plumbing",
+        label: "Asia / HK access",
+        names: [{ symbol: "HKXCY", role: "HK exchange (China access)", tag: "Direct" }],
+      },
+      {
+        label: "India financialisation",
+        note: "Households moving from cash, gold and property into financial assets.",
         names: [
-          { symbol: "HKXCY", role: "HK exchange (China access)" },
-          { symbol: "BSE.NS", role: "India exchange" },
-          { symbol: "CDSL.NS", role: "India depository" },
-          { symbol: "CAMS.NS", role: "India MF registrar / RTA" },
-          { symbol: "KFINTECH.NS", role: "India registrar / RTA" },
+          { symbol: "BSE.NS", role: "India exchange", tag: "Direct" },
+          { symbol: "CDSL.NS", role: "India depository", tag: "Direct" },
+          { symbol: "CAMS.NS", role: "India MF registrar / RTA", tag: "Direct" },
+          { symbol: "KFINTECH.NS", role: "India registrar / RTA", tag: "Direct" },
+          { symbol: "HDFCAMC.NS", role: "India asset manager", tag: "Direct" },
+          { symbol: "NAM-INDIA.NS", role: "India asset manager", tag: "Direct" },
+          { symbol: "ANGELONE.NS", role: "India discount broker", tag: "Indirect" },
+          { symbol: "ICICIGI.NS", role: "India general insurer", tag: "Indirect" },
+          { symbol: "SBILIFE.NS", role: "India life insurer", tag: "Indirect" },
+          { symbol: "HDFCLIFE.NS", role: "India life insurer", tag: "Indirect" },
         ],
       },
     ],
     scenarios: [
-      { kind: "Best case", what: "More trading, ETFs, SIPs and data usage compound recurring, high-margin revenue.", wins: "MSCI · SPGI · V/MA · India RTAs" },
-      { kind: "Base case", what: "Steady recurring growth, occasional fee pressure; quality compounds quietly.", wins: "Diversified data & index names" },
+      { kind: "Best case", what: "More trading, ETFs, SIPs, insurance and data usage compound recurring, high-margin revenue.", wins: "MSCI · SPGI · V/MA · India RTAs & AMCs" },
+      { kind: "Base case", what: "Steady recurring growth, occasional fee pressure; quality compounds quietly.", wins: "Diversified data, index & plumbing names" },
       { kind: "Worst case", what: "Regulation, fee compression and a downturn cut volumes and growth.", wins: "Few; high-multiple names de-rate" },
     ],
     checklist: [
@@ -990,81 +1035,6 @@ const RAW: RawIdea[] = [
     ],
   },
   {
-    id: "em-financialisation",
-    title: "Emerging Market Financialisation",
-    category: "India",
-    tagline: "India saves, invests, insures and trades more",
-    description:
-      "India-led but globally comparable: households shifting from cash, property and gold into mutual funds, equities, insurance, pensions and wealth platforms.",
-    whyNow:
-      "Rising SIP flows, demat-account growth and insurance penetration are turning a demographic story into recurring financial-services revenue.",
-    regions: ["India", "China", "US comparison"],
-    timeHorizon: "3–10 years",
-    maturity: "Early-mid",
-    valuationRisk: "Medium-high",
-    bullCase: "SIP flows, demat accounts, insurance penetration and wealth products keep compounding.",
-    bearCase: "A market correction, fee caps, regulation or weak retail participation slows the cycle.",
-    watch: ["SIP & demat growth", "Insurance penetration", "Fee/regulatory caps", "Market-cycle sensitivity"],
-    bestFor: "Long-horizon EM investors",
-    riskTag: "Market-cycle · Regulatory risk",
-    groups: [
-      {
-        label: "India asset & wealth managers",
-        names: [
-          { symbol: "HDFCAMC.NS", role: "India asset manager" },
-          { symbol: "NAM-INDIA.NS", role: "India asset manager" },
-          { symbol: "ANGELONE.NS", role: "India discount broker" },
-        ],
-      },
-      {
-        label: "India market plumbing",
-        names: [
-          { symbol: "BSE.NS", role: "India exchange" },
-          { symbol: "CDSL.NS", role: "India depository" },
-          { symbol: "CAMS.NS", role: "India MF registrar / RTA" },
-          { symbol: "KFINTECH.NS", role: "India registrar / RTA" },
-        ],
-      },
-      {
-        label: "India insurance",
-        names: [
-          { symbol: "ICICIGI.NS", role: "India general insurer" },
-          { symbol: "SBILIFE.NS", role: "India life insurer" },
-          { symbol: "HDFCLIFE.NS", role: "India life insurer" },
-        ],
-      },
-      {
-        label: "Global comparison",
-        names: [
-          { symbol: "BLK", role: "US asset manager (comparison)" },
-          { symbol: "SCHW", role: "US brokerage (comparison)" },
-          { symbol: "MSCI", role: "Index & data (comparison)" },
-        ],
-      },
-    ],
-    scenarios: [
-      { kind: "Best case", what: "SIP flows, demat accounts, insurance penetration and wealth products keep compounding.", wins: "AMCs · RTAs · insurers" },
-      { kind: "Base case", what: "Steady growth with periodic fee caps and cycle wobbles.", wins: "Diversified financial-infra names" },
-      { kind: "Worst case", what: "A correction, fee caps or weak retail participation slows the cycle.", wins: "Few; high-multiple names de-rate" },
-    ],
-    checklist: [
-      { question: "Are SIP & demat counts still growing?", why: "Core flow drivers." },
-      { question: "Is insurance penetration rising?", why: "Long-runway structural leg." },
-      { question: "Are fee caps / regulation a threat?", why: "Can compress unit economics." },
-      { question: "How market-cycle sensitive is revenue?", why: "AMC/broker revenue tracks markets." },
-      { question: "Is the structural story already in the price?", why: "Quality India financials aren't cheap." },
-    ],
-    scores: [
-      { label: "Revenue visibility", score: 7 },
-      { label: "Valuation comfort", score: 4 },
-      { label: "Flow momentum", score: 7 },
-      { label: "Balance-sheet strength", score: 7 },
-      { label: "Cycle resilience", score: 5 },
-    ],
-    verdict: "Powerful structural flow story; valuations and the market cycle are the main risks.",
-    sources: ["AMFI / SEBI flow data", "Company annual reports", "Insurance-penetration studies"],
-  },
-  {
     id: "critical-minerals",
     title: "Critical Minerals & Resource Security",
     category: "Hard Tech",
@@ -1244,7 +1214,7 @@ const DASHBOARD: Record<string, DashboardExtra> = {
     bearRoad: ["AI ROI disappoints", "hyperscalers cut capex", "orders slow", "margins compress", "the basket de-rates"],
     proves: ["Capex guidance keeps rising", "Power/cooling backlogs grow", "Gross margins hold as they scale", "Grid bottlenecks lift pricing", "Data-centre vacancy stays tight"],
     breaks: ["Hyperscalers cut capex guidance", "Backlogs stall or cancel", "Margins compress on competition", "Cheaper/efficient compute cuts power need", "Rates re-rate long-duration infra down"],
-    redFlags: ["None yet — watch capex commentary", "Margin slippage as volumes scale", "Capex-guidance cuts / order cancellations"],
+    redFlags: ["Orders grow but margins fail to expand", "Margin slippage as volumes scale", "Capex-guidance cuts / order cancellations"],
   },
   "spacex-orbital-internet": {
     question: "Is space becoming real infrastructure, or still a capital-hungry promise?",
@@ -1261,7 +1231,7 @@ const DASHBOARD: Record<string, DashboardExtra> = {
     bearRoad: ["Launch delays mount", "Starlink margins stay thin", "cash burn persists", "dilution / funding rounds", "valuations de-rate"],
     proves: ["Launch cadence rises on schedule", "Starlink subs & ARPU grow profitably", "Defence-space awards expand", "Cash burn funded to milestones", "Indian space orders scale"],
     breaks: ["Repeated launch delays", "Starlink margins disappoint", "Funding gaps force dilution", "Valuation runs ahead of delivery", "Mission failures hit confidence"],
-    redFlags: ["None yet — early but funded", "Timeline slippage on key vehicles", "Funding gaps / mission failures"],
+    redFlags: ["Launch cadence rises but Starlink margins don't improve", "Timeline slippage on key vehicles", "Funding gaps / mission failures"],
   },
   "sovereign-ai-stacks": {
     question: "Will governments keep funding domestic AI fast enough to matter — despite export controls?",
@@ -1277,7 +1247,7 @@ const DASHBOARD: Record<string, DashboardExtra> = {
     bearRoad: ["Export controls tighten", "chip access narrows", "ROI disappoints", "funding slows", "capex names de-rate"],
     proves: ["National AI funding expands", "Domestic-compute progress is real", "AI ROI shows in customer results", "Cloud capacity stays sold out", "India sovereign tenders land"],
     breaks: ["Export controls cut addressable market", "Weak ROI slows capex", "Regulation stalls deployment", "Chip constraints bind", "Policy support reverses"],
-    redFlags: ["None yet — funding intact", "Patchy ROI across regions", "Export-control escalation / funding cuts"],
+    redFlags: ["Funding continues but AI ROI stays unproven", "Patchy ROI across regions", "Export-control escalation / funding cuts"],
   },
   "china-ev-shockwave": {
     question: "Can China's EV scale turn into profit, or does the price war eat the margin?",
@@ -1293,7 +1263,7 @@ const DASHBOARD: Record<string, DashboardExtra> = {
     bearRoad: ["price war intensifies", "margins compress", "tariffs hit exports", "overcapacity builds", "the basket de-rates"],
     proves: ["Volume growth turns into profit", "Cell costs keep falling", "Export share keeps rising", "Legacy autos cede ground", "India content wins scale"],
     breaks: ["Price war erases margins", "Tariffs close export markets", "Overcapacity floods the market", "Battery prices spike", "Demand growth stalls"],
-    redFlags: ["None yet — share gains continue", "Rising marketing & discounting", "Tariffs / margin collapse"],
+    redFlags: ["Share keeps rising but only through deeper discounts", "Rising marketing & discounting", "Tariffs / margin collapse"],
   },
   "global-defence-rearmament": {
     question: "Is the global re-armament cycle durable enough to justify the re-rating?",
@@ -1309,7 +1279,7 @@ const DASHBOARD: Record<string, DashboardExtra> = {
     bearRoad: ["budgets plateau", "execution slips", "receivables build", "margins disappoint", "rich names correct"],
     proves: ["Defence budgets keep rising", "Backlog converts on time", "Book-to-bill stays above 1", "India receivables stay healthy", "Margins show operating leverage"],
     breaks: ["Budget plateaus or cuts", "Program delays mount", "Receivables balloon (India)", "Valuations outrun execution", "Peace/policy reduces urgency"],
-    redFlags: ["None yet — backlog strong", "Delivery delays creeping in", "Receivable build / margin miss"],
+    redFlags: ["Backlog grows but deliveries keep slipping", "Delivery delays creeping in", "Receivable build / margin miss"],
   },
   "physical-ai-robotics": {
     question: "Can AI move from screens into machines at an economic unit cost?",
@@ -1325,7 +1295,7 @@ const DASHBOARD: Record<string, DashboardExtra> = {
     bearRoad: ["hardware stays hard", "costs stay high", "regulation delays", "payback fails", "speculative names de-rate"],
     proves: ["Humanoid/robotaxi milestones hit", "Automation orders grow", "Robot unit economics reach payback", "Regulators enable deployment", "Surgical/warehouse adoption widens"],
     breaks: ["Costs stay prohibitive", "Regulation blocks autonomy", "Payback never arrives", "Hardware reliability disappoints", "Funding for early names dries up"],
-    redFlags: ["None yet — milestones progressing", "Adoption slower than hype", "Cost/regulation stalls deployment"],
+    redFlags: ["Milestones land in demos but not in paying deployments", "Adoption slower than hype", "Cost/regulation stalls deployment"],
   },
   "global-industrial-rebuild": {
     question: "Is the reindustrialisation capex cycle long enough to reward today's multiples?",
@@ -1341,7 +1311,7 @@ const DASHBOARD: Record<string, DashboardExtra> = {
     bearRoad: ["global growth slows", "capex orders soften", "backlogs shrink", "margins fade", "cyclicals correct"],
     proves: ["Order intake keeps growing", "Grid & electrification spend accelerates", "Semicap bookings rise", "India infra outlay is delivered", "Margins expand on volume"],
     breaks: ["A global slowdown hits orders", "Capex is deferred", "Semicap bookings roll over", "India delivery slips", "Multiples re-rate down"],
-    redFlags: ["None yet — orders healthy", "Order intake flattening", "Booking declines / guidance cuts"],
+    redFlags: ["Order intake holds but pricing and margins soften", "Order intake flattening", "Booking declines / guidance cuts"],
   },
   "battery-storage-beyond-evs": {
     question: "Will grid and data-centre storage become a second demand curve beyond EVs?",
@@ -1356,7 +1326,7 @@ const DASHBOARD: Record<string, DashboardExtra> = {
     bearRoad: ["cell oversupply builds", "lithium prices weaken", "project IRRs fall", "deployments slow", "names de-rate"],
     proves: ["Grid-storage deployments accelerate", "Project IRRs stay attractive", "Data-centre backup demand emerges", "Cell pricing stabilises", "Integrator backlogs grow"],
     breaks: ["Cell oversupply crushes prices", "Project economics turn negative", "Lithium weakness hits producers", "Subsidy/policy support fades", "Deployment timelines slip"],
-    redFlags: ["None yet — demand broadening", "IRR compression on soft pricing", "Oversupply / negative project economics"],
+    redFlags: ["Deployments rise but project IRRs thin out", "IRR compression on soft pricing", "Oversupply / negative project economics"],
   },
   "glp1-health-repricing": {
     question: "How far do weight-loss drugs reprice healthcare — and who beyond the makers wins?",
@@ -1372,23 +1342,24 @@ const DASHBOARD: Record<string, DashboardExtra> = {
     bearRoad: ["competition intensifies", "pricing pressure builds", "orals undercut", "profits compress", "leaders de-rate"],
     proves: ["New indications expand the market", "Supply capacity keeps up", "Pricing & reimbursement hold", "Adjacent sectors visibly reprice", "India CDMOs win share"],
     breaks: ["Oral GLP-1s undercut pricing", "Reimbursement tightens", "Side-effect data disappoints", "Supply gluts the market", "Competition erodes leaders"],
-    redFlags: ["None yet — demand outstrips supply", "Competition entering the market", "Pricing pressure / reimbursement cuts"],
+    redFlags: ["Demand stays strong but pricing starts to crack", "Competition entering the market", "Pricing pressure / reimbursement cuts"],
   },
   "market-toll-booths": {
-    question: "Will rising trading, ETFs and SIPs keep compounding recurring fee revenue?",
+    question: "Will rising trading, ETFs, SIPs and insurance keep compounding recurring fee revenue — in the US and India?",
     themeWeather: "Steady — quality, fully valued",
-    swingFactor: "Whether fee compression offsets volume and data growth.",
+    swingFactor: "Whether fee compression offsets volume, data and India flow growth.",
     themeMap: [
       { layer: "Exchanges", symbols: ["CME", "ICE", "NDAQ", "HKXCY", "BSE.NS"] },
       { layer: "Data, index & ratings", symbols: ["MSCI", "SPGI", "MCO"] },
       { layer: "Payment rails", symbols: ["V", "MA"] },
-      { layer: "India market plumbing", symbols: ["CDSL.NS", "CAMS.NS", "KFINTECH.NS"] },
+      { layer: "India financialisation", symbols: ["CDSL.NS", "CAMS.NS", "KFINTECH.NS", "HDFCAMC.NS", "ANGELONE.NS"] },
+      { layer: "India insurance", symbols: ["ICICIGI.NS", "SBILIFE.NS", "HDFCLIFE.NS"] },
     ],
     bullRoad: ["trading & ETFs grow", "data demand rises", "SIPs compound (India)", "recurring revenue scales", "quality re-rates"],
     bearRoad: ["fee compression bites", "a downturn cuts volumes", "regulation caps fees", "growth slows", "high multiples de-rate"],
     proves: ["Volumes & data subs keep growing", "SIP / demat counts rise (India)", "Pricing power holds", "Recurring mix increases", "Margins stay high"],
     breaks: ["Fee compression accelerates", "Regulation caps fees", "A market downturn cuts volumes", "Index/ratings demand softens", "Competition undercuts pricing"],
-    redFlags: ["None yet — volumes firm", "Early fee pressure", "Fee caps / volume collapse"],
+    redFlags: ["Volumes grow but fee pressure offsets them", "Early fee pressure", "Fee caps / volume collapse"],
   },
   "great-company-dangerous-price": {
     question: "Is the business great enough to justify a price that already assumes greatness?",
@@ -1419,23 +1390,7 @@ const DASHBOARD: Record<string, DashboardExtra> = {
     bearRoad: ["growth slows", "losses persist", "dilution continues", "insiders sell", "the story never becomes earnings"],
     proves: ["Revenue still grows post-hype", "Gross margin improves", "Operating cash flow turns positive", "Free cash flow covers capex", "Share count stops rising"],
     breaks: ["Growth slows sharply", "Cash burn continues", "Dilution / heavy SBC persists", "Insiders sell post-lock-up", "Valuation never resets enough"],
-    redFlags: ["None yet — but unproven", "Rising marketing spend / slowing growth", "Falling cash / continued dilution"],
-  },
-  "em-financialisation": {
-    question: "Will India's shift from cash and gold into financial assets keep compounding?",
-    themeWeather: "Warm — structural flows, rich multiples",
-    swingFactor: "Whether flows hold through the next market drawdown.",
-    themeMap: [
-      { layer: "Asset & wealth managers", symbols: ["HDFCAMC.NS", "NAM-INDIA.NS", "ANGELONE.NS"] },
-      { layer: "Market plumbing", symbols: ["BSE.NS", "CDSL.NS", "CAMS.NS", "KFINTECH.NS"] },
-      { layer: "Insurance", symbols: ["ICICIGI.NS", "SBILIFE.NS", "HDFCLIFE.NS"] },
-      { layer: "Global comparison", symbols: ["BLK", "SCHW", "MSCI"] },
-    ],
-    bullRoad: ["SIP flows compound", "demat accounts grow", "insurance penetrates", "recurring AUM scales", "the basket re-rates"],
-    bearRoad: ["a market correction hits", "flows slow", "fee caps bite", "AUM growth stalls", "rich multiples de-rate"],
-    proves: ["SIP & demat counts keep growing", "Insurance penetration rises", "AUM compounds", "Fee structures hold", "Retail participation deepens"],
-    breaks: ["A correction reverses flows", "SEBI fee caps compress economics", "Retail participation fades", "Competition cuts fees", "Multiples re-rate down"],
-    redFlags: ["None yet — flows strong", "Cycle sensitivity in a wobble", "Fee caps / flow reversal"],
+    redFlags: ["Revenue grows but cash burn and dilution persist", "Rising marketing spend / slowing growth", "Falling cash / continued dilution"],
   },
   "critical-minerals": {
     question: "Does the AI-and-electrification build create durable demand for scarce resources?",
@@ -1451,7 +1406,7 @@ const DASHBOARD: Record<string, DashboardExtra> = {
     bearRoad: ["growth slows", "China overcapacity floods supply", "prices fall", "high-cost producers squeezed", "names de-rate"],
     proves: ["End-demand (grid/EV/defence) accelerates", "Supply stays constrained", "Prices hold above cost curve", "Strategic stockpiling grows", "New mines stay delayed"],
     breaks: ["Commodity prices fall", "China overcapacity floods supply", "Global growth slows", "Substitution reduces demand", "New supply arrives early"],
-    redFlags: ["None yet — demand building", "Price softness vs cost curve", "China supply glut / demand slowdown"],
+    redFlags: ["Demand builds but prices lag the cost curve", "Price softness vs cost curve", "China supply glut / demand slowdown"],
   },
   "internet-2-0": {
     question: "Can AI improve commerce, ads, logistics and finance enough to expand platform margins?",
@@ -1467,7 +1422,223 @@ const DASHBOARD: Record<string, DashboardExtra> = {
     bearRoad: ["AI increases competition", "CAC rises", "take rates fall", "regulation tightens", "platforms de-rate"],
     proves: ["AI lifts ad conversion & pricing", "Quick-commerce losses shrink without killing growth", "Take rates stay stable or rise", "CAC doesn't outrun revenue", "Platforms show operating leverage"],
     breaks: ["AI agents reduce platform take rates", "Customer-acquisition costs rise", "Regulation caps fees or commissions", "Quick commerce stays structurally low-margin", "India internet names keep diluting"],
-    redFlags: ["None yet", "Rising marketing spend / CAC", "Falling take rates / rising losses"],
+    redFlags: ["AI raises engagement but CAC still rises", "Rising marketing spend / CAC", "Falling take rates / rising losses"],
+  },
+};
+
+// Thesis tests & source pack — the "signals that decide whether the theme is
+// working" view (replaces the to-do-style checklist) and a typed source trail.
+const TESTS: Record<string, { thesisTests: ThesisTest[]; sourcePack: SourceItem[] }> = {
+  "ai-power-bottleneck": {
+    thesisTests: [
+      { test: "Hyperscaler capex guidance", signal: "Strengthening", importance: "Very high", why: "It's the demand driver for the entire chain.", metric: "Aggregate hyperscaler capex guidance, data-centre spend", breaksIf: "Two or more hyperscalers cut capex guidance" },
+      { test: "Power & cooling backlog", signal: "Strengthening", importance: "High", why: "Backlog is forward revenue for the bottleneck names.", metric: "Order backlog, book-to-bill", breaksIf: "Backlog stalls or orders get cancelled" },
+      { test: "Margin durability", signal: "Mixed", importance: "High", why: "Tests pricing power vs commoditisation as they scale.", metric: "Gross margin, inventory days", breaksIf: "Margins compress while revenue still grows" },
+      { test: "Grid & interconnection", signal: "Watch closely", importance: "Medium", why: "Defines how fast new capacity can actually come online.", metric: "Interconnection queues, power-availability lead times", breaksIf: "Power scarcity caps deployment instead of lifting pricing" },
+      { test: "Valuation cushion", signal: "Rising risk", importance: "High", why: "Rich multiples amplify any disappointment.", metric: "Forward EV/EBITDA vs growth", breaksIf: "Multiples re-rate down on a single guidance miss" },
+    ],
+    sourcePack: [
+      { type: "Earnings calls", checks: "Hyperscaler capex guidance & data-centre commentary" },
+      { type: "Company filings", checks: "Backlog, margins and inventory at power/cooling names" },
+      { type: "Industry data", checks: "IEA / grid-operator power-demand projections" },
+      { type: "Policy updates", checks: "Permitting, interconnection and grid-investment rules" },
+    ],
+  },
+  "spacex-orbital-internet": {
+    thesisTests: [
+      { test: "Launch cadence", signal: "Strengthening", importance: "Very high", why: "Cadence underpins the whole economics.", metric: "Launches per quarter, reuse rate", breaksIf: "Cadence stalls or major vehicle slips" },
+      { test: "Starlink margins", signal: "Critical test", importance: "Very high", why: "Broadband margin is the swing factor for the leader.", metric: "Subscribers, ARPU, gross margin", breaksIf: "Subs grow but margins stay thin" },
+      { test: "Defence-space demand", signal: "Strengthening", importance: "High", why: "Government demand de-risks revenue.", metric: "Contract awards, backlog", breaksIf: "Award flow slows materially" },
+      { test: "Funding runway", signal: "Watch closely", importance: "High", why: "Space is capital-intensive; funding gaps hurt.", metric: "Cash burn vs runway, raises", breaksIf: "A funding gap forces dilution" },
+      { test: "Valuation discipline", signal: "Rising risk", importance: "High", why: "Scarcity premiums can unwind fast.", metric: "Implied valuation vs delivery", breaksIf: "Price runs far ahead of delivered milestones" },
+    ],
+    sourcePack: [
+      { type: "SEC filings", checks: "S-1/IPO disclosures, share structure, lock-ups" },
+      { type: "Company updates", checks: "Launch cadence, Starlink subscriber & ARPU data" },
+      { type: "Policy / defence", checks: "Defence-space budgets and award flow" },
+      { type: "Industry data", checks: "Launch-market and satellite-broadband trends" },
+    ],
+  },
+  "sovereign-ai-stacks": {
+    thesisTests: [
+      { test: "National AI funding", signal: "Strengthening", importance: "Very high", why: "Policy is the demand driver here.", metric: "Government AI/compute funding programmes", breaksIf: "Major programmes are cut or stalled" },
+      { test: "Export-control exposure", signal: "Rising risk", importance: "Very high", why: "Controls can cut addressable market overnight.", metric: "Restricted-market revenue share", breaksIf: "New controls close a key market" },
+      { test: "Domestic-stack progress", signal: "Early", importance: "High", why: "The substitution thesis depends on it.", metric: "Domestic foundry yields, model benchmarks", breaksIf: "Local substitution keeps missing milestones" },
+      { test: "AI ROI", signal: "Mixed", importance: "High", why: "Weak ROI eventually slows capex.", metric: "Customer AI revenue / productivity gains", breaksIf: "Customers cut AI budgets on poor ROI" },
+      { test: "India sovereign compute", signal: "Early", importance: "Medium", why: "Tests the India leg of the theme.", metric: "Sovereign-compute tenders, data-centre builds", breaksIf: "Tenders fail to materialise" },
+    ],
+    sourcePack: [
+      { type: "Policy updates", checks: "AI strategy papers, export controls, subsidies" },
+      { type: "Earnings calls", checks: "Cloud & chip demand and capacity commentary" },
+      { type: "Company filings", checks: "Capex, RPO/backlog, regional revenue mix" },
+      { type: "Industry data", checks: "Foundry capacity & model-benchmark progress" },
+    ],
+  },
+  "china-ev-shockwave": {
+    thesisTests: [
+      { test: "Profit vs volume", signal: "Weakening", importance: "Very high", why: "A price war can make volume worthless.", metric: "Unit economics, gross margin per vehicle", breaksIf: "Volume grows while margins go negative" },
+      { test: "Price-war intensity", signal: "Rising risk", importance: "High", why: "It sets the margin floor for everyone.", metric: "Average selling prices, discounting", breaksIf: "ASPs keep falling across the sector" },
+      { test: "Trade & tariff policy", signal: "Rising risk", importance: "High", why: "Tariffs can close key export markets.", metric: "Tariff actions, export volumes", breaksIf: "Major markets impose prohibitive tariffs" },
+      { test: "Battery cost curve", signal: "Strengthening", importance: "High", why: "Cell cost drives the whole chain.", metric: "Cell prices, raw-material costs", breaksIf: "Cell prices spike and squeeze makers" },
+      { test: "India content wins", signal: "Early", importance: "Medium", why: "Tests the India localisation angle.", metric: "Component order wins, content per vehicle", breaksIf: "India suppliers fail to win scale content" },
+    ],
+    sourcePack: [
+      { type: "Company filings", checks: "ASPs, gross margin and unit economics" },
+      { type: "Industry data", checks: "IEA EV & battery production / share data" },
+      { type: "Policy updates", checks: "Tariffs, subsidies and trade actions" },
+      { type: "Earnings calls", checks: "Price-war commentary and capacity plans" },
+    ],
+  },
+  "global-defence-rearmament": {
+    thesisTests: [
+      { test: "Budget trajectory", signal: "Strengthening", importance: "Very high", why: "Top-down demand driver.", metric: "Defence budgets, % of GDP", breaksIf: "Budgets plateau or reverse" },
+      { test: "Backlog conversion", signal: "Watch closely", importance: "Very high", why: "Backlog only matters if it ships.", metric: "Revenue vs backlog, delivery schedules", breaksIf: "Programs keep slipping deliveries" },
+      { test: "India cash conversion", signal: "Mixed", importance: "High", why: "The weak spot for India DPSUs.", metric: "Receivable days, working capital", breaksIf: "Receivables balloon and cash conversion falls" },
+      { test: "Book-to-bill", signal: "Strengthening", importance: "High", why: "Shows demand outpacing deliveries.", metric: "Book-to-bill ratio", breaksIf: "Book-to-bill falls below 1" },
+      { test: "Valuation vs execution", signal: "Rising risk", importance: "High", why: "Defence has re-rated a lot.", metric: "Forward P/E vs delivery track record", breaksIf: "Multiples outrun delivered execution" },
+    ],
+    sourcePack: [
+      { type: "Policy updates", checks: "SIPRI / national defence budgets" },
+      { type: "Company filings", checks: "Order backlog, receivables, margins" },
+      { type: "Earnings calls", checks: "Delivery cadence and program updates" },
+      { type: "Industry data", checks: "Procurement and award announcements" },
+    ],
+  },
+  "physical-ai-robotics": {
+    thesisTests: [
+      { test: "Flagship milestones", signal: "Early", importance: "High", why: "Tests the futuristic optionality.", metric: "Humanoid / robotaxi deployment milestones", breaksIf: "Milestones stay demos, not paying deployments" },
+      { test: "Automation orders", signal: "Mixed", importance: "High", why: "The near-term, real revenue line.", metric: "Industrial-automation order intake", breaksIf: "Automation orders roll over" },
+      { test: "Robot unit economics", signal: "Unproven", importance: "Very high", why: "Adoption needs payback to make sense.", metric: "Cost per robot, payback period", breaksIf: "Payback stays uneconomic at scale" },
+      { test: "Regulatory path", signal: "Watch closely", importance: "High", why: "Autonomy lives or dies on approval.", metric: "Approvals for autonomy/robotics", breaksIf: "Regulation blocks or delays deployment" },
+      { test: "Valuation vs delivery", signal: "Rising risk", importance: "High", why: "Early themes over-discount the future.", metric: "Valuation vs revenue realisation", breaksIf: "Price pays for hope, not delivery" },
+    ],
+    sourcePack: [
+      { type: "Company R&D / demos", checks: "Robotics roadmaps and deployment milestones" },
+      { type: "Industry data", checks: "Industrial-automation order trends" },
+      { type: "Earnings calls", checks: "Automation revenue and margin commentary" },
+      { type: "Policy updates", checks: "Autonomy and robotics regulation" },
+    ],
+  },
+  "global-industrial-rebuild": {
+    thesisTests: [
+      { test: "Order intake", signal: "Strengthening", importance: "Very high", why: "The cycle's pulse.", metric: "Order intake, capex announcements", breaksIf: "Order intake flattens or declines" },
+      { test: "Grid & electrification", signal: "Strengthening", importance: "High", why: "Structural, AI-linked demand.", metric: "Grid & electrification spend", breaksIf: "Grid capex is deferred" },
+      { test: "Semicap bookings", signal: "Mixed", importance: "High", why: "Leading indicator for the chip build.", metric: "Semicap bookings, book-to-bill", breaksIf: "Bookings roll over" },
+      { test: "India capex delivery", signal: "Strengthening", importance: "Medium", why: "India capex is a key leg.", metric: "Infra outlay vs delivery, execution", breaksIf: "India delivery slips materially" },
+      { test: "Cycle-aware valuation", signal: "Watch closely", importance: "High", why: "Industrials are cyclical; multiples matter.", metric: "Multiple vs mid-cycle earnings", breaksIf: "Multiples price a peak that fades" },
+    ],
+    sourcePack: [
+      { type: "Company filings", checks: "Order books, backlog and margins" },
+      { type: "Industry data", checks: "Semicap bookings, PMI, capex surveys" },
+      { type: "Policy updates", checks: "Infrastructure budgets and localisation incentives" },
+      { type: "Earnings calls", checks: "Order-intake and pricing commentary" },
+    ],
+  },
+  "battery-storage-beyond-evs": {
+    thesisTests: [
+      { test: "Grid-storage deployments", signal: "Strengthening", importance: "Very high", why: "The new demand driver beyond EVs.", metric: "Storage GWh deployed, project pipeline", breaksIf: "Deployments stall" },
+      { test: "Project IRRs", signal: "Mixed", importance: "Very high", why: "Storage only scales if it pays.", metric: "Project IRRs at current prices", breaksIf: "IRRs turn uneconomic" },
+      { test: "Cell & lithium pricing", signal: "Weakening", importance: "High", why: "Commodity swings drive the basket.", metric: "Cell prices, lithium spot", breaksIf: "Oversupply crushes prices" },
+      { test: "Data-centre backup demand", signal: "Early", importance: "Medium", why: "A potential new pull on storage.", metric: "Backup-power / UPS storage orders", breaksIf: "Backup demand fails to materialise" },
+      { test: "Supply discipline", signal: "Rising risk", importance: "High", why: "Oversupply crushes margins.", metric: "Cell capacity additions vs demand", breaksIf: "Capacity floods the market" },
+    ],
+    sourcePack: [
+      { type: "Industry data", checks: "Storage deployment & lithium-price data" },
+      { type: "Company filings", checks: "Project pipelines, backlog and margins" },
+      { type: "Earnings calls", checks: "IRR and demand commentary" },
+      { type: "Policy updates", checks: "Storage incentives and grid mandates" },
+    ],
+  },
+  "glp1-health-repricing": {
+    thesisTests: [
+      { test: "Indication expansion", signal: "Strengthening", importance: "Very high", why: "New indications grow the market.", metric: "Trial readouts, label expansions", breaksIf: "Key readouts disappoint" },
+      { test: "Supply capacity", signal: "Strengthening", importance: "High", why: "Supply has been the constraint.", metric: "Manufacturing capacity, fill rates", breaksIf: "Supply gluts and pricing falls" },
+      { test: "Pricing & reimbursement", signal: "Watch closely", importance: "Very high", why: "Sets the profit ceiling.", metric: "Net pricing, payer coverage", breaksIf: "Reimbursement tightens sharply" },
+      { test: "Competition (incl. orals)", signal: "Rising risk", importance: "High", why: "Erodes leader economics.", metric: "Pipeline entrants, oral GLP-1 data", breaksIf: "Orals undercut on price/convenience" },
+      { test: "India CDMO / generics", signal: "Early", importance: "Medium", why: "The India angle on the theme.", metric: "CDMO contracts, biosimilar share", breaksIf: "India players fail to win share" },
+    ],
+    sourcePack: [
+      { type: "Company filings / FDA", checks: "Trial data, approvals and supply" },
+      { type: "Earnings calls", checks: "Pricing, capacity and demand commentary" },
+      { type: "Industry data", checks: "Obesity-market models and prescription trends" },
+      { type: "Policy updates", checks: "Reimbursement and pricing regulation" },
+    ],
+  },
+  "market-toll-booths": {
+    thesisTests: [
+      { test: "Volumes & data subs", signal: "Strengthening", importance: "Very high", why: "The recurring-revenue engine.", metric: "Trading volumes, data subscriptions", breaksIf: "Volumes and subs stall" },
+      { test: "Fee pressure", signal: "Rising risk", importance: "High", why: "The main structural risk.", metric: "Fee yields, take-rates", breaksIf: "Fee compression accelerates" },
+      { test: "India flows", signal: "Strengthening", importance: "High", why: "India financialisation tailwind.", metric: "SIP, demat & insurance growth", breaksIf: "Flows reverse or fee caps bite" },
+      { test: "Revenue cyclicality", signal: "Mixed", importance: "Medium", why: "Some toll-booths are volume-cyclical.", metric: "Recurring vs transactional mix", breaksIf: "A downturn cuts volume-linked revenue" },
+      { test: "Valuation vs quality", signal: "Watch closely", importance: "High", why: "Great businesses, rarely cheap.", metric: "Forward P/E vs growth", breaksIf: "Multiples leave no margin for error" },
+    ],
+    sourcePack: [
+      { type: "Company filings", checks: "Fee yields, recurring-revenue mix, margins" },
+      { type: "Industry data", checks: "Exchange volumes, AMFI/SEBI flow data" },
+      { type: "Policy updates", checks: "Fee caps and market regulation" },
+      { type: "Earnings calls", checks: "Pricing power and volume commentary" },
+    ],
+  },
+  "great-company-dangerous-price": {
+    thesisTests: [
+      { test: "Multiple vs growth", signal: "Rising risk", importance: "Very high", why: "Price must be earned by growth.", metric: "Forward P/E, PEG vs durable growth", breaksIf: "Growth can't justify the multiple" },
+      { test: "Estimate revisions", signal: "Mixed", importance: "High", why: "Momentum in expectations matters.", metric: "EPS estimate-revision trend", breaksIf: "Estimates roll over" },
+      { test: "What's priced in", signal: "Rising risk", importance: "Very high", why: "The core question of the theme.", metric: "Implied growth vs realistic growth", breaksIf: "Expectations exceed plausible delivery" },
+      { test: "Margin trajectory", signal: "Strengthening", importance: "Medium", why: "Supports a premium multiple.", metric: "Operating margin trend", breaksIf: "Margins stop improving" },
+      { test: "Margin of safety", signal: "Weakening", importance: "High", why: "Tests the return if growth merely meets the bar.", metric: "Return scenario at consensus growth", breaksIf: "Even meeting expectations yields poor returns" },
+    ],
+    sourcePack: [
+      { type: "Company filings", checks: "Growth, margins and reinvestment" },
+      { type: "Consensus estimates", checks: "Forward growth vs the implied multiple" },
+      { type: "Historical multiples", checks: "Where the multiple sits vs its own range" },
+      { type: "Earnings calls", checks: "Guidance and expectation-setting" },
+    ],
+  },
+  "post-hype-ipo-survivors": {
+    thesisTests: [
+      { test: "Post-hype revenue growth", signal: "Mixed", importance: "High", why: "Proves demand is durable.", metric: "Revenue growth after the hype faded", breaksIf: "Growth slows sharply" },
+      { test: "Gross-margin trend", signal: "Strengthening", importance: "High", why: "Shows real scale economics.", metric: "Gross margin trajectory", breaksIf: "Margins stop improving" },
+      { test: "Cash generation", signal: "Critical test", importance: "Very high", why: "Separates businesses from stories.", metric: "Operating & free cash flow after capex", breaksIf: "Cash burn continues" },
+      { test: "Dilution & SBC", signal: "Watch closely", importance: "High", why: "Dilution can quietly destroy returns.", metric: "Share count, stock-based comp", breaksIf: "Share count keeps rising" },
+      { test: "Valuation reset", signal: "Mixed", importance: "High", why: "A good business can still be a bad price.", metric: "Multiple vs cash-flow profile", breaksIf: "Valuation never resets enough" },
+    ],
+    sourcePack: [
+      { type: "S-1 / prospectus", checks: "Original IPO promises vs reality" },
+      { type: "Company filings", checks: "Revenue, margins, cash flow and dilution" },
+      { type: "Share-count history", checks: "Dilution and stock-based comp" },
+      { type: "Insider / lock-up data", checks: "Insider selling and lock-up expiry" },
+    ],
+  },
+  "critical-minerals": {
+    thesisTests: [
+      { test: "End-demand growth", signal: "Strengthening", importance: "Very high", why: "The structural pull.", metric: "Grid / EV / defence demand", breaksIf: "Demand growth slows" },
+      { test: "Cost-curve position", signal: "Mixed", importance: "High", why: "Low-cost survives downturns.", metric: "Producer cash cost vs price", breaksIf: "High-cost producers get squeezed" },
+      { test: "China supply risk", signal: "Rising risk", importance: "High", why: "China dominates several minerals.", metric: "China output & export policy", breaksIf: "China overcapacity floods supply" },
+      { test: "New supply timing", signal: "Watch closely", importance: "Medium", why: "Supply response shapes prices.", metric: "New mine timelines, capex", breaksIf: "New supply arrives ahead of demand" },
+      { test: "Commodity entry point", signal: "Mixed", importance: "High", why: "Entry point drives returns.", metric: "Price vs historical range", breaksIf: "Buying near a cyclical peak" },
+    ],
+    sourcePack: [
+      { type: "Commodity data", checks: "Copper / uranium / lithium prices" },
+      { type: "Company production reports", checks: "Output, cost curve and grades" },
+      { type: "Policy updates", checks: "Critical-minerals strategy & stockpiling" },
+      { type: "Industry data", checks: "Supply-demand balances and mine pipelines" },
+    ],
+  },
+  "internet-2-0": {
+    thesisTests: [
+      { test: "Take-rate / ad pricing", signal: "Mixed", importance: "High", why: "Core monetisation lever for platforms.", metric: "Take rate, ad CPM, ARPU, commission rate", breaksIf: "Take rates fall while CAC rises" },
+      { test: "Quick-commerce economics", signal: "Critical test", importance: "Very high", why: "The swing factor for India internet.", metric: "Contribution margin/order, dark-store density, delivery cost", breaksIf: "Losses stay high despite order growth" },
+      { test: "Regulatory exposure", signal: "Rising risk", importance: "High", why: "Platforms face fee caps, data rules and scrutiny.", metric: "Fee caps, commission rules, data/privacy regulation", breaksIf: "Regulation directly compresses take rates" },
+      { test: "AI-agent monetisation", signal: "Early", importance: "Medium", why: "Tests whether AI is a revenue driver or just a cost layer.", metric: "AI ad tools, agent conversion, AI revenue disclosure", breaksIf: "AI adds capex without lifting revenue/margins" },
+      { test: "Customer-acquisition cost", signal: "Watch closely", importance: "High", why: "CAC can destroy platform operating leverage.", metric: "Marketing spend/revenue, retention, paid-traffic mix", breaksIf: "CAC rises faster than revenue growth" },
+    ],
+    sourcePack: [
+      { type: "Earnings calls", checks: "Take-rate, ad pricing and quick-commerce commentary" },
+      { type: "Company filings", checks: "Revenue, contribution margin, dilution" },
+      { type: "Industry data", checks: "E-commerce, ad-market and delivery trends" },
+      { type: "Policy updates", checks: "Platform-fee, commission and data regulation" },
+      { type: "Community research", checks: "External articles and user-submitted analysis" },
+    ],
   },
 };
 
@@ -1486,6 +1657,7 @@ function flattenNames(groups: NameGroup[]): IdeaName[] {
 export const tradingIdeas: TradingIdea[] = RAW.map((i) => {
   const names = flattenNames(i.groups);
   const d = DASHBOARD[i.id];
+  const t = TESTS[i.id];
   // Attach the [best, base, worst] red flag to the matching scenario by order.
   const scenarios = d
     ? i.scenarios.map((s, idx) => ({ ...s, redFlag: d.redFlags[idx] }))
@@ -1504,6 +1676,7 @@ export const tradingIdeas: TradingIdea[] = RAW.map((i) => {
           breaks: d.breaks,
         }
       : {}),
+    ...(t ? { thesisTests: t.thesisTests, sourcePack: t.sourcePack } : {}),
     scenarios,
     names,
     tickers: names.map((n) => n.symbol),
