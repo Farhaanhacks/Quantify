@@ -211,9 +211,9 @@ function WatchRow({ ticker, onRemove }: { ticker: string; onRemove: () => void }
                 {diverge ? (
                   <span
                     className="rounded-full border border-gold/30 bg-gold/10 px-1.5 py-px text-[0.55rem] font-medium tracking-wide text-gold"
-                    title="Analyst target and future cash-flow value disagree by a wide margin — open the stock to see both."
+                    title="The analyst target and future cash-flow value disagree by a wide margin — the price runs ahead of what today's cash flows support. Open the stock to see both."
                   >
-                    ⚠ models differ
+                    ⚠ Overhyped stock
                   </span>
                 ) : null}
               </span>

@@ -53,6 +53,13 @@ const fpct = (x: number | undefined): string =>
 // year's FCF for 10 years, add a Gordon-growth terminal value, discount it all
 // back at a flat cost of equity, then divide by shares. Returns undefined when
 // the inputs don't support a meaningful estimate (e.g. negative FCF).
+//
+// Crucially the high-growth phase FADES: a fast compounder doesn't grow at 40%
+// forever, but holding it flat at the revenue-growth rate (the old behaviour)
+// undervalued real compounders badly — a company whose cash flow has grown ~40%
+// a year read as if it grew ~13%. We start from the company's observed cash-flow
+// growth and decay it linearly toward the terminal rate, which is how a sane DCF
+// treats hyper-growth: rich near-term, normalising over time.
 function dcfPerShare(
   fcf: number | undefined,
   shares: number | undefined,
@@ -62,10 +69,15 @@ function dcfPerShare(
   years = 10
 ): number | undefined {
   if (fcf == null || fcf <= 0 || shares == null || shares <= 0) return undefined;
-  const g = Math.min(0.2, Math.max(0.03, growth ?? 0.05)); // clamp 3%–20%
+  // Initial growth: allow genuinely fast growers up to 30% (the fade keeps this
+  // from exploding), floor at 3% so a sleepy name still gets a fair terminal.
+  const g0 = Math.min(0.3, Math.max(0.03, growth ?? 0.05));
   let cf = fcf;
   let pv = 0;
   for (let t = 1; t <= years; t++) {
+    // Linearly fade year-1 growth (g0) down to the terminal rate by the final
+    // year, so the explicit window captures high-but-decaying growth.
+    const g = g0 + ((termGrowth - g0) * (t - 1)) / (years - 1);
     cf *= 1 + g;
     pv += cf / Math.pow(1 + discount, t);
   }
@@ -73,6 +85,21 @@ function dcfPerShare(
   pv += terminal / Math.pow(1 + discount, years);
   const perShare = pv / shares;
   return isFinite(perShare) && perShare > 0 ? perShare : undefined;
+}
+
+// Compound annual growth rate between the oldest and newest values in a series
+// (ordered oldest → newest). Returns undefined unless both endpoints are
+// positive and span at least one year, so a single loss-making year can't
+// produce a nonsense rate.
+function cagr(series: number[]): number | undefined {
+  const vals = series.filter((v) => typeof v === "number" && isFinite(v));
+  if (vals.length < 2) return undefined;
+  const first = vals[0];
+  const last = vals[vals.length - 1];
+  if (first <= 0 || last <= 0) return undefined;
+  const periods = vals.length - 1;
+  const rate = Math.pow(last / first, 1 / periods) - 1;
+  return isFinite(rate) ? rate : undefined;
 }
 
 // A steadier growth input for the DCF than any single Yahoo field. Revenue
@@ -98,7 +125,7 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   if (knownFund(symbol)) return null;
 
   const modules =
-    "quoteType,summaryDetail,defaultKeyStatistics,financialData,price,topHoldings";
+    "quoteType,summaryDetail,defaultKeyStatistics,financialData,price,topHoldings,cashflowStatementHistory";
   let result = await yahooQuoteSummary(symbol, modules);
   // Some inputs need normalising (a company name, or a missing exchange suffix);
   // resolve and retry once so valid names don't read as "not available".
@@ -115,6 +142,7 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   const fd = (result.financialData ?? {}) as Record<string, unknown>;
   const pr = (result.price ?? {}) as Record<string, unknown>;
   const th = (result.topHoldings ?? {}) as Record<string, unknown>;
+  const cfh = (result.cashflowStatementHistory ?? {}) as Record<string, unknown>;
 
   // Funds aren't companies — they have no margins, ROE or growth, so a company
   // score would read ~0/30. Detect them and bail so the caller falls back to the
@@ -163,7 +191,54 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   const marketCap = num(sd.marketCap) ?? num(pr.marketCap);
   const priceToSales =
     num(sd.priceToSalesTrailing12Months) ?? num(ks.priceToSalesTrailing12Months);
-  const freeCashflow = num(fd.freeCashflow) ?? num(fd.operatingCashflow);
+  // Multi-year cash-flow statements (Yahoo returns them newest → oldest). We use
+  // them for two things the single TTM figure can't give us: the real free-cash-
+  // flow trend (its growth rate) and a fallback base if the TTM value is missing.
+  const statements = Array.isArray(cfh.cashflowStatements)
+    ? (cfh.cashflowStatements as Record<string, unknown>[])
+    : [];
+  // Build oldest → newest series of operating cash flow and free cash flow.
+  const ocfSeries: number[] = [];
+  const fcfSeries: number[] = [];
+  for (let i = statements.length - 1; i >= 0; i--) {
+    const st = statements[i];
+    const ocf = num(st.totalCashFromOperatingActivities);
+    const capex = num(st.capitalExpenditures); // reported negative (an outflow)
+    if (ocf != null) {
+      ocfSeries.push(ocf);
+      fcfSeries.push(capex != null ? ocf + capex : ocf);
+    }
+  }
+  // Cash-flow growth is the truest growth signal for a DCF — far better than a
+  // single year's revenue or earnings print. Prefer the operating-cash-flow CAGR
+  // (steadier than FCF, which capex swings around), then FCF CAGR, then the
+  // income-statement growth fields as a last resort.
+  const cashflowGrowth =
+    cagr(ocfSeries) ?? cagr(fcfSeries) ?? forwardGrowth(revGrowth, earnGrowth);
+
+  // TTM operating & free cash flow (Yahoo reports both; capex ≈ their gap).
+  const ocfTTM =
+    num(fd.operatingCashflow) ??
+    (ocfSeries.length ? ocfSeries[ocfSeries.length - 1] : undefined);
+  const fcfTTM =
+    num(fd.freeCashflow) ??
+    (fcfSeries.length ? fcfSeries[fcfSeries.length - 1] : undefined);
+
+  // Base cash flow for the DCF. We start from operating cash flow and subtract
+  // only *maintenance* capex — capped at 40% of OCF. A fast-growing company
+  // ploughs most of its capex into building future capacity (growth investment),
+  // and the growth rate already credits the cash flows that capacity will throw
+  // off; subtracting all of it (raw free cash flow) double-counts the cost and is
+  // what made capacity-builders read as deeply overvalued against their own
+  // intrinsic value. For asset-light names capex is small, so this collapses back
+  // to ordinary free cash flow.
+  let baseCashflow: number | undefined;
+  if (ocfTTM != null && ocfTTM > 0) {
+    const capex = fcfTTM != null ? Math.max(0, ocfTTM - fcfTTM) : 0;
+    baseCashflow = ocfTTM - Math.min(capex, 0.4 * ocfTTM);
+  } else {
+    baseCashflow = fcfTTM ?? ocfTTM;
+  }
   const sharesOutstanding = num(ks.sharesOutstanding) ?? num(pr.sharesOutstanding);
   const name = str(pr.longName) ?? str(pr.shortName) ?? symbol.toUpperCase();
 
@@ -239,7 +314,7 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
     financialCurrency == null ||
     priceCurrency == null ||
     financialCurrency === priceCurrency;
-  const cfRaw = dcfPerShare(freeCashflow, sharesOutstanding, forwardGrowth(revGrowth, earnGrowth));
+  const cfRaw = dcfPerShare(baseCashflow, sharesOutstanding, cashflowGrowth);
   const cfPerShare =
     cfRaw != null && currencyOk && cfRaw >= price * 0.1 && cfRaw <= price * 10
       ? cfRaw
@@ -257,7 +332,7 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
       cfPerShare != null
         ? {
             estimate: cfPerShare,
-            note: "A 2-stage discounted free-cash-flow estimate of intrinsic value — independent of analyst targets. Model-based, not advice.",
+            note: "A discounted cash-flow estimate of intrinsic value: the company's own cash-flow growth trend, fading toward a sustainable rate, discounted back to today — independent of analyst targets. Model-based, not advice.",
           }
         : undefined,
     rewards: rewards.slice(0, 4),
