@@ -12,27 +12,6 @@ interface InboxQuestion {
   ts: number;
 }
 
-const TABS = [
-  "Research Playbooks",
-  "Market Maps",
-  "Source Packs",
-  "Bull vs Bear",
-  "Stock Deep Dives",
-] as const;
-type Tab = (typeof TABS)[number];
-
-function ComingSoon({ label }: { label: string }) {
-  return (
-    <GlassCard className="mt-6 p-10 text-center">
-      <p className="text-sm text-slate-300">{label} are being curated.</p>
-      <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-slate-500">
-        Each surface is built from the same source-backed playbooks. New modules are added here as
-        they&apos;re researched — not auto-generated, and never a recommendation.
-      </p>
-    </GlassCard>
-  );
-}
-
 function PlaybookCard({ playbook, onOpen }: { playbook: Playbook; onOpen: () => void }) {
   return (
     <button type="button" onClick={onOpen} className="w-full text-left">
@@ -65,13 +44,12 @@ function PlaybookCard({ playbook, onOpen }: { playbook: Playbook; onOpen: () => 
 
         <div className="mt-4 border-t border-white/[0.06] pt-3">
           <div className="text-[0.6rem] uppercase tracking-[0.14em] text-slate-500">Linked Quantifi Ideas</div>
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {playbook.linkedIdeas.map((i) => (
-              <span key={i.ideaId} className="rounded-md border border-white/10 bg-white/[0.03] px-1.5 py-0.5 text-[0.7rem] text-slate-300">
-                {i.title}
-              </span>
-            ))}
-          </div>
+          <p className="mt-1.5 text-xs leading-relaxed text-slate-300">
+            {playbook.linkedIdeas.slice(0, 3).map((i) => i.title).join(" · ")}
+            {playbook.linkedIdeas.length > 3 ? (
+              <span className="text-slate-500"> · +{playbook.linkedIdeas.length - 3} more</span>
+            ) : null}
+          </p>
         </div>
 
         <div className="mt-auto pt-4 text-xs font-medium text-gold/80">Open playbook →</div>
@@ -81,7 +59,6 @@ function PlaybookCard({ playbook, onOpen }: { playbook: Playbook; onOpen: () => 
 }
 
 export default function Community() {
-  const [tab, setTab] = useState<Tab>("Research Playbooks");
   const [active, setActive] = useState<Playbook | null>(null);
 
   const [sent, setSent] = useState(false);
@@ -123,43 +100,18 @@ export default function Community() {
       <SectionHeading
         eyebrow="Community"
         title="Community Research"
-        subtitle="Curated playbooks, market maps and source-backed analysis — built for study, not recommendations."
+        subtitle="Curated research playbooks built for study, not recommendations."
       />
 
-      {/* Tabs */}
-      <div className="mt-6 flex flex-wrap gap-2">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => setTab(t)}
-            className={`rounded-full border px-3 py-1.5 text-xs transition ${
-              tab === t
-                ? "border-gold/50 bg-gold/15 text-gold"
-                : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
-            }`}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-
-      {/* Research Playbooks */}
-      {tab === "Research Playbooks" ? (
-        <div className="mt-6">
-          <Eyebrow>Featured research playbooks</Eyebrow>
-          <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            {playbooks.map((p) => (
-              <PlaybookCard key={p.id} playbook={p} onOpen={() => setActive(p)} />
-            ))}
-          </div>
+      {/* Featured Research Playbooks */}
+      <div className="mt-6">
+        <Eyebrow>Featured research playbooks</Eyebrow>
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          {playbooks.map((p) => (
+            <PlaybookCard key={p.id} playbook={p} onOpen={() => setActive(p)} />
+          ))}
         </div>
-      ) : null}
-
-      {tab === "Market Maps" ? <ComingSoon label="Market maps" /> : null}
-      {tab === "Source Packs" ? <ComingSoon label="Source packs" /> : null}
-      {tab === "Bull vs Bear" ? <ComingSoon label="Bull-vs-bear breakdowns" /> : null}
-      {tab === "Stock Deep Dives" ? <ComingSoon label="Stock deep dives" /> : null}
+      </div>
 
       {/* Ask a research question — real submissions, no fake contributors */}
       <GlassCard className="mt-10 border-gold/20 bg-gold/[0.04] p-6 sm:p-8">
