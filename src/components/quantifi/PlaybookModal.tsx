@@ -287,17 +287,16 @@ export default function PlaybookModal({ playbook, onClose }: { playbook: Playboo
                       <span className="font-mono">{s.linked.join(" · ")}</span>
                     </p>
                   ) : null}
-                  <span className="mt-auto pt-2">
-                    {s.href ? (
-                      <a href={s.href} target="_blank" rel="noopener noreferrer" className="text-[0.65rem] font-medium text-gold/80 hover:text-gold">
-                        View source →
-                      </a>
-                    ) : (
-                      <span className="text-[0.65rem] text-slate-600" title="Source links added as they're curated">
-                        Source category
-                      </span>
-                    )}
-                  </span>
+                  {s.href ? (
+                    <a
+                      href={s.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-auto pt-2 text-[0.65rem] font-medium text-gold/80 hover:text-gold"
+                    >
+                      View source →
+                    </a>
+                  ) : null}
                 </div>
               ))}
             </div>
