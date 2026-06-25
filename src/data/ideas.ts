@@ -58,8 +58,10 @@ export interface ThesisTest {
 }
 
 export interface SourceItem {
-  type: string; // e.g. "Earnings calls"
+  type: string; // descriptive source name, e.g. "Hyperscaler earnings calls"
   checks: string; // what that source verifies
+  linked?: string[]; // tickers this source is most relevant to
+  href?: string; // real source link (added incrementally)
 }
 
 export interface IdeaScore {
@@ -182,7 +184,7 @@ const RAW: RawIdea[] = [
     scenarios: [
       { kind: "Best case", what: "AI capex keeps rising and power/cooling go scarce; grid, cooling and data-centre names re-rate.", wins: "VRT · ETN · GEV · EQIX · India grid" },
       { kind: "Base case", what: "Compute leads, the power chain follows with a lag; returns are uneven and name-specific.", wins: "NVDA · AVGO; selective power names" },
-      { kind: "Worst case", what: "AI ROI disappoints and hyperscalers cut capex; the whole infrastructure basket de-rates.", wins: "Defensives; the basket de-rates" },
+      { kind: "Worst case", what: "AI ROI disappoints and hyperscalers cut capex; the whole infrastructure basket de-rates.", wins: "Defensives & cash-rich names; the AI-infra basket de-rates" },
     ],
     checklist: [
       { question: "Is hyperscaler capex guidance still rising?", why: "It's the demand driver for the entire chain." },
@@ -198,7 +200,7 @@ const RAW: RawIdea[] = [
       { label: "Balance-sheet strength", score: 6 },
       { label: "Cycle resilience", score: 3 },
     ],
-    verdict: "Attractive structural theme, expensive basket. Research starting point only.",
+    verdict: "Attractive structural theme, but valuation-sensitive. The cleanest research angle is no longer 'AI chips' — it's whether power, cooling and grid bottlenecks create real pricing power.",
     sources: ["IEA — Electricity 2024 / data-centre demand outlook", "Hyperscaler quarterly earnings calls & capex guidance", "Company investor presentations & 10-Ks"],
   },
   {
@@ -259,7 +261,7 @@ const RAW: RawIdea[] = [
     scenarios: [
       { kind: "Best case", what: "Space becomes mainstream infrastructure — launch, broadband, defence and observation scale together.", wins: "SPCX · RKLB · ASTS · defence-space" },
       { kind: "Base case", what: "Leaders progress but timelines slip; the basket is volatile and execution-driven.", wins: "Diversified, stock-specific winners" },
-      { kind: "Worst case", what: "Launch delays, weak Starlink margins or stretched valuations hit the basket.", wins: "Few; capital-intensive names de-rate" },
+      { kind: "Worst case", what: "Launch delays, weak Starlink margins or stretched valuations hit the basket.", wins: "Defence-backed primes; capital-intensive names de-rate" },
     ],
     checklist: [
       { question: "Is launch cadence rising on schedule?", why: "Cadence underpins the whole economics." },
@@ -329,7 +331,7 @@ const RAW: RawIdea[] = [
     scenarios: [
       { kind: "Best case", what: "Governments keep funding domestic AI, cloud, chips and data centres across regions.", wins: "NVDA · cloud majors · domestic-stack names" },
       { kind: "Base case", what: "Funding continues but unevenly; export controls reshape who can buy what.", wins: "Region-specific leaders" },
-      { kind: "Worst case", what: "Export controls, regulation, weak ROI and chip constraints slow the buildout.", wins: "Few; capex names de-rate" },
+      { kind: "Worst case", what: "Export controls, regulation, weak ROI and chip constraints slow the buildout.", wins: "Diversified mega-caps; pure-capex names de-rate" },
     ],
     checklist: [
       { question: "Is national AI funding still expanding?", why: "Policy is the demand driver here." },
@@ -400,7 +402,7 @@ const RAW: RawIdea[] = [
     scenarios: [
       { kind: "Best case", what: "China's EV and battery scale keeps lowering costs and pressuring legacy automakers globally.", wins: "BYDDF · 300750.SZ · India component makers" },
       { kind: "Base case", what: "Scale grows but a price war compresses margins; volume ≠ profit.", wins: "Lowest-cost, vertically-integrated players" },
-      { kind: "Worst case", what: "Tariffs, overcapacity and the price war destroy margins across the chain.", wins: "Few; marginal players shake out" },
+      { kind: "Worst case", what: "Tariffs, overcapacity and the price war destroy margins across the chain.", wins: "Lowest-cost leaders; marginal players shake out" },
     ],
     checklist: [
       { question: "Is volume growth translating into profit?", why: "A price war can make volume worthless." },
@@ -464,7 +466,7 @@ const RAW: RawIdea[] = [
     scenarios: [
       { kind: "Best case", what: "Budgets stay elevated, order books expand and electronics/missile/drone names gain operating leverage.", wins: "India DPSUs · US primes · drones" },
       { kind: "Base case", what: "Budgets hold but execution and delivery lag the order book.", wins: "Best executors; cash-generative primes" },
-      { kind: "Worst case", what: "Valuations run ahead of execution; receivables, delays and margins disappoint.", wins: "Few; richly-priced names correct" },
+      { kind: "Worst case", what: "Valuations run ahead of execution; receivables, delays and margins disappoint.", wins: "Cash-generative primes; richly-priced names correct" },
     ],
     checklist: [
       { question: "Are defence budgets still rising?", why: "Top-down demand driver." },
@@ -539,7 +541,7 @@ const RAW: RawIdea[] = [
     scenarios: [
       { kind: "Best case", what: "AI moves into the physical world — factories, logistics, surgery, robotaxis and drones.", wins: "NVDA · ISRG · automation leaders" },
       { kind: "Base case", what: "Adoption is real but slow; industrial automation compounds, humanoids stay early.", wins: "Proven industrial-robotics names" },
-      { kind: "Worst case", what: "Hardware is hard; costs stay high, regulation delays adoption, margins disappoint.", wins: "Few; speculative names de-rate" },
+      { kind: "Worst case", what: "Hardware is hard; costs stay high, regulation delays adoption, margins disappoint.", wins: "Proven industrial robotics; speculative names de-rate" },
     ],
     checklist: [
       { question: "Are humanoid / robotaxi milestones being hit?", why: "Tests the futuristic optionality." },
@@ -614,7 +616,7 @@ const RAW: RawIdea[] = [
     scenarios: [
       { kind: "Best case", what: "The world keeps spending on factories, grids, defence and semiconductor supply chains.", wins: "ETN · GEV · semicap · India capex" },
       { kind: "Base case", what: "Capex grows but unevenly across regions and end-markets.", wins: "Diversified, well-run industrials" },
-      { kind: "Worst case", what: "A global slowdown hits capex orders and high-expectation names correct.", wins: "Few; cyclicals de-rate" },
+      { kind: "Worst case", what: "A global slowdown hits capex orders and high-expectation names correct.", wins: "Balance-sheet-strong industrials; cyclicals de-rate" },
     ],
     checklist: [
       { question: "Is order intake / capex still growing?", why: "The cycle's pulse." },
@@ -682,7 +684,7 @@ const RAW: RawIdea[] = [
     scenarios: [
       { kind: "Best case", what: "Grid-storage demand offsets EV cyclicality and creates a second battery growth curve.", wins: "FLNC · TSLA storage · cell makers" },
       { kind: "Base case", what: "Storage grows steadily but project economics vary; selectivity matters.", wins: "Lowest-cost integrators" },
-      { kind: "Worst case", what: "Battery oversupply, weak lithium prices and poor project IRRs hurt returns.", wins: "Few; lithium names de-rate" },
+      { kind: "Worst case", what: "Battery oversupply, weak lithium prices and poor project IRRs hurt returns.", wins: "Low-cost integrators; lithium names de-rate" },
     ],
     checklist: [
       { question: "Are grid-storage deployments accelerating?", why: "The new demand driver beyond EVs." },
@@ -757,7 +759,7 @@ const RAW: RawIdea[] = [
     scenarios: [
       { kind: "Best case", what: "GLP-1 adoption expands globally; a durable obesity/diabetes market reprices adjacent sectors.", wins: "LLY · NVO · diagnostics · India CDMO" },
       { kind: "Base case", what: "Adoption grows but competition and pricing pressure cap profits; adjacencies mixed.", wins: "Cost leaders; picks-and-shovels" },
-      { kind: "Worst case", what: "Pricing pressure, side-effects or competition reduce expected profits.", wins: "Few; leaders de-rate from high bars" },
+      { kind: "Worst case", what: "Pricing pressure, side-effects or competition reduce expected profits.", wins: "Diversified pharma & distribution; leaders de-rate from high bars" },
     ],
     checklist: [
       { question: "Are trial readouts / approvals expanding the market?", why: "New indications grow the TAM." },
@@ -844,7 +846,7 @@ const RAW: RawIdea[] = [
     scenarios: [
       { kind: "Best case", what: "More trading, ETFs, SIPs, insurance and data usage compound recurring, high-margin revenue.", wins: "MSCI · SPGI · V/MA · India RTAs & AMCs" },
       { kind: "Base case", what: "Steady recurring growth, occasional fee pressure; quality compounds quietly.", wins: "Diversified data, index & plumbing names" },
-      { kind: "Worst case", what: "Regulation, fee compression and a downturn cut volumes and growth.", wins: "Few; high-multiple names de-rate" },
+      { kind: "Worst case", what: "Regulation, fee compression and a downturn cut volumes and growth.", wins: "Recurring-revenue data & index names; high-multiple names de-rate" },
     ],
     checklist: [
       { question: "Are volumes & data subscriptions growing?", why: "The recurring-revenue engine." },
@@ -912,7 +914,7 @@ const RAW: RawIdea[] = [
     scenarios: [
       { kind: "Best case", what: "The company compounds fast enough to grow into — and justify — the valuation.", wins: "The genuine super-compounders" },
       { kind: "Base case", what: "Solid results, but the multiple slowly de-rates; returns lag the business.", wins: "Patience; reinvestment compounding" },
-      { kind: "Worst case", what: "Good business, disappointing stock as too-high expectations reset.", wins: "Few; the most-priced names fall hardest" },
+      { kind: "Worst case", what: "Good business, disappointing stock as too-high expectations reset.", wins: "Cash-rich quality; the most-priced names fall hardest" },
     ],
     checklist: [
       { question: "Is the forward multiple justified by durable growth?", why: "Price must be earned by growth." },
@@ -1003,7 +1005,7 @@ const RAW: RawIdea[] = [
     scenarios: [
       { kind: "Best case", what: "The market overreacted after hype faded. Margins improve, free cash flow turns positive and multiples stabilise.", wins: "HOOD · ETERNAL.NS · POLICYBZR.NS · profitable platforms" },
       { kind: "Base case", what: "Only a few names mature; others stay volatile and need more proof.", wins: "Stock-picking over theme exposure" },
-      { kind: "Worst case", what: "Growth slows, dilution continues, insiders sell, and the IPO story never becomes durable earnings.", wins: "Cash-burning names de-rate further" },
+      { kind: "Worst case", what: "Growth slows, dilution continues, insiders sell, and the IPO story never becomes durable earnings.", wins: "Already-profitable survivors; cash-burning names de-rate further" },
     ],
     checklist: [
       { question: "Is revenue still growing after the IPO hype faded?", why: "Proves demand is durable." },
@@ -1090,7 +1092,7 @@ const RAW: RawIdea[] = [
     scenarios: [
       { kind: "Best case", what: "Electrification, defence and data-centre buildouts lift demand for scarce resources.", wins: "Copper majors · uranium · rare earths" },
       { kind: "Base case", what: "Demand grows but commodity prices swing; selectivity and cost curve matter.", wins: "Low-cost producers" },
-      { kind: "Worst case", what: "Commodity prices fall, China overcapacity pressures margins, growth slows.", wins: "Few; high-cost producers squeezed" },
+      { kind: "Worst case", what: "Commodity prices fall, China overcapacity pressures margins, growth slows.", wins: "Low-cost producers; high-cost producers squeezed" },
     ],
     checklist: [
       { question: "Is end-demand (grid, EV, defence) accelerating?", why: "The structural pull." },
@@ -1164,7 +1166,7 @@ const RAW: RawIdea[] = [
     scenarios: [
       { kind: "Best case", what: "AI lifts ads, commerce conversion, logistics and personalisation across platforms.", wins: "META · GOOGL · quick-commerce winners" },
       { kind: "Base case", what: "Growth continues but competition and CAC pressure margins unevenly.", wins: "Scale platforms with pricing power" },
-      { kind: "Worst case", what: "Competition, regulation and high acquisition costs weaken the model.", wins: "Few; unprofitable names de-rate" },
+      { kind: "Worst case", what: "Competition, regulation and high acquisition costs weaken the model.", wins: "Scale platforms with pricing power; unprofitable names de-rate" },
     ],
     checklist: [
       { question: "Is take-rate / ad pricing holding?", why: "Core monetisation lever." },
@@ -1438,10 +1440,10 @@ const TESTS: Record<string, { thesisTests: ThesisTest[]; sourcePack: SourceItem[
       { test: "Valuation cushion", signal: "Rising risk", importance: "High", why: "Rich multiples amplify any disappointment.", metric: "Forward EV/EBITDA vs growth", breaksIf: "Multiples re-rate down on a single guidance miss" },
     ],
     sourcePack: [
-      { type: "Earnings calls", checks: "Hyperscaler capex guidance & data-centre commentary" },
-      { type: "Company filings", checks: "Backlog, margins and inventory at power/cooling names" },
-      { type: "Industry data", checks: "IEA / grid-operator power-demand projections" },
-      { type: "Policy updates", checks: "Permitting, interconnection and grid-investment rules" },
+      { type: "Hyperscaler earnings calls", checks: "capex guidance, AI-infrastructure spend, data-centre demand", linked: ["MSFT", "AMZN", "GOOGL", "META", "ORCL"] },
+      { type: "Power & cooling company filings", checks: "backlog, book-to-bill, gross margin, inventory", linked: ["VRT", "ETN", "GEV"] },
+      { type: "Industry data", checks: "data-centre electricity demand, grid bottlenecks, power-demand projections" },
+      { type: "Policy / grid updates", checks: "permitting, interconnection queues, grid investment, data-centre regulation" },
     ],
   },
   "spacex-orbital-internet": {

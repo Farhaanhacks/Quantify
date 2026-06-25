@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { GlassCard, SectionHeading, Tag } from "@/components/quantifi/Cards";
 import { ideaCategories, tradingIdeas, type TradingIdea } from "@/data/demo";
@@ -267,32 +267,64 @@ function Road({ steps, tone }: { steps: string[]; tone: "up" | "down" }) {
 }
 
 function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }) {
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const go = (id: string) => {
+    bodyRef.current?.querySelector(`#${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  const nav = [
+    { id: "read", label: "Read", show: true },
+    { id: "scorecard", label: "Scorecard", show: true },
+    { id: "theme-map", label: "Theme map", show: !!idea.themeMap?.length },
+    { id: "scenarios", label: "Scenarios", show: true },
+    { id: "roads", label: "Roads", show: !!(idea.bullRoad?.length || idea.bearRoad?.length) },
+    { id: "names", label: "Names", show: true },
+    { id: "thesis-tests", label: "Thesis tests", show: !!idea.thesisTests?.length },
+    { id: "sources", label: "Sources", show: !!(idea.sourcePack?.length || idea.sources?.length) },
+  ].filter((n) => n.show);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-ink-900 shadow-2xl">
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          className="absolute right-3 top-3 z-20 rounded-md bg-ink-900/80 px-2 py-1 text-slate-400 backdrop-blur transition hover:bg-white/[0.08] hover:text-white"
-        >
-          ✕
-        </button>
-
-        <div className="overflow-y-auto p-6 sm:p-8">
-          {/* ── TOP: identity, question, badges, read, scorecard ───────────── */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            {isGlobalTheme(idea) ? (
-              <span className="rounded-full border border-gold/30 bg-gold/10 px-2 py-0.5 text-[0.62rem] font-medium text-gold">
-                Global Theme
-              </span>
-            ) : null}
-            <Tag tone="teal">{idea.category}</Tag>
-            <span className="text-[0.7rem] text-slate-500">{idea.regions.join(" · ")}</span>
+      <div className="relative z-10 flex max-h-[90vh] w-full max-w-[880px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-ink-900 shadow-2xl">
+        {/* Fixed header — title, sticky section nav, always-visible close */}
+        <div className="flex-none border-b border-white/[0.06] px-6 pt-5 sm:px-8">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {isGlobalTheme(idea) ? (
+                <span className="rounded-full border border-gold/30 bg-gold/10 px-2 py-0.5 text-[0.62rem] font-medium text-gold">
+                  Global Theme
+                </span>
+              ) : null}
+              <Tag tone="teal">{idea.category}</Tag>
+              <span className="text-[0.7rem] text-slate-500">{idea.regions.join(" · ")}</span>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="flex-none rounded-md px-2 py-1 text-slate-400 transition hover:bg-white/[0.08] hover:text-white"
+            >
+              ✕
+            </button>
           </div>
-          <h3 className="mt-3 font-display text-2xl font-semibold text-white">{idea.title}</h3>
+          <h3 className="mt-2 font-display text-2xl font-semibold text-white">{idea.title}</h3>
           <p className="mt-1 text-sm text-slate-400">{idea.tagline}</p>
+          <nav className="mt-3 flex gap-1 overflow-x-auto">
+            {nav.map((n) => (
+              <button
+                key={n.id}
+                type="button"
+                onClick={() => go(n.id)}
+                className="whitespace-nowrap rounded-t-md border-b-2 border-transparent px-2.5 py-1.5 text-xs text-slate-400 transition hover:border-gold/50 hover:text-white"
+              >
+                {n.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        {/* Scroll body */}
+        <div ref={bodyRef} className="overflow-y-auto p-6 sm:p-8">
 
           {idea.question ? (
             <div className="mt-4 rounded-xl border border-gold/20 bg-gold/[0.05] p-3.5">
@@ -314,13 +346,13 @@ function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }
           </div>
 
           {/* Quantifi read — the quick conclusion, up top */}
-          <div className="mt-4 rounded-xl border border-gold/20 bg-gold/[0.06] p-4">
+          <div id="read" className="mt-4 rounded-xl border border-gold/20 bg-gold/[0.06] p-4">
             <SectionLabel>Quantifi research read</SectionLabel>
             <p className="mt-1.5 text-sm leading-relaxed text-slate-200">{idea.verdict}</p>
           </div>
 
           {/* Scorecard — near the top so the user sees the conclusion fast */}
-          <div className="mt-4">
+          <div id="scorecard" className="mt-4 scroll-mt-2">
             <SectionLabel>Quantifi scorecard</SectionLabel>
             <div className="mt-2.5 grid gap-x-6 gap-y-2 sm:grid-cols-2">
               {idea.scores.map((s) => (
@@ -341,7 +373,7 @@ function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }
 
           {/* Theme map / value chain — a vertical causal stack */}
           {idea.themeMap?.length ? (
-            <div>
+            <div id="theme-map" className="scroll-mt-2">
               <SectionLabel>Theme map — the value chain</SectionLabel>
               <div className="mt-2.5">
                 {idea.themeMap.map((link, i) => (
@@ -371,7 +403,7 @@ function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }
           ) : null}
 
           {/* Scenario map — what happens / who benefits / red flag */}
-          <div className="mt-6">
+          <div id="scenarios" className="mt-6 scroll-mt-2">
             <SectionLabel>Scenario map</SectionLabel>
             <div className="mt-2.5 space-y-2">
               {idea.scenarios.map((s) => {
@@ -388,7 +420,9 @@ function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }
                     <p className="mt-1.5 text-sm leading-relaxed text-slate-200">{s.what}</p>
                     <div className="mt-2.5 space-y-1 border-t border-white/[0.06] pt-2.5">
                       <p className="text-xs leading-relaxed text-slate-300">
-                        <span className="font-medium text-up/90">Likely beneficiaries: </span>
+                        <span className={`font-medium ${s.kind === "Worst case" ? "text-slate-300" : "text-up/90"}`}>
+                          {s.kind === "Worst case" ? "Most resilient: " : "Likely beneficiaries: "}
+                        </span>
                         {s.wins}
                       </p>
                       {s.redFlag ? (
@@ -412,7 +446,7 @@ function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }
 
           {/* Bull road vs bear road */}
           {idea.bullRoad?.length || idea.bearRoad?.length ? (
-            <div className="mt-6">
+            <div id="roads" className="mt-6 scroll-mt-2">
               <SectionLabel>Bull road vs bear road</SectionLabel>
               <div className="mt-2.5 space-y-2">
                 {idea.bullRoad?.length ? <Road steps={idea.bullRoad} tone="up" /> : null}
@@ -437,8 +471,8 @@ function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }
 
           {/* ── BOTTOM: names, checklist, prove/break, sources ─────────────── */}
 
-          {/* Names grouped by role — uniform collapsed card; detail on hover */}
-          <div>
+          {/* Names grouped by role — uniform card with details shown directly */}
+          <div id="names" className="scroll-mt-2">
             <SectionLabel>Names to study — grouped by role · tap to open full analysis</SectionLabel>
             <div className="mt-3 space-y-4">
               {idea.groups.map((group) => (
@@ -448,47 +482,33 @@ function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }
                     {group.note ? <span className="text-[0.7rem] text-slate-500">— {group.note}</span> : null}
                   </div>
                   <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                    {group.names.map((n) => {
-                      const hasDetail = Boolean(n.why || n.risk || n.watch);
-                      return (
-                        <Link
-                          key={`${group.label}-${n.symbol}`}
-                          href={`/stock-analysis?symbol=${encodeURIComponent(n.symbol)}`}
-                          onClick={onClose}
-                          className="group rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 transition hover:border-gold/40"
-                        >
-                          {/* Collapsed: identical structure on every card */}
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-mono text-sm text-white">{n.symbol}</span>
-                              {n.tag ? (
-                                <span className={`rounded-full border px-1.5 py-px text-[0.55rem] ${tagTone(n.tag)}`}>
-                                  {n.tag}
-                                </span>
-                              ) : null}
-                            </div>
-                            <span className="text-gold/70 transition group-hover:translate-x-0.5">→</span>
-                          </div>
-                          <p className="mt-1 text-xs text-slate-400">{n.role}</p>
-                          {hasDetail ? (
-                            <>
-                              <span className="mt-1 block text-[0.6rem] text-slate-600 group-hover:hidden">Hover for detail</span>
-                              <div className="hidden group-hover:block">
-                                {n.why ? (
-                                  <p className="mt-1.5 text-[0.7rem] leading-relaxed text-slate-500"><span className="text-slate-400">Why:</span> {n.why}</p>
-                                ) : null}
-                                {n.risk ? (
-                                  <p className="mt-1 text-[0.7rem] leading-relaxed text-slate-500"><span className="text-down/80">Risk:</span> {n.risk}</p>
-                                ) : null}
-                                {n.watch ? (
-                                  <p className="mt-1 text-[0.7rem] leading-relaxed text-slate-500"><span className="text-teal/80">Watch:</span> {n.watch}</p>
-                                ) : null}
-                              </div>
-                            </>
+                    {group.names.map((n) => (
+                      <Link
+                        key={`${group.label}-${n.symbol}`}
+                        href={`/stock-analysis?symbol=${encodeURIComponent(n.symbol)}`}
+                        onClick={onClose}
+                        className="group flex flex-col rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 transition hover:border-gold/40"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-sm text-white">{n.symbol}</span>
+                          {n.tag ? (
+                            <span className={`rounded-full border px-1.5 py-px text-[0.55rem] ${tagTone(n.tag)}`}>
+                              {n.tag}
+                            </span>
                           ) : null}
-                        </Link>
-                      );
-                    })}
+                        </div>
+                        <p className="mt-1 text-xs text-slate-400">{n.role}</p>
+                        {n.risk ? (
+                          <p className="mt-1 text-[0.7rem] leading-relaxed text-slate-500"><span className="text-down/80">Risk:</span> {n.risk}</p>
+                        ) : null}
+                        {n.watch ? (
+                          <p className="mt-1 text-[0.7rem] leading-relaxed text-slate-500"><span className="text-teal/80">Watch:</span> {n.watch}</p>
+                        ) : null}
+                        <span className="mt-auto pt-2 text-[0.65rem] font-medium text-gold/80 transition group-hover:text-gold">
+                          Open analysis →
+                        </span>
+                      </Link>
+                    ))}
                   </div>
                 </div>
               ))}
@@ -497,7 +517,7 @@ function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }
 
           {/* Thesis tests — research signals, not a to-do list */}
           {idea.thesisTests?.length ? (
-            <div className="mt-6">
+            <div id="thesis-tests" className="mt-6 scroll-mt-2">
               <SectionLabel>Thesis tests</SectionLabel>
               <p className="mt-1 text-xs text-slate-500">
                 The signals that decide whether this theme is strengthening or weakening.
@@ -507,7 +527,7 @@ function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }
                   <div key={t.test} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
                     <div className="flex items-start justify-between gap-2">
                       <span className="text-sm font-medium text-white">{t.test}</span>
-                      <span className={`flex-none rounded-full border px-1.5 py-px text-[0.6rem] ${signalTone(t.signal)}`}>
+                      <span className={`flex-none rounded-full border px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide ${signalTone(t.signal)}`}>
                         {t.signal}
                       </span>
                     </div>
@@ -565,21 +585,46 @@ function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }
             </div>
           ) : null}
 
-          {/* Source pack — typed sources with what each one checks */}
+          {/* Source pack — typed evidence: what each source checks + linked names */}
           {idea.sourcePack?.length ? (
-            <div className="mt-6">
+            <div id="sources" className="mt-6 scroll-mt-2">
               <SectionLabel>Source pack</SectionLabel>
               <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
                 {idea.sourcePack.map((s) => (
-                  <div key={s.type} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+                  <div key={s.type} className="flex flex-col rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
                     <div className="text-sm font-medium text-white">{s.type}</div>
-                    <p className="mt-1 text-[0.72rem] leading-relaxed text-slate-400">{s.checks}</p>
+                    <p className="mt-1 text-[0.72rem] leading-relaxed text-slate-400">
+                      <span className="text-slate-500">Checks: </span>
+                      {s.checks}
+                    </p>
+                    {s.linked?.length ? (
+                      <p className="mt-1.5 text-[0.7rem] leading-relaxed text-slate-500">
+                        <span className="text-slate-400">Linked names: </span>
+                        <span className="font-mono">{s.linked.join(" · ")}</span>
+                      </p>
+                    ) : null}
+                    <span className="mt-auto pt-2">
+                      {s.href ? (
+                        <a
+                          href={s.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[0.65rem] font-medium text-gold/80 hover:text-gold"
+                        >
+                          View sources →
+                        </a>
+                      ) : (
+                        <span className="text-[0.65rem] text-slate-600" title="Source links coming soon">
+                          View sources →
+                        </span>
+                      )}
+                    </span>
                   </div>
                 ))}
               </div>
             </div>
           ) : idea.sources?.length ? (
-            <div className="mt-6">
+            <div id="sources" className="mt-6 scroll-mt-2">
               <SectionLabel>Sources used</SectionLabel>
               <div className="mt-2 flex flex-wrap gap-2">
                 {idea.sources.map((src) => (
