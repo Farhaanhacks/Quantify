@@ -61,7 +61,15 @@ export interface SourceItem {
   type: string; // descriptive source name, e.g. "Hyperscaler earnings calls"
   checks: string; // what that source verifies
   linked?: string[]; // tickers this source is most relevant to
+  usedIn?: string; // the thesis test this source helps decide
   href?: string; // real source link (added incrementally)
+}
+
+// A theme can carry several sub-cycles that don't move together. Optional.
+export interface SplitCycleRow {
+  segment: string;
+  driver: string;
+  risk: string;
 }
 
 export interface IdeaScore {
@@ -103,6 +111,7 @@ export interface TradingIdea {
   breaks?: string[];
   thesisTests?: ThesisTest[];
   sourcePack?: SourceItem[];
+  splitCycle?: SplitCycleRow[];
   // Derived for back-compatibility with other surfaces.
   names: IdeaName[];
   tickers: string[];
@@ -564,12 +573,12 @@ const RAW: RawIdea[] = [
     id: "global-industrial-rebuild",
     title: "Global Industrial Rebuild",
     category: "Hard Tech",
-    tagline: "Factories, grids, semicap, railways and hard assets are back",
+    tagline: "The capex cycle behind factories, grids, chips and hard assets",
     description:
       "Reindustrialisation, supply-chain localisation, grid capex, semiconductor equipment, defence manufacturing and India's capex cycle — the physical economy re-rating.",
     whyNow:
       "Localisation, energy transition and AI-driven grid demand are converging into a sustained capex up-cycle across developed and emerging markets.",
-    regions: ["US", "China", "India"],
+    regions: ["US", "China", "India", "Europe"],
     timeHorizon: "3–7 years",
     maturity: "Mid",
     valuationRisk: "Medium-high",
@@ -582,34 +591,44 @@ const RAW: RawIdea[] = [
       {
         label: "Machinery & equipment",
         names: [
-          { symbol: "CAT", role: "Construction & mining equipment" },
-          { symbol: "DE", role: "Agriculture & construction machinery" },
-          { symbol: "ETN", role: "Electrical & power management" },
-          { symbol: "GEV", role: "Grid & power generation" },
+          { symbol: "CAT", role: "Construction & mining equipment", tag: "Direct", watch: "order intake, dealer inventory" },
+          { symbol: "DE", role: "Agriculture & construction machinery", tag: "Direct", watch: "ag cycle, order backlog" },
+          { symbol: "ETN", role: "Electrical & power management", tag: "Direct", watch: "electrical backlog, book-to-bill" },
+          { symbol: "GEV", role: "Grid & power generation", tag: "Direct", watch: "grid orders, power-gen demand" },
         ],
       },
       {
         label: "Semiconductor equipment",
         names: [
-          { symbol: "AMAT", role: "Semiconductor equipment" },
-          { symbol: "LRCX", role: "Semiconductor equipment" },
+          { symbol: "AMAT", role: "Semiconductor equipment", tag: "Direct", watch: "WFE bookings, leading-edge capex" },
+          { symbol: "LRCX", role: "Semiconductor equipment", tag: "Direct", watch: "etch/deposition bookings, memory capex" },
         ],
       },
       {
         label: "Electrification (global)",
         names: [
-          { symbol: "ABBNY", role: "Electrification & automation" },
-          { symbol: "SIEGY", role: "Industrial & grid (Siemens)" },
+          { symbol: "ABBNY", role: "Electrification & automation", tag: "Direct", watch: "automation orders, margins" },
+          { symbol: "SIEGY", role: "Industrial & grid (Siemens)", tag: "Direct", watch: "digital-industries orders, backlog" },
         ],
       },
       {
         label: "India capex cycle",
         names: [
-          { symbol: "LT.NS", role: "India engineering & infra leader" },
-          { symbol: "CUMMINSIND.NS", role: "Power & industrial (India)" },
-          { symbol: "CGPOWER.NS", role: "Electrical equipment (India)" },
-          { symbol: "THERMAX.NS", role: "Energy & environment (India)" },
-          { symbol: "BHEL.NS", role: "Power equipment (India)" },
+          { symbol: "LT.NS", role: "India engineering & infra leader", tag: "Direct", watch: "order inflows, execution, working capital" },
+          { symbol: "CUMMINSIND.NS", role: "Power & industrial (India)", tag: "Direct", watch: "power-gen demand, exports" },
+          { symbol: "CGPOWER.NS", role: "Electrical equipment (India)", tag: "Direct", watch: "T&D orders, margins" },
+          { symbol: "THERMAX.NS", role: "Energy & environment (India)", tag: "Direct", watch: "industrial-capex orders, backlog" },
+          { symbol: "BHEL.NS", role: "Power equipment (India)", tag: "Indirect", watch: "power-equipment orders, execution" },
+        ],
+      },
+      {
+        label: "China manufacturing scale",
+        note: "Regional lens — factory automation, EV/battery & solar supply chain and robotics; overcapacity is the key risk. Some China-listed tickers may have limited data on Quantifi.",
+        names: [
+          { symbol: "600031.SS", role: "SANY — construction machinery", tag: "Direct", watch: "domestic demand, export share" },
+          { symbol: "300124.SZ", role: "Inovance — factory automation", tag: "Direct", watch: "automation orders, share gains" },
+          { symbol: "300750.SZ", role: "CATL — battery supply chain", tag: "Commodity-linked", watch: "cell pricing, utilisation" },
+          { symbol: "BYDDF", role: "BYD — EV supply-chain scale", tag: "Indirect", watch: "volumes, vertical-integration" },
         ],
       },
     ],
@@ -632,7 +651,7 @@ const RAW: RawIdea[] = [
       { label: "Balance-sheet strength", score: 7 },
       { label: "Cycle resilience", score: 4 },
     ],
-    verdict: "Serious macro-equity theme; returns track the capex cycle. Mind the entry multiple.",
+    verdict: "A serious macro-equity theme, but not one single cycle. Grid, semicap, machinery, China manufacturing and India infrastructure can move differently. Returns depend on backlog conversion, margins and the entry multiple.",
     sources: ["Company order-book data", "Government infrastructure budgets", "Semicap bookings data"],
   },
   {
@@ -1199,6 +1218,7 @@ interface DashboardExtra {
   proves: string[];
   breaks: string[];
   redFlags: [string, string, string];
+  splitCycle?: SplitCycleRow[];
 }
 
 const DASHBOARD: Record<string, DashboardExtra> = {
@@ -1307,6 +1327,7 @@ const DASHBOARD: Record<string, DashboardExtra> = {
       { layer: "Machinery", symbols: ["CAT", "DE"] },
       { layer: "Electrical & grid", symbols: ["ETN", "GEV", "ABBNY", "SIEGY"] },
       { layer: "Semicap", symbols: ["AMAT", "LRCX"] },
+      { layer: "China manufacturing", symbols: ["600031.SS", "300124.SZ", "300750.SZ", "BYDDF"] },
       { layer: "India capex", symbols: ["LT.NS", "CUMMINSIND.NS", "CGPOWER.NS", "BHEL.NS"] },
     ],
     bullRoad: ["localisation & grid spend rise", "order intake grows", "backlogs build", "margins expand", "industrials re-rate"],
@@ -1314,6 +1335,13 @@ const DASHBOARD: Record<string, DashboardExtra> = {
     proves: ["Order intake keeps growing", "Grid & electrification spend accelerates", "Semicap bookings rise", "India infra outlay is delivered", "Margins expand on volume"],
     breaks: ["A global slowdown hits orders", "Capex is deferred", "Semicap bookings roll over", "India delivery slips", "Multiples re-rate down"],
     redFlags: ["Order intake holds but pricing and margins soften", "Order intake flattening", "Booking declines / guidance cuts"],
+    splitCycle: [
+      { segment: "Grid & electrification", driver: "AI power, energy transition, data centres", risk: "valuation and execution delays" },
+      { segment: "Semicap", driver: "chip-fab spending, AI demand", risk: "bookings roll over" },
+      { segment: "Machinery", driver: "mining, agriculture, construction", risk: "global slowdown" },
+      { segment: "India infrastructure", driver: "government/private capex, power, railways", risk: "delivery delays" },
+      { segment: "China manufacturing", driver: "automation, EV/battery/solar supply chains", risk: "overcapacity and weak demand" },
+    ],
   },
   "battery-storage-beyond-evs": {
     question: "Will grid and data-centre storage become a second demand curve beyond EVs?",
@@ -1530,10 +1558,11 @@ const TESTS: Record<string, { thesisTests: ThesisTest[]; sourcePack: SourceItem[
       { test: "Cycle-aware valuation", signal: "Watch closely", importance: "High", why: "Industrials are cyclical; multiples matter.", metric: "Multiple vs mid-cycle earnings", breaksIf: "Multiples price a peak that fades" },
     ],
     sourcePack: [
-      { type: "Company filings", checks: "Order books, backlog and margins" },
-      { type: "Industry data", checks: "Semicap bookings, PMI, capex surveys" },
-      { type: "Policy updates", checks: "Infrastructure budgets and localisation incentives" },
-      { type: "Earnings calls", checks: "Order-intake and pricing commentary" },
+      { type: "Company filings", checks: "order intake · backlog conversion · margin expansion · working capital", linked: ["CAT", "ETN", "GEV", "ABBNY", "SIEGY", "LT.NS"], usedIn: "Order intake" },
+      { type: "Semicap bookings & WFE data", checks: "wafer-fab-equipment bookings · leading-edge capex · book-to-bill", linked: ["AMAT", "LRCX"], usedIn: "Semicap bookings" },
+      { type: "Industry & macro data", checks: "PMI · capex surveys · grid-investment trends · construction/mining demand", usedIn: "Order intake" },
+      { type: "Policy & infrastructure budgets", checks: "infrastructure outlay · localisation incentives · grid investment", linked: ["LT.NS", "CGPOWER.NS", "BHEL.NS"], usedIn: "India capex delivery" },
+      { type: "China industrial data", checks: "automation orders · EV/battery/solar supply chain · overcapacity & utilisation", linked: ["600031.SS", "300124.SZ", "300750.SZ"], usedIn: "Order intake" },
     ],
   },
   "battery-storage-beyond-evs": {
@@ -1676,6 +1705,7 @@ export const tradingIdeas: TradingIdea[] = RAW.map((i) => {
           bearRoad: d.bearRoad,
           proves: d.proves,
           breaks: d.breaks,
+          ...(d.splitCycle ? { splitCycle: d.splitCycle } : {}),
         }
       : {}),
     ...(t ? { thesisTests: t.thesisTests, sourcePack: t.sourcePack } : {}),

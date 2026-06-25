@@ -277,19 +277,42 @@ function Road({ steps, tone }: { steps: string[]; tone: "up" | "down" }) {
 
 function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }) {
   const bodyRef = useRef<HTMLDivElement>(null);
+  const [activeNav, setActiveNav] = useState<string>("overview");
   const go = (id: string) => {
     bodyRef.current?.querySelector(`#${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
   const nav = [
-    { id: "read", label: "Read", show: true },
-    { id: "scorecard", label: "Scorecard", show: true },
-    { id: "theme-map", label: "Theme map", show: !!idea.themeMap?.length },
+    { id: "overview", label: "Overview", show: true },
+    { id: "theme-map", label: "Map", show: !!idea.themeMap?.length },
     { id: "scenarios", label: "Scenarios", show: true },
     { id: "roads", label: "Roads", show: !!(idea.bullRoad?.length || idea.bearRoad?.length) },
-    { id: "names", label: "Names", show: true },
-    { id: "thesis-tests", label: "Thesis tests", show: !!idea.thesisTests?.length },
+    { id: "names", label: "Companies", show: true },
+    { id: "thesis-tests", label: "Tests", show: !!idea.thesisTests?.length },
     { id: "sources", label: "Sources", show: !!(idea.sourcePack?.length || idea.sources?.length) },
   ].filter((n) => n.show);
+
+  // Scroll-spy: highlight the nav item for the section currently near the top.
+  useEffect(() => {
+    const root = bodyRef.current;
+    if (!root) return;
+    const sections = nav
+      .map((n) => root.querySelector(`#${n.id}`))
+      .filter((el): el is Element => Boolean(el));
+    const obs = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting);
+        if (!visible.length) return;
+        const top = visible.reduce((a, b) =>
+          a.boundingClientRect.top < b.boundingClientRect.top ? a : b
+        );
+        setActiveNav(top.target.id);
+      },
+      { root, rootMargin: "0px 0px -70% 0px", threshold: [0, 0.25, 1] }
+    );
+    sections.forEach((el) => obs.observe(el));
+    return () => obs.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true">
@@ -319,24 +342,31 @@ function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }
           <h3 className="mt-2 font-display text-2xl font-semibold text-white">{idea.title}</h3>
           <p className="mt-1 text-sm text-slate-400">{idea.tagline}</p>
           <nav className="mt-3 flex gap-1 overflow-x-auto">
-            {nav.map((n) => (
-              <button
-                key={n.id}
-                type="button"
-                onClick={() => go(n.id)}
-                className="whitespace-nowrap rounded-t-md border-b-2 border-transparent px-2.5 py-1.5 text-xs text-slate-400 transition hover:border-gold/50 hover:text-white"
-              >
-                {n.label}
-              </button>
-            ))}
+            {nav.map((n) => {
+              const on = activeNav === n.id;
+              return (
+                <button
+                  key={n.id}
+                  type="button"
+                  onClick={() => go(n.id)}
+                  aria-current={on ? "true" : undefined}
+                  className={`whitespace-nowrap rounded-t-md border-b-2 px-2.5 py-1.5 text-xs transition ${
+                    on ? "border-gold text-white" : "border-transparent text-slate-400 hover:border-gold/50 hover:text-white"
+                  }`}
+                >
+                  {n.label}
+                </button>
+              );
+            })}
           </nav>
         </div>
 
         {/* Scroll body */}
         <div ref={bodyRef} className="overflow-y-auto p-6 sm:p-8">
+          <div id="overview" />
 
           {idea.question ? (
-            <div className="mt-4 rounded-xl border border-gold/20 bg-gold/[0.05] p-3.5">
+            <div className="mt-1 rounded-xl border border-gold/20 bg-gold/[0.05] p-3.5">
               <span className="text-[0.62rem] uppercase tracking-[0.16em] text-gold/80">The investment question</span>
               <p className="mt-1 text-base font-medium leading-relaxed text-white">{idea.question}</p>
             </div>
@@ -407,6 +437,30 @@ function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }
                     ) : null}
                   </div>
                 ))}
+              </div>
+            </div>
+          ) : null}
+
+          {/* Split-cycle view — segments that don't all move together */}
+          {idea.splitCycle?.length ? (
+            <div className="mt-6">
+              <SectionLabel>Split-cycle view</SectionLabel>
+              <p className="mt-1 text-xs text-slate-500">Not all of this theme moves together — each segment has its own driver and risk.</p>
+              <div className="mt-2.5 overflow-hidden rounded-xl border border-white/[0.06]">
+                <div className="hidden grid-cols-[1fr_1.3fr_1.1fr] gap-3 border-b border-white/[0.06] bg-white/[0.02] px-3.5 py-2 text-[0.6rem] uppercase tracking-[0.12em] text-slate-500 sm:grid">
+                  <span>Segment</span>
+                  <span>Driver</span>
+                  <span>Main risk</span>
+                </div>
+                <div className="divide-y divide-white/[0.05]">
+                  {idea.splitCycle.map((r) => (
+                    <div key={r.segment} className="grid gap-1 px-3.5 py-2.5 sm:grid-cols-[1fr_1.3fr_1.1fr] sm:gap-3">
+                      <span className="text-sm font-medium text-white">{r.segment}</span>
+                      <span className="text-xs text-slate-400">{r.driver}</span>
+                      <span className="text-xs text-down/80">{r.risk}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           ) : null}
@@ -612,22 +666,30 @@ function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }
                         <span className="font-mono">{s.linked.join(" · ")}</span>
                       </p>
                     ) : null}
-                    <span className="mt-auto pt-2">
+                    <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.06] pt-2.5">
+                      {s.usedIn ? (
+                        <button
+                          type="button"
+                          onClick={() => go("thesis-tests")}
+                          className="text-left text-[0.66rem] text-slate-400 transition hover:text-white"
+                        >
+                          <span className="text-teal/80">Used in test: </span>
+                          {s.usedIn}
+                        </button>
+                      ) : (
+                        <span />
+                      )}
                       {s.href ? (
                         <a
                           href={s.href}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[0.65rem] font-medium text-gold/80 hover:text-gold"
+                          className="flex-none text-[0.66rem] font-medium text-gold/80 hover:text-gold"
                         >
                           View sources →
                         </a>
-                      ) : (
-                        <span className="text-[0.65rem] text-slate-600" title="Source links coming soon">
-                          View sources →
-                        </span>
-                      )}
-                    </span>
+                      ) : null}
+                    </div>
                   </div>
                 ))}
               </div>
