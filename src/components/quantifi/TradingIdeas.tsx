@@ -213,21 +213,22 @@ export default function TradingIdeas({
 function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:p-6"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
       role="dialog"
       aria-modal="true"
     >
-      <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 my-4 w-full max-w-3xl rounded-2xl border border-white/10 bg-ink-900 p-6 shadow-2xl sm:p-8">
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-ink-900 shadow-2xl">
         <button
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="absolute right-4 top-4 rounded-md px-2 py-1 text-slate-500 transition hover:bg-white/[0.06] hover:text-white"
+          className="absolute right-3 top-3 z-20 rounded-md bg-ink-900/80 px-2 py-1 text-slate-400 backdrop-blur transition hover:bg-white/[0.08] hover:text-white"
         >
           ✕
         </button>
 
+        <div className="overflow-y-auto p-6 sm:p-8">
         <div className="flex flex-wrap items-center gap-2">
           <Tag tone="teal">{idea.category}</Tag>
           <span className="text-[0.7rem] text-slate-500">{idea.regions.join(" · ")}</span>
@@ -451,6 +452,7 @@ function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }
           <p className="border-t border-white/[0.06] pt-4 text-xs text-slate-500">
             A research starting point, not a recommendation. Not advice — always do your own work.
           </p>
+        </div>
         </div>
       </div>
     </div>
