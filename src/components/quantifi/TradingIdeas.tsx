@@ -5,9 +5,11 @@ import Link from "next/link";
 import { GlassCard, SectionHeading, Tag } from "@/components/quantifi/Cards";
 import { ideaCategories, tradingIdeas, type TradingIdea } from "@/data/demo";
 import { useProStatus } from "@/lib/useProStatus";
+import { FREE_LIMITS } from "@/data/plans";
 
-// Free users get the first row (3 ideas); the rest are Quantifi Pro.
-const FREE_IDEA_COUNT = 3;
+// Free users can preview every Idea, but get full-dashboard access to only the
+// first couple of featured themes; the rest unlock with Quantifi Pro.
+const FREE_IDEA_COUNT = FREE_LIMITS.featuredIdeas;
 const FREE_IDS = new Set(tradingIdeas.slice(0, FREE_IDEA_COUNT).map((i) => i.id));
 
 function scoreColor(score: number): string {
@@ -138,87 +140,70 @@ export default function TradingIdeas({
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((idea) => {
           const locked = isLocked(idea);
-          return (
-            <div key={idea.id} className="relative">
-              <button
-                type="button"
-                onClick={() => (locked ? null : setSelected(idea))}
-                className="w-full text-left"
-                aria-disabled={locked}
-              >
-                <GlassCard hover={!locked} className={`flex h-full flex-col p-5 ${locked ? "opacity-95" : ""}`}>
-                  <div className={locked ? "select-none blur-[3px]" : ""}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {isGlobalTheme(idea) ? (
-                          <span className="rounded-full border border-gold/30 bg-gold/10 px-2 py-0.5 text-[0.62rem] font-medium text-gold">
-                            Global Theme
-                          </span>
-                        ) : null}
-                        <Tag tone="teal">{idea.category}</Tag>
-                      </div>
-                      <span className="text-right text-[0.62rem] text-slate-500">
-                        {idea.regions.join(" · ")}
-                      </span>
-                    </div>
-                    <h3 className="mt-3 font-display text-lg font-semibold leading-snug text-white">
-                      {idea.title}
-                    </h3>
-                    <p className="mt-1 text-sm text-slate-400">{idea.tagline}</p>
-
-                    {idea.question ? (
-                      <p className="mt-3 border-l-2 border-gold/40 pl-3 text-[0.82rem] italic leading-relaxed text-slate-300">
-                        {idea.question}
-                      </p>
-                    ) : null}
-
-                    <MetaChips idea={idea} />
-
-                    <div className="mt-4 flex flex-wrap gap-1.5">
-                      {idea.names.slice(0, 6).map((n) => (
-                        <span
-                          key={n.symbol}
-                          className="rounded-md border border-white/10 bg-white/[0.03] px-1.5 py-0.5 font-mono text-[0.7rem] text-slate-300"
-                        >
-                          {n.symbol}
-                        </span>
-                      ))}
-                      {idea.names.length > 6 ? (
-                        <span className="px-1 py-0.5 text-[0.7rem] text-slate-500">+{idea.names.length - 6}</span>
-                      ) : null}
-                    </div>
-
-                    <div className="mt-auto pt-4 text-xs text-gold/80">Open research dashboard →</div>
-                  </div>
-                </GlassCard>
-              </button>
-
-              {locked ? (
-                <Link
-                  href="/pricing"
-                  className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-2xl bg-ink-900/40 p-4 text-center backdrop-blur-[1px]"
-                >
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/40 bg-gold/15 text-gold">
-                    🔒
+          // Preview is identical for everyone; only full-dashboard access differs.
+          const inner = (
+            <GlassCard hover className="flex h-full flex-col p-5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {isGlobalTheme(idea) ? (
+                    <span className="rounded-full border border-gold/30 bg-gold/10 px-2 py-0.5 text-[0.62rem] font-medium text-gold">
+                      Global Theme
+                    </span>
+                  ) : null}
+                  <Tag tone="teal">{idea.category}</Tag>
+                </div>
+                {locked ? (
+                  <span className="flex items-center gap-1 rounded-full border border-gold/30 bg-gold/10 px-1.5 py-0.5 text-[0.58rem] font-medium text-gold">
+                    🔒 Pro
                   </span>
-                  <span className="font-display text-sm font-semibold text-white">Quantifi Pro</span>
-                  <span className="max-w-[14rem] text-[0.7rem] leading-relaxed text-slate-300">
-                    Unlock all {tradingIdeas.length} research themes — the full library beyond the first three.
-                  </span>
-                  <span className="mt-1 rounded-full bg-gradient-to-r from-gold-400 to-gold-600 px-3 py-1 text-[0.7rem] font-semibold text-ink">
-                    Upgrade →
-                  </span>
-                </Link>
+                ) : (
+                  <span className="text-right text-[0.62rem] text-slate-500">{idea.regions.join(" · ")}</span>
+                )}
+              </div>
+              <h3 className="mt-3 font-display text-lg font-semibold leading-snug text-white">{idea.title}</h3>
+              <p className="mt-1 text-sm text-slate-400">{idea.tagline}</p>
+
+              {idea.question ? (
+                <p className="mt-3 border-l-2 border-gold/40 pl-3 text-[0.82rem] italic leading-relaxed text-slate-300">
+                  {idea.question}
+                </p>
               ) : null}
-            </div>
+
+              <MetaChips idea={idea} />
+
+              <div className="mt-4 flex flex-wrap gap-1.5">
+                {idea.names.slice(0, 6).map((n) => (
+                  <span key={n.symbol} className="rounded-md border border-white/10 bg-white/[0.03] px-1.5 py-0.5 font-mono text-[0.7rem] text-slate-300">
+                    {n.symbol}
+                  </span>
+                ))}
+                {idea.names.length > 6 ? (
+                  <span className="px-1 py-0.5 text-[0.7rem] text-slate-500">+{idea.names.length - 6}</span>
+                ) : null}
+              </div>
+
+              <div className="mt-auto pt-4 text-xs text-gold/80">
+                {locked ? "Unlock full dashboard with Pro →" : "Open research dashboard →"}
+              </div>
+            </GlassCard>
+          );
+
+          return locked ? (
+            <Link key={idea.id} href="/pricing" className="block">
+              {inner}
+            </Link>
+          ) : (
+            <button key={idea.id} type="button" onClick={() => setSelected(idea)} className="w-full text-left">
+              {inner}
+            </button>
           );
         })}
       </div>
 
       {!pro && ready ? (
         <p className="mt-6 text-center text-xs text-slate-500">
-          Showing {Math.min(FREE_IDEA_COUNT, filtered.length)} free themes.{" "}
-          {tradingIdeas.length - FREE_IDEA_COUNT} more are part of{" "}
+          Preview every theme free, with full dashboards on {FREE_IDEA_COUNT} featured themes. Unlock
+          all {tradingIdeas.length} with{" "}
           <Link href="/pricing" className="text-gold hover:underline">
             Quantifi Pro
           </Link>
@@ -238,7 +223,7 @@ export default function TradingIdeas({
         </div>
       ) : null}
 
-      {selected ? <IdeaModal idea={selected} onClose={() => setSelected(null)} /> : null}
+      {selected ? <IdeaModal idea={selected} pro={pro} onClose={() => setSelected(null)} /> : null}
     </section>
   );
 }
@@ -275,7 +260,7 @@ function Road({ steps, tone }: { steps: string[]; tone: "up" | "down" }) {
   );
 }
 
-function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }) {
+function IdeaModal({ idea, pro, onClose }: { idea: TradingIdea; pro: boolean; onClose: () => void }) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const [activeNav, setActiveNav] = useState<string>("overview");
   const go = (id: string) => {
@@ -648,8 +633,27 @@ function IdeaModal({ idea, onClose }: { idea: TradingIdea; onClose: () => void }
             </div>
           ) : null}
 
-          {/* Source pack — typed evidence: what each source checks + linked names */}
-          {idea.sourcePack?.length ? (
+          {/* Source pack — full evidence is a Pro feature; free users see a teaser. */}
+          {idea.sourcePack?.length && !pro ? (
+            <div id="sources" className="mt-6 scroll-mt-2">
+              <SectionLabel>Source pack</SectionLabel>
+              <Link
+                href="/pricing"
+                onClick={onClose}
+                className="mt-2.5 flex flex-col items-center gap-2 rounded-xl border border-gold/25 bg-gold/[0.05] p-5 text-center transition hover:border-gold/40"
+              >
+                <span className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/40 bg-gold/15 text-gold">🔒</span>
+                <span className="text-sm font-semibold text-white">Full source pack is part of Quantifi Pro</span>
+                <span className="max-w-md text-xs leading-relaxed text-slate-400">
+                  {idea.sourcePack.length} evidence sources — filings, earnings calls, industry &amp; policy
+                  data — each with what it checks, the linked names and the thesis test it informs.
+                </span>
+                <span className="mt-1 rounded-full bg-gradient-to-r from-gold-400 to-gold-600 px-3 py-1 text-[0.7rem] font-semibold text-ink">
+                  Unlock with Pro →
+                </span>
+              </Link>
+            </div>
+          ) : idea.sourcePack?.length ? (
             <div id="sources" className="mt-6 scroll-mt-2">
               <SectionLabel>Source pack</SectionLabel>
               <div className="mt-2.5 grid gap-2 sm:grid-cols-2">

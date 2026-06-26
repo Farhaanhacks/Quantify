@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { isEmailPro } from "@/lib/access";
 import { kvGet, kvSet, kvConfigured } from "@/lib/kv";
-import { FREE_LIMIT } from "@/lib/freeLimit";
+import { FREE_LIMIT, freeDayKey } from "@/lib/freeLimit";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 // devices — the browser can't widen it.
 async function readUsed(email: string): Promise<string[]> {
   try {
-    const raw = await kvGet(`free:${email}`);
+    const raw = await kvGet(freeDayKey(email));
     if (!raw) return [];
     const a = JSON.parse(raw) as unknown;
     return Array.isArray(a) ? a.filter((x): x is string => typeof x === "string") : [];
@@ -72,6 +72,6 @@ export async function POST(req: Request) {
   }
 
   const next = [...used, sym];
-  await kvSet(`free:${email}`, JSON.stringify(next));
+  await kvSet(freeDayKey(email), JSON.stringify(next));
   return NextResponse.json({ allowed: true, used: next, limit: FREE_LIMIT });
 }

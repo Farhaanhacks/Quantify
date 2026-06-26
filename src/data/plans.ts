@@ -3,20 +3,34 @@
 // the Pro-only research surfaces. Everything else stays free. The Razorpay Plan
 // ID lives in env (RAZORPAY_PLAN_PRO), so no billing identifiers are committed.
 
-// Routes that require an active Quantifi Pro subscription. Used by the ProGate
-// wrapper and surfaced on the pricing page.
+// Numeric free-plan limits, referenced by the gating code so the numbers live
+// in one place.
+export const FREE_LIMITS = {
+  newsPerDay: 5,
+  analysesPerDay: 2,
+  watchlistStocks: 5,
+  featuredIdeas: 2,
+} as const;
+
+// What an active Quantifi Pro subscription unlocks — the full research workflow.
 export const PRO_FEATURES = [
-  "Stock Analysis",
-  "Insider Activity",
-  "Rare Finds",
+  "Unlimited stock analysis",
+  "All Ideas & Community playbooks unlocked",
+  "Full source packs",
+  "Portfolio diagnosis & watchlist alerts",
+  "Insider Activity & Rare Finds",
+  "Advanced screener",
+  "Save & export research",
 ] as const;
 
-// What free (Explorer) accounts get — i.e. everything that isn't Pro-gated.
+// What free (Explorer) accounts get — discovery + trust.
 export const FREE_FEATURES = [
-  "Market Pulse & News Impact",
-  "Explore companies & Screener",
-  "Trading Ideas & Famous Takes",
-  "Portfolio tracker & Watchlist",
+  `${FREE_LIMITS.newsPerDay} news-impact items a day`,
+  `${FREE_LIMITS.analysesPerDay} full stock analyses a day`,
+  `Up to ${FREE_LIMITS.watchlistStocks} watchlist stocks`,
+  "Preview every research Idea",
+  "Full access to featured Ideas + the Situational Awareness playbook",
+  "Basic screener preview",
 ] as const;
 
 export interface ProPlan {

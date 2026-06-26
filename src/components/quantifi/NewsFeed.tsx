@@ -5,6 +5,8 @@ import Link from "next/link";
 import { GlassCard, SectionHeading, Tag } from "@/components/quantifi/Cards";
 import { popularTickers } from "@/data/popularTickers";
 import type { NewsArticle } from "@/lib/news";
+import { useProStatus } from "@/lib/useProStatus";
+import { FREE_LIMITS } from "@/data/plans";
 
 function timeAgo(ms: number): string {
   const diff = Date.now() - ms;
@@ -111,6 +113,7 @@ export default function NewsFeed({ items }: { items: NewsArticle[] }) {
   const [region, setRegion] = useState<(typeof REGIONS)[number]>("All");
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState<NewsArticle | null>(null);
+  const { pro } = useProStatus();
 
   // Prefer server-side detection (full SEC universe); fall back to the client list.
   const tickersByLink = useMemo(() => {
@@ -129,6 +132,10 @@ export default function NewsFeed({ items }: { items: NewsArticle[] }) {
       return true;
     });
   }, [items, region, q]);
+
+  // Free accounts see the latest few items; Pro sees the full feed.
+  const visible = pro ? filtered : filtered.slice(0, FREE_LIMITS.newsPerDay);
+  const hiddenCount = filtered.length - visible.length;
 
   useEffect(() => {
     if (!selected) return;
@@ -181,7 +188,7 @@ export default function NewsFeed({ items }: { items: NewsArticle[] }) {
       <p className="mt-3 text-xs text-slate-500">{filtered.length} stories</p>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((a, i) => {
+        {visible.map((a, i) => {
           const ts = tickersByLink.get(a.link) ?? [];
           return (
             <button key={`${a.link}-${i}`} type="button" onClick={() => setSelected(a)} className="text-left">
@@ -209,7 +216,26 @@ export default function NewsFeed({ items }: { items: NewsArticle[] }) {
         })}
       </div>
 
-      {filtered.length === 0 ? (
+      {!pro && hiddenCount > 0 ? (
+        <Link
+          href="/pricing"
+          className="mt-4 flex flex-col items-center gap-2 rounded-2xl border border-gold/25 bg-gold/[0.05] p-6 text-center transition hover:border-gold/40"
+        >
+          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/40 bg-gold/15 text-gold">🔒</span>
+          <span className="text-sm font-semibold text-white">
+            {hiddenCount} more {hiddenCount === 1 ? "story" : "stories"} in the live feed
+          </span>
+          <span className="max-w-md text-xs leading-relaxed text-slate-400">
+            Free accounts see the latest {FREE_LIMITS.newsPerDay} news-impact items. Quantifi Pro unlocks the
+            full, continuously updating feed.
+          </span>
+          <span className="mt-1 rounded-full bg-gradient-to-r from-gold-400 to-gold-600 px-3 py-1 text-[0.7rem] font-semibold text-ink">
+            Unlock with Pro →
+          </span>
+        </Link>
+      ) : null}
+
+      {visible.length === 0 ? (
         <GlassCard className="mt-4 p-10 text-center">
           <p className="text-sm text-slate-400">
             {items.length === 0

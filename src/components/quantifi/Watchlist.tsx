@@ -13,6 +13,8 @@ import { fmtPrice, SCORE_AXES } from "@/data/demo";
 import type { ScoreAxisKey } from "@/data/demo";
 import { useWatchlist } from "@/lib/useWatchlist";
 import { isAiBubbleStock } from "@/data/aiBubble";
+import { useProStatus } from "@/lib/useProStatus";
+import { FREE_LIMITS } from "@/data/plans";
 
 const EMPTY_LABELS = ["", "", "", "", ""];
 
@@ -286,6 +288,10 @@ function WatchRow({ ticker, onRemove }: { ticker: string; onRemove: () => void }
 
 export default function Watchlist({ heading = true }: { heading?: boolean }) {
   const { data, ready, scope, addStock, removeStock } = useWatchlist();
+  const { pro } = useProStatus();
+
+  // Free accounts can track up to FREE_LIMITS.watchlistStocks; Pro is unlimited.
+  const atFreeCap = !pro && data.stocks.length >= FREE_LIMITS.watchlistStocks;
 
   // --- add-stock form ---
   const [stockInput, setStockInput] = useState("");
@@ -298,6 +304,12 @@ export default function Watchlist({ heading = true }: { heading?: boolean }) {
     setStockErr(null);
     if (data.stocks.includes(t)) {
       setStockErr("Already on your watchlist.");
+      return;
+    }
+    if (atFreeCap) {
+      setStockErr(
+        `Free plan tracks up to ${FREE_LIMITS.watchlistStocks} stocks. Upgrade to Quantifi Pro for an unlimited watchlist.`
+      );
       return;
     }
     setChecking(true);
@@ -345,7 +357,9 @@ export default function Watchlist({ heading = true }: { heading?: boolean }) {
       <GlassCard className="mt-6 p-5 sm:p-6">
         <div className="flex items-center justify-between">
           <h3 className="font-display text-lg font-semibold text-white">Saved stocks</h3>
-          <span className="text-xs text-slate-500">{data.stocks.length} tracked</span>
+          <span className="text-xs text-slate-500">
+            {pro ? `${data.stocks.length} tracked` : `${data.stocks.length} / ${FREE_LIMITS.watchlistStocks} tracked`}
+          </span>
         </div>
         <p className="mt-1 text-xs text-slate-500">
           Live price, fair value, growth and a 6-month trend — at a glance. AI names lead with their
@@ -361,11 +375,20 @@ export default function Watchlist({ heading = true }: { heading?: boolean }) {
             placeholder="Add a ticker — e.g. NVDA, INFY.NS"
             className={`${inputCls} flex-1`}
           />
-          <button onClick={handleAddStock} disabled={checking} className={btnCls}>
+          <button onClick={handleAddStock} disabled={checking || atFreeCap} className={btnCls}>
             {checking ? "Checking…" : "Add"}
           </button>
         </div>
         {stockErr ? <p className="mt-2 text-xs text-down">{stockErr}</p> : null}
+        {atFreeCap && !stockErr ? (
+          <p className="mt-2 text-xs text-slate-500">
+            Free plan tracks up to {FREE_LIMITS.watchlistStocks} stocks.{" "}
+            <Link href="/pricing" className="text-gold hover:underline">
+              Upgrade to Pro
+            </Link>{" "}
+            for an unlimited watchlist.
+          </p>
+        ) : null}
 
         {data.stocks.length === 0 ? (
           <p className="mt-6 text-sm text-slate-500">
