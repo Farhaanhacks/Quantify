@@ -7,7 +7,7 @@ import { useProStatus } from "@/lib/useProStatus";
 
 interface RazorpayResponse {
   razorpay_payment_id: string;
-  razorpay_order_id: string;
+  razorpay_subscription_id: string;
   razorpay_signature: string;
 }
 
@@ -40,20 +40,21 @@ export default function PricingPlans() {
         return;
       }
 
-      const res = await fetch("/api/create-order", {
+      // Recurring ₹49/month subscription (Razorpay autopay mandate), not a
+      // one-time charge. /api/checkout creates the subscription against the Pro
+      // plan and returns its id for Checkout.
+      const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
       const data = (await res.json()) as {
-        orderId?: string;
-        amount?: number;
-        currency?: string;
+        subscriptionId?: string;
         keyId?: string;
         user?: { name?: string; email?: string };
         error?: string;
       };
-      if (!res.ok || !data.orderId || !data.keyId) {
+      if (!res.ok || !data.subscriptionId || !data.keyId) {
         setError(data.error ?? "Could not start checkout.");
         setLoading(false);
         return;
@@ -61,15 +62,13 @@ export default function PricingPlans() {
 
       const rzp = new (window as any).Razorpay({
         key: data.keyId,
-        order_id: data.orderId,
-        amount: data.amount,
-        currency: data.currency,
+        subscription_id: data.subscriptionId,
         name: "Quantifi Pro",
-        description: `${QUANTIFI_PRO.price} · Quantifi Pro (1 month)`,
+        description: `${QUANTIFI_PRO.price}/month · Quantifi Pro (auto-renews, cancel anytime)`,
         prefill: { name: data.user?.name, email: data.user?.email },
         theme: { color: "#E9B872" },
         handler: async (resp: RazorpayResponse) => {
-          const verify = await fetch("/api/verify-payment", {
+          const verify = await fetch("/api/razorpay/verify", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(resp),
