@@ -5,8 +5,6 @@ import {
   Tag,
 } from "@/components/quantifi/Cards";
 import {
-  companyAnalytics,
-  stockByTicker,
   SCORE_AXES,
   axisLabel,
   overallScore,
@@ -47,9 +45,10 @@ export default function CompanySnapshot({
   name?: string;
   live?: boolean;
 }) {
-  const a = data ?? companyAnalytics[ticker];
-  const resolvedPrice = price ?? stockByTicker[ticker]?.price;
-  const resolvedName = name ?? stockByTicker[ticker]?.name ?? ticker;
+  // Live data only — passed in from the score API. No demo fallback.
+  const a = data;
+  const resolvedPrice = price;
+  const resolvedName = name ?? ticker;
   if (!a || resolvedPrice == null) return null;
 
   const cur = /\.(NS|BO)$/i.test(ticker) ? "₹" : "$";

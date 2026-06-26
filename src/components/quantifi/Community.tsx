@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { GlassCard, SectionHeading, Tag, Eyebrow } from "@/components/quantifi/Cards";
-import PlaybookModal from "@/components/quantifi/PlaybookModal";
 import { playbooks, type Playbook } from "@/data/playbooks";
 
 interface InboxQuestion {
@@ -12,9 +12,9 @@ interface InboxQuestion {
   ts: number;
 }
 
-function PlaybookCard({ playbook, onOpen }: { playbook: Playbook; onOpen: () => void }) {
+function PlaybookCard({ playbook }: { playbook: Playbook }) {
   return (
-    <button type="button" onClick={onOpen} className="w-full text-left">
+    <Link href={`/research/${playbook.id}`} className="block w-full text-left">
       <GlassCard hover className="flex h-full flex-col p-5 sm:p-6">
         <div className="flex items-center justify-between gap-2">
           <span className="rounded-full border border-teal/30 bg-teal/10 px-2 py-0.5 text-[0.62rem] font-medium text-teal">
@@ -52,15 +52,13 @@ function PlaybookCard({ playbook, onOpen }: { playbook: Playbook; onOpen: () => 
           </p>
         </div>
 
-        <div className="mt-auto pt-4 text-xs font-medium text-gold/80">Open playbook →</div>
+        <div className="mt-auto pt-4 text-xs font-medium text-gold/80">Open full research page →</div>
       </GlassCard>
-    </button>
+    </Link>
   );
 }
 
 export default function Community() {
-  const [active, setActive] = useState<Playbook | null>(null);
-
   const [sent, setSent] = useState(false);
   const [question, setQuestion] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -108,7 +106,7 @@ export default function Community() {
         <Eyebrow>Featured research playbooks</Eyebrow>
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           {playbooks.map((p) => (
-            <PlaybookCard key={p.id} playbook={p} onOpen={() => setActive(p)} />
+            <PlaybookCard key={p.id} playbook={p} />
           ))}
         </div>
       </div>
@@ -181,8 +179,6 @@ export default function Community() {
         Quantifi research is educational framework analysis — never a recommendation to buy, sell or
         hold, and not personalised advice.
       </p>
-
-      {active ? <PlaybookModal playbook={active} onClose={() => setActive(null)} /> : null}
     </section>
   );
 }

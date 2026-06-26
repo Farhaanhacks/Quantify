@@ -52,6 +52,8 @@ interface ScoreResponse {
   analytics?: CompanyAnalytics;
   price?: number;
   name?: string;
+  reason?: string;
+  message?: string;
 }
 
 export default function StockExplorer({ initial = "NVDA" }: { initial?: string }) {
@@ -364,9 +366,8 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
                 </h3>
                 {!scoreLoading ? (
                   <p className="mt-2 text-sm leading-relaxed text-slate-400">
-                    We couldn&apos;t pull fundamentals or fund data for this symbol — it
-                    may be an index, an unrecognized ticker, or Yahoo may be temporarily
-                    rate-limiting. The chart above still works.
+                    {score?.message ??
+                      "Live data is unavailable for this name right now. This is normal for ETFs and funds, indices, crypto, currencies and very new listings — or the market-data source may be briefly rate-limiting. The chart above still works."}
                   </p>
                 ) : null}
               </GlassCard>
