@@ -9,13 +9,6 @@ import {
   BarMeter,
   Tag,
 } from "@/components/quantifi/Cards";
-import {
-  sectorDiversification,
-  geoRevenueSplit,
-  concentrationNotes,
-  holdings as sampleHoldings,
-  holdingValue,
-} from "@/data/demo";
 import { usePortfolios } from "@/lib/usePortfolios";
 import { sectorForTicker, regionForTicker } from "@/data/sectors";
 
@@ -137,19 +130,10 @@ export default function Diversification({ heading = true }: { heading?: boolean 
 
   const book = isReal ? computeBook(resolved) : null;
 
-  const sampleWeights = sampleHoldings
-    .map((h) => ({ ticker: h.ticker, value: holdingValue(h) }))
-    .sort((a, b) => b.value - a.value);
-  const sampleTotal = sampleWeights.reduce((s, i) => s + i.value, 0) || 1;
-
-  const sectorSegs: Seg[] = book ? book.sectorSegs : (sectorDiversification as Seg[]);
-  const regionSegs: Seg[] = book ? book.regionSegs : (geoRevenueSplit as Seg[]);
-  const notes: Note[] = book ? book.notes : (concentrationNotes as Note[]);
-  const weights = book
-    ? book.weights
-    : sampleWeights.map((i) => ({ ticker: i.ticker, pct: Math.round((i.value / sampleTotal) * 100) }));
-  const regionTitle = isReal ? "Holdings by region" : "Revenue by geography";
-  const regionCenter = isReal ? "top region" : "US revenue";
+  const sectorSegs: Seg[] = book ? book.sectorSegs : [];
+  const regionSegs: Seg[] = book ? book.regionSegs : [];
+  const notes: Note[] = book ? book.notes : [];
+  const weights = book ? book.weights : [];
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
@@ -157,27 +141,26 @@ export default function Diversification({ heading = true }: { heading?: boolean 
         <SectionHeading
           eyebrow="Diversification & Risk"
           title="How concentrated is your Portfolio?"
-          subtitle="A risk lens across sectors, individual holdings and where they're listed."
+          subtitle="A risk lens across sectors, individual holdings and where they're listed — computed from your real holdings."
         />
       ) : null}
 
       {!isReal ? (
-        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-gold/20 bg-gold/[0.06] px-4 py-3">
-          <span className="rounded-full border border-gold/40 bg-gold/10 px-2 py-0.5 text-[0.62rem] uppercase tracking-[0.14em] text-gold">
-            Sample
-          </span>
-          <span className="text-sm text-slate-300">
-            This is a sample portfolio so you can see how the risk lens works — build your own and this switches to your real concentration.
-          </span>
+        <GlassCard className="mt-6 p-10 text-center">
+          <p className="text-sm text-slate-300">Add your first holding to start portfolio analysis.</p>
+          <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-slate-500">
+            Your sector mix, regional split and concentration risk are computed from the holdings you
+            add — nothing is shown until you build a portfolio.
+          </p>
           <Link
             href="/portfolio"
-            className="ml-auto whitespace-nowrap rounded-full bg-gradient-to-r from-gold-400 to-gold-600 px-4 py-1.5 text-sm font-semibold text-ink transition hover:opacity-90"
+            className="mt-5 inline-flex rounded-full bg-gradient-to-r from-gold-400 to-gold-600 px-5 py-2.5 text-sm font-semibold text-ink transition hover:opacity-90"
           >
             Build your portfolio →
           </Link>
-        </div>
-      ) : null}
-
+        </GlassCard>
+      ) : (
+      <>
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
         <GlassCard className="p-5">
           <h3 className="font-display text-base font-semibold text-white">Concentration risk</h3>
@@ -213,9 +196,9 @@ export default function Diversification({ heading = true }: { heading?: boolean 
         </GlassCard>
 
         <GlassCard className="p-5">
-          <h3 className="font-display text-base font-semibold text-white">{regionTitle}</h3>
+          <h3 className="font-display text-base font-semibold text-white">Holdings by region</h3>
           <div className="mt-3 flex items-center justify-center">
-            <Donut segments={regionSegs} centerValue={`${regionSegs[0]?.pct ?? 0}%`} centerLabel={regionCenter} />
+            <Donut segments={regionSegs} centerValue={`${regionSegs[0]?.pct ?? 0}%`} centerLabel="top region" />
           </div>
           <ul className="mt-4 space-y-1.5">
             {regionSegs.map((s) => (
@@ -234,9 +217,7 @@ export default function Diversification({ heading = true }: { heading?: boolean 
       <GlassCard className="mt-4 p-5 sm:p-6">
         <div className="flex items-center justify-between">
           <h3 className="font-display text-base font-semibold text-white">Diversification across holdings</h3>
-          <span className="text-xs text-slate-500">
-            {weights.length} positions{isReal ? "" : " · sample"}
-          </span>
+          <span className="text-xs text-slate-500">{weights.length} positions</span>
         </div>
         <div className="mt-5 grid gap-x-8 gap-y-4 sm:grid-cols-2">
           {weights.map((h, i) => (
@@ -244,6 +225,8 @@ export default function Diversification({ heading = true }: { heading?: boolean 
           ))}
         </div>
       </GlassCard>
+      </>
+      )}
     </section>
   );
 }

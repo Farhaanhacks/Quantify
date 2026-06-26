@@ -120,11 +120,16 @@ export default function TradingIdeas({
 
       {showFilter ? (
         <div className="mt-6 rounded-2xl border border-gold/15 bg-gold/[0.04] p-4 sm:p-5">
-          <p className="text-sm leading-relaxed text-slate-300">
-            <span className="font-medium text-white">These are not recommendations. They are research maps.</span>{" "}
+          <span className="inline-flex items-center rounded-full border border-gold/40 bg-gold/10 px-2 py-0.5 text-[0.6rem] uppercase tracking-[0.14em] text-gold">
+            Curated research · editorial
+          </span>
+          <p className="mt-2 text-sm leading-relaxed text-slate-300">
+            <span className="font-medium text-white">These are not recommendations or live market signals. They are research maps.</span>{" "}
             Each theme lays out the investment question, the value chain, the
             bull / base / bear case, the thesis tests that would prove or break it,
-            and the source pack behind it.
+            and the source pack behind it. Any prices, market caps or news shown for a
+            named stock are pulled live — where live data isn&apos;t available we show that,
+            never a made-up number.
           </p>
         </div>
       ) : null}

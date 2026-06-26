@@ -5,6 +5,7 @@ import Link from "next/link";
 import { GlassCard, SectionHeading, Tag } from "@/components/quantifi/Cards";
 import { popularTickers } from "@/data/popularTickers";
 import type { NewsArticle } from "@/lib/news";
+import { analyzeNews, type Level, type Tone } from "@/lib/newsImpact";
 import { useProStatus } from "@/lib/useProStatus";
 import { FREE_LIMITS } from "@/data/plans";
 
@@ -57,49 +58,13 @@ function detectTickers(text: string): string[] {
   return Array.from(found).slice(0, 8);
 }
 
-const POS = ["surge", "jump", "gain", "beat", "rally", "soar", "record", "upgrade", "profit", "rise", "rose", "boost", "outperform", "strong", "high"];
-const NEG = ["plunge", "fall", "fell", "drop", "miss", "cut", "loss", "downgrade", "slump", "crash", "lawsuit", "probe", "warn", "weak", "decline", "tumble", "sink", "fear", "selloff", "sell-off"];
-
-type Tone = "positive" | "negative" | "mixed" | "neutral";
-
-function sentiment(text: string): Tone {
-  const t = text.toLowerCase();
-  let p = 0, n = 0;
-  for (const w of POS) if (t.includes(w)) p++;
-  for (const w of NEG) if (t.includes(w)) n++;
-  if (p > 0 && n > 0) return "mixed";
-  if (p > 0) return "positive";
-  if (n > 0) return "negative";
-  return "neutral";
-}
-
-function themeNote(text: string): string {
-  const t = text.toLowerCase();
-  if (/earnings|results|revenue|quarter|guidance|\beps\b/.test(t))
-    return "Earnings and guidance move a stock quickly and often ripple to peers in the same space.";
-  if (/\bfed\b|interest rate|rate cut|rate hike|inflation|\bcpi\b|jobs report|\bgdp\b/.test(t))
-    return "Macro news like this tends to move whole sectors and indices, not just one name.";
-  if (/acquir|merger|buyout|\bdeal\b|takeover|stake/.test(t))
-    return "Deals reprice the companies involved — and frequently their competitors too.";
-  if (/lawsuit|probe|investigat|regulat|antitrust|\bfine\b|\bban\b/.test(t))
-    return "Legal and regulatory headlines can weigh on sentiment well beyond the case itself.";
-  if (/launch|unveil|product|\bchip\b|partnership/.test(t))
-    return "Product and partnership news shapes the longer-term growth story more than the next print.";
-  if (/upgrade|downgrade|price target|analyst|rating/.test(t))
-    return "Analyst rating moves nudge short-term sentiment but aren't fundamentals themselves.";
-  return "Read it alongside the company's fundamentals before drawing any conclusion.";
-}
-
-function significance(text: string, tickers: string[], tone: Tone): string {
-  const names = tickers.length ? tickers.slice(0, 3).join(", ") : "the broader market";
-  const toneWord =
-    tone === "positive" ? "a potential tailwind" :
-    tone === "negative" ? "a potential headwind" :
-    tone === "mixed" ? "a mixed signal" : "context";
-  return `Reads as ${toneWord} for ${names}. ${themeNote(text)}`;
-}
-
 const REGIONS = ["All", "US", "India", "Global"] as const;
+
+const LEVEL_TONE: Record<Level, "up" | "gold" | "down"> = {
+  High: "up",
+  Medium: "gold",
+  Low: "down",
+};
 
 function Capsule({ t }: { t: string }) {
   return (
@@ -145,11 +110,11 @@ export default function NewsFeed({ items }: { items: NewsArticle[] }) {
   }, [selected]);
 
   const detail = selected
-    ? (() => {
-        const tickers = tickersByLink.get(selected.link) ?? [];
-        const tone = sentiment(`${selected.title} ${selected.summary}`);
-        return { tickers, tone, why: significance(`${selected.title} ${selected.summary}`, tickers, tone) };
-      })()
+    ? analyzeNews({
+        title: selected.title,
+        summary: selected.summary,
+        tickers: tickersByLink.get(selected.link) ?? [],
+      })
     : null;
 
   const toneTag = (tone: Tone) => (tone === "positive" ? "up" : tone === "negative" ? "down" : "teal");
@@ -259,43 +224,84 @@ export default function NewsFeed({ items }: { items: NewsArticle[] }) {
               ✕
             </button>
 
-            <div className="flex flex-wrap items-center gap-2 text-xs">
+            {/* 1 · Header badges */}
+            <h3 className="font-display text-xl font-semibold leading-snug text-white">{selected.title}</h3>
+            <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs">
               <span className="font-medium text-teal">{selected.source}</span>
               <span className="text-slate-500">· {timeAgo(selected.publishedMs)}</span>
               <Tag tone={selected.region === "India" ? "gold" : "teal"}>{selected.region}</Tag>
               <Tag tone={toneTag(detail.tone)}>{detail.tone} tone</Tag>
+              <Tag tone={LEVEL_TONE[detail.impact]}>{detail.impact} impact</Tag>
+              <Tag tone="neutral">{detail.confidence}% confidence</Tag>
             </div>
 
-            <h3 className="mt-3 font-display text-xl font-semibold leading-snug text-white">{selected.title}</h3>
-            {selected.summary ? (
-              <p className="mt-3 text-sm leading-relaxed text-slate-300">{selected.summary}</p>
-            ) : null}
-
-            {/* Why it matters */}
-            <div className="mt-5 rounded-xl border border-gold/20 bg-gold/[0.06] p-4">
-              <div className="text-[0.62rem] uppercase tracking-[0.16em] text-gold/80">Why it matters</div>
-              <p className="mt-1.5 text-sm leading-relaxed text-slate-200">{detail.why}</p>
-            </div>
-
-            {/* Affected stocks */}
+            {/* 2 · What changed */}
             <div className="mt-5">
-              <div className="text-[0.62rem] uppercase tracking-[0.16em] text-slate-500">
-                Stocks affected — tap for full analysis
-              </div>
-              {detail.tickers.length ? (
-                <div className="mt-2.5 flex flex-wrap gap-2">
-                  {detail.tickers.map((t) => (
-                    <Link
-                      key={t}
-                      href={`/stock-analysis?symbol=${t}`}
-                      onClick={() => setSelected(null)}
-                      className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 font-mono text-sm text-slate-200 transition hover:border-gold/40 hover:text-white"
-                    >
-                      {t}
-                      <span className={detail.tone === "positive" ? "text-up" : detail.tone === "negative" ? "text-down" : "text-slate-500"}>
-                        {detail.tone === "positive" ? "↑" : detail.tone === "negative" ? "↓" : "→"}
-                      </span>
-                    </Link>
+              <div className="text-[0.62rem] uppercase tracking-[0.16em] text-slate-500">What changed</div>
+              <p className="mt-1.5 text-sm leading-relaxed text-slate-200">{detail.whatChanged}</p>
+              {selected.summary ? (
+                <p className="mt-2 text-xs leading-relaxed text-slate-500">{selected.summary}</p>
+              ) : null}
+            </div>
+
+            {/* 3 · Why it matters */}
+            <div className="mt-4 rounded-xl border border-gold/20 bg-gold/[0.06] p-4">
+              <div className="text-[0.62rem] uppercase tracking-[0.16em] text-gold/80">Why it matters</div>
+              <p className="mt-1.5 text-sm leading-relaxed text-slate-200">{detail.whyItMatters}</p>
+            </div>
+
+            {/* 4 · Impact map */}
+            <div className="mt-5 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+              <div className="mb-3 text-[0.62rem] uppercase tracking-[0.16em] text-slate-500">Impact map</div>
+              <ol className="space-y-0">
+                {detail.impactMap.map((s, i) => (
+                  <li key={s} className="relative pl-7">
+                    <span className="absolute left-0 top-0.5 grid h-5 w-5 place-items-center rounded-full border border-gold/30 bg-gold/10 text-[0.6rem] font-semibold text-gold">
+                      {i + 1}
+                    </span>
+                    {i < detail.impactMap.length - 1 ? (
+                      <span className="absolute left-[9px] top-6 h-[calc(100%-1.25rem)] w-px bg-gradient-to-b from-gold/40 to-transparent" />
+                    ) : null}
+                    <p className={`pb-4 text-sm leading-snug ${i === detail.impactMap.length - 1 ? "text-white" : "text-slate-300"}`}>
+                      {s}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+            </div>
+
+            {/* 5 · Stocks affected */}
+            <div className="mt-5">
+              <div className="text-[0.62rem] uppercase tracking-[0.16em] text-slate-500">Stocks affected</div>
+              {detail.affected.length ? (
+                <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2">
+                  {detail.affected.map((a) => (
+                    <div key={a.ticker} className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3.5">
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-md border border-white/10 bg-white/[0.04] px-2 py-0.5 font-mono text-sm text-white">{a.ticker}</span>
+                        {a.primary ? <Tag tone="gold">Primary</Tag> : <span className="text-[0.65rem] text-slate-500">Read-through</span>}
+                      </div>
+                      <p className="mt-2 text-xs leading-relaxed text-slate-300">{a.role}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                        <span className="text-slate-500">Why: </span>{a.why}
+                      </p>
+                      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.65rem]">
+                        <span className={a.impact === "High" ? "text-up" : a.impact === "Medium" ? "text-gold" : "text-slate-400"}>
+                          Impact: {a.impact}
+                        </span>
+                        <span className="text-slate-400">Confidence: {a.confidence}</span>
+                      </div>
+                      <p className="mt-1.5 text-xs leading-relaxed text-slate-400">
+                        <span className="text-slate-500">Watch: </span>{a.watch}
+                      </p>
+                      <Link
+                        href={`/stock-analysis?symbol=${encodeURIComponent(a.ticker)}`}
+                        onClick={() => setSelected(null)}
+                        className="mt-2 inline-block text-[0.7rem] text-gold underline-offset-2 hover:underline"
+                      >
+                        Open analysis →
+                      </Link>
+                    </div>
                   ))}
                 </div>
               ) : (
@@ -303,6 +309,55 @@ export default function NewsFeed({ items }: { items: NewsArticle[] }) {
               )}
             </div>
 
+            {/* 6 · Linked Quantifi themes */}
+            {detail.themes.length ? (
+              <div className="mt-5">
+                <div className="text-[0.62rem] uppercase tracking-[0.16em] text-slate-500">Linked Quantifi themes</div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {detail.themes.map((t) => (
+                    <Link
+                      key={t.id}
+                      href={`/ideas?theme=${encodeURIComponent(t.id)}`}
+                      onClick={() => setSelected(null)}
+                      className="inline-flex items-center rounded-full border border-gold/25 bg-gold/[0.06] px-3 py-1 text-xs text-gold transition hover:border-gold/50"
+                    >
+                      {t.label} →
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {/* 7 · What to watch next */}
+            <div className="mt-5">
+              <div className="text-[0.62rem] uppercase tracking-[0.16em] text-slate-500">What to watch next</div>
+              <ul className="mt-2 space-y-1.5">
+                {detail.watchNext.map((w) => (
+                  <li key={w} className="flex items-start gap-2 text-xs text-slate-400">
+                    <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-gold" />
+                    {w}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* 8 · Signal classification */}
+            <div className="mt-5 grid gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 sm:grid-cols-3">
+              <div>
+                <div className="text-[0.58rem] uppercase tracking-[0.16em] text-slate-500">Signal type</div>
+                <div className="mt-1 text-xs font-medium text-slate-200">{detail.signalType}</div>
+              </div>
+              <div>
+                <div className="text-[0.58rem] uppercase tracking-[0.16em] text-slate-500">Thesis relevance</div>
+                <div className="mt-1 text-xs font-medium text-slate-200">{detail.thesisRelevance}</div>
+              </div>
+              <div>
+                <div className="text-[0.58rem] uppercase tracking-[0.16em] text-slate-500">Time horizon</div>
+                <div className="mt-1 text-xs font-medium text-slate-200">{detail.timeHorizon}</div>
+              </div>
+            </div>
+
+            {/* 9 · Footer */}
             <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-white/[0.06] pt-4">
               <a
                 href={selected.link}
@@ -313,7 +368,7 @@ export default function NewsFeed({ items }: { items: NewsArticle[] }) {
                 Read full article ↗
               </a>
               <p className="text-xs text-slate-500">
-                Stocks and significance are auto-detected from the text — a quick read, not a verdict.
+                Auto-generated impact map. Research starting point, not a recommendation.
               </p>
             </div>
           </div>

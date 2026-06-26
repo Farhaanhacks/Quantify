@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { GlassCard, SectionHeading, TickerChip, Tag } from "@/components/quantifi/Cards";
-import { insiderEvents, fmtCompact } from "@/data/demo";
+import { fmtCompact } from "@/data/demo";
 
 interface ApiTrade {
   id: string;
@@ -61,20 +61,6 @@ function tradeToRow(t: ApiTrade): Row {
   };
 }
 
-const demoRows: Row[] = insiderEvents.map((e) => ({
-  id: e.id,
-  ticker: e.ticker,
-  company: e.company,
-  person: e.person,
-  role: e.role,
-  actionLabel: e.type,
-  acquired: /buying|released/i.test(e.type),
-  planned: /pre-arranged|trading plan|10b5/i.test(e.note),
-  valueText: e.value,
-  sharesText: e.shares,
-  dateText: e.date,
-}));
-
 export default function InsiderActivity({
   showFilter = true,
   limit,
@@ -88,6 +74,7 @@ export default function InsiderActivity({
 }) {
   const [trades, setTrades] = useState<ApiTrade[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [filter, setFilter] = useState<Filter>("All");
 
   // Standalone (no fixed ticker) page lets the user search a company. `query`
@@ -99,17 +86,22 @@ export default function InsiderActivity({
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setError(false);
     const url = activeTicker
       ? `/api/insider/${encodeURIComponent(activeTicker)}`
       : "/api/insider-feed";
     (async () => {
       try {
         const r = await fetch(url);
+        if (!r.ok) throw new Error(`status ${r.status}`);
         const d = (await r.json()) as { available?: boolean; trades?: ApiTrade[] };
         if (cancelled) return;
         setTrades(d.available && Array.isArray(d.trades) ? d.trades : []);
       } catch {
-        if (!cancelled) setTrades([]);
+        if (!cancelled) {
+          setTrades([]);
+          setError(true);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -120,12 +112,12 @@ export default function InsiderActivity({
   }, [activeTicker]);
 
   const live = !!trades && trades.length > 0;
-  // For a specific company we don't fall back to unrelated demo rows.
-  const source: Row[] = useMemo(() => {
-    if (live) return (trades as ApiTrade[]).map(tradeToRow);
-    if (activeTicker) return [];
-    return demoRows;
-  }, [live, trades, activeTicker]);
+  // Live SEC EDGAR data only — never a demo fallback. An empty result is an
+  // honest empty state, not a reason to show fabricated trades.
+  const source: Row[] = useMemo(
+    () => (live ? (trades as ApiTrade[]).map(tradeToRow) : []),
+    [live, trades]
+  );
 
   const runSearch = () => {
     const t = queryInput.trim().toUpperCase();
@@ -196,7 +188,7 @@ export default function InsiderActivity({
               : "border-white/10 bg-white/[0.03] text-slate-500"
           }`}
         >
-          {loading ? "Loading…" : live ? "Live · SEC EDGAR" : ticker ? "No filings" : "Demo"}
+          {loading ? "Loading…" : live ? "Live · SEC EDGAR" : error ? "Unavailable" : "No filings"}
         </span>
         {showFilter
           ? filters.map((t) => (
@@ -261,8 +253,12 @@ export default function InsiderActivity({
 
         {!loading && filtered.length === 0 ? (
           <div className="px-5 py-10 text-center text-sm text-slate-500">
-            {activeTicker
-              ? `No recent insider (Form 4) filings found for ${activeTicker}. This is US-listed data — non-US tickers won't appear.`
+            {error
+              ? "Couldn't reach SEC EDGAR right now — Form 4 data is fetched live and may be rate-limited. Please try again shortly."
+              : activeTicker
+              ? `No recent insider activity found for ${activeTicker}. This is US-listed Form 4 data — non-US tickers (e.g. .NS) won't appear.`
+              : source.length === 0
+              ? "No recent insider activity found right now."
               : "No activity matches this filter."}
           </div>
         ) : null}

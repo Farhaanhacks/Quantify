@@ -9,7 +9,7 @@ import {
   ChangePill,
   Sparkline,
 } from "@/components/quantifi/Cards";
-import { stockByTicker, fmtPrice, fmtPct, dirOf } from "@/data/demo";
+import { fmtPrice, fmtPct, dirOf } from "@/data/demo";
 import { usePortfolios, resolveName } from "@/lib/usePortfolios";
 
 interface Row {
@@ -83,18 +83,15 @@ export default function PortfolioStocks({
     () =>
       saved.map((h) => {
         const q = quotes[h.ticker];
-        const sd = stockByTicker[h.ticker.toUpperCase()];
         return {
           ticker: h.ticker,
           name: q?.name ?? resolveName(h.ticker) ?? h.ticker,
-          sector: sd?.sector,
-          geo: sd?.region,
           shares: h.shares,
           avgCost: h.avgCost,
           price: q?.price ?? h.price,
           currency: q?.currency ?? (/\.(NS|BO)$/i.test(h.ticker) ? "INR" : "USD"),
-          dayPct: q?.changePct ?? sd?.changePct ?? null,
-          spark: q?.spark ?? sd?.spark ?? null,
+          dayPct: q?.changePct ?? null,
+          spark: q?.spark ?? null,
         };
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps

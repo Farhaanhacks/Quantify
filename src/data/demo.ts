@@ -19,16 +19,6 @@ export interface Stock {
   spark: number[]; // small illustrative series
 }
 
-export interface Holding {
-  ticker: string;
-  name: string;
-  sector: string;
-  geo: string;
-  shares: number;
-  avgCost: number;
-  price: number;
-}
-
 // The thematic research library now lives in ./ideas (richer model). Re-export
 // so existing `@/data/demo` imports keep working.
 export type { TradingIdea } from "./ideas";
@@ -74,29 +64,6 @@ export interface NewsItem {
   etfs: AffectedStock[];
   whyAffected: string;
   whatToWatch: string[];
-}
-
-export type InsiderType =
-  | "Insider Buying"
-  | "Insider Selling"
-  | "Promoter Stake Change"
-  | "Pledge Created"
-  | "Pledge Released"
-  | "Large Transaction"
-  | "Repeated Selling"
-  | "Unusual Activity";
-
-export interface InsiderEvent {
-  id: string;
-  ticker: string;
-  company: string;
-  person: string;
-  role: string;
-  type: InsiderType;
-  value: string;
-  shares: string;
-  date: string;
-  note: string;
 }
 
 
@@ -162,60 +129,6 @@ export const topMovers: { ticker: string; changePct: number }[] = [
   { ticker: "NVDA", changePct: 2.41 },
   { ticker: "TSLA", changePct: -1.85 },
   { ticker: "RELIANCE.NS", changePct: -0.73 },
-];
-
-// ── Portfolio ────────────────────────────────────────────────────────────────
-
-export const holdings: Holding[] = [
-  { ticker: "NVDA", name: "NVIDIA Corp.", sector: "Semiconductors", geo: "US", shares: 120, avgCost: 96.4, price: 174.32 },
-  { ticker: "MSFT", name: "Microsoft Corp.", sector: "Software", geo: "US", shares: 30, avgCost: 388.2, price: 472.18 },
-  { ticker: "PLTR", name: "Palantir Technologies", sector: "Software", geo: "US", shares: 240, avgCost: 41.7, price: 84.26 },
-  { ticker: "TCS.NS", name: "Tata Consultancy Services", sector: "IT Services", geo: "India", shares: 90, avgCost: 3640.0, price: 4128.5 },
-  { ticker: "RELIANCE.NS", name: "Reliance Industries", sector: "Conglomerate", geo: "India", shares: 180, avgCost: 1380.0, price: 1492.2 },
-  { ticker: "RKLB", name: "Rocket Lab", sector: "Aerospace", geo: "US", shares: 300, avgCost: 19.8, price: 31.42 },
-  { ticker: "QQQ", name: "Invesco QQQ Trust", sector: "ETF", geo: "US", shares: 40, avgCost: 488.0, price: 542.9 },
-].map((h) => ({ ...h })) as Holding[];
-
-// Holdings carry mixed currencies in real life; for the demo we treat values in a
-// single notional unit so weights/diversification math stays simple and illustrative.
-export const holdingValue = (h: Holding) => h.shares * h.price;
-
-export const portfolioTotal = holdings.reduce((sum, h) => sum + holdingValue(h), 0);
-
-export const portfolioMeta = {
-  dayChangePct: 1.12,
-  unrealizedPct: 38.6,
-  positions: holdings.length,
-  beta: 1.28,
-  topWeightPct: Math.round((Math.max(...holdings.map(holdingValue)) / portfolioTotal) * 100),
-};
-
-export const sectorDiversification = [
-  { name: "Semiconductors", pct: 41, color: "#E9B872" },
-  { name: "Software", pct: 26, color: "#4FD1C5" },
-  { name: "IT Services", pct: 14, color: "#818CF8" },
-  { name: "Conglomerate", pct: 11, color: "#F472B6" },
-  { name: "Aerospace", pct: 5, color: "#34D399" },
-  { name: "ETF", pct: 3, color: "#94A3B8" },
-];
-
-export const geoRevenueSplit = [
-  { name: "United States", pct: 58, color: "#E9B872" },
-  { name: "Asia-Pacific", pct: 22, color: "#4FD1C5" },
-  { name: "Europe", pct: 12, color: "#818CF8" },
-  { name: "Rest of World", pct: 8, color: "#94A3B8" },
-];
-
-export const concentrationNotes = [
-  { label: "Single-name concentration", detail: "NVDA is the largest weight — a single semiconductor name drives a meaningful share of moves.", level: "Elevated" as const },
-  { label: "Sector concentration", detail: "Semis + Software together dominate the book. Tech-correlated names tend to move together.", level: "High" as const },
-  { label: "Geographic mix", detail: "US-listed exposure leads, with a secondary India sleeve via TCS and Reliance.", level: "Moderate" as const },
-];
-
-export const stocksToReview = [
-  { ticker: "NVDA", reason: "Largest weight + high beta — worth keeping on your risk lens after the recent run." },
-  { ticker: "TSLA", reason: "Not held, but on your watchlist and showing the weakest tape in the group today." },
-  { ticker: "PLTR", reason: "Strong momentum and an insider-selling cluster flagged this week." },
 ];
 
 // ── Trading / investing ideas ────────────────────────────────────────────────
@@ -434,97 +347,6 @@ export const news: NewsItem[] = [
     ],
   },
 ];
-
-// ── Insider activity ─────────────────────────────────────────────────────────
-
-export const insiderTypes: InsiderType[] = [
-  "Insider Buying",
-  "Insider Selling",
-  "Promoter Stake Change",
-  "Pledge Created",
-  "Pledge Released",
-  "Large Transaction",
-  "Repeated Selling",
-  "Unusual Activity",
-];
-
-export const insiderEvents: InsiderEvent[] = [
-  { id: "i1", ticker: "PLTR", company: "Palantir Technologies", person: "S. Director", role: "Board Member", type: "Insider Selling", value: "$12.4M", shares: "150,000", date: "2d ago", note: "Sale under a pre-arranged trading plan." },
-  { id: "i2", ticker: "PLTR", company: "Palantir Technologies", person: "Exec Officer", role: "C-Suite", type: "Repeated Selling", value: "$8.1M", shares: "98,000", date: "6d ago", note: "Third disposal logged this quarter." },
-  { id: "i3", ticker: "NVDA", company: "NVIDIA Corp.", person: "Officer", role: "VP", type: "Large Transaction", value: "$22.0M", shares: "126,000", date: "3d ago", note: "Sizable transaction relative to recent filings." },
-  { id: "i4", ticker: "AMD", company: "Advanced Micro Devices", person: "Insider", role: "Director", type: "Insider Buying", value: "$1.9M", shares: "11,200", date: "4d ago", note: "Open-market purchase." },
-  { id: "i5", ticker: "RELIANCE.NS", company: "Reliance Industries", person: "Promoter Group", role: "Promoter", type: "Promoter Stake Change", value: "₹640Cr", shares: "—", date: "1w ago", note: "Reported change in promoter holding." },
-  { id: "i6", ticker: "TCS.NS", company: "Tata Consultancy Services", person: "Promoter Group", role: "Promoter", type: "Pledge Released", value: "—", shares: "—", date: "1w ago", note: "Previously pledged shares released." },
-  { id: "i7", ticker: "INFY.NS", company: "Infosys Ltd.", person: "Founder Family", role: "Promoter", type: "Pledge Created", value: "—", shares: "—", date: "2w ago", note: "New pledge reported against holdings." },
-  { id: "i8", ticker: "RKLB", company: "Rocket Lab", person: "Insider", role: "Officer", type: "Unusual Activity", value: "$0.6M", shares: "19,000", date: "5d ago", note: "Pattern differs from prior filing history." },
-  { id: "i9", ticker: "ORCL", company: "Oracle Corp.", person: "Director", role: "Board Member", type: "Insider Buying", value: "$3.4M", shares: "17,000", date: "1w ago", note: "Open-market purchase after results." },
-];
-
-
-// ── Stock analysis (demo selected stock) ─────────────────────────────────────
-
-export interface ValuationMetric {
-  label: string;
-  value: string;
-  context: string;
-}
-
-export interface StockAnalysisData {
-  ticker: string;
-  name: string;
-  exchange: string;
-  sector: string;
-  price: number;
-  changePct: number;
-  marketCap: string;
-  overview: string;
-  highlights: { label: string; value: string }[];
-  valuation: ValuationMetric[];
-  newsIds: string[];
-  insiderIds: string[];
-  risks: string[];
-  whatToWatch: string[];
-}
-
-export const stockAnalysis: StockAnalysisData = {
-  ticker: "NVDA",
-  name: "NVIDIA Corp.",
-  exchange: "NASDAQ",
-  sector: "Semiconductors",
-  price: 174.32,
-  changePct: 2.41,
-  marketCap: "$4.2T",
-  overview:
-    "NVIDIA designs accelerated-computing hardware and software central to the current AI buildout — a useful example of how a single name connects to news, insiders, peers and risk lenses across Quantifi.",
-  highlights: [
-    { label: "Day change", value: "+2.41%" },
-    { label: "30-day trend", value: "Higher" },
-    { label: "Sector", value: "Semiconductors" },
-    { label: "In your portfolio", value: "Largest weight" },
-  ],
-  valuation: [
-    { label: "P/E (demo)", value: "48.2x", context: "Above the 5-yr average on demo data" },
-    { label: "Fwd P/E (demo)", value: "33.6x", context: "Reflects high expected growth" },
-    { label: "P/S (demo)", value: "26.1x", context: "Premium to the sector" },
-    { label: "PEG (demo)", value: "1.4x", context: "Growth-adjusted, mid-range" },
-    { label: "EV/EBITDA (demo)", value: "41.0x", context: "Elevated vs peers" },
-    { label: "Div. yield (demo)", value: "0.03%", context: "Minimal — reinvests for growth" },
-  ],
-  newsIds: ["n1", "n2"],
-  insiderIds: ["i3"],
-  risks: [
-    "Valuation is rich — sentiment shifts can drive outsized moves.",
-    "Demand durability is debated (see the AI Bubble and vendor-financing lenses).",
-    "Customer concentration among a handful of large buyers.",
-    "Policy and export-control headlines can affect addressable demand.",
-  ],
-  whatToWatch: [
-    "Hyperscaler capex guidance on upcoming calls",
-    "Order backlog and supplier lead times",
-    "Any disclosure on customer financing arrangements",
-    "Gross-margin trajectory as the product mix shifts",
-  ],
-};
 
 // ── Watchlist ────────────────────────────────────────────────────────────────
 
