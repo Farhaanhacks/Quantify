@@ -499,13 +499,32 @@ export const watchlist = {
 
 export type ScoreAxisKey = "value" | "growth" | "past" | "health" | "dividends";
 
-export const SCORE_AXES: { key: ScoreAxisKey; label: string }[] = [
-  { key: "value", label: "Value" },
-  { key: "growth", label: "Future Growth" },
-  { key: "past", label: "Past Performance" },
-  { key: "health", label: "Financial Health" },
-  { key: "dividends", label: "Dividends" },
+export const SCORE_AXES: {
+  key: ScoreAxisKey;
+  label: string;
+  short: string; // radar / compact label
+  question: string; // the main thesis question for this axis
+}[] = [
+  { key: "value", label: "Valuation Comfort", short: "Valuation", question: "Can earnings grow fast enough to justify the multiple?" },
+  { key: "growth", label: "Growth Durability", short: "Growth", question: "Is the growth durable, or is it already slowing?" },
+  { key: "past", label: "Profitability Quality", short: "Quality", question: "Does the business earn high-quality, durable profits?" },
+  { key: "health", label: "Balance Sheet Strength", short: "Balance", question: "Could the balance sheet absorb a downturn?" },
+  { key: "dividends", label: "Capital Allocation", short: "Capital", question: "Is capital returned to shareholders, and is it sustainable?" },
 ];
+
+// A qualitative read for an axis score (0–6) — so the scorecard reads like
+// analysis ("Demanding", "Durable") rather than a binary tick.
+export function axisLabel(key: ScoreAxisKey, score: number): string {
+  const band = score >= 5 ? 3 : score >= 3 ? 2 : score >= 1 ? 1 : 0;
+  const M: Record<ScoreAxisKey, [string, string, string, string]> = {
+    value: ["Priced for perfection", "Demanding", "Fair", "Attractive"],
+    growth: ["Unproven", "Soft", "Slowing", "Durable"],
+    past: ["Unprofitable", "Weak", "Mixed", "Strong"],
+    health: ["Fragile", "Stretched", "Manageable", "Strong"],
+    dividends: ["No payout", "Light", "Mixed", "Shareholder-friendly"],
+  };
+  return M[key][band];
+}
 
 export interface ScoreCheck {
   label: string;

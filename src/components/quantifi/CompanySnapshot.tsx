@@ -8,6 +8,7 @@ import {
   companyAnalytics,
   stockByTicker,
   SCORE_AXES,
+  axisLabel,
   overallScore,
   fmtPrice,
   type ScoreAxisKey,
@@ -20,6 +21,16 @@ function axisColor(score: number): string {
   if (score >= 3) return "#E9B872";
   return "#FB7185";
 }
+
+// Tone for an axis label chip.
+function labelTone(score: number): string {
+  if (score >= 5) return "border-up/30 bg-up/10 text-up";
+  if (score >= 3) return "border-gold/30 bg-gold/10 text-gold";
+  return "border-down/30 bg-down/10 text-down";
+}
+
+// Score on a 0–10 feel (stored 0–6).
+const toTen = (score: number) => Math.round((score / 6) * 10);
 
 export default function CompanySnapshot({
   ticker,
@@ -45,11 +56,44 @@ export default function CompanySnapshot({
 
   const total = overallScore(a); // 0–30
   const radarValues = SCORE_AXES.map((axis) => a.scores[axis.key].score);
-  const radarLabels = SCORE_AXES.map((axis) => axis.label.split(" ")[0]);
+  const radarLabels = SCORE_AXES.map((axis) => axis.short);
 
   const gap = ((a.fairValue.estimate - resolvedPrice) / resolvedPrice) * 100;
   const under = gap > 0;
   const tag = live ? "" : " (demo)";
+
+  // --- Synthesis: strongest / weakest axis, a risk lens and a one-line read ---
+  const ranked = [...SCORE_AXES]
+    .map((axis) => ({ axis, score: a.scores[axis.key].score }))
+    .sort((x, y) => y.score - x.score);
+  const strongest = ranked[0];
+  const weakest = ranked[ranked.length - 1];
+  const valuationScore = a.scores.value.score; // higher = cheaper
+  const profitScore = a.scores.past.score;
+
+  // Risk lens: weak axes + valuation stretch + unprofitability.
+  const weakCount = ranked.filter((r) => r.score <= 2).length;
+  const riskPoints = weakCount + (gap < 0 ? 1 : 0) + (profitScore <= 1 ? 1 : 0);
+  const riskLens =
+    riskPoints >= 4 ? "Severe" : riskPoints >= 3 ? "High" : riskPoints >= 1 ? "Medium" : "Low";
+  const riskTone =
+    riskLens === "Low"
+      ? "border-up/30 bg-up/10 text-up"
+      : riskLens === "Medium"
+      ? "border-gold/30 bg-gold/10 text-gold"
+      : "border-down/30 bg-down/10 text-down";
+
+  // One-line read that names the soft spot rather than declaring perfection.
+  const valuationHint =
+    valuationScore <= 2
+      ? "the quality already looks priced in"
+      : valuationScore >= 5
+      ? "and it still screens reasonably valued"
+      : "with a fair, not cheap, valuation";
+  const quantifiRead =
+    weakest.score >= 5
+      ? `Screens strongly across the board — ${valuationHint}. The thesis test now is whether it can keep beating already-high expectations.`
+      : `Strongest on ${strongest.axis.label.toLowerCase()}; the soft spot is ${weakest.axis.label.toLowerCase()} (${axisLabel(weakest.axis.key, weakest.score)}). Key thesis test: ${weakest.axis.question.toLowerCase()}`;
 
   // Independent DCF (cash-flow) valuation, when available.
   const cf = a.cashflowValue;
@@ -179,9 +223,9 @@ export default function CompanySnapshot({
     <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
       {heading ? (
         <SectionHeading
-          eyebrow="Quantifi Score"
-          title="Fundamentals at a glance"
-          subtitle="A five-axis read on value, growth, performance, health and dividends — each scored from a checklist. A research summary, never a rating to act on."
+          eyebrow="Stock Scorecard"
+          title="Thesis tests, not a tick-box"
+          subtitle="Five lenses — valuation comfort, growth durability, profitability quality, balance-sheet strength and capital allocation — each with what supports it, what worries us, and the question it turns on. A research summary, never a rating to act on."
         />
       ) : null}
 
@@ -214,32 +258,86 @@ export default function CompanySnapshot({
             {SCORE_AXES.map((axis) => {
               const d = a.scores[axis.key as ScoreAxisKey];
               const p = (d.score / 6) * 100;
+              const supports = d.checks.filter((c) => c.pass);
+              const worries = d.checks.filter((c) => !c.pass);
               return (
                 <details key={axis.key} className="group rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
-                    <span className="text-sm text-slate-200">{axis.label}</span>
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm text-slate-200">{axis.label}</span>
+                      <span className={`rounded-full border px-1.5 py-px text-[0.6rem] font-medium ${labelTone(d.score)}`}>
+                        {axisLabel(axis.key, d.score)}
+                      </span>
+                    </span>
                     <span className="flex items-center gap-3">
-                      <span className="hidden h-2 w-28 overflow-hidden rounded-full bg-white/[0.06] sm:block">
+                      <span className="hidden h-2 w-24 overflow-hidden rounded-full bg-white/[0.06] sm:block">
                         <span className="block h-full rounded-full" style={{ width: `${p}%`, backgroundColor: axisColor(d.score) }} />
                       </span>
-                      <span className="font-mono text-sm tnum text-white">{d.score}/6</span>
+                      <span className="font-mono text-sm tnum text-white">{toTen(d.score)}/10</span>
                       <span className="text-slate-500 transition group-open:rotate-90" aria-hidden>›</span>
                     </span>
                   </summary>
-                  <ul className="mt-3 space-y-1.5 border-t border-white/[0.05] pt-3">
-                    {d.checks.map((chk, i) => (
-                      <li key={i} className="flex items-center gap-2 text-xs">
-                        <span className={chk.pass ? "text-up" : "text-slate-600"}>{chk.pass ? "✓" : "✕"}</span>
-                        <span className={chk.pass ? "text-slate-300" : "text-slate-500 line-through"}>{chk.label}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="mt-3 space-y-2.5 border-t border-white/[0.05] pt-3">
+                    {supports.length ? (
+                      <div>
+                        <div className="text-[0.58rem] uppercase tracking-[0.14em] text-up/80">What supports it</div>
+                        <ul className="mt-1 space-y-1">
+                          {supports.map((chk, i) => (
+                            <li key={i} className="flex items-start gap-2 text-xs text-slate-300">
+                              <span className="mt-0.5 text-up">✓</span>
+                              <span>{chk.label}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                    {worries.length ? (
+                      <div>
+                        <div className="text-[0.58rem] uppercase tracking-[0.14em] text-down/80">What worries us</div>
+                        <ul className="mt-1 space-y-1">
+                          {worries.map((chk, i) => (
+                            <li key={i} className="flex items-start gap-2 text-xs text-slate-400">
+                              <span className="mt-0.5 text-down">✕</span>
+                              <span>{chk.label}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                    <p className="text-[0.7rem] leading-relaxed text-slate-500">
+                      <span className="text-slate-400">Main question: </span>
+                      {axis.question}
+                    </p>
+                  </div>
                 </details>
               );
             })}
           </div>
         </GlassCard>
       </div>
+
+      {/* Quantifi Read — synthesis: the soft spot and the key thesis test */}
+      <GlassCard className="mt-4 border-gold/20 bg-gold/[0.06] p-5 sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="text-[0.7rem] uppercase tracking-[0.16em] text-gold/80">Quantifi read</div>
+          <div className="flex items-center gap-2 text-[0.7rem]">
+            <span className="uppercase tracking-[0.12em] text-slate-500">Risk lens</span>
+            <span className={`rounded-full border px-2 py-0.5 font-semibold ${riskTone}`}>{riskLens}</span>
+          </div>
+        </div>
+        <p className="mt-2 text-sm leading-relaxed text-slate-200">{quantifiRead}</p>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {SCORE_AXES.map((axis) => (
+            <span
+              key={axis.key}
+              className={`rounded-full border px-2 py-0.5 text-[0.6rem] ${labelTone(a.scores[axis.key].score)}`}
+              title={`${axis.label}: ${toTen(a.scores[axis.key].score)}/10`}
+            >
+              {axis.short} · {axisLabel(axis.key, a.scores[axis.key].score)}
+            </span>
+          ))}
+        </div>
+      </GlassCard>
 
       {/* Divergence flag — shown when the two valuation lenses disagree widely. */}
       {diverge ? (
