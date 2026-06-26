@@ -24,9 +24,10 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://quantifiapp.com"),
   title: "Quantifi — See what's moving, why, and which stocks are affected",
   description:
-    "Quantifi turns market news, insider activity, and portfolio risk into clear research signals. An educational market-discovery & analytics platform.",
+    "Quantifi is an educational market-research and analytics platform — it turns market news, insider filings and portfolio risk into clear research. Not a broker or adviser, and not investment advice.",
 };
 
 export default function RootLayout({

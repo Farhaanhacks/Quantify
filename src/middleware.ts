@@ -7,8 +7,19 @@ import { NextResponse, type NextRequest } from "next/server";
 // in every data API and server component, so a forged cookie sees no data.
 const SESSION_COOKIE = "quantifi_session";
 
-// Public routes that never require a session.
-const PUBLIC_PATHS = new Set<string>(["/"]);
+// Public routes that never require a session. Includes the trust & compliance
+// pages (privacy, terms, refund, contact, about) and the pricing page — these
+// must be crawlable and viewable by anyone (and by Google Safe Browsing) for
+// transparency, so they are intentionally outside the sign-in gate.
+const PUBLIC_PATHS = new Set<string>([
+  "/",
+  "/about",
+  "/contact",
+  "/privacy",
+  "/terms",
+  "/refund-policy",
+  "/pricing",
+]);
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

@@ -49,11 +49,11 @@ const columns: { title: string; items: { label: string; href: string }[] }[] = [
     title: "Quantifi",
     items: [
       { label: "Plans & Pricing", href: "/pricing" },
-      { label: "About Us", href: "/" },
-      { label: "Contact Us", href: "/" },
-      { label: "Help Center", href: "/" },
-      { label: "Learn Stock Investing", href: "/" },
-      { label: "Business & Enterprise", href: "/" },
+      { label: "About", href: "/about" },
+      { label: "Contact", href: "/contact" },
+      { label: "Privacy Policy", href: "/privacy" },
+      { label: "Terms of Service", href: "/terms" },
+      { label: "Refund & Cancellation", href: "/refund-policy" },
     ],
   },
 ];
@@ -86,16 +86,32 @@ export default function Footer() {
           <div className="flex items-center">
             <BrandLogo className="h-14" />
           </div>
-          <p className="text-xs text-slate-500">
-            © {new Date().getFullYear()} Quantifi — market-discovery &amp; analytics.
-          </p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
+            {[
+              { href: "/about", label: "About" },
+              { href: "/privacy", label: "Privacy" },
+              { href: "/terms", label: "Terms" },
+              { href: "/refund-policy", label: "Refund & Cancellation" },
+              { href: "/contact", label: "Contact" },
+            ].map((l) => (
+              <Link key={l.href} href={l.href} className="transition hover:text-gold">
+                {l.label}
+              </Link>
+            ))}
+          </div>
         </div>
 
-        <p className="mt-6 max-w-4xl text-[0.72rem] leading-relaxed text-slate-600">
-          Quantifi is an educational market-research and analytics platform. Everything shown is for
-          informational and educational purposes only and is not financial, investment or trading
-          advice, nor a recommendation to buy, sell or hold any security. Market data is provided on
-          a best-efforts basis and may be delayed; always verify independently before acting.
+        <p className="mt-6 text-xs text-slate-500">
+          © {new Date().getFullYear()} Quantifi — educational market research &amp; analytics. Payments processed securely by Razorpay.
+        </p>
+
+        <p className="mt-3 max-w-4xl text-[0.72rem] leading-relaxed text-slate-600">
+          <strong className="text-slate-500">Quantifi is for research and education only. Not investment advice.</strong>{" "}
+          Everything shown is for informational and educational purposes only and is not financial,
+          investment or trading advice, nor a recommendation to buy, sell or hold any security. Quantifi
+          is not a broker, exchange or registered investment adviser and is not affiliated with any
+          broker or exchange. Market data is provided on a best-efforts basis and may be delayed; always
+          verify independently before acting.
         </p>
       </div>
     </footer>

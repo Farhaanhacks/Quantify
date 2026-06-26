@@ -1,3 +1,4 @@
+import Link from "next/link";
 import PricingPlans from "@/components/quantifi/PricingPlans";
 import { Eyebrow } from "@/components/quantifi/Cards";
 import { QUANTIFI_PRO } from "@/data/plans";
@@ -28,9 +29,28 @@ export default function PricingPage() {
         <PricingPlans />
       </div>
 
-      <p className="mt-8 text-center text-xs text-slate-600">
-        Payments are processed securely by Razorpay. You can cancel anytime.
-      </p>
+      <div className="mt-8 space-y-3 text-center">
+        <p className="text-xs text-slate-500">
+          🔒 Payments are securely processed by <span className="text-slate-300">Razorpay</span>. Quantifi
+          never sees or stores your card, UPI or bank details. Quantifi Pro auto-renews monthly; cancel
+          anytime.
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-slate-500">
+          {[
+            { href: "/terms", label: "Terms of Service" },
+            { href: "/privacy", label: "Privacy Policy" },
+            { href: "/refund-policy", label: "Refund & Cancellation" },
+            { href: "/contact", label: "Contact" },
+          ].map((l) => (
+            <Link key={l.href} href={l.href} className="transition hover:text-gold">
+              {l.label}
+            </Link>
+          ))}
+        </div>
+        <p className="text-[0.7rem] text-slate-600">
+          Quantifi is for research and education only. Not investment advice.
+        </p>
+      </div>
     </section>
   );
 }
