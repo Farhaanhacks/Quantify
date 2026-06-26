@@ -9,6 +9,10 @@ import NewsImpact from "@/components/quantifi/NewsImpact";
 import InsiderActivity from "@/components/quantifi/InsiderActivity";
 import ExploreCompanies from "@/components/quantifi/ExploreCompanies";
 
+// Re-render at most once a minute so the live market strip (and its
+// "last updated" timestamp) stay fresh without hammering the data source.
+export const revalidate = 60;
+
 export default function HomePage() {
   return (
     <>

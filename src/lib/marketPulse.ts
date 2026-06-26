@@ -70,8 +70,22 @@ function fmtVal(v: number, fmt: Fmt): string {
   return v.toFixed(2);
 }
 
-export async function getPulse(): Promise<{ pulse: PulseEntry[]; movers: MoverEntry[]; live: boolean }> {
+export async function getPulse(): Promise<{
+  pulse: PulseEntry[];
+  movers: MoverEntry[];
+  live: boolean;
+  asOf: string;
+}> {
   let live = false;
+  const asOf =
+    new Date().toLocaleString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "UTC",
+      hour12: false,
+    }) + " UTC";
 
   // One batched, authoritative quote call for every symbol on the bar. We use
   // Yahoo's reported day-change directly so the numbers match what a broker
@@ -131,5 +145,5 @@ export async function getPulse(): Promise<{ pulse: PulseEntry[]; movers: MoverEn
     return { ticker: m.ticker, changePct: m.changePct, price: 0 };
   });
 
-  return { pulse, movers, live };
+  return { pulse, movers, live, asOf };
 }
