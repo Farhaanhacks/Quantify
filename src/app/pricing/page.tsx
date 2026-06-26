@@ -13,13 +13,14 @@ export default function PricingPage() {
       <div className="text-center">
         <Eyebrow>Quantifi Pro</Eyebrow>
         <h1 className="mt-3 font-display text-3xl font-semibold text-white sm:text-4xl">
-          Unlock Quantifi Pro
+          Less than a Red Bull. Built for better market thinking.
         </h1>
         <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-slate-400">
           Just {QUANTIFI_PRO.price}/month (standard price ₹500) — cancel anytime.
           Everything else in Quantifi stays free. Pro adds the deep-research surfaces —
-          Stock Analysis, Insider Activity and Rare Finds. Educational research tools
-          only — Quantifi never gives buy, sell or hold advice.
+          Stock Analysis, Insider Activity and Rare Finds. Because better market
+          thinking should be more accessible. Educational research tools only —
+          Quantifi never gives buy, sell or hold advice.
         </p>
       </div>
 

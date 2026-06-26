@@ -100,7 +100,7 @@ export default function Community() {
       <SectionHeading
         eyebrow="Community"
         title="Community Research"
-        subtitle="Curated research playbooks built for study, not recommendations."
+        subtitle="Community isn't a comment wall. It's where Quantifi decodes the major market frameworks — curated research playbooks built for study, not recommendations."
       />
 
       {/* Featured Research Playbooks */}

@@ -34,10 +34,20 @@ export interface Holding {
 export type { TradingIdea } from "./ideas";
 export { ideaCategories, tradingIdeas } from "./ideas";
 
+export type ImpactLevel = "Low" | "Medium" | "High";
+
 export interface AffectedStock {
   ticker: string;
-  note: string;
+  note: string; // why this name is affected
   dir: Direction;
+  role?: string; // what this name represents in the chain (e.g. "AI cloud infrastructure")
+  watch?: string; // the specific metric to watch on this name
+  impact?: ImpactLevel; // strength of the read-through to this name
+}
+
+export interface LinkedTheme {
+  id: string; // matches a Quantifi Idea/theme id (deep-links to /ideas?theme=id)
+  label: string;
 }
 
 export interface NewsItem {
@@ -48,6 +58,16 @@ export interface NewsItem {
   region: MarketRegion;
   sentiment: "positive" | "negative" | "mixed";
   summary: string;
+  // ── Analytical layer (the "impact map") ──
+  whatChanged: string; // one or two sentences: what actually changed
+  impact: ImpactLevel; // overall market impact of the item
+  confidence: number; // 0–100: how confident the read-through is
+  impactMap: string[]; // ordered causal chain, rendered vertically
+  signalType: string; // e.g. "Sentiment / Narrative", "Fundamental", "Event-driven"
+  thesisRelevance: ImpactLevel; // does this move a thesis, or is it noise?
+  timeHorizon: string; // e.g. "Short-term, unless confirmed by filings"
+  linkedThemes: LinkedTheme[]; // related Quantifi research themes
+  // ── Read-through detail ──
   direct: AffectedStock[];
   peers: AffectedStock[];
   sector: { name: string; note: string };
@@ -79,18 +99,6 @@ export interface InsiderEvent {
   note: string;
 }
 
-export interface FamousTake {
-  id: string;
-  author: string;
-  role: string;
-  lens: string;
-  thesis: string;
-  affectedStocks: string[];
-  affectedEtfs: string[];
-  risk: string;
-  monitor: string[];
-  stance: "Cautious" | "Contrarian" | "Skeptical";
-}
 
 // ── Universe of demo tickers ────────────────────────────────────────────────
 
@@ -225,13 +233,31 @@ export const news: NewsItem[] = [
     sentiment: "positive",
     summary:
       "A major cloud provider lifted its full-year capital spending outlook, citing accelerating demand for AI training and inference capacity.",
+    whatChanged:
+      "A top hyperscaler raised its full-year capex guide — a hard budget number, not a forecast — signalling more spend on AI compute over the next several quarters.",
+    impact: "High",
+    confidence: 78,
+    impactMap: [
+      "Hyperscaler lifts FY data-centre capex guide",
+      "More dollars committed to AI compute & networking",
+      "Order pipeline strengthens for accelerator suppliers",
+      "NVDA / AMD and the semi ETFs re-rate on demand visibility",
+    ],
+    signalType: "Fundamental",
+    thesisRelevance: "High",
+    timeHorizon: "Multi-quarter — a guided budget tends to convert into orders",
+    linkedThemes: [
+      { id: "ai-power-bottleneck", label: "AI Power Bottleneck" },
+      { id: "sovereign-ai-stacks", label: "Sovereign AI Stacks" },
+      { id: "global-industrial-rebuild", label: "Global Industrial Rebuild" },
+    ],
     direct: [
-      { ticker: "NVDA", note: "Primary beneficiary of incremental accelerator demand", dir: "up" },
-      { ticker: "AMD", note: "Secondary accelerator supplier in the same buildout", dir: "up" },
+      { ticker: "NVDA", note: "Primary beneficiary of incremental accelerator demand", dir: "up", role: "AI accelerator supplier", watch: "Data-centre revenue, backlog, lead times", impact: "High" },
+      { ticker: "AMD", note: "Secondary accelerator supplier in the same buildout", dir: "up", role: "Challenger accelerator supplier", watch: "MI-series ramp, hyperscaler design wins", impact: "Medium" },
     ],
     peers: [
-      { ticker: "ORCL", note: "Cloud capacity peer with similar capex posture", dir: "up" },
-      { ticker: "MSFT", note: "Read-through to broader hyperscaler spend", dir: "flat" },
+      { ticker: "ORCL", note: "Cloud capacity peer with similar capex posture", dir: "up", role: "AI cloud capacity peer", watch: "RPO / backlog, capex guide", impact: "Medium" },
+      { ticker: "MSFT", note: "Read-through to broader hyperscaler spend", dir: "flat", role: "Hyperscaler peer", watch: "Own capex commentary next call", impact: "Low" },
     ],
     sector: { name: "Semiconductors", note: "Capex upgrades tend to lift the whole accelerator supply chain." },
     etfs: [
@@ -239,7 +265,7 @@ export const news: NewsItem[] = [
       { ticker: "SOXX", note: "Broad semi basket", dir: "up" },
     ],
     whyAffected:
-      "Higher cloud capex flows directly into orders for AI accelerators, memory and networking, lifting suppliers and the ETFs that hold them.",
+      "Higher cloud capex flows directly into orders for AI accelerators, memory and networking, lifting suppliers and the ETFs that hold them. Because it is a guided budget rather than a single quarter's result, the read-through is more durable than a typical headline.",
     whatToWatch: [
       "Whether other hyperscalers echo the higher capex on their calls",
       "Supplier lead-time and backlog commentary",
@@ -255,17 +281,35 @@ export const news: NewsItem[] = [
     sentiment: "mixed",
     summary:
       "Officials signaled scrutiny of circular financing structures where suppliers fund customers who then buy the supplier's products.",
+    whatChanged:
+      "A regulator flagged scrutiny of circular AI financing — where a chip supplier funds a customer that then buys its chips. Nothing in the numbers changed yet; what changed is the question being asked about demand quality.",
+    impact: "Medium",
+    confidence: 58,
+    impactMap: [
+      "Regulator signals review of vendor-financing structures",
+      "Investors question how much AI demand is self-funded",
+      "Demand-durability narrative around accelerators softens",
+      "NVDA / AMD sentiment wobbles ahead of any hard finding",
+    ],
+    signalType: "Sentiment / Narrative",
+    thesisRelevance: "Medium",
+    timeHorizon: "Short-term, unless a formal finding or disclosure follows",
+    linkedThemes: [
+      { id: "great-company-dangerous-price", label: "Great Company, Dangerous Price" },
+      { id: "ai-power-bottleneck", label: "AI Power Bottleneck" },
+      { id: "market-toll-booths", label: "Market Toll Booths" },
+    ],
     direct: [
-      { ticker: "NVDA", note: "Named in commentary on supplier-led financing", dir: "down" },
+      { ticker: "NVDA", note: "Named in commentary on supplier-led financing", dir: "down", role: "Accelerator supplier under scrutiny", watch: "Vendor-financing disclosure in filings", impact: "Medium" },
     ],
     peers: [
-      { ticker: "AMD", note: "Read-through to other accelerator vendors", dir: "down" },
-      { ticker: "ORCL", note: "Capacity-financing structures in focus", dir: "flat" },
+      { ticker: "AMD", note: "Read-through to other accelerator vendors", dir: "down", role: "Peer accelerator vendor", watch: "Customer-financing exposure", impact: "Low" },
+      { ticker: "ORCL", note: "Capacity-financing structures in focus", dir: "flat", role: "Capacity buyer/financier", watch: "Disclosed financing terms", impact: "Low" },
     ],
     sector: { name: "Semiconductors", note: "Questions about demand durability can weigh on sentiment broadly." },
     etfs: [{ ticker: "SMH", note: "Sentiment read-through to the basket", dir: "down" }],
     whyAffected:
-      "If demand is partly funded by the vendors themselves, investors may question how much is organic — a narrative risk more than an earnings one for now.",
+      "If demand is partly funded by the vendors themselves, investors may question how much is organic — a narrative risk more than an earnings one for now. Treat it as a sentiment signal until a filing or formal finding makes it fundamental.",
     whatToWatch: [
       "Scope and timeline of any formal review",
       "Disclosure of financing arrangements in filings",
@@ -281,15 +325,32 @@ export const news: NewsItem[] = [
     sentiment: "positive",
     summary:
       "Commentary from large Indian IT services firms pointed to a firmer discretionary-spend environment heading into the next fiscal year.",
-    direct: [
-      { ticker: "TCS.NS", note: "Bellwether for the services cycle", dir: "up" },
-      { ticker: "INFY.NS", note: "Direct read-through on deal momentum", dir: "up" },
+    whatChanged:
+      "Management commentary — not yet booked revenue — pointed to a firmer discretionary-spend pipeline into the next fiscal year, the first up-beat tone after several soft quarters.",
+    impact: "Medium",
+    confidence: 64,
+    impactMap: [
+      "IT majors flag a firmer deal pipeline",
+      "Discretionary client budgets look to be thawing",
+      "Growth expectations for the services group lift",
+      "TCS / INFY re-rate, pending confirmation in book-to-bill",
     ],
-    peers: [{ ticker: "RELIANCE.NS", note: "Broad India large-cap sentiment", dir: "flat" }],
+    signalType: "Guidance / Outlook",
+    thesisRelevance: "Medium",
+    timeHorizon: "Next 1–2 results — confirmed only by booked TCV",
+    linkedThemes: [
+      { id: "market-toll-booths", label: "Market Toll Booths" },
+      { id: "internet-2-0", label: "Internet 2.0: Agents & Superapps" },
+    ],
+    direct: [
+      { ticker: "TCS.NS", note: "Bellwether for the services cycle", dir: "up", role: "Services-cycle bellwether", watch: "Book-to-bill, large-deal TCV", impact: "Medium" },
+      { ticker: "INFY.NS", note: "Direct read-through on deal momentum", dir: "up", role: "Large-cap services peer", watch: "Deal TCV, FY guidance revision", impact: "Medium" },
+    ],
+    peers: [{ ticker: "RELIANCE.NS", note: "Broad India large-cap sentiment", dir: "flat", role: "India large-cap sentiment proxy", watch: "Nifty IT relative strength", impact: "Low" }],
     sector: { name: "IT Services", note: "Pipeline commentary often re-rates the whole services group." },
     etfs: [],
     whyAffected:
-      "Services revenue tracks client discretionary budgets; a firmer pipeline supports growth expectations across the group.",
+      "Services revenue tracks client discretionary budgets; a firmer pipeline supports growth expectations across the group. Commentary is a leading indicator — it only becomes fundamental once it shows up in booked deal value.",
     whatToWatch: [
       "Book-to-bill and large-deal TCV in upcoming results",
       "Commentary on pricing and utilization",
@@ -305,12 +366,29 @@ export const news: NewsItem[] = [
     sentiment: "positive",
     summary:
       "A small-launch company secured a multi-mission award, adding visibility to its near-term manifest.",
-    direct: [{ ticker: "RKLB", note: "Direct recipient of the award", dir: "up" }],
-    peers: [{ ticker: "ASTS", note: "Sentiment read-through across space names", dir: "up" }],
+    whatChanged:
+      "A signed multi-mission government award lands on the books — concrete backlog, not a press-release intent — extending revenue visibility for a pre-profit launch name.",
+    impact: "Medium",
+    confidence: 70,
+    impactMap: [
+      "Launch provider wins a multi-mission award",
+      "Backlog and manifest visibility improve",
+      "Near-term demand uncertainty falls for the name",
+      "RKLB re-rates; sentiment spills to other space names",
+    ],
+    signalType: "Event-driven",
+    thesisRelevance: "Medium",
+    timeHorizon: "Plays out as launches are executed against the manifest",
+    linkedThemes: [
+      { id: "spacex-orbital-internet", label: "SpaceX & Orbital Internet" },
+      { id: "global-defence-rearmament", label: "Global Defence Re-Armament" },
+    ],
+    direct: [{ ticker: "RKLB", note: "Direct recipient of the award", dir: "up", role: "Award recipient (launch)", watch: "Launch cadence vs manifest, margin on gov work", impact: "High" }],
+    peers: [{ ticker: "ASTS", note: "Sentiment read-through across space names", dir: "up", role: "Space-economy peer", watch: "Own milestone / contract flow", impact: "Low" }],
     sector: { name: "Aerospace", note: "Contract awards improve revenue visibility for the cohort." },
     etfs: [],
     whyAffected:
-      "Backlog and manifest visibility are key for pre-profit space names; a multi-mission award reduces near-term demand uncertainty.",
+      "Backlog and manifest visibility are key for pre-profit space names; a multi-mission award reduces near-term demand uncertainty. The value depends on execution — it converts to revenue only as launches actually fly.",
     whatToWatch: [
       "Cadence of launches against the new manifest",
       "Any margin disclosure on government work",
@@ -326,12 +404,29 @@ export const news: NewsItem[] = [
     sentiment: "negative",
     summary:
       "Several outlets flagged softer near-term electric-vehicle demand signals and pricing pressure.",
-    direct: [{ ticker: "TSLA", note: "Most exposed to the demand narrative", dir: "down" }],
-    peers: [{ ticker: "NVDA", note: "Minor read-through via autonomy compute", dir: "flat" }],
+    whatChanged:
+      "The tone on near-term EV demand turned cautious, with fresh mentions of pricing pressure — sentiment and channel chatter rather than a confirmed delivery miss.",
+    impact: "Medium",
+    confidence: 55,
+    impactMap: [
+      "Commentary flags softer EV demand + discounting",
+      "Unit-economics / margin worries resurface",
+      "TSLA most exposed to the demand narrative",
+      "Index ETFs barely move — effect diluted by diversification",
+    ],
+    signalType: "Sentiment / Narrative",
+    thesisRelevance: "Medium",
+    timeHorizon: "Short-term, until delivery and pricing data confirm",
+    linkedThemes: [
+      { id: "china-ev-shockwave", label: "China EV Shockwave" },
+      { id: "battery-storage-beyond-evs", label: "Battery Storage Beyond EVs" },
+    ],
+    direct: [{ ticker: "TSLA", note: "Most exposed to the demand narrative", dir: "down", role: "Most-exposed EV maker", watch: "Deliveries, inventory days, pricing actions", impact: "Medium" }],
+    peers: [{ ticker: "NVDA", note: "Minor read-through via autonomy compute", dir: "flat", role: "Autonomy-compute supplier", watch: "Auto/robotaxi compute commentary", impact: "Low" }],
     sector: { name: "Autos", note: "Pricing pressure can compress margins across the group." },
     etfs: [{ ticker: "QQQ", note: "Large-cap index with notable single-name weight", dir: "flat" }],
     whyAffected:
-      "Softer demand and discounting pressure unit economics; for index ETFs the effect is diluted by diversification.",
+      "Softer demand and discounting pressure unit economics; for index ETFs the effect is diluted by diversification. Until deliveries or pricing actions confirm it, treat this as narrative rather than a fundamental reset.",
     whatToWatch: [
       "Delivery and inventory updates",
       "Pricing actions and their margin impact",
@@ -365,48 +460,6 @@ export const insiderEvents: InsiderEvent[] = [
   { id: "i9", ticker: "ORCL", company: "Oracle Corp.", person: "Director", role: "Board Member", type: "Insider Buying", value: "$3.4M", shares: "17,000", date: "1w ago", note: "Open-market purchase after results." },
 ];
 
-// ── Famous takes ─────────────────────────────────────────────────────────────
-
-export const famousTakes: FamousTake[] = [
-  {
-    id: "burry-ai-bubble",
-    author: "Michael Burry",
-    role: "Investor, The Big Short",
-    lens: "AI Bubble Lens",
-    stance: "Skeptical",
-    thesis:
-      "A widely-discussed skeptical view argues that AI-related valuations and demand may be running ahead of durable, organic fundamentals — echoing historical bubble dynamics. Presented here as a narrative to study, not as a prediction.",
-    affectedStocks: ["NVDA", "AMD", "PLTR", "ORCL"],
-    affectedEtfs: ["SMH", "SOXX", "QQQ"],
-    risk:
-      "If AI demand proves less durable than priced, high-multiple names could de-rate sharply and drag the ETFs that hold them.",
-    monitor: [
-      "Whether hyperscaler capex translates into sustained end-demand",
-      "Inventory and order-backlog trends across the supply chain",
-      "Multiple compression in the most richly-valued names",
-      "Breadth — is strength concentrated in a few names?",
-    ],
-  },
-  {
-    id: "circular-ai-money",
-    author: "Market Commentators",
-    role: "Various analysts",
-    lens: "Vendor Financing / Circular AI Money Loop",
-    stance: "Cautious",
-    thesis:
-      "A growing commentary thread highlights 'circular' arrangements where a supplier invests in or finances a customer that then buys the supplier's products. The concern is that some reported demand may be self-funded rather than fully organic. Shared as an analytical lens to research independently.",
-    affectedStocks: ["NVDA", "ORCL", "AMD"],
-    affectedEtfs: ["SMH", "QQQ"],
-    risk:
-      "If a meaningful share of demand is vendor-financed, revenue quality and durability come into question, raising narrative and re-rating risk.",
-    monitor: [
-      "Disclosure of investments in, or financing of, customers",
-      "Related-party and off-balance-sheet arrangements in filings",
-      "Whether backlog holds without supplier financing",
-      "Regulatory or auditor commentary on the structures",
-    ],
-  },
-];
 
 // ── Stock analysis (demo selected stock) ─────────────────────────────────────
 

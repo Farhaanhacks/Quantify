@@ -119,7 +119,18 @@ export default function TradingIdeas({
       ) : null}
 
       {showFilter ? (
-        <div className="mt-6 flex flex-wrap gap-2">
+        <div className="mt-6 rounded-2xl border border-gold/15 bg-gold/[0.04] p-4 sm:p-5">
+          <p className="text-sm leading-relaxed text-slate-300">
+            <span className="font-medium text-white">These are not recommendations. They are research maps.</span>{" "}
+            Each theme lays out the investment question, the value chain, the
+            bull / base / bear case, the thesis tests that would prove or break it,
+            and the source pack behind it.
+          </p>
+        </div>
+      ) : null}
+
+      {showFilter ? (
+        <div className="mt-4 flex flex-wrap gap-2">
           {["All", ...ideaCategories].map((cat) => (
             <button
               key={cat}
@@ -183,7 +194,7 @@ export default function TradingIdeas({
               </div>
 
               <div className="mt-auto pt-4 text-xs text-gold/80">
-                {locked ? "Unlock full dashboard with Pro →" : "Open research dashboard →"}
+                {locked ? "Unlock full research map with Pro →" : "Open research map →"}
               </div>
             </GlassCard>
           );

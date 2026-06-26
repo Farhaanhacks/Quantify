@@ -22,13 +22,28 @@ export default function StockAnalysisPage({
       <section className="mx-auto max-w-7xl px-4 pt-12 sm:px-6 lg:px-8">
         <Eyebrow>Stock Analysis</Eyebrow>
         <h1 className="mt-3 max-w-2xl font-display text-3xl font-semibold leading-tight text-white sm:text-4xl">
-          Analyze any stock or ETF
+          Good company, or good investment?
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-400">
-          Search any symbol for a live chart and key statistics. The Quantifi
-          Score shows for names we have fundamentals on, and for every stock once
-          a fundamentals source is connected.
+          Quantifi separates the two. Search any symbol for a live chart, key
+          statistics and — where we have fundamentals — a scorecard that pressures
+          the thesis, not just the price.
         </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {[
+            "Business quality",
+            "Valuation comfort",
+            "Cash-flow quality",
+            "What's priced in?",
+          ].map((t) => (
+            <span
+              key={t}
+              className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-slate-300"
+            >
+              {t}
+            </span>
+          ))}
+        </div>
       </section>
       <Suspense fallback={null}>
         <StockExplorer initial={initial} />
