@@ -67,6 +67,12 @@ export interface Playbook {
   id: string;
   title: string;
   subtitle: string;
+  // Investment-memo header (preferred on the full research page).
+  memoTitle?: string;
+  memoSubtitle?: string;
+  styleTag?: string; // e.g. "Macro / geopolitics / AI infrastructure"
+  oneLineThesis?: string; // the single prominent thesis statement
+  soWhat?: string; // "so what does this mean for investors?"
   tags: string[];
   detailTags: string[]; // a slightly fuller tag set for the detail header
   type: string;
@@ -96,6 +102,14 @@ export const playbooks: Playbook[] = [
     id: "situational-awareness",
     title: "Decode: The Situational Awareness Playbook",
     subtitle: "AI timelines, compute, national security and the capital cycle",
+    memoTitle: "Situational Awareness: AI as Strategic Infrastructure",
+    memoSubtitle:
+      "How frontier AI may reshape compute, power, chips, cloud, defence and public-market capital flows.",
+    styleTag: "Macro / geopolitics / AI infrastructure",
+    oneLineThesis:
+      "AI capability growth may turn compute, power and national-security infrastructure into strategic assets. The winners may be the companies that control cloud, chips, power, data centres and defence infrastructure — but the most crowded AI names may face near-term de-rating risk.",
+    soWhat:
+      "This framework is not simply saying 'buy AI stocks.' It separates AI-infrastructure beneficiaries from crowded AI winners that may already price in too much optimism. The key distinction is between long-term strategic demand and near-term valuation risk — a name can be central to the theme and still be a poor entry today.",
     tags: ["AI", "Compute", "Sovereign AI", "Power", "Defence", "Semiconductors"],
     detailTags: [
       "AI",
@@ -118,10 +132,10 @@ export const playbooks: Playbook[] = [
     read:
       "The Situational Awareness framework is not a stock tip. It is a map of how accelerating AI capability could force governments, hyperscalers and investors to treat compute, power and national-security infrastructure as strategic assets.",
     whatChanged: [
-      "Hyperscaler capex remains the key signal.",
-      "Power and grid constraints are becoming more visible.",
-      "Sovereign AI policy is moving from theory to funding.",
-      "Defence AI adoption remains early but strategically important.",
+      "Hyperscaler capex is the key confirmation signal — and it is still rising.",
+      "Power availability is becoming a binding constraint on the buildout.",
+      "Sovereign AI is moving from policy statements to funded programmes.",
+      "Crowded AI leaders (notably NVDA) carry growing near-term de-rating risk even as the long-term theme holds.",
     ],
     summary: [
       { title: "AI acceleration", summary: "Frontier models may improve fast enough to compress investment and policy timelines." },
@@ -164,24 +178,25 @@ export const playbooks: Playbook[] = [
     exposure: [
       {
         key: "long",
-        title: "Long / Positive Exposure",
-        note: "Listed names the framework is positively exposed to. Thematic exposure, not a fund's holdings and not recommendations.",
+        title: "Core Beneficiaries",
+        note: "Listed companies positively exposed to the infrastructure side of the thesis — chips, networking, power and cloud. Thematic exposure, not fund holdings or recommendations. NVDA is deliberately not here (see Near-Term Bearish).",
         items: [
-          { name: "NVIDIA", ticker: "NVDA", assetType: "stock", exposureType: "long", conviction: "high", isDirectExposure: true, explanation: "Primary compute supplier; data-centre GPUs are central to the buildout." },
-          { name: "Broadcom", ticker: "AVGO", assetType: "stock", exposureType: "long", conviction: "high", isDirectExposure: true, explanation: "Custom AI silicon + networking — the non-Nvidia compute leg." },
-          { name: "AMD", ticker: "AMD", assetType: "stock", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "Second-source AI accelerators and data-centre CPUs." },
-          { name: "Arista Networks", ticker: "ANET", assetType: "stock", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "AI data-centre networking (Ethernet fabric)." },
-          { name: "Microsoft", ticker: "MSFT", assetType: "stock", exposureType: "long", conviction: "high", isDirectExposure: true, explanation: "Hyperscaler capex + cloud AI demand (also an OpenAI proxy — see proxies)." },
-          { name: "Alphabet", ticker: "GOOGL", assetType: "stock", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "Hyperscaler + in-house frontier lab (DeepMind) and TPU compute." },
-          { name: "Vertiv", ticker: "VRT", assetType: "stock", exposureType: "long", conviction: "high", isDirectExposure: true, explanation: "Data-centre power & cooling — a direct power-bottleneck play." },
+          { name: "Broadcom", ticker: "AVGO", assetType: "stock", exposureType: "long", conviction: "high", isDirectExposure: true, explanation: "Custom AI silicon + networking — the non-Nvidia compute leg, with a more diversified revenue base." },
+          { name: "AMD", ticker: "AMD", assetType: "stock", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "Second-source AI accelerators and data-centre CPUs — leverage to the buildout without Nvidia's crowding." },
+          { name: "Arista Networks", ticker: "ANET", assetType: "stock", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "AI data-centre networking (Ethernet fabric) — picks-and-shovels to compute scale-out." },
+          { name: "Vertiv", ticker: "VRT", assetType: "stock", exposureType: "long", conviction: "high", isDirectExposure: true, explanation: "Data-centre power & cooling — a direct play on power becoming the binding constraint." },
           { name: "GE Vernova", ticker: "GEV", assetType: "stock", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "Power generation + grid equipment for rising AI electricity load." },
+          { name: "Microsoft", ticker: "MSFT", assetType: "stock", exposureType: "long", conviction: "high", isDirectExposure: true, explanation: "Hyperscaler capex + cloud AI demand (and the key OpenAI proxy — see Private/Proxy)." },
+          { name: "Alphabet", ticker: "GOOGL", assetType: "stock", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "Hyperscaler + in-house frontier lab (DeepMind), TPU compute, and an Anthropic investor." },
+          { name: "Amazon", ticker: "AMZN", assetType: "stock", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "AWS capacity for the buildout, and the lead Anthropic investor / compute partner." },
         ],
       },
       {
         key: "short",
-        title: "Bearish Lens — de-rating risk",
-        note: "NOT short recommendations or fund positions. These are the names most exposed to a de-rating if the bear case plays out (AI ROI disappoints, capex slows) — shown separately from long exposure on purpose.",
+        title: "Near-Term Bearish / De-rating Risk",
+        note: "Important to the theme but vulnerable if AI capex, valuation or monetisation disappoints. These are de-rating risks, NOT short recommendations or verified short positions.",
         items: [
+          { name: "NVIDIA", ticker: "NVDA", assetType: "stock", exposureType: "short", conviction: "high", isDirectExposure: true, explanation: "Important to the AI-infrastructure cycle, but the Situational Awareness view is bearish near term: stretched valuation, capex-sustainability risk, customer concentration and a possible AI-narrative reversal. Central to the theme ≠ a good entry today." },
           { name: "Palantir", ticker: "PLTR", assetType: "stock", exposureType: "short", conviction: "medium", isDirectExposure: true, explanation: "Richly valued on the AI/defence narrative; among the first to de-rate if AI monetisation disappoints." },
           { name: "Super Micro", ticker: "SMCI", assetType: "stock", exposureType: "short", conviction: "medium", isDirectExposure: true, explanation: "Thin-margin AI-server assembler; highly sensitive to a capex slowdown." },
           { name: "Arm Holdings", ticker: "ARM", assetType: "stock", exposureType: "short", conviction: "low", isDirectExposure: true, explanation: "Premium multiple tied to AI-licensing optimism; vulnerable if the cycle cools." },
@@ -189,43 +204,33 @@ export const playbooks: Playbook[] = [
       },
       {
         key: "private",
-        title: "Private Company Exposure",
-        note: "Central to the thesis but NOT directly tradable as public stocks. You can only get indirect exposure via the public proxies below.",
+        title: "Private AI Lab Exposure",
+        note: "Central to the thesis but NOT directly tradable. Public-market exposure is only indirect, via the proxies below.",
         items: [
-          { name: "OpenAI", assetType: "private_company", exposureType: "private", isDirectExposure: false, explanation: "Frontier lab at the centre of the framework. Private — not directly tradable as a public stock.", sourceUrl: "https://openai.com" },
-          { name: "Anthropic", assetType: "private_company", exposureType: "private", isDirectExposure: false, explanation: "Frontier lab (Claude). Private — not directly tradable. Backed by Amazon and Google.", sourceUrl: "https://www.anthropic.com" },
-          { name: "xAI", assetType: "private_company", exposureType: "private", isDirectExposure: false, explanation: "Frontier lab. Private — not directly tradable as a public stock.", sourceUrl: "https://x.ai" },
+          { name: "Anthropic", assetType: "private_company", exposureType: "private", isDirectExposure: false, explanation: "Central private frontier-AI lab (Claude). Not directly tradable as a public stock. Public exposure is indirect, primarily via AMZN and GOOGL, who are investors and compute partners. ETFs do not hold Anthropic directly.", sourceUrl: "https://www.anthropic.com" },
+          { name: "OpenAI", assetType: "private_company", exposureType: "private", isDirectExposure: false, explanation: "Frontier lab at the centre of the framework. Private — not directly tradable. Public exposure is indirect, primarily via MSFT (strategic partner / investor).", sourceUrl: "https://openai.com" },
+          { name: "xAI", assetType: "private_company", exposureType: "private", isDirectExposure: false, explanation: "Frontier lab. Private — not directly tradable as a public stock; no clean listed proxy.", sourceUrl: "https://x.ai" },
         ],
       },
       {
         key: "proxy",
         title: "Public Market Proxies",
-        note: "Listed companies with investment or partnership links to the private labs. These are INDIRECT, thematic links — not direct ownership of OpenAI / Anthropic / xAI.",
+        note: "Listed companies with investment or partnership links to the private labs. INDIRECT, thematic links — not direct ownership of OpenAI / Anthropic / xAI.",
         items: [
-          { name: "Microsoft", ticker: "MSFT", assetType: "stock", exposureType: "proxy", conviction: "high", isDirectExposure: false, explanation: "Major investor in and exclusive cloud partner of OpenAI. Indirect exposure — not direct ownership.", sourceUrl: "https://www.microsoft.com/en-us/investor" },
-          { name: "Amazon", ticker: "AMZN", assetType: "stock", exposureType: "proxy", conviction: "medium", isDirectExposure: false, explanation: "Investor in Anthropic and its AWS compute partner. Indirect exposure — not direct ownership.", sourceUrl: "https://ir.aboutamazon.com" },
+          { name: "Microsoft", ticker: "MSFT", assetType: "stock", exposureType: "proxy", conviction: "high", isDirectExposure: false, explanation: "Strategic partner and investor in OpenAI; exclusive-ish cloud relationship. Indirect exposure — not direct ownership.", sourceUrl: "https://www.microsoft.com/en-us/investor" },
+          { name: "Amazon", ticker: "AMZN", assetType: "stock", exposureType: "proxy", conviction: "medium", isDirectExposure: false, explanation: "Lead investor in Anthropic and its AWS compute partner. Indirect exposure — not direct ownership.", sourceUrl: "https://ir.aboutamazon.com" },
           { name: "Alphabet", ticker: "GOOGL", assetType: "stock", exposureType: "proxy", conviction: "medium", isDirectExposure: false, explanation: "Investor in Anthropic (alongside its own DeepMind lab). Indirect exposure — not direct ownership." },
-          { name: "NVIDIA", ticker: "NVDA", assetType: "stock", exposureType: "proxy", conviction: "medium", isDirectExposure: false, explanation: "Sells compute to every major lab — a proxy for aggregate private-lab AI spending." },
+          { name: "NVIDIA", ticker: "NVDA", assetType: "stock", exposureType: "proxy", conviction: "medium", isDirectExposure: false, explanation: "AI-infrastructure proxy — sells compute to every major lab — but the near-term view here is bearish (see De-rating Risk). Shown as a proxy for aggregate AI-lab spend, not as a positive position." },
         ],
       },
       {
         key: "etf",
-        title: "ETFs / Funds With Related Exposure",
-        note: "ETFs hold LISTED companies only. None of these hold Anthropic, OpenAI or xAI directly — their exposure is to the listed chipmakers and platforms above.",
+        title: "ETF / Basket Exposure",
+        note: "Indirect basket exposure, shown last. These ETFs generally own listed semiconductor / cloud / platform companies — not private AI labs. None hold Anthropic, OpenAI or xAI directly.",
         items: [
           { name: "VanEck Semiconductor ETF", ticker: "SMH", assetType: "etf", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "Holds listed semiconductor companies (NVDA, AVGO, AMD…). Direct exposure to listed chipmakers — no private-lab exposure." },
           { name: "iShares Semiconductor ETF", ticker: "SOXX", assetType: "etf", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "Broad basket of listed semiconductor companies. No private-lab exposure." },
           { name: "Invesco QQQ Trust", ticker: "QQQ", assetType: "etf", exposureType: "proxy", conviction: "low", isDirectExposure: true, explanation: "Mega-cap tech index incl. MSFT, GOOGL, AMZN, NVDA — exposure is to the listed proxies, not the private labs." },
-        ],
-      },
-      {
-        key: "watchlist",
-        title: "Watchlist Ideas",
-        note: "Early, higher-volatility names to monitor rather than core positions. Not recommendations.",
-        items: [
-          { name: "CoreWeave", ticker: "CRWV", assetType: "stock", exposureType: "watchlist", conviction: "low", isDirectExposure: true, explanation: "Listed AI-cloud / GPU capacity provider; early and volatile — monitor execution." },
-          { name: "Nebius", ticker: "NBIS", assetType: "stock", exposureType: "watchlist", conviction: "low", isDirectExposure: true, explanation: "Listed AI-cloud infrastructure; early-stage build-out." },
-          { name: "Eaton", ticker: "ETN", assetType: "stock", exposureType: "watchlist", conviction: "medium", isDirectExposure: true, explanation: "Electrical equipment for data-centre power — a slower-moving power-bottleneck watch." },
         ],
       },
     ],
