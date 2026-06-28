@@ -7,6 +7,13 @@
 
 export type Conviction = "High" | "Medium" | "Speculative";
 
+// One leg of the illustrative scenario range (rough total return over the
+// ~2–3yr horizon). These are study scenarios, NOT price targets or forecasts.
+export interface FindScenario {
+  pct: number; // approximate total return %, e.g. -40, +25, +120
+  note: string;
+}
+
 export interface RareFind {
   ticker: string;
   name: string;
@@ -15,6 +22,8 @@ export interface RareFind {
   signal: string; // short valuation/upside note
   thesis: string;
   risk: string;
+  reasons: string[]; // why this screens as a rare find
+  scenarios: { downside: FindScenario; base: FindScenario; upside: FindScenario };
 }
 
 export const rareFinds: RareFind[] = [
@@ -27,6 +36,16 @@ export const rareFinds: RareFind[] = [
     thesis:
       "A wide-moat consumer brand deep in a turnaround, trading at a fraction of its peak multiple. Margin recovery and inventory normalization are the swing factors — and it's barely correlated to the AI trade.",
     risk: "Turnarounds take longer than hoped; weak consumer and China exposure can drag results for several quarters.",
+    reasons: [
+      "Wide-moat global brand trading well below its historical multiple.",
+      "The driver is self-help (margins, inventory) — not the AI cycle, so low correlation to a tech-led drawdown.",
+      "Screens deeply below several independent fair-value estimates.",
+    ],
+    scenarios: {
+      downside: { pct: -15, note: "Turnaround stalls; weak consumer & China drag persist." },
+      base: { pct: 35, note: "Margins and inventory normalise; multiple partly recovers." },
+      upside: { pct: 80, note: "Full brand re-rate back toward historical multiples." },
+    },
   },
   {
     ticker: "DOC",
@@ -37,6 +56,16 @@ export const rareFinds: RareFind[] = [
     thesis:
       "Medical-office and lab REIT — the most undervalued sector by Morningstar's read. Defensive cash flows and a fat yield make it ballast if growth multiples compress.",
     risk: "Rate-sensitive; office/real-estate sentiment is poor and organic growth has been slow.",
+    reasons: [
+      "Sits in the most undervalued sector on some 2026 fair-value reads.",
+      "~7% dividend yield, covered by defensive medical-office/lab cash flows.",
+      "Acts as ballast if growth multiples compress.",
+    ],
+    scenarios: {
+      downside: { pct: -15, note: "Rates stay high; real-estate sentiment stays poor." },
+      base: { pct: 25, note: "Yield collected + modest discount-to-NAV closing." },
+      upside: { pct: 55, note: "Rate relief re-rates the REIT toward fair value." },
+    },
   },
   {
     ticker: "VZ",
@@ -47,16 +76,36 @@ export const rareFinds: RareFind[] = [
     thesis:
       "A boring, cash-generative telecom on a high yield — the kind of name that holds value when the market sells the froth and rotates to safety.",
     risk: "Heavy debt, fierce price competition, and little growth; total return leans on the dividend.",
+    reasons: [
+      "High, cash-covered dividend yield — paid while you wait.",
+      "Cash-generative and defensive; a rotation-to-safety beneficiary.",
+      "Valuation already prices in a lot of pessimism.",
+    ],
+    scenarios: {
+      downside: { pct: -10, note: "Price competition and debt keep a lid on it." },
+      base: { pct: 20, note: "Dividend plus a small valuation recovery." },
+      upside: { pct: 40, note: "Debt paydown + safety bid re-rates it." },
+    },
   },
   {
     ticker: "RKT",
     name: "Rocket Companies",
-    tag: "Contrarian",
+    tag: "Contrarian · rate cycle",
     conviction: "Speculative",
     signal: "Below Morningstar's ~$17 fair value after a weak 2026 start",
     thesis:
       "A leveraged bet on the mortgage cycle — if rates ease, refinancing and origination volumes can snap back hard off a low base.",
     risk: "Highly rate-dependent and cyclical; a 'higher for longer' rate path keeps the core business under pressure.",
+    reasons: [
+      "Dominant mortgage originator with huge operating leverage to a rate-cut cycle.",
+      "Starting from a deeply depressed origination base — big snap-back potential.",
+      "Trades below independent fair-value estimates after a weak start.",
+    ],
+    scenarios: {
+      downside: { pct: -45, note: "'Higher for longer' keeps mortgage volumes depressed." },
+      base: { pct: 30, note: "Gradual rate relief lifts originations off the bottom." },
+      upside: { pct: 160, note: "A real rate-cut cycle reignites refi volumes." },
+    },
   },
   {
     ticker: "EXE",
@@ -67,6 +116,16 @@ export const rareFinds: RareFind[] = [
     thesis:
       "AI datacenters need enormous, reliable power, and gas is the bridge fuel. As the biggest US gas producer, it's a physical-world beneficiary of the AI boom that doesn't depend on AI software multiples holding up.",
     risk: "Commodity prices are volatile; a warm winter or weak LNG demand can gut earnings.",
+    reasons: [
+      "Largest US natural-gas producer — a physical AI-power beneficiary.",
+      "Exposure to the AI build-out that doesn't rely on software multiples holding.",
+      "Geared to rising datacenter electricity and LNG demand.",
+    ],
+    scenarios: {
+      downside: { pct: -30, note: "Warm winter / weak gas prices gut earnings." },
+      base: { pct: 35, note: "Steady gas demand + datacenter power tailwind." },
+      upside: { pct: 110, note: "Tight gas market + datacenter power contracts re-rate it." },
+    },
   },
   {
     ticker: "AMRC",
@@ -77,6 +136,16 @@ export const rareFinds: RareFind[] = [
     thesis:
       "Builds the efficiency and grid projects utilities need as power demand surges. A 'picks and shovels' angle on electrification and the datacenter power crunch.",
     risk: "Lumpy project revenue, balance-sheet leverage, and policy/interest-rate sensitivity make it a bumpy ride.",
+    reasons: [
+      "Picks-and-shovels exposure to electrification and grid upgrades.",
+      "Direct beneficiary of surging utility/datacenter power demand.",
+      "Project backlog gives forward revenue visibility.",
+    ],
+    scenarios: {
+      downside: { pct: -45, note: "Project delays, leverage and rate sensitivity bite." },
+      base: { pct: 40, note: "Backlog converts; grid-demand tailwind plays out." },
+      upside: { pct: 130, note: "Power crunch accelerates project wins and margins." },
+    },
   },
   {
     ticker: "CDE",
@@ -87,6 +156,16 @@ export const rareFinds: RareFind[] = [
     thesis:
       "Precious-metals miners tend to catch a bid when equities wobble and macro uncertainty rises. A small ballast sleeve here can offset a growth-heavy book if the AI trade unwinds.",
     risk: "Miners are high-beta on the metal price; operational misses and costs can erase the hedge.",
+    reasons: [
+      "Leverage to silver/gold — a non-correlated hedge to a growth-heavy book.",
+      "Tends to firm up during equity drawdowns and macro stress.",
+      "High-beta to the metal price, so a little goes a long way as ballast.",
+    ],
+    scenarios: {
+      downside: { pct: -40, note: "Calm markets + cost/operational misses erase the hedge." },
+      base: { pct: 30, note: "Firm metal prices and steady output." },
+      upside: { pct: 120, note: "Equity stress + rising metals send miners sharply higher." },
+    },
   },
   {
     ticker: "IAG",
@@ -97,6 +176,16 @@ export const rareFinds: RareFind[] = [
     thesis:
       "A gold miner with production growth — geared to a strong gold backdrop and a hedge against an equity drawdown or a weaker dollar.",
     risk: "Execution and cost risk at its mines; gold-price swings dominate the story.",
+    reasons: [
+      "Production growth on top of a strong gold backdrop.",
+      "Hedge against an equity drawdown or a weaker dollar.",
+      "Operating leverage to a rising gold price.",
+    ],
+    scenarios: {
+      downside: { pct: -40, note: "Mine execution/cost misses + softer gold." },
+      base: { pct: 35, note: "Output ramps as planned with firm gold." },
+      upside: { pct: 120, note: "Strong gold + delivery on the production ramp." },
+    },
   },
   {
     ticker: "ANET",
@@ -107,6 +196,56 @@ export const rareFinds: RareFind[] = [
     thesis:
       "The networking backbone of AI datacenters, with genuine earnings (unlike many AI names). The plan isn't to chase it — it's to have a price in mind and accumulate if an AI pullback drags it down with the rest.",
     risk: "Still an AI-cycle name: a datacenter capex slowdown or overbuild would hit it hard.",
+    reasons: [
+      "Profitable AI-networking backbone — real earnings, not just a story.",
+      "A 'buy the dip' candidate if an AI pullback drags it with the group.",
+      "Fair-value estimates have been rising on datacenter growth.",
+    ],
+    scenarios: {
+      downside: { pct: -45, note: "Datacenter capex slowdown or overbuild hits it hard." },
+      base: { pct: 25, note: "Steady datacenter growth supports earnings." },
+      upside: { pct: 80, note: "AI networking demand keeps compounding." },
+    },
+  },
+  {
+    ticker: "PATH",
+    name: "UiPath",
+    tag: "Beaten-down AI software",
+    conviction: "Speculative",
+    signal: "Down sharply from highs; large net cash, pivoting to AI agents",
+    thesis:
+      "Enterprise-automation leader repositioning around 'agentic AI'. It trades near its cash with a recurring-revenue base — cheap, contrarian optionality on AI agents actually landing in enterprise workflows, rather than another expensive AI story.",
+    risk: "Growth has decelerated, big incumbents (Microsoft) are encroaching, and stock-based dilution is heavy; profitability is still thin.",
+    reasons: [
+      "Trades at a fraction of its IPO/peak valuation, with a large net-cash balance for downside support.",
+      "Recurring (ARR) revenue and a real enterprise customer footprint already in place.",
+      "Direct, inexpensive optionality on agentic AI being adopted in enterprise automation.",
+    ],
+    scenarios: {
+      downside: { pct: -50, note: "Growth keeps decelerating; agents underdeliver vs incumbents." },
+      base: { pct: 25, note: "Growth stabilises; modest re-rating off a low base." },
+      upside: { pct: 150, note: "Agentic AI reignites growth and it re-rates as a winner." },
+    },
+  },
+  {
+    ticker: "TTWO",
+    name: "Take-Two Interactive",
+    tag: "Catalyst-driven · GTA VI",
+    conviction: "Medium",
+    signal: "GTA VI launch cycle — potentially the biggest entertainment release ever",
+    thesis:
+      "Owns Grand Theft Auto. GTA VI is set up to be one of the largest entertainment launches in history, but trailing cash flows look weak because the catalyst isn't in the financials yet — a classic case of backward-looking numbers hiding the forward story.",
+    risk: "Another GTA VI delay, monetisation that disappoints, or expectations that are already priced in.",
+    reasons: [
+      "A generational, hard-to-replicate franchise (GTA) with a once-in-a-decade catalyst directly ahead.",
+      "Trailing cash flows understate the business because the GTA VI release isn't in the numbers yet.",
+      "Recurrent consumer spending (online/in-game) provides a durable base between releases.",
+    ],
+    scenarios: {
+      downside: { pct: -25, note: "A further delay or a soft launch vs sky-high expectations." },
+      base: { pct: 30, note: "Solid launch broadly in line with expectations." },
+      upside: { pct: 90, note: "Record launch plus sustained online monetisation." },
+    },
   },
   {
     ticker: "SPCX",
@@ -117,6 +256,16 @@ export const rareFinds: RareFind[] = [
     thesis:
       "The dominant launch + Starlink franchise, finally public. A multi-year story on launch cadence and satellite connectivity — but priced for a lot of future success.",
     risk: "Rich valuation, negative earnings, thin trading history, and lock-up dynamics make early volatility likely.",
+    reasons: [
+      "Dominant launch franchise plus the Starlink connectivity business.",
+      "Newly public — scarce, high-demand growth optionality.",
+      "Multi-year runway on launch cadence and satellite broadband.",
+    ],
+    scenarios: {
+      downside: { pct: -50, note: "Rich valuation + losses + lock-up unwinds drive volatility." },
+      base: { pct: 30, note: "Execution on launch cadence and Starlink growth." },
+      upside: { pct: 200, note: "Starlink scales and the launch moat widens further." },
+    },
   },
 ];
 

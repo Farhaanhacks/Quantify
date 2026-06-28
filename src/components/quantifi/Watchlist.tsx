@@ -140,6 +140,12 @@ function WatchRow({ ticker, onRemove }: { ticker: string; onRemove: () => void }
     row?.price != null &&
     row.price > 0 &&
     Math.abs(row.target - row.cfv) / row.price >= 0.3;
+  // "Overhyped" only applies in ONE direction: the cash-flow value sits BELOW
+  // the analyst target, i.e. the price/analyst optimism runs ahead of what
+  // today's cash flows support. If the cash-flow value is ABOVE the target,
+  // it's the opposite — cash generation implies more value than analysts credit
+  // (a cheap, not hyped, signal), so we never call that "overhyped".
+  const overhyped = diverge && row!.cfv! < row!.target!;
 
   return (
     <li className="grid grid-cols-2 gap-y-3 gap-x-4 py-4 lg:grid-cols-[1.5fr_1.7fr_0.8fr_0.9fr_1fr_auto] lg:items-center">
@@ -210,12 +216,19 @@ function WatchRow({ ticker, onRemove }: { ticker: string; onRemove: () => void }
                 <span className="text-[0.6rem] text-slate-600">
                   vs {useCashflow ? "cash-flow value" : "analyst target"}
                 </span>
-                {diverge ? (
+                {overhyped ? (
                   <span
                     className="rounded-full border border-gold/30 bg-gold/10 px-1.5 py-px text-[0.55rem] font-medium tracking-wide text-gold"
-                    title="The analyst target and future cash-flow value disagree by a wide margin — the price runs ahead of what today's cash flows support. Open the stock to see both."
+                    title="The future cash-flow value sits well below the analyst target — the price runs ahead of what today's cash flows support. Open the stock to see both."
                   >
                     ⚠ Overhyped stock
+                  </span>
+                ) : diverge ? (
+                  <span
+                    className="rounded-full border border-up/30 bg-up/10 px-1.5 py-px text-[0.55rem] font-medium tracking-wide text-up"
+                    title="The future cash-flow value sits well above the analyst target — today's cash generation implies more value than analysts credit. Open the stock to see both."
+                  >
+                    ▲ Cash-flow says cheaper
                   </span>
                 ) : null}
               </span>

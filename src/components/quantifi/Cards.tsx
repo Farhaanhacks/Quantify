@@ -56,14 +56,17 @@ export function GlassCard({
   children,
   className = "",
   hover = false,
+  onClick,
 }: {
   children: ReactNode;
   className?: string;
   hover?: boolean;
+  onClick?: () => void;
 }) {
   return (
     <div
       className={`glass rounded-2xl ${hover ? "glass-hover" : ""} ${className}`}
+      onClick={onClick}
     >
       {children}
     </div>
