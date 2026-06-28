@@ -24,6 +24,10 @@ export interface RareFind {
   risk: string;
   reasons: string[]; // why this screens as a rare find
   scenarios: { downside: FindScenario; base: FindScenario; upside: FindScenario };
+  // When true, the card pulls this name's most recent insider BUY live from the
+  // SEC Form 4 feed (real shares + price) instead of any hardcoded figure.
+  insiderLive?: boolean;
+  insiderNote?: string; // fallback / context shown alongside the live buy
 }
 
 export const rareFinds: RareFind[] = [
@@ -208,23 +212,66 @@ export const rareFinds: RareFind[] = [
     },
   },
   {
-    ticker: "PATH",
-    name: "UiPath",
-    tag: "Beaten-down AI software",
-    conviction: "Speculative",
-    signal: "Down sharply from highs; large net cash, pivoting to AI agents",
+    ticker: "SOFI",
+    name: "SoFi Technologies",
+    tag: "Insider-backed fintech",
+    conviction: "Medium",
+    signal: "Turned GAAP-profitable; CEO is a repeat open-market buyer",
     thesis:
-      "Enterprise-automation leader repositioning around 'agentic AI'. It trades near its cash with a recurring-revenue base — cheap, contrarian optionality on AI agents actually landing in enterprise workflows, rather than another expensive AI story.",
-    risk: "Growth has decelerated, big incumbents (Microsoft) are encroaching, and stock-based dilution is heavy; profitability is still thin.",
+      "A digital-first 'one-stop' financial app that has crossed into sustained GAAP profitability, with a bank charter giving it cheaper deposit funding. The engine is member growth and cross-selling more products per member — the bull case is it becomes a primary bank for a generation.",
+    risk: "Consumer-credit sensitive — a recession and rising loan charge-offs would hit its lending book; still richly valued for a lender.",
     reasons: [
-      "Trades at a fraction of its IPO/peak valuation, with a large net-cash balance for downside support.",
-      "Recurring (ARR) revenue and a real enterprise customer footprint already in place.",
-      "Direct, inexpensive optionality on agentic AI being adopted in enterprise automation.",
+      "Crossed into sustained GAAP profitability, with a bank charter funding cheaper deposits.",
+      "Fast member growth and rising products-per-member (cross-sell flywheel).",
+      "Strong insider conviction — the CEO has repeatedly bought shares on the open market.",
+    ],
+    insiderLive: true,
+    insiderNote:
+      "SoFi CEO Anthony Noto has been a consistent, large open-market buyer of the stock over the years — an unusually direct insider vote of confidence. The figure shown is pulled live from SEC Form 4 filings.",
+    scenarios: {
+      downside: { pct: -40, note: "Recession spikes loan charge-offs and credit losses." },
+      base: { pct: 30, note: "Steady member growth; profitability compounds." },
+      upside: { pct: 120, note: "Becomes a primary-bank platform and re-rates as a fintech winner." },
+    },
+  },
+  {
+    ticker: "NOW",
+    name: "ServiceNow",
+    tag: "Quality compounder · AI workflows",
+    conviction: "Medium",
+    signal: "Durable 20%+ growth; AI agents embedded across enterprise workflows",
+    thesis:
+      "The platform large enterprises run their IT, HR and operations workflows on — sticky, high-margin and cash-generative, now embedding AI agents (Now Assist) across those workflows. A profitable way to own enterprise-AI adoption rather than a speculative bet on it.",
+    risk: "Premium valuation leaves little room for error; an enterprise IT-spend slowdown would compress the multiple even if the business stays solid.",
+    reasons: [
+      "Mission-critical workflow platform with very high retention and margins.",
+      "Real, profitable AI monetisation (Now Assist agents) — not just a narrative.",
+      "Durable ~20%+ growth backed by strong free cash flow.",
     ],
     scenarios: {
-      downside: { pct: -50, note: "Growth keeps decelerating; agents underdeliver vs incumbents." },
-      base: { pct: 25, note: "Growth stabilises; modest re-rating off a low base." },
-      upside: { pct: 150, note: "Agentic AI reignites growth and it re-rates as a winner." },
+      downside: { pct: -30, note: "IT-spend slowdown compresses a rich multiple." },
+      base: { pct: 25, note: "Steady growth plus AI upsell across the base." },
+      upside: { pct: 70, note: "AI agents accelerate growth and the multiple re-rates higher." },
+    },
+  },
+  {
+    ticker: "IRDM",
+    name: "Iridium Communications",
+    tag: "Space · satellite connectivity",
+    conviction: "Medium",
+    signal: "Profitable, cash-generative satellite network — rare for a space name",
+    thesis:
+      "Owns a global, already-built low-earth-orbit satellite constellation, and is profitable and free-cash-flow generative — unusual for a space company. A defensive, contracted government + IoT revenue base, with direct-to-device connectivity as growth optionality on top.",
+    risk: "Satellite-to-phone competition (Starlink, AST SpaceMobile) could pressure its niche, and capex for the next-gen constellation looms.",
+    reasons: [
+      "A rare profitable, FCF-positive space company with the constellation already built and paid down.",
+      "Defensive, contracted government and IoT revenue base.",
+      "Direct-to-device / IoT connectivity as a growth kicker.",
+    ],
+    scenarios: {
+      downside: { pct: -25, note: "Starlink / AST competition pressures its connectivity niche." },
+      base: { pct: 25, note: "Steady free cash flow plus IoT subscriber growth." },
+      upside: { pct: 80, note: "Direct-to-device scales and the market re-rates the franchise." },
     },
   },
   {

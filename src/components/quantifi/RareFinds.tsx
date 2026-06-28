@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { GlassCard, SectionHeading, Tag } from "@/components/quantifi/Cards";
 import { rareFinds, investmentPlans, type Conviction, type RareFind } from "@/data/rareFinds";
 
@@ -9,6 +9,95 @@ const tone = (c: Conviction): "teal" | "gold" | "down" =>
   c === "High" ? "teal" : c === "Medium" ? "gold" : "down";
 
 const fmtPct = (n: number) => `${n >= 0 ? "+" : ""}${n}%`;
+
+interface InsiderBuy {
+  person: string;
+  role: string;
+  shares: number;
+  price: number;
+  value: number;
+  date: string;
+}
+
+// Pulls a name's most recent insider BUY live from the SEC Form 4 feed — real
+// shares and price, never a hardcoded figure.
+function InsiderBuyLine({ ticker, note }: { ticker: string; note?: string }) {
+  const [buy, setBuy] = useState<InsiderBuy | null | undefined>(undefined); // undefined = loading
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(`/api/insider/${encodeURIComponent(ticker)}`);
+        const d = await r.json();
+        const trades: Array<Record<string, unknown>> = Array.isArray(d?.trades) ? d.trades : [];
+        const buys = trades.filter((t) => t.acquired === true && Number(t.shares) > 0);
+        const pick = buys.find((t) => /chief executive|ceo|founder/i.test(String(t.role || ""))) ?? buys[0];
+        if (cancelled) return;
+        setBuy(
+          pick
+            ? {
+                person: String(pick.person || "Insider"),
+                role: String(pick.role || ""),
+                shares: Number(pick.shares) || 0,
+                price: Number(pick.price) || 0,
+                value: Number(pick.value) || 0,
+                date: String(pick.date || ""),
+              }
+            : null
+        );
+      } catch {
+        if (!cancelled) setBuy(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ticker]);
+
+  const fmtDate = (d: string) => {
+    const t = Date.parse(d);
+    return isNaN(t) ? d : new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  };
+  const fmtVal = (n: number) =>
+    n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(0)}K` : `$${n.toFixed(0)}`;
+
+  return (
+    <div className="rounded-xl border border-up/25 bg-up/[0.06] p-3.5">
+      <div className="flex items-center gap-2">
+        <span className="text-sm">🟢</span>
+        <span className="text-[0.62rem] uppercase tracking-[0.14em] text-up/90">Insider buying · live SEC Form 4</span>
+      </div>
+      {buy === undefined ? (
+        <p className="mt-1.5 text-xs text-slate-400">Checking the latest SEC filings…</p>
+      ) : buy ? (
+        <p className="mt-1.5 text-sm leading-relaxed text-slate-200">
+          <span className="font-medium text-white">{buy.person}</span>
+          {buy.role ? <span className="text-slate-400"> ({buy.role})</span> : null} bought{" "}
+          <span className="font-mono text-white">{buy.shares.toLocaleString()}</span> shares
+          {buy.price > 0 ? (
+            <>
+              {" "}at <span className="font-mono text-white">${buy.price.toFixed(2)}</span>
+            </>
+          ) : null}
+          {buy.value > 0 ? <span className="text-slate-400"> (~{fmtVal(buy.value)})</span> : null}
+          {buy.date ? <span className="text-slate-500"> · {fmtDate(buy.date)}</span> : null}.
+        </p>
+      ) : (
+        <p className="mt-1.5 text-xs leading-relaxed text-slate-400">
+          {note ?? "No recent insider buy is in the live SEC feed right now."}
+        </p>
+      )}
+      <Link
+        href={`/insider-activity`}
+        onClick={(e) => e.stopPropagation()}
+        className="mt-2 inline-block text-[0.7rem] text-gold underline-offset-2 hover:underline"
+      >
+        See all insider activity →
+      </Link>
+    </div>
+  );
+}
 
 // The upside / base / downside scenario range — an illustrative visual, not a
 // price target. The track runs from the downside return to the upside return,
@@ -128,7 +217,13 @@ export default function RareFinds() {
                   <span className="ml-3 flex-none self-end text-[0.7rem] font-medium text-gold/80">Why it&apos;s rare →</span>
                 </div>
               ) : (
-                <div className="mt-4 grid gap-5 border-t border-white/[0.08] pt-4 lg:grid-cols-2">
+                <div className="mt-4 border-t border-white/[0.08] pt-4">
+                  {f.insiderLive ? (
+                    <div className="mb-4">
+                      <InsiderBuyLine ticker={f.ticker} note={f.insiderNote} />
+                    </div>
+                  ) : null}
+                  <div className="grid gap-5 lg:grid-cols-2">
                   <div>
                     <span className="text-[0.62rem] uppercase tracking-[0.14em] text-gold/80">Why it&apos;s a rare find</span>
                     <ul className="mt-2 space-y-1.5">
@@ -152,6 +247,7 @@ export default function RareFinds() {
                     </Link>
                   </div>
                   <ScenarioRange find={f} />
+                  </div>
                 </div>
               )}
             </GlassCard>
