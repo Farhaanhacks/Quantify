@@ -1,11 +1,7 @@
-import Community from "@/components/quantifi/Community";
+import { redirect } from "next/navigation";
 
-export const metadata = {
-  title: "Community Research · Quantifi",
-  description:
-    "Curated research playbooks, market maps and source-backed analysis — built for study, not recommendations.",
-};
-
+// Community is paused for now — its research playbooks live under Ideas.
+// Keep the route as a redirect so old links don't 404.
 export default function CommunityPage() {
-  return <Community />;
+  redirect("/ideas");
 }

@@ -41,7 +41,7 @@ const columns: { title: string; items: { label: string; href: string }[] }[] = [
       { label: "Latest Stock News", href: "/news" },
       { label: "Stocks Affected", href: "/news" },
       { label: "Global Market Insights", href: "/explore" },
-      { label: "Community Research", href: "/community" },
+      { label: "Research Playbooks", href: "/ideas" },
       { label: "What's New", href: "/" },
     ],
   },

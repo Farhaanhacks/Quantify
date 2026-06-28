@@ -108,6 +108,15 @@ export interface CompanyData {
   earningsDate?: string;
   // top fund / ETF holders of this stock
   topFundHolders?: { name: string; pctHeld?: number }[];
+  // top institutional holders (BlackRock, Vanguard, …)
+  topInstitutionalHolders?: { name: string; pctHeld?: number; value?: number }[];
+  // ownership split
+  ownership?: {
+    institutionsPct?: number;
+    insidersPct?: number;
+    institutionsFloatPct?: number;
+    institutionsCount?: number;
+  };
   // statements (most recent periods first)
   incomeStatements?: FinRow[];
   balanceSheets?: FinRow[];
@@ -240,7 +249,7 @@ async function getYahooStatements(
 
 export async function getYahooCompany(input: string): Promise<CompanyData | null> {
   const modules =
-    "assetProfile,summaryDetail,defaultKeyStatistics,financialData,price,calendarEvents,fundOwnership";
+    "assetProfile,summaryDetail,defaultKeyStatistics,financialData,price,calendarEvents,fundOwnership,institutionOwnership,majorHoldersBreakdown";
 
   let symbol = input.toUpperCase();
   let resolvedFrom: string | undefined;
@@ -275,6 +284,23 @@ export async function getYahooCompany(input: string): Promise<CompanyData | null
     .filter((o) => Boolean(o.name))
     .map((o) => ({ name: o.name as string, pctHeld: o.pctHeld }))
     .slice(0, 6);
+
+  // Top institutional holders (institutionOwnership) + ownership split (majorHoldersBreakdown).
+  const io = (result.institutionOwnership ?? {}) as Record<string, unknown>;
+  const ioList = (io.ownershipList ?? []) as Record<string, unknown>[];
+  const topInstitutionalHolders = ioList
+    .map((o) => ({ name: str(o.organization), pctHeld: num(o.pctHeld), value: num(o.value) }))
+    .filter((o) => Boolean(o.name))
+    .map((o) => ({ name: o.name as string, pctHeld: o.pctHeld, value: o.value }))
+    .slice(0, 6);
+
+  const mhb = (result.majorHoldersBreakdown ?? {}) as Record<string, unknown>;
+  const ownership = {
+    institutionsPct: num(mhb.institutionsPercentHeld),
+    insidersPct: num(mhb.insidersPercentHeld),
+    institutionsFloatPct: num(mhb.institutionsFloatPercentHeld),
+    institutionsCount: num(mhb.institutionsCount),
+  };
 
   const stmts = await getYahooStatements(symbol);
 
@@ -340,6 +366,11 @@ export async function getYahooCompany(input: string): Promise<CompanyData | null
     numberOfAnalysts: num(fd.numberOfAnalystOpinions),
     earningsDate: earningsArr.length ? dateOf(earningsArr[0]) : undefined,
     topFundHolders: topFundHolders.length ? topFundHolders : undefined,
+    topInstitutionalHolders: topInstitutionalHolders.length ? topInstitutionalHolders : undefined,
+    ownership:
+      ownership.institutionsPct != null || ownership.insidersPct != null || ownership.institutionsCount != null
+        ? ownership
+        : undefined,
     incomeStatements: stmts.income,
     balanceSheets: stmts.balance,
     cashflowStatements: stmts.cashflow,

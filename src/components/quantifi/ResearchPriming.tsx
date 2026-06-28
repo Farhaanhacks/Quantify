@@ -11,7 +11,7 @@ const QUESTIONS = [
 const FLOW: { label: string; href: string; desc: string }[] = [
   { label: "News Impact", href: "/news", desc: "A headline → the names it moves" },
   { label: "Ideas", href: "/ideas", desc: "The research map behind a theme" },
-  { label: "Research Playbooks", href: "/community", desc: "Major frameworks, decoded" },
+  { label: "Research Playbooks", href: "/ideas", desc: "Major frameworks, decoded" },
   { label: "Portfolio", href: "/portfolio", desc: "How it lands on what you own" },
 ];
 

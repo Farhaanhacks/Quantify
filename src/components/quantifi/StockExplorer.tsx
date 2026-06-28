@@ -7,6 +7,7 @@ import TradingViewWidget from "@/components/quantifi/TradingViewWidget";
 import PriceChart from "@/components/quantifi/PriceChart";
 import CompanySnapshot from "@/components/quantifi/CompanySnapshot";
 import CompanyVitals from "@/components/quantifi/CompanyVitals";
+import ShareholdingStats from "@/components/quantifi/ShareholdingStats";
 import CompanyDetails from "@/components/quantifi/CompanyDetails";
 import EtfSnapshot from "@/components/quantifi/EtfSnapshot";
 import Competitors from "@/components/quantifi/Competitors";
@@ -351,6 +352,7 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
                 live={Boolean(score.live)}
               />
               <CompanyVitals symbol={ticker} />
+              <ShareholdingStats symbol={ticker} />
               <Competitors symbol={ticker} name={score.name} kind="stocks" />
             </>
           ) : etf ? (
