@@ -17,6 +17,8 @@ export interface LiveScore {
   price?: number;
   name?: string;
   target?: number;
+  targetHigh?: number;
+  targetLow?: number;
   recommendation?: string;
   numAnalysts?: number;
   marketCap?: number;
@@ -186,6 +188,8 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   const payout = num(sd.payoutRatio); // fraction
   const price = num(fd.currentPrice) ?? num(pr.regularMarketPrice);
   const target = num(fd.targetMeanPrice);
+  const targetHigh = num(fd.targetHighPrice);
+  const targetLow = num(fd.targetLowPrice);
   const recommendation = str(fd.recommendationKey);
   const numAnalysts = num(fd.numberOfAnalystOpinions);
   const marketCap = num(sd.marketCap) ?? num(pr.marketCap);
@@ -361,6 +365,8 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
     price,
     name,
     target,
+    targetHigh,
+    targetLow,
     recommendation,
     numAnalysts,
     marketCap,

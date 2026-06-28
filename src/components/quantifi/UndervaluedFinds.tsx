@@ -15,11 +15,87 @@ interface Row {
   name: string;
   price: number;
   target: number;
+  targetHigh?: number;
+  targetLow?: number;
   upside: number;
   recommendation?: string;
   numAnalysts?: number;
   marketCap?: number;
   total?: number;
+}
+
+const pctOf = (from: number, to: number) => ((to - from) / from) * 100;
+const fmtPct = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(1)}%`;
+
+// Real analyst range: bear (low target) · base (mean target) · bull (high
+// target), each shown as price + % vs the current price. Live data, not a
+// model — straight from the analyst estimates Yahoo aggregates.
+function AnalystRange({ row }: { row: Row }) {
+  const hasRange = typeof row.targetHigh === "number" && typeof row.targetLow === "number";
+  const lowP = hasRange ? (row.targetLow as number) : row.target;
+  const highP = hasRange ? (row.targetHigh as number) : row.target;
+
+  const down = pctOf(row.price, lowP);
+  const base = pctOf(row.price, row.target);
+  const up = pctOf(row.price, highP);
+
+  const min = Math.min(down, 0);
+  const max = Math.max(up, 0);
+  const span = max - min || 1;
+  const pos = (x: number) => `${((x - min) / span) * 100}%`;
+
+  return (
+    <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4">
+      <div className="flex items-center justify-between text-[0.62rem] uppercase tracking-[0.14em] text-slate-500">
+        <span>Analyst price-target range</span>
+        <span className="text-slate-600">{row.numAnalysts ?? "—"} analysts</span>
+      </div>
+
+      {hasRange ? (
+        <>
+          <div className="relative mt-6 mb-1 h-2 rounded-full bg-gradient-to-r from-down/50 via-white/10 to-up/50">
+            <span className="absolute top-1/2 h-3.5 w-0.5 -translate-y-1/2 bg-white/70" style={{ left: pos(0) }} />
+            <span className="absolute -top-5 -translate-x-1/2 text-[0.55rem] text-slate-400" style={{ left: pos(0) }}>Now</span>
+            <span className="absolute -bottom-1 h-4 w-1 -translate-x-1/2 rounded bg-gold" style={{ left: pos(base) }} />
+            <span className="absolute -bottom-6 -translate-x-1/2 whitespace-nowrap text-[0.55rem] font-medium text-gold" style={{ left: pos(base) }}>
+              Mean {fmtPct(base)}
+            </span>
+          </div>
+          <div className="mt-6 flex items-center justify-between text-[0.62rem]">
+            <span className="text-down">Low {fmtPct(down)}</span>
+            <span className="text-up">High {fmtPct(up)}</span>
+          </div>
+        </>
+      ) : null}
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        {[
+          { label: "Bear · low target", price: lowP, pct: down, cls: "border-down/25 bg-down/[0.06]", txt: "text-down" },
+          { label: "Base · mean target", price: row.target, pct: base, cls: "border-gold/25 bg-gold/[0.06]", txt: "text-gold" },
+          { label: "Bull · high target", price: highP, pct: up, cls: "border-up/25 bg-up/[0.06]", txt: "text-up" },
+        ].map((c) => (
+          <div key={c.label} className={`rounded-lg border p-2.5 ${c.cls}`}>
+            <div className="text-[0.55rem] uppercase tracking-[0.12em] text-slate-500">{c.label}</div>
+            <div className="mt-1 flex items-baseline justify-between">
+              <span className="font-mono text-sm tnum text-white">{c.price.toFixed(2)}</span>
+              <span className={`font-mono text-xs font-semibold ${c.txt}`}>{fmtPct(c.pct)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {!hasRange ? (
+        <p className="mt-3 text-[0.7rem] text-slate-500">
+          Only the mean analyst target is available for this name — the high/low range isn&apos;t published.
+        </p>
+      ) : null}
+
+      <p className="mt-3 text-[0.7rem] leading-relaxed text-slate-600">
+        Upside/downside here is the spread of Wall-Street analyst price targets vs the current price — a
+        gauge of expectations, not a forecast or advice.
+      </p>
+    </div>
+  );
 }
 
 function fmtCap(n?: number): string {
@@ -58,6 +134,7 @@ function ratingTone(r?: string): "up" | "gold" | "down" | "neutral" {
 export default function UndervaluedFinds() {
   const [rows, setRows] = useState<Row[]>([]);
   const [done, setDone] = useState(0);
+  const [open, setOpen] = useState<string | null>(null);
   const total = UNDERVALUED_CANDIDATES.length;
 
   useEffect(() => {
@@ -90,6 +167,8 @@ export default function UndervaluedFinds() {
                 name: d.name ?? t,
                 price: d.price,
                 target: d.target,
+                targetHigh: typeof d.targetHigh === "number" ? d.targetHigh : undefined,
+                targetLow: typeof d.targetLow === "number" ? d.targetLow : undefined,
                 upside,
                 recommendation: d.recommendation,
                 numAnalysts: d.numAnalysts,
@@ -118,7 +197,7 @@ export default function UndervaluedFinds() {
       <SectionHeading
         eyebrow="Undervalued Finds"
         title="Biggest gaps to analyst fair value"
-        subtitle="A live scan of a curated universe, ranked by how far each trades below the analysts' average price target. Real data — a research starting point, not advice."
+        subtitle="A live scan of a curated universe, ranked by how far each trades below the analysts' average price target. Tap any row for the analyst bear / base / bull range. Real data — a research starting point, not advice."
       />
 
       {loading ? (
@@ -153,38 +232,53 @@ export default function UndervaluedFinds() {
           </div>
         ) : (
           <ul className="divide-y divide-white/[0.05]">
-            {sorted.map((r, i) => (
-              <li
-                key={r.ticker}
-                className="grid grid-cols-2 gap-2 px-5 py-3.5 lg:grid-cols-[0.4fr_0.7fr_2fr_1fr_0.7fr_0.8fr_0.9fr_0.9fr] lg:items-center"
-              >
-                <span className="font-mono text-xs text-slate-500">{i + 1}</span>
-                <Link href={`/stock-analysis?symbol=${r.ticker}`}>
-                  <TickerChip ticker={r.ticker} />
-                </Link>
-                <span className="truncate text-sm text-slate-200">{r.name}</span>
-                <span>
-                  <Tag tone={ratingTone(r.recommendation)}>{ratingLabel(r.recommendation)}</Tag>
-                </span>
-                <span className="text-right font-mono text-sm tnum text-slate-400">
-                  {r.numAnalysts ?? "—"}
-                </span>
-                <span className="text-right font-mono text-sm tnum text-white">
-                  {r.target.toFixed(2)}
-                </span>
-                <span
-                  className={`text-right font-mono text-sm font-semibold tnum ${
-                    r.upside >= 0 ? "text-up" : "text-down"
-                  }`}
-                >
-                  {r.upside >= 0 ? "+" : ""}
-                  {r.upside.toFixed(1)}%
-                </span>
-                <span className="text-right font-mono text-sm tnum text-slate-400">
-                  {fmtCap(r.marketCap)}
-                </span>
-              </li>
-            ))}
+            {sorted.map((r, i) => {
+              const isOpen = open === r.ticker;
+              return (
+                <li key={r.ticker}>
+                  <div
+                    onClick={() => setOpen(isOpen ? null : r.ticker)}
+                    className={`grid cursor-pointer grid-cols-2 gap-2 px-5 py-3.5 transition hover:bg-white/[0.02] lg:grid-cols-[0.4fr_0.7fr_2fr_1fr_0.7fr_0.8fr_0.9fr_0.9fr] lg:items-center ${
+                      isOpen ? "bg-white/[0.02]" : ""
+                    }`}
+                  >
+                    <span className="font-mono text-xs text-slate-500">{i + 1}</span>
+                    <Link href={`/stock-analysis?symbol=${r.ticker}`} onClick={(e) => e.stopPropagation()}>
+                      <TickerChip ticker={r.ticker} />
+                    </Link>
+                    <span className="truncate text-sm text-slate-200">
+                      {r.name}
+                      <span className="ml-2 text-[0.65rem] text-gold/70">{isOpen ? "▲" : "▾"}</span>
+                    </span>
+                    <span>
+                      <Tag tone={ratingTone(r.recommendation)}>{ratingLabel(r.recommendation)}</Tag>
+                    </span>
+                    <span className="text-right font-mono text-sm tnum text-slate-400">
+                      {r.numAnalysts ?? "—"}
+                    </span>
+                    <span className="text-right font-mono text-sm tnum text-white">
+                      {r.target.toFixed(2)}
+                    </span>
+                    <span
+                      className={`text-right font-mono text-sm font-semibold tnum ${
+                        r.upside >= 0 ? "text-up" : "text-down"
+                      }`}
+                    >
+                      {r.upside >= 0 ? "+" : ""}
+                      {r.upside.toFixed(1)}%
+                    </span>
+                    <span className="text-right font-mono text-sm tnum text-slate-400">
+                      {fmtCap(r.marketCap)}
+                    </span>
+                  </div>
+                  {isOpen ? (
+                    <div className="px-5 pb-4">
+                      <AnalystRange row={r} />
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         )}
       </GlassCard>

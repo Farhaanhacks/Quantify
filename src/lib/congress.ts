@@ -3,13 +3,26 @@
 // official House/Senate financial-disclosure filings). Server-side only, cached.
 // No API key. If a source is unreachable we return nothing — never fake data.
 
-const SENATE_URL =
-  "https://senate-stock-watcher-data.s3-us-west-2.amazonaws.com/aggregate/all_transactions.json";
-const HOUSE_URL =
-  "https://house-stock-watcher-data.s3-us-west-2.amazonaws.com/data/all_transactions.json";
+// Multiple candidate URLs per chamber — these public mirrors occasionally move,
+// so we try each in order and use the first that returns usable JSON.
+const SENATE_URLS = [
+  "https://senate-stock-watcher-data.s3-us-west-2.amazonaws.com/aggregate/all_transactions.json",
+  "https://senate-stock-watcher-data.s3.amazonaws.com/aggregate/all_transactions.json",
+];
+const HOUSE_URLS = [
+  "https://house-stock-watcher-data.s3-us-west-2.amazonaws.com/data/all_transactions.json",
+  "https://house-stock-watcher-data.s3.amazonaws.com/data/all_transactions.json",
+];
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36";
+
+// In-memory cache (per warm serverless instance). The source files are large
+// (several MB) and update slowly, so we hold the normalised result for a while
+// instead of re-downloading on every request — and to avoid Next's fetch data
+// cache, which silently rejects responses over 2MB.
+let CACHE: { ts: number; trades: CongressTrade[] } | null = null;
+const TTL_MS = 6 * 60 * 60 * 1000; // 6h
 
 export interface CongressTrade {
   id: string;
@@ -51,23 +64,30 @@ function cleanTicker(t: string | undefined): string {
   return s;
 }
 
-async function fetchJson(url: string): Promise<unknown[] | null> {
-  try {
-    const r = await fetch(url, {
-      headers: { "User-Agent": UA, Accept: "application/json" },
-      next: { revalidate: 21600 }, // 6h — these update slowly
-      signal: AbortSignal.timeout(9000),
-    });
-    if (!r.ok) return null;
-    const j = await r.json();
-    return Array.isArray(j) ? j : null;
-  } catch {
-    return null;
+async function fetchJson(urls: string[]): Promise<unknown[] | null> {
+  for (const url of urls) {
+    try {
+      const r = await fetch(url, {
+        headers: { "User-Agent": UA, Accept: "application/json" },
+        cache: "no-store", // bypass Next's 2MB data-cache limit for these large files
+        signal: AbortSignal.timeout(20000),
+      });
+      if (!r.ok) continue;
+      const j = await r.json();
+      if (Array.isArray(j)) return j;
+    } catch {
+      /* try the next candidate URL */
+    }
   }
+  return null;
 }
 
-export async function getCongressTrades(limit = 30): Promise<CongressTrade[]> {
-  const [senate, house] = await Promise.all([fetchJson(SENATE_URL), fetchJson(HOUSE_URL)]);
+async function loadAllTrades(): Promise<CongressTrade[]> {
+  if (CACHE && Date.now() - CACHE.ts < TTL_MS && CACHE.trades.length) {
+    return CACHE.trades;
+  }
+
+  const [senate, house] = await Promise.all([fetchJson(SENATE_URLS), fetchJson(HOUSE_URLS)]);
   const out: CongressTrade[] = [];
 
   if (senate) {
@@ -114,5 +134,17 @@ export async function getCongressTrades(limit = 30): Promise<CongressTrade[]> {
     }
   }
 
-  return out.sort((a, b) => b.ms - a.ms).slice(0, limit);
+  const sorted = out.sort((a, b) => b.ms - a.ms).slice(0, 4000);
+  if (sorted.length) CACHE = { ts: Date.now(), trades: sorted };
+  return sorted;
+}
+
+// Public entry: latest trades, optionally filtered to a single ticker (so a
+// search for e.g. MSFT returns politician trades on MSFT even if it isn't in
+// the most-recent overall window).
+export async function getCongressTrades(opts: { limit?: number; ticker?: string } = {}): Promise<CongressTrade[]> {
+  const { limit = 30, ticker } = opts;
+  const all = await loadAllTrades();
+  const filtered = ticker ? all.filter((t) => t.ticker === ticker.toUpperCase()) : all;
+  return filtered.slice(0, limit);
 }

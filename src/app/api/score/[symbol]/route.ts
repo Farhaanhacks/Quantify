@@ -23,6 +23,8 @@ export async function GET(
         price: y.price,
         name: y.name,
         target: y.target,
+        targetHigh: y.targetHigh,
+        targetLow: y.targetLow,
         recommendation: y.recommendation,
         numAnalysts: y.numAnalysts,
         marketCap: y.marketCap,

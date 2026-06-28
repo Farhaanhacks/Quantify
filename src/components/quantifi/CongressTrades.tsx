@@ -31,19 +31,23 @@ export default function CongressTrades({ limit, heading = true }: { limit?: numb
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [filter, setFilter] = useState<Filter>("All");
-  const [query, setQuery] = useState("");
+  const [queryInput, setQueryInput] = useState("");
+  const [searchTicker, setSearchTicker] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(false);
+    const url = searchTicker
+      ? `/api/congress-trades?ticker=${encodeURIComponent(searchTicker)}`
+      : "/api/congress-trades";
     (async () => {
       try {
-        const r = await fetch("/api/congress-trades");
+        const r = await fetch(url);
         if (!r.ok) throw new Error(String(r.status));
         const d = (await r.json()) as { available?: boolean; trades?: ApiTrade[] };
         if (cancelled) return;
-        setTrades(d.available && Array.isArray(d.trades) ? d.trades : []);
+        setTrades(Array.isArray(d.trades) ? d.trades : []);
       } catch {
         if (!cancelled) {
           setTrades([]);
@@ -56,12 +60,13 @@ export default function CongressTrades({ limit, heading = true }: { limit?: numb
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [searchTicker]);
 
   const live = !!trades && trades.length > 0;
 
+  const runSearch = () => setSearchTicker(queryInput.trim().toUpperCase() || undefined);
+
   const filtered = useMemo(() => {
-    const needle = query.trim().toUpperCase();
     const base = (trades ?? []).filter((t) => {
       if (filter === "Buys") return t.action === "Buy";
       if (filter === "Sells") return t.action === "Sell";
@@ -69,11 +74,8 @@ export default function CongressTrades({ limit, heading = true }: { limit?: numb
       if (filter === "House") return t.chamber === "House";
       return true;
     });
-    const q = needle
-      ? base.filter((t) => t.ticker.includes(needle) || t.person.toUpperCase().includes(needle))
-      : base;
-    return limit ? q.slice(0, limit) : q;
-  }, [trades, filter, query, limit]);
+    return limit ? base.slice(0, limit) : base;
+  }, [trades, filter, limit]);
 
   const filters: Filter[] = ["All", "Buys", "Sells", "Senate", "House"];
 
@@ -109,12 +111,34 @@ export default function CongressTrades({ limit, heading = true }: { limit?: numb
             {f}
           </button>
         ))}
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Filter by ticker or name…"
-          className="ml-auto w-full max-w-xs rounded-lg border border-white/10 bg-ink-800 px-3 py-2 text-sm text-white outline-none focus:border-gold/40"
-        />
+        <div className="ml-auto flex items-center gap-2">
+          <input
+            value={queryInput}
+            onChange={(e) => setQueryInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && runSearch()}
+            placeholder="Search a ticker — e.g. MSFT, NVDA"
+            className="w-full max-w-[14rem] rounded-lg border border-white/10 bg-ink-800 px-3 py-2 text-sm text-white outline-none focus:border-gold/40"
+          />
+          <button
+            type="button"
+            onClick={runSearch}
+            className="rounded-lg bg-gradient-to-r from-gold-400 to-gold-600 px-4 py-2 text-sm font-semibold text-ink transition hover:opacity-90"
+          >
+            Search
+          </button>
+          {searchTicker ? (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTicker(undefined);
+                setQueryInput("");
+              }}
+              className="rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 transition hover:border-white/30 hover:text-white"
+            >
+              Latest
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <GlassCard className="mt-6 overflow-hidden">
@@ -163,7 +187,9 @@ export default function CongressTrades({ limit, heading = true }: { limit?: numb
           <div className="px-5 py-10 text-center text-sm text-slate-500">
             {error
               ? "Couldn't reach the congressional-disclosure data right now — it's fetched live from public House/Senate filings and may be temporarily unavailable. Please try again shortly."
-              : query || filter !== "All"
+              : searchTicker
+              ? `No disclosed House/Senate trades found for ${searchTicker} in the available filings.`
+              : filter !== "All"
               ? "No trades match this filter."
               : "No recent congressional trades found right now."}
           </div>
