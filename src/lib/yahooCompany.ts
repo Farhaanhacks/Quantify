@@ -101,9 +101,13 @@ export interface CompanyData {
   exDividendDate?: string;
   // analyst
   targetMean?: number;
+  targetHigh?: number;
+  targetLow?: number;
   recommendationKey?: string;
   numberOfAnalysts?: number;
   earningsDate?: string;
+  // top fund / ETF holders of this stock
+  topFundHolders?: { name: string; pctHeld?: number }[];
   // statements (most recent periods first)
   incomeStatements?: FinRow[];
   balanceSheets?: FinRow[];
@@ -236,7 +240,7 @@ async function getYahooStatements(
 
 export async function getYahooCompany(input: string): Promise<CompanyData | null> {
   const modules =
-    "assetProfile,summaryDetail,defaultKeyStatistics,financialData,price,calendarEvents";
+    "assetProfile,summaryDetail,defaultKeyStatistics,financialData,price,calendarEvents,fundOwnership";
 
   let symbol = input.toUpperCase();
   let resolvedFrom: string | undefined;
@@ -262,6 +266,15 @@ export async function getYahooCompany(input: string): Promise<CompanyData | null
 
   const earningsObj = (ce.earnings ?? {}) as Record<string, unknown>;
   const earningsArr = (earningsObj.earningsDate ?? []) as unknown[];
+
+  // Top fund / ETF holders of this stock (Yahoo's fundOwnership module).
+  const fo = (result.fundOwnership ?? {}) as Record<string, unknown>;
+  const foList = (fo.ownershipList ?? []) as Record<string, unknown>[];
+  const topFundHolders = foList
+    .map((o) => ({ name: str(o.organization), pctHeld: num(o.pctHeld) }))
+    .filter((o) => Boolean(o.name))
+    .map((o) => ({ name: o.name as string, pctHeld: o.pctHeld }))
+    .slice(0, 6);
 
   const stmts = await getYahooStatements(symbol);
 
@@ -321,9 +334,12 @@ export async function getYahooCompany(input: string): Promise<CompanyData | null
     payoutRatio: num(sd.payoutRatio),
     exDividendDate: dateOf(sd.exDividendDate),
     targetMean: num(fd.targetMeanPrice),
+    targetHigh: num(fd.targetHighPrice),
+    targetLow: num(fd.targetLowPrice),
     recommendationKey: str(fd.recommendationKey),
     numberOfAnalysts: num(fd.numberOfAnalystOpinions),
     earningsDate: earningsArr.length ? dateOf(earningsArr[0]) : undefined,
+    topFundHolders: topFundHolders.length ? topFundHolders : undefined,
     incomeStatements: stmts.income,
     balanceSheets: stmts.balance,
     cashflowStatements: stmts.cashflow,

@@ -39,11 +39,6 @@ function AnalystRange({ row }: { row: Row }) {
   const base = pctOf(row.price, row.target);
   const up = pctOf(row.price, highP);
 
-  const min = Math.min(down, 0);
-  const max = Math.max(up, 0);
-  const span = max - min || 1;
-  const pos = (x: number) => `${((x - min) / span) * 100}%`;
-
   return (
     <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4">
       <div className="flex items-center justify-between text-[0.62rem] uppercase tracking-[0.14em] text-slate-500">
@@ -51,22 +46,36 @@ function AnalystRange({ row }: { row: Row }) {
         <span className="text-slate-600">{row.numAnalysts ?? "—"} analysts</span>
       </div>
 
-      {hasRange ? (
-        <>
-          <div className="relative mt-6 mb-1 h-2 rounded-full bg-gradient-to-r from-down/50 via-white/10 to-up/50">
-            <span className="absolute top-1/2 h-3.5 w-0.5 -translate-y-1/2 bg-white/70" style={{ left: pos(0) }} />
-            <span className="absolute -top-5 -translate-x-1/2 text-[0.55rem] text-slate-400" style={{ left: pos(0) }}>Now</span>
-            <span className="absolute -bottom-1 h-4 w-1 -translate-x-1/2 rounded bg-gold" style={{ left: pos(base) }} />
-            <span className="absolute -bottom-6 -translate-x-1/2 whitespace-nowrap text-[0.55rem] font-medium text-gold" style={{ left: pos(base) }}>
-              Mean {fmtPct(base)}
-            </span>
+      {/* Bar chart: current price vs analyst low / mean / high targets */}
+      {(() => {
+        const bars = [
+          { label: "Now", val: row.price, color: "#94A3B8", pct: 0 },
+          { label: "Low", val: lowP, color: "#FB7185", pct: down },
+          { label: "Mean", val: row.target, color: "#E9B872", pct: base },
+          { label: "High", val: highP, color: "#34D399", pct: up },
+        ];
+        const maxV = Math.max(...bars.map((b) => b.val)) || 1;
+        return (
+          <div className="mt-4 flex h-32 items-end gap-3 border-b border-white/[0.08] pb-0">
+            {bars.map((b) => (
+              <div key={b.label} className="flex flex-1 flex-col items-center justify-end">
+                <span className="font-mono text-[0.62rem] text-white">{b.val.toFixed(0)}</span>
+                <div
+                  className="mt-1 w-full max-w-[42px] rounded-t-md transition-all"
+                  style={{ height: `${Math.max(4, (b.val / maxV) * 92)}px`, backgroundColor: b.color }}
+                />
+                <span className="mt-1.5 text-[0.6rem] text-slate-400">{b.label}</span>
+                <span
+                  className="text-[0.58rem] font-medium"
+                  style={{ color: b.label === "Now" ? "#64748B" : b.color }}
+                >
+                  {b.label === "Now" ? "current" : fmtPct(b.pct)}
+                </span>
+              </div>
+            ))}
           </div>
-          <div className="mt-6 flex items-center justify-between text-[0.62rem]">
-            <span className="text-down">Low {fmtPct(down)}</span>
-            <span className="text-up">High {fmtPct(up)}</span>
-          </div>
-        </>
-      ) : null}
+        );
+      })()}
 
       <div className="mt-4 grid gap-2 sm:grid-cols-3">
         {[

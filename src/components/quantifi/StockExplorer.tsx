@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import TradingViewWidget from "@/components/quantifi/TradingViewWidget";
 import PriceChart from "@/components/quantifi/PriceChart";
 import CompanySnapshot from "@/components/quantifi/CompanySnapshot";
+import CompanyVitals from "@/components/quantifi/CompanyVitals";
 import CompanyDetails from "@/components/quantifi/CompanyDetails";
 import EtfSnapshot from "@/components/quantifi/EtfSnapshot";
 import Competitors from "@/components/quantifi/Competitors";
@@ -349,6 +350,7 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
                 name={score.name}
                 live={Boolean(score.live)}
               />
+              <CompanyVitals symbol={ticker} />
               <Competitors symbol={ticker} name={score.name} kind="stocks" />
             </>
           ) : etf ? (
