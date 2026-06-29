@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { GlassCard } from "@/components/quantifi/Cards";
 
-export const metadata = { title: "Subscription confirmed · Quantifi" };
+export const metadata = { title: "Subscription confirmed", robots: { index: false, follow: false } };
 
 export default function BillingSuccessPage() {
   return (

@@ -4,10 +4,14 @@ import { Eyebrow } from "@/components/quantifi/Cards";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "Stock Analysis · Quantifi",
-  description: "Search any stock or ETF for a live chart, key stats and — where available — the Quantifi Score.",
-};
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata = buildMetadata({
+  title: "Stock Analysis — Search Any Stock or ETF",
+  description:
+    "Analyse any stock or ETF on Quantifi: live chart, valuation, analyst targets, financial summary, ownership and risks. Research only, not investment advice.",
+  path: "/stock-analysis",
+});
 
 export default function StockAnalysisPage({
   searchParams,

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { GlassCard } from "@/components/quantifi/Cards";
 
-export const metadata = { title: "Checkout cancelled · Quantifi" };
+export const metadata = { title: "Checkout cancelled", robots: { index: false, follow: false } };
 
 export default function BillingCancelPage() {
   return (

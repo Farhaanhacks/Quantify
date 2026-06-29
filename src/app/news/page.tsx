@@ -1,10 +1,13 @@
 import NewsFeed from "@/components/quantifi/NewsFeed";
 import { getMarketNews } from "@/lib/news";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "News Impact · Quantifi",
-  description: "A live, continuously updating feed of market news from multiple sources.",
-};
+export const metadata = buildMetadata({
+  title: "Market News Impact — Which Stocks a Headline Moves",
+  description:
+    "A live feed of market news mapped to the stocks it affects, with the reasoning and what to watch. Research only, not investment advice.",
+  path: "/news",
+});
 
 // Auto-refresh: Vercel regenerates this page in the background every 30 minutes,
 // so the feed stays current without anyone touching it.

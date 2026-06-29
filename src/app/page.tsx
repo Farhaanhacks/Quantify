@@ -9,6 +9,18 @@ import NewsImpact from "@/components/quantifi/NewsImpact";
 import InsiderActivity from "@/components/quantifi/InsiderActivity";
 import ExploreCompanies from "@/components/quantifi/ExploreCompanies";
 import { getMarketNews } from "@/lib/news";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata = {
+  ...buildMetadata({
+    title: "Quantifi — Stock Research, Portfolio Analysis & Market Theme Intelligence",
+    description:
+      "Quantifi helps retail investors analyse stocks, portfolio risk, valuation, market themes, news impact and investment narratives. Research only, not investment advice.",
+    path: "/",
+  }),
+  // Absolute so the layout's "%s · Quantifi" template doesn't append a second "Quantifi".
+  title: { absolute: "Quantifi — Stock Research, Portfolio Analysis & Market Theme Intelligence" },
+};
 
 // Re-render at most once a minute so the live market strip (and its
 // "last updated" timestamp) stay fresh without hammering the data source.

@@ -7,24 +7,39 @@ import { NextResponse, type NextRequest } from "next/server";
 // in every data API and server component, so a forged cookie sees no data.
 const SESSION_COOKIE = "quantifi_session";
 
-// Public routes that never require a session. Includes the trust & compliance
-// pages (privacy, terms, refund, contact, about) and the pricing page — these
-// must be crawlable and viewable by anyone (and by Google Safe Browsing) for
-// transparency, so they are intentionally outside the sign-in gate.
-const PUBLIC_PATHS = new Set<string>([
-  "/",
+// Public routes that never require a session. These must be crawlable by
+// search engines (and viewable by anyone) — the indexable content, the trust
+// pages and pricing. Private/personal surfaces (portfolio, watchlist, insider,
+// billing) stay gated below.
+const PUBLIC_EXACT = new Set<string>(["/"]);
+const PUBLIC_PREFIXES = [
+  "/ideas",
+  "/news",
+  "/stock-analysis",
+  "/stocks",
+  "/screener",
+  "/tools",
+  "/explore",
+  "/rare-finds",
+  "/research",
+  "/community", // redirects to /ideas
+  "/pricing",
   "/about",
   "/contact",
   "/privacy",
   "/terms",
   "/refund-policy",
-  "/pricing",
-]);
+];
+
+function isPublic(pathname: string): boolean {
+  if (PUBLIC_EXACT.has(pathname)) return true;
+  return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
+}
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
+  if (isPublic(pathname)) return NextResponse.next();
 
   const signedIn = Boolean(req.cookies.get(SESSION_COOKIE)?.value);
   if (signedIn) return NextResponse.next();

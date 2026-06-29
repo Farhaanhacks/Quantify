@@ -2,11 +2,14 @@ import Link from "next/link";
 import TradingIdeas from "@/components/quantifi/TradingIdeas";
 import { Eyebrow } from "@/components/quantifi/Cards";
 import { playbooks } from "@/data/playbooks";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Research Maps · Quantifi",
-  description: "Global research themes — not recommendations. Each map lays out the investment question, value chain, bull/base/bear case, thesis tests and source pack.",
-};
+export const metadata = buildMetadata({
+  title: "Research Ideas & Market Themes",
+  description:
+    "Global market-theme research from Quantifi — the investment question, value chain, key stocks, bull/base/bear case, thesis tests and sources. Research only, not investment advice.",
+  path: "/ideas",
+});
 
 export default function IdeasPage() {
   const pb = playbooks[0];

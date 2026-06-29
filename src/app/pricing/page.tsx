@@ -2,11 +2,13 @@ import Link from "next/link";
 import PricingPlans from "@/components/quantifi/PricingPlans";
 import { Eyebrow } from "@/components/quantifi/Cards";
 import { QUANTIFI_PRO } from "@/data/plans";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Quantifi Pro · Pricing",
-  description: `Quantifi Pro — ${QUANTIFI_PRO.price}/month (standard price ₹500). Stock Analysis, Insider Activity and Rare Finds.`,
-};
+export const metadata = buildMetadata({
+  title: `Pricing — Quantifi Pro (${QUANTIFI_PRO.price}/month)`,
+  description: `Quantifi Pro — ${QUANTIFI_PRO.price}/month (standard ₹500). Unlimited stock analysis, all research ideas, full source packs and portfolio diagnosis. Research only, not investment advice.`,
+  path: "/pricing",
+});
 
 export default function PricingPage() {
   return (

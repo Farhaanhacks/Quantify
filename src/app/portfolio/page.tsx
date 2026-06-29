@@ -5,8 +5,9 @@ import InsiderActivity from "@/components/quantifi/InsiderActivity";
 import { Eyebrow } from "@/components/quantifi/Cards";
 
 export const metadata = {
-  title: "Portfolio · Quantifi",
+  title: "Portfolio",
   description: "Build and track multiple portfolios, then see the quality snowflake and live news around the names you actually hold.",
+  robots: { index: false, follow: false },
 };
 
 export default function PortfolioPage() {
