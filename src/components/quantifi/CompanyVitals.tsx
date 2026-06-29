@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { GlassCard } from "@/components/quantifi/Cards";
+import SupportResistanceChart from "@/components/quantifi/SupportResistanceChart";
 import type { CompanyData } from "@/lib/yahooCompany";
 import { toneOf } from "@/lib/newsImpact";
 
@@ -113,11 +114,6 @@ export default function CompanyVitals({ symbol }: { symbol: string }) {
   const revPerEmp = data.revenue && data.employees ? data.revenue / data.employees : undefined;
   const earnPerEmp = data.netIncome && data.employees ? data.netIncome / data.employees : undefined;
 
-  // Support / resistance from the 52-week range; position of price within it.
-  const lo = data.fiftyTwoWeekLow;
-  const hi = data.fiftyTwoWeekHigh;
-  const pricePos = lo != null && hi != null && hi > lo ? ((price - lo) / (hi - lo)) * 100 : null;
-
   // Media coverage gauge from recent headline tone.
   const news = data.news ?? [];
   let pos = 0;
@@ -205,28 +201,14 @@ export default function CompanyVitals({ symbol }: { symbol: string }) {
 
         {/* Support & resistance */}
         <GlassCard className="p-5 lg:col-span-2">
-          <h3 className="font-display text-base font-semibold text-white">Support &amp; Resistance</h3>
-          <p className="mt-1 text-[0.7rem] text-slate-500">52-week range — where the price has found floors and ceilings.</p>
-          {pricePos != null ? (
-            <div className="mt-5">
-              <div className="relative h-2 rounded-full bg-gradient-to-r from-up/40 via-white/10 to-down/40">
-                <span className="absolute top-1/2 h-4 w-1 -translate-x-1/2 -translate-y-1/2 rounded bg-white" style={{ left: `${pricePos}%` }} />
-                <span className="absolute -top-5 -translate-x-1/2 text-[0.55rem] text-slate-300" style={{ left: `${pricePos}%` }}>
-                  {c}{price.toFixed(2)}
-                </span>
-              </div>
-              <div className="mt-2 flex items-center justify-between text-[0.7rem]">
-                <span className="text-up">Support {c}{lo!.toFixed(2)}</span>
-                <span className="text-down">Resistance {c}{hi!.toFixed(2)}</span>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[0.68rem] text-slate-500">
-                {data.fiftyDayAvg ? <span>50-day avg <span className="font-mono text-slate-300">{c}{data.fiftyDayAvg.toFixed(2)}</span></span> : null}
-                {data.twoHundredDayAvg ? <span>200-day avg <span className="font-mono text-slate-300">{c}{data.twoHundredDayAvg.toFixed(2)}</span></span> : null}
-              </div>
+          <div className="flex items-center justify-between">
+            <h3 className="font-display text-base font-semibold text-white">Support &amp; Resistance</h3>
+            <div className="flex flex-wrap gap-x-4 text-[0.62rem] text-slate-500">
+              {data.fiftyDayAvg ? <span>50d <span className="font-mono text-slate-300">{c}{data.fiftyDayAvg.toFixed(2)}</span></span> : null}
+              {data.twoHundredDayAvg ? <span>200d <span className="font-mono text-slate-300">{c}{data.twoHundredDayAvg.toFixed(2)}</span></span> : null}
             </div>
-          ) : (
-            <p className="mt-4 text-sm text-slate-500">52-week range not available for this name.</p>
-          )}
+          </div>
+          <SupportResistanceChart symbol={symbol} currency={data.currency} />
         </GlassCard>
 
         {/* Top fund / ETF holders */}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import AuthButton from "@/components/quantifi/AuthButton";
+import ThemeToggle from "@/components/quantifi/ThemeToggle";
 import BrandLogo from "@/components/quantifi/BrandLogo";
 import NotificationBell from "@/components/quantifi/NotificationBell";
 
@@ -59,6 +60,7 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <NotificationBell />
           <AuthButton />
           <button

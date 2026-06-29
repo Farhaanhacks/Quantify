@@ -58,6 +58,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`dark ${sans.variable} ${display.variable} ${mono.variable}`}>
+      <head>
+        {/* Apply the saved theme before paint to avoid a flash. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{if(localStorage.getItem('theme')==='light'){document.documentElement.classList.add('light')}}catch(e){}",
+          }}
+        />
+      </head>
       <body className="font-sans antialiased">
         <JsonLd data={[organizationJsonLd(), websiteJsonLd(), softwareApplicationJsonLd()]} />
         <Navbar />

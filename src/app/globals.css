@@ -12,12 +12,85 @@
   --text-mute: #64748b;
 }
 
-/* Force a dark, polished surface regardless of system/light preference.
-   There is intentionally no light theme path, so light mode cannot break the UI. */
 html {
   background-color: var(--bg);
   color-scheme: dark;
 }
+
+/* ── Light theme (opt-in via .light on <html>) ─────────────────────────────
+   Components use hard-coded dark utilities, so we remap the common ones here
+   rather than rewriting every file. Brand accents (gold/teal/up/down) stay. */
+html.light {
+  color-scheme: light;
+  --bg: #f5f7fa;
+  --panel: rgba(15, 23, 42, 0.035);
+  --panel-border: rgba(15, 23, 42, 0.1);
+  --text: #0b0f1a;
+  --text-dim: #475569;
+  --text-mute: #64748b;
+}
+html.light body::before {
+  background:
+    radial-gradient(60rem 40rem at 12% -10%, rgba(233, 184, 114, 0.14), transparent 60%),
+    radial-gradient(50rem 36rem at 92% 4%, rgba(79, 209, 197, 0.12), transparent 55%);
+}
+html.light body::after {
+  background-image:
+    linear-gradient(to right, rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+}
+html.light .glass-hover:hover {
+  background: rgba(15, 23, 42, 0.05);
+}
+html.light .chip {
+  border-color: rgba(15, 23, 42, 0.12);
+  background: rgba(15, 23, 42, 0.04);
+}
+html.light ::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.2);
+  background-clip: content-box;
+}
+html.light ::selection {
+  background: rgba(233, 184, 114, 0.35);
+  color: #0b0f1a;
+}
+
+/* Text */
+html.light .text-white { color: #0b0f1a; }
+html.light .text-slate-200 { color: #1e293b; }
+html.light .text-slate-300 { color: #334155; }
+html.light .text-slate-400 { color: #475569; }
+html.light .text-slate-500 { color: #64748b; }
+html.light .text-slate-600 { color: #94a3b8; }
+html.light .text-ink { color: #0b0f1a; }
+
+/* Surfaces */
+html.light .bg-ink-900,
+html.light .bg-ink-800,
+html.light .bg-ink-950 { background-color: #ffffff; }
+html.light .bg-white\/\[0\.02\],
+html.light .bg-white\/\[0\.03\],
+html.light .bg-white\/\[0\.04\],
+html.light .bg-white\/\[0\.05\],
+html.light .bg-white\/\[0\.06\],
+html.light .bg-white\/5,
+html.light .bg-white\/10 { background-color: rgba(15, 23, 42, 0.04); }
+
+/* Borders */
+html.light .border-white\/10,
+html.light .border-white\/15,
+html.light .border-white\/20,
+html.light .border-white\/\[0\.06\],
+html.light .border-white\/\[0\.08\],
+html.light .border-white\/\[0\.1\] { border-color: rgba(15, 23, 42, 0.12); }
+html.light .divide-white\/\[0\.05\] > :not([hidden]) ~ :not([hidden]),
+html.light .divide-white\/\[0\.06\] > :not([hidden]) ~ :not([hidden]) { border-color: rgba(15, 23, 42, 0.08); }
+
+/* Inputs */
+html.light input,
+html.light select,
+html.light textarea { color: #0b0f1a; }
+html.light input::placeholder { color: #94a3b8; }
 
 html,
 body {
