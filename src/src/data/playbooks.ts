@@ -1,0 +1,331 @@
+// Research Playbooks — curated research frameworks that decode how a big-picture
+// thesis maps onto public-market investing themes. These are study frameworks,
+// not recommendations. Static for now; the structure is built so more playbooks
+// can be added later.
+
+export interface PlaybookSummaryCard {
+  title: string;
+  summary: string;
+}
+
+export interface PlaybookLinkedIdea {
+  ideaId: string; // matches a tradingIdeas id, for "Open theme →"
+  title: string;
+  whyLinked: string;
+  names: string[];
+}
+
+export interface PlaybookThesisTest {
+  test: string;
+  signal: "Strengthening" | "Mixed" | "Weakening" | "Early" | "Watch closely";
+  metric: string;
+  breaksIf: string;
+}
+
+export interface PlaybookScenario {
+  kind: "Best case" | "Base case" | "Worst case";
+  what: string;
+  beneficiaries: string;
+  redFlag: string;
+}
+
+export interface PlaybookSource {
+  title: string;
+  checks: string; // " · " separated checks
+  linked?: string[];
+  why?: string; // the evidence / why-it-matters context
+  usedIn?: string; // the thesis test this source helps decide
+  href?: string; // canonical landing page (swap exact deep links later)
+}
+
+// ── Exposure model ───────────────────────────────────────────────────────────
+// Tickers in a thesis are NOT all bullish holdings. We separate exposure types
+// so a name is never shown as a long position when the thesis is bearish on it,
+// and private companies (e.g. Anthropic) are never shown as tradable tickers.
+export type AssetType = "stock" | "etf" | "private_company" | "fund" | "theme";
+export type ExposureType = "long" | "short" | "private" | "proxy" | "watchlist" | "editorial";
+
+export interface ExposureItem {
+  name: string;
+  ticker?: string; // omitted for private companies (not directly tradable)
+  assetType: AssetType;
+  exposureType: ExposureType;
+  conviction?: "high" | "medium" | "low";
+  isDirectExposure: boolean; // false for proxies and private companies
+  explanation: string;
+  sourceUrl?: string;
+}
+
+export interface ExposureGroup {
+  key: "long" | "short" | "private" | "proxy" | "etf" | "watchlist";
+  title: string;
+  note: string; // the small explanation shown beside the group
+  items: ExposureItem[];
+}
+
+export interface Playbook {
+  id: string;
+  title: string;
+  subtitle: string;
+  // Investment-memo header (preferred on the full research page).
+  memoTitle?: string;
+  memoSubtitle?: string;
+  styleTag?: string; // e.g. "Macro / geopolitics / AI infrastructure"
+  oneLineThesis?: string; // the single prominent thesis statement
+  soWhat?: string; // "so what does this mean for investors?"
+  tags: string[];
+  detailTags: string[]; // a slightly fuller tag set for the detail header
+  type: string;
+  timeHorizon: string;
+  riskLens: string;
+  bestFor: string;
+  status: string;
+  lastUpdated?: string;
+  updateTrigger?: string;
+  coreQuestion: string;
+  read: string;
+  whatChanged?: string[];
+  summary: PlaybookSummaryCard[];
+  linkedIdeas: PlaybookLinkedIdea[];
+  exposure?: ExposureGroup[];
+  bullCase: string;
+  bearCase: string;
+  thesisTests: PlaybookThesisTest[];
+  scenarios: PlaybookScenario[];
+  bullRoad: string[];
+  bearRoad: string[];
+  sourcePack: PlaybookSource[];
+}
+
+export const playbooks: Playbook[] = [
+  {
+    id: "situational-awareness",
+    title: "Decode: The Situational Awareness Playbook",
+    subtitle: "AI timelines, compute, national security and the capital cycle",
+    memoTitle: "Situational Awareness: AI as Strategic Infrastructure",
+    memoSubtitle:
+      "How frontier AI may reshape compute, power, chips, cloud, defence and public-market capital flows.",
+    styleTag: "Macro / geopolitics / AI infrastructure",
+    oneLineThesis:
+      "AI capability growth may turn compute, power and national-security infrastructure into strategic assets. The winners may be the companies that control cloud, chips, power, data centres and defence infrastructure — but the most crowded AI names may face near-term de-rating risk.",
+    soWhat:
+      "This framework is not simply saying 'buy AI stocks.' It separates AI-infrastructure beneficiaries from crowded AI winners that may already price in too much optimism. The key distinction is between long-term strategic demand and near-term valuation risk — a name can be central to the theme and still be a poor entry today.",
+    tags: ["AI", "Compute", "Sovereign AI", "Power", "Defence", "Semiconductors"],
+    detailTags: [
+      "AI",
+      "Compute",
+      "Sovereign AI",
+      "Semiconductors",
+      "Defence",
+      "Power",
+      "Geopolitics",
+    ],
+    type: "Research Playbook",
+    timeHorizon: "3–10 years",
+    riskLens: "High uncertainty",
+    bestFor: "Macro / geopolitics-aware investors",
+    status: "Framework decode",
+    lastUpdated: "26 Jun 2026",
+    updateTrigger: "new hyperscaler earnings / AI policy / export-control change",
+    coreQuestion:
+      "Is frontier AI becoming strategic infrastructure — and what does that imply for compute, power, chips, cloud, defence and public-market capital flows?",
+    read:
+      "The Situational Awareness framework is not a stock tip. It is a map of how accelerating AI capability could force governments, hyperscalers and investors to treat compute, power and national-security infrastructure as strategic assets.",
+    whatChanged: [
+      "Hyperscaler capex is the key confirmation signal — and it is still rising.",
+      "Power availability is becoming a binding constraint on the buildout.",
+      "Sovereign AI is moving from policy statements to funded programmes.",
+      "Crowded AI leaders (notably NVDA) carry growing near-term de-rating risk even as the long-term theme holds.",
+    ],
+    summary: [
+      { title: "AI acceleration", summary: "Frontier models may improve fast enough to compress investment and policy timelines." },
+      { title: "Compute as strategic infrastructure", summary: "Chips, cloud capacity and data centres become national assets, not just corporate capex." },
+      { title: "Power becomes the bottleneck", summary: "Electricity, cooling and grid capacity become constraints on AI buildout." },
+      { title: "National security enters the market", summary: "Defence, cyber, sovereign AI and export controls become part of the investment debate." },
+    ],
+    linkedIdeas: [
+      {
+        ideaId: "sovereign-ai-stacks",
+        title: "Sovereign AI Stacks",
+        whyLinked: "Countries may fund domestic AI infrastructure, cloud and compute capacity.",
+        names: ["NVDA", "AMD", "MSFT", "GOOGL", "AMZN", "ORCL", "BABA", "BIDU", "RELIANCE.NS", "BHARTIARTL.NS", "TATACOMM.NS"],
+      },
+      {
+        ideaId: "ai-power-bottleneck",
+        title: "AI Power Bottleneck",
+        whyLinked: "Compute growth creates power, cooling and grid bottlenecks.",
+        names: ["VRT", "ETN", "GEV", "ANET", "EQIX", "DLR", "ABB.NS", "SIEMENS.NS", "TATAPOWER.NS", "POWERGRID.NS"],
+      },
+      {
+        ideaId: "global-defence-rearmament",
+        title: "Global Defence Re-Armament",
+        whyLinked: "AI becomes part of national-security infrastructure.",
+        names: ["PLTR", "LMT", "RTX", "NOC", "GD", "HAL.NS", "BEL.NS", "BDL.NS"],
+      },
+      {
+        ideaId: "physical-ai-robotics",
+        title: "Physical AI & Robotics",
+        whyLinked: "Frontier AI may move into drones, robots, autonomy and industrial machines.",
+        names: ["TSLA", "NVDA", "ISRG", "ABBNY", "FANUY", "ABB.NS", "SIEMENS.NS", "LT.NS"],
+      },
+      {
+        ideaId: "global-industrial-rebuild",
+        title: "Global Industrial Rebuild",
+        whyLinked: "AI buildout requires factories, semicap, grids, cooling and hard assets.",
+        names: ["AMAT", "LRCX", "ETN", "GEV", "CAT", "LT.NS", "CGPOWER.NS", "THERMAX.NS"],
+      },
+    ],
+    exposure: [
+      {
+        key: "long",
+        title: "Core Beneficiaries",
+        note: "Listed companies positively exposed to the infrastructure side of the thesis — chips, networking, power and cloud. Thematic exposure, not fund holdings or recommendations. NVDA is deliberately not here (see Near-Term Bearish).",
+        items: [
+          { name: "Broadcom", ticker: "AVGO", assetType: "stock", exposureType: "long", conviction: "high", isDirectExposure: true, explanation: "Custom AI silicon + networking — the non-Nvidia compute leg, with a more diversified revenue base." },
+          { name: "AMD", ticker: "AMD", assetType: "stock", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "Second-source AI accelerators and data-centre CPUs — leverage to the buildout without Nvidia's crowding." },
+          { name: "Arista Networks", ticker: "ANET", assetType: "stock", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "AI data-centre networking (Ethernet fabric) — picks-and-shovels to compute scale-out." },
+          { name: "Vertiv", ticker: "VRT", assetType: "stock", exposureType: "long", conviction: "high", isDirectExposure: true, explanation: "Data-centre power & cooling — a direct play on power becoming the binding constraint." },
+          { name: "GE Vernova", ticker: "GEV", assetType: "stock", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "Power generation + grid equipment for rising AI electricity load." },
+          { name: "Microsoft", ticker: "MSFT", assetType: "stock", exposureType: "long", conviction: "high", isDirectExposure: true, explanation: "Hyperscaler capex + cloud AI demand (and the key OpenAI proxy — see Private/Proxy)." },
+          { name: "Alphabet", ticker: "GOOGL", assetType: "stock", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "Hyperscaler + in-house frontier lab (DeepMind), TPU compute, and an Anthropic investor." },
+          { name: "Amazon", ticker: "AMZN", assetType: "stock", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "AWS capacity for the buildout, and the lead Anthropic investor / compute partner." },
+        ],
+      },
+      {
+        key: "short",
+        title: "Near-Term Bearish / De-rating Risk",
+        note: "Important to the theme but vulnerable if AI capex, valuation or monetisation disappoints. These are de-rating risks, NOT short recommendations or verified short positions.",
+        items: [
+          { name: "NVIDIA", ticker: "NVDA", assetType: "stock", exposureType: "short", conviction: "high", isDirectExposure: true, explanation: "Important to the AI-infrastructure cycle, but the Situational Awareness view is bearish near term: stretched valuation, capex-sustainability risk, customer concentration and a possible AI-narrative reversal. Central to the theme ≠ a good entry today." },
+          { name: "Palantir", ticker: "PLTR", assetType: "stock", exposureType: "short", conviction: "medium", isDirectExposure: true, explanation: "Richly valued on the AI/defence narrative; among the first to de-rate if AI monetisation disappoints." },
+          { name: "Super Micro", ticker: "SMCI", assetType: "stock", exposureType: "short", conviction: "medium", isDirectExposure: true, explanation: "Thin-margin AI-server assembler; highly sensitive to a capex slowdown." },
+          { name: "Arm Holdings", ticker: "ARM", assetType: "stock", exposureType: "short", conviction: "low", isDirectExposure: true, explanation: "Premium multiple tied to AI-licensing optimism; vulnerable if the cycle cools." },
+        ],
+      },
+      {
+        key: "private",
+        title: "Private AI Lab Exposure",
+        note: "Central to the thesis but NOT directly tradable. Public-market exposure is only indirect, via the proxies below.",
+        items: [
+          { name: "Anthropic", assetType: "private_company", exposureType: "private", isDirectExposure: false, explanation: "Central private frontier-AI lab (Claude). Not directly tradable as a public stock. Public exposure is indirect, primarily via AMZN and GOOGL, who are investors and compute partners. ETFs do not hold Anthropic directly.", sourceUrl: "https://www.anthropic.com" },
+          { name: "OpenAI", assetType: "private_company", exposureType: "private", isDirectExposure: false, explanation: "Frontier lab at the centre of the framework. Private — not directly tradable. Public exposure is indirect, primarily via MSFT (strategic partner / investor).", sourceUrl: "https://openai.com" },
+          { name: "xAI", assetType: "private_company", exposureType: "private", isDirectExposure: false, explanation: "Frontier lab. Private — not directly tradable as a public stock; no clean listed proxy.", sourceUrl: "https://x.ai" },
+        ],
+      },
+      {
+        key: "proxy",
+        title: "Public Market Proxies",
+        note: "Listed companies with investment or partnership links to the private labs. INDIRECT, thematic links — not direct ownership of OpenAI / Anthropic / xAI.",
+        items: [
+          { name: "Microsoft", ticker: "MSFT", assetType: "stock", exposureType: "proxy", conviction: "high", isDirectExposure: false, explanation: "Strategic partner and investor in OpenAI; exclusive-ish cloud relationship. Indirect exposure — not direct ownership.", sourceUrl: "https://www.microsoft.com/en-us/investor" },
+          { name: "Amazon", ticker: "AMZN", assetType: "stock", exposureType: "proxy", conviction: "medium", isDirectExposure: false, explanation: "Lead investor in Anthropic and its AWS compute partner. Indirect exposure — not direct ownership.", sourceUrl: "https://ir.aboutamazon.com" },
+          { name: "Alphabet", ticker: "GOOGL", assetType: "stock", exposureType: "proxy", conviction: "medium", isDirectExposure: false, explanation: "Investor in Anthropic (alongside its own DeepMind lab). Indirect exposure — not direct ownership." },
+          { name: "NVIDIA", ticker: "NVDA", assetType: "stock", exposureType: "proxy", conviction: "medium", isDirectExposure: false, explanation: "AI-infrastructure proxy — sells compute to every major lab — but the near-term view here is bearish (see De-rating Risk). Shown as a proxy for aggregate AI-lab spend, not as a positive position." },
+        ],
+      },
+      {
+        key: "etf",
+        title: "ETF / Basket Exposure",
+        note: "Indirect basket exposure, shown last. These ETFs generally own listed semiconductor / cloud / platform companies — not private AI labs. None hold Anthropic, OpenAI or xAI directly.",
+        items: [
+          { name: "VanEck Semiconductor ETF", ticker: "SMH", assetType: "etf", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "Holds listed semiconductor companies (NVDA, AVGO, AMD…). Direct exposure to listed chipmakers — no private-lab exposure." },
+          { name: "iShares Semiconductor ETF", ticker: "SOXX", assetType: "etf", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "Broad basket of listed semiconductor companies. No private-lab exposure." },
+          { name: "Invesco QQQ Trust", ticker: "QQQ", assetType: "etf", exposureType: "proxy", conviction: "low", isDirectExposure: true, explanation: "Mega-cap tech index incl. MSFT, GOOGL, AMZN, NVDA — exposure is to the listed proxies, not the private labs." },
+        ],
+      },
+    ],
+    bullCase:
+      "The playbook is directionally right. AI capability keeps accelerating, compute demand rises, governments fund sovereign AI, hyperscalers continue capex, and power/grid bottlenecks create second-order beneficiaries.",
+    bearCase:
+      "The playbook is too aggressive. AI progress slows, monetisation disappoints, compute becomes more efficient, regulation delays deployment, or investors reject long-duration AI capex stories.",
+    thesisTests: [
+      { test: "Frontier AI progress", signal: "Watch closely", metric: "model capability jumps, benchmark gains, enterprise adoption", breaksIf: "model progress slows materially" },
+      { test: "Hyperscaler capex", signal: "Strengthening", metric: "MSFT, AMZN, GOOGL, META, ORCL capex guidance", breaksIf: "capex guidance is cut across multiple hyperscalers" },
+      { test: "Compute scarcity", signal: "Strengthening", metric: "GPU supply, data-centre capacity, cloud backlog", breaksIf: "compute supply becomes abundant faster than demand" },
+      { test: "Power and grid constraints", signal: "Strengthening", metric: "data-centre power demand, interconnection queues, grid capex", breaksIf: "power constraints ease without pricing impact" },
+      { test: "Sovereign AI funding", signal: "Mixed", metric: "US, China, India, Europe AI funding and policy announcements", breaksIf: "government funding stalls or reverses" },
+      { test: "Defence AI adoption", signal: "Early", metric: "AI defence contracts, autonomy programmes, cyber/AI budgets", breaksIf: "adoption remains experimental and does not scale" },
+    ],
+    scenarios: [
+      {
+        kind: "Best case",
+        what: "AI acceleration becomes a multi-year strategic infrastructure cycle.",
+        beneficiaries: "compute, cloud, power, semicap, defence AI, grid, cooling",
+        redFlag: "capex rises but ROI remains unclear",
+      },
+      {
+        kind: "Base case",
+        what: "AI remains important, but adoption and monetisation are uneven.",
+        beneficiaries: "only the strongest platforms and infrastructure suppliers",
+        redFlag: "spending continues but earnings upgrades narrow",
+      },
+      {
+        kind: "Worst case",
+        what: "AI progress or monetisation disappoints, capex gets cut, and expensive AI-infrastructure names de-rate.",
+        beneficiaries: "cash-rich platforms and diversified infrastructure names",
+        redFlag: "hyperscaler capex cuts, margin compression, funding slowdown",
+      },
+    ],
+    bullRoad: [
+      "AI capability rises",
+      "compute scarcity grows",
+      "hyperscaler capex expands",
+      "power/grid bottlenecks worsen",
+      "sovereign AI funding rises",
+      "infrastructure names re-rate",
+    ],
+    bearRoad: [
+      "AI ROI disappoints",
+      "capex slows",
+      "compute supply catches up",
+      "power bottleneck weakens",
+      "policy funding cools",
+      "AI infrastructure basket de-rates",
+    ],
+    sourcePack: [
+      {
+        title: "Situational Awareness: The Decade Ahead",
+        checks: "AI timelines · compute scaling · national-security implications · 'AI as strategic infrastructure'",
+        why: "The anchor framework being decoded. Leopold Aschenbrenner's original 'Situational Awareness' argues that AI progress could rapidly become a national-security and compute-infrastructure race.",
+        usedIn: "Frontier AI progress",
+        href: "https://situational-awareness.ai",
+      },
+      {
+        title: "Hyperscaler earnings calls & filings",
+        checks: "AI capex guidance · cloud demand · data-centre buildout · customer commitments",
+        linked: ["MSFT", "AMZN", "GOOGL", "META", "ORCL"],
+        why: "Tests whether the AI-infrastructure thesis is actually showing up in spending. Microsoft's FY2025 reporting points to continued capex to support cloud growth and AI infrastructure, with FY25 Q4 quarterly capex around $24.2bn; Amazon's disclosures cover AWS capex and customer commitments for future monetisation.",
+        usedIn: "Hyperscaler capex",
+        href: "https://www.microsoft.com/en-us/investor",
+      },
+      {
+        title: "Semiconductor & compute filings",
+        checks: "GPU demand · custom silicon · networking · supply constraints · AI revenue mix",
+        linked: ["NVDA", "AMD", "AVGO", "ANET"],
+        why: "Nvidia's data-centre revenue and the Blackwell cycle are central to the compute-scarcity thesis — Blackwell is described as data-centre-scale infrastructure (GPUs, CPUs, DPUs, interconnects, switch chips, systems, networking). Broadcom covers the custom-silicon / networking leg (custom accelerators, Ethernet switching/routing, NICs, optical components, XPU racks).",
+        usedIn: "Compute scarcity",
+        href: "https://investor.nvidia.com",
+      },
+      {
+        title: "Power & grid sources",
+        checks: "electricity demand · data-centre load · interconnection queues · grid investment · cooling",
+        linked: ["VRT", "ETN", "GEV", "ABB.NS", "SIEMENS.NS", "TATAPOWER.NS", "POWERGRID.NS"],
+        why: "The IEA's 'Energy and AI' report projects global data-centre electricity consumption to more than double to around 945 TWh by 2030, with the US the largest share of the increase and China following. Vertiv's disclosures cover high-density cooling and advanced power / thermal management for hyperscale and AI data centres.",
+        usedIn: "Power and grid constraints",
+        href: "https://www.iea.org/reports/energy-and-ai",
+      },
+      {
+        title: "Defence & policy sources",
+        checks: "sovereign AI funding · export controls · defence AI · national-security framing",
+        linked: ["PLTR", "LMT", "RTX", "NOC", "HAL.NS", "BEL.NS"],
+        why: "US policy supports the national-security angle: the US AI Action Plan centres on accelerating innovation, building AI infrastructure and international AI diplomacy/security; BIS export-control guidance links advanced AI chips to military and national-security concerns. India's IndiaAI Mission gives sovereign-compute context, and the US DoD AI Adoption Strategy frames AI entering defence operations.",
+        usedIn: "Sovereign AI funding · Defence AI adoption",
+        href: "https://www.google.com/search?q=US+AI+Action+Plan+BIS+export+controls+IndiaAI+Mission",
+      },
+    ],
+  },
+];
+
+export function getPlaybook(id: string): Playbook | undefined {
+  return playbooks.find((p) => p.id === id);
+}

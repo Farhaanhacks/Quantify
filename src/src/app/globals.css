@@ -1,0 +1,293 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --bg: #05070d;
+  --panel: rgba(255, 255, 255, 0.04);
+  --panel-border: rgba(255, 255, 255, 0.08);
+  --text: #f2f5fa;
+  --text-dim: #94a3b8;
+  --text-mute: #64748b;
+}
+
+html {
+  background-color: var(--bg);
+  color-scheme: dark;
+}
+
+/* ── Light theme (opt-in via .light on <html>) ─────────────────────────────
+   Components use hard-coded dark utilities, so we remap the common ones here
+   rather than rewriting every file. Brand accents (gold/teal/up/down) stay. */
+html.light {
+  color-scheme: light;
+  --bg: #f5f7fa;
+  --panel: rgba(15, 23, 42, 0.035);
+  --panel-border: rgba(15, 23, 42, 0.1);
+  --text: #0b0f1a;
+  --text-dim: #475569;
+  --text-mute: #64748b;
+}
+html.light body::before {
+  background:
+    radial-gradient(60rem 40rem at 12% -10%, rgba(233, 184, 114, 0.14), transparent 60%),
+    radial-gradient(50rem 36rem at 92% 4%, rgba(79, 209, 197, 0.12), transparent 55%);
+}
+html.light body::after {
+  background-image:
+    linear-gradient(to right, rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+}
+html.light .glass-hover:hover {
+  background: rgba(15, 23, 42, 0.05);
+}
+html.light .chip {
+  border-color: rgba(15, 23, 42, 0.12);
+  background: rgba(15, 23, 42, 0.04);
+}
+html.light ::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.2);
+  background-clip: content-box;
+}
+html.light ::selection {
+  background: rgba(233, 184, 114, 0.35);
+  color: #0b0f1a;
+}
+
+/* Text */
+html.light .text-white { color: #0b0f1a; }
+html.light .text-slate-200 { color: #1e293b; }
+html.light .text-slate-300 { color: #334155; }
+html.light .text-slate-400 { color: #475569; }
+html.light .text-slate-500 { color: #64748b; }
+html.light .text-slate-600 { color: #94a3b8; }
+html.light .text-ink { color: #0b0f1a; }
+
+/* Surfaces */
+html.light .bg-ink-900,
+html.light .bg-ink-800,
+html.light .bg-ink-950 { background-color: #ffffff; }
+html.light .bg-white\/\[0\.02\],
+html.light .bg-white\/\[0\.03\],
+html.light .bg-white\/\[0\.04\],
+html.light .bg-white\/\[0\.05\],
+html.light .bg-white\/\[0\.06\],
+html.light .bg-white\/5,
+html.light .bg-white\/10 { background-color: rgba(15, 23, 42, 0.04); }
+
+/* Translucent dark surfaces (opacity-suffixed). These are the navbar,
+   mobile menu, sticky tab bars, Market Pulse strip and modal scrims that
+   otherwise stayed black in light mode. Map them onto a light, slightly
+   translucent surface so backdrop-blur still reads. */
+html.light .bg-ink\/70,
+html.light .bg-ink\/80,
+html.light .bg-ink\/90,
+html.light .bg-ink\/95,
+html.light .bg-ink-900\/95,
+html.light .bg-ink-900\/90,
+html.light .bg-ink-900\/85,
+html.light .bg-ink-900\/80,
+html.light .bg-ink-900\/70,
+html.light .bg-ink-900\/60,
+html.light .bg-ink-900\/50,
+html.light .bg-ink-900\/40,
+html.light .bg-ink-900\/30,
+html.light .bg-ink-800\/80,
+html.light .bg-ink-800\/70,
+html.light .bg-ink-800\/60,
+html.light .bg-ink-800\/50,
+html.light .bg-ink-950\/80,
+html.light .bg-ink-950\/70,
+html.light .bg-ink-950\/60 { background-color: rgba(255, 255, 255, 0.85); }
+
+/* Dark modal/overlay scrims → soft slate veil instead of near-black. */
+html.light .bg-black\/80,
+html.light .bg-black\/70,
+html.light .bg-black\/60,
+html.light .bg-black\/50,
+html.light .bg-black\/40 { background-color: rgba(15, 23, 42, 0.45); }
+
+/* Dark gradient panels (e.g. from-ink-800 → to-ink-950). Flatten the dark
+   gradient stops to light so cards built from gradients don't go black. */
+html.light .from-ink-900,
+html.light .from-ink-800,
+html.light .from-ink-950,
+html.light .via-ink-900,
+html.light .via-ink-800,
+html.light .to-ink-900,
+html.light .to-ink-800,
+html.light .to-ink-950 {
+  --tw-gradient-from: #ffffff;
+  --tw-gradient-to: #eef1f6;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+/* Gold/amber accent text is illegible on a light background. Deepen every
+   gold text tone to a dark amber that reads on white while staying on-brand.
+   (Borders/rings keep their gold — only foreground text is darkened.) */
+html.light .text-gold,
+html.light .text-gold\/90,
+html.light .text-gold\/80,
+html.light .text-gold\/70,
+html.light .text-gold\/60,
+html.light .hover\:text-gold:hover { color: #9a6a12; }
+
+/* The brand gold gradient text (headlines) — swap the light gradient stops
+   for a deeper amber gradient so it stays readable on white. */
+html.light .text-gradient-gold {
+  background: linear-gradient(120deg, #b07d1a 0%, #9a6a12 50%, #7a520c 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Borders */
+html.light .border-white\/10,
+html.light .border-white\/15,
+html.light .border-white\/20,
+html.light .border-white\/\[0\.06\],
+html.light .border-white\/\[0\.08\],
+html.light .border-white\/\[0\.1\] { border-color: rgba(15, 23, 42, 0.12); }
+html.light .divide-white\/\[0\.05\] > :not([hidden]) ~ :not([hidden]),
+html.light .divide-white\/\[0\.06\] > :not([hidden]) ~ :not([hidden]) { border-color: rgba(15, 23, 42, 0.08); }
+
+/* Inputs */
+html.light input,
+html.light select,
+html.light textarea { color: #0b0f1a; }
+html.light input::placeholder { color: #94a3b8; }
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "ss01", "cv01", "tnum";
+}
+
+/* Ambient backdrop: soft gold + teal aurora over deep ink, plus faint grid */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(60rem 40rem at 12% -10%, rgba(233, 184, 114, 0.10), transparent 60%),
+    radial-gradient(50rem 36rem at 92% 4%, rgba(79, 209, 197, 0.10), transparent 55%),
+    radial-gradient(46rem 34rem at 50% 120%, rgba(99, 102, 241, 0.08), transparent 60%);
+  pointer-events: none;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(80% 60% at 50% 0%, #000 30%, transparent 80%);
+  -webkit-mask-image: radial-gradient(80% 60% at 50% 0%, #000 30%, transparent 80%);
+  pointer-events: none;
+}
+
+@layer components {
+  .glass {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  .glass-hover {
+    transition: border-color 0.25s ease, background-color 0.25s ease, transform 0.25s ease;
+  }
+  .glass-hover:hover {
+    border-color: rgba(233, 184, 114, 0.35);
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    padding: 0.25rem 0.7rem;
+    font-size: 0.72rem;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .text-gradient-gold {
+    background: linear-gradient(120deg, #fbe2b6 0%, #e9b872 45%, #c9962f 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .text-gradient-teal {
+    background: linear-gradient(120deg, #d7fff9 0%, #5eead4 50%, #4fd1c5 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+@layer utilities {
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+  .mask-fade-x {
+    mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+  }
+}
+
+/* Slim, on-brand scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(233, 184, 114, 0.4);
+  background-clip: content-box;
+}
+
+::selection {
+  background: rgba(233, 184, 114, 0.28);
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 2px solid rgba(233, 184, 114, 0.7);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
