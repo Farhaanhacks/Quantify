@@ -76,6 +76,72 @@ html.light .bg-white\/\[0\.06\],
 html.light .bg-white\/5,
 html.light .bg-white\/10 { background-color: rgba(15, 23, 42, 0.04); }
 
+/* Translucent dark surfaces (opacity-suffixed). These are the navbar,
+   mobile menu, sticky tab bars, Market Pulse strip and modal scrims that
+   otherwise stayed black in light mode. Map them onto a light, slightly
+   translucent surface so backdrop-blur still reads. */
+html.light .bg-ink\/70,
+html.light .bg-ink\/80,
+html.light .bg-ink\/90,
+html.light .bg-ink\/95,
+html.light .bg-ink-900\/95,
+html.light .bg-ink-900\/90,
+html.light .bg-ink-900\/85,
+html.light .bg-ink-900\/80,
+html.light .bg-ink-900\/70,
+html.light .bg-ink-900\/60,
+html.light .bg-ink-900\/50,
+html.light .bg-ink-900\/40,
+html.light .bg-ink-900\/30,
+html.light .bg-ink-800\/80,
+html.light .bg-ink-800\/70,
+html.light .bg-ink-800\/60,
+html.light .bg-ink-800\/50,
+html.light .bg-ink-950\/80,
+html.light .bg-ink-950\/70,
+html.light .bg-ink-950\/60 { background-color: rgba(255, 255, 255, 0.85); }
+
+/* Dark modal/overlay scrims → soft slate veil instead of near-black. */
+html.light .bg-black\/80,
+html.light .bg-black\/70,
+html.light .bg-black\/60,
+html.light .bg-black\/50,
+html.light .bg-black\/40 { background-color: rgba(15, 23, 42, 0.45); }
+
+/* Dark gradient panels (e.g. from-ink-800 → to-ink-950). Flatten the dark
+   gradient stops to light so cards built from gradients don't go black. */
+html.light .from-ink-900,
+html.light .from-ink-800,
+html.light .from-ink-950,
+html.light .via-ink-900,
+html.light .via-ink-800,
+html.light .to-ink-900,
+html.light .to-ink-800,
+html.light .to-ink-950 {
+  --tw-gradient-from: #ffffff;
+  --tw-gradient-to: #eef1f6;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+/* Gold/amber accent text is illegible on a light background. Deepen every
+   gold text tone to a dark amber that reads on white while staying on-brand.
+   (Borders/rings keep their gold — only foreground text is darkened.) */
+html.light .text-gold,
+html.light .text-gold\/90,
+html.light .text-gold\/80,
+html.light .text-gold\/70,
+html.light .text-gold\/60,
+html.light .hover\:text-gold:hover { color: #9a6a12; }
+
+/* The brand gold gradient text (headlines) — swap the light gradient stops
+   for a deeper amber gradient so it stays readable on white. */
+html.light .text-gradient-gold {
+  background: linear-gradient(120deg, #b07d1a 0%, #9a6a12 50%, #7a520c 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
 /* Borders */
 html.light .border-white\/10,
 html.light .border-white\/15,
