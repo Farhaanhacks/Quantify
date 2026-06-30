@@ -15,6 +15,18 @@
 html {
   background-color: var(--bg);
   color-scheme: dark;
+  /* Guard against any stray element wider than the viewport creating a
+     horizontal scroll on mobile. Without this, the sticky navbar (w-full)
+     only spans the viewport while the page scroll-width is wider, so the
+     bar and the cards below look misaligned with an empty strip on the
+     right. Clipping on <html> keeps position: sticky working. */
+  overflow-x: hidden;
+}
+
+/* Belt-and-suspenders: nothing should be able to exceed the screen width. */
+body {
+  overflow-x: clip;
+  max-width: 100%;
 }
 
 /* ── Light theme (opt-in via .light on <html>) ─────────────────────────────
