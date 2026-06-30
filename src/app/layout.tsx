@@ -59,11 +59,13 @@ export default function RootLayout({
   return (
     <html lang="en" className={`dark ${sans.variable} ${display.variable} ${mono.variable}`}>
       <head>
-        {/* Apply the saved theme before paint to avoid a flash. */}
+        {/* Light mode is the default for first-time visitors; we only stay in
+            dark mode when the user has explicitly chosen it. Applied before
+            paint to avoid a flash. The choice is remembered in localStorage. */}
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "try{if(localStorage.getItem('theme')==='light'){document.documentElement.classList.add('light')}}catch(e){}",
+              "try{if(localStorage.getItem('theme')!=='dark'){document.documentElement.classList.add('light')}}catch(e){document.documentElement.classList.add('light')}",
           }}
         />
       </head>

@@ -55,14 +55,28 @@ html.light ::selection {
   color: #0b0f1a;
 }
 
-/* Text */
-html.light .text-white { color: #0b0f1a; }
+/* Text — any near-white foreground becomes dark ink in light mode so nothing
+   ends up white-on-white. Covers solid white, white opacity variants, the
+   slate-50/100 tones used for headlines, and SVG fill-white (donut centres). */
+html.light .text-white,
+html.light .text-white\/95,
+html.light .text-white\/90,
+html.light .text-white\/80,
+html.light .text-white\/70,
+html.light .text-white\/60,
+html.light .text-slate-50,
+html.light .text-slate-100 { color: #0b0f1a; }
 html.light .text-slate-200 { color: #1e293b; }
 html.light .text-slate-300 { color: #334155; }
 html.light .text-slate-400 { color: #475569; }
 html.light .text-slate-500 { color: #64748b; }
 html.light .text-slate-600 { color: #94a3b8; }
 html.light .text-ink { color: #0b0f1a; }
+/* SVG text fills (e.g. donut centre value) */
+html.light .fill-white,
+html.light .fill-slate-50,
+html.light .fill-slate-100,
+html.light .fill-slate-200 { fill: #0b0f1a; }
 
 /* Surfaces */
 html.light .bg-ink-900,
