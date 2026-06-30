@@ -142,6 +142,11 @@ html.light .text-gradient-gold {
   color: transparent;
 }
 
+/* Brand logo: the free wordmark art is solid white (transparent bg), so it
+   vanishes on a light page. brightness(0) recolours it to black ink in light
+   mode while preserving transparency. The gold (Pro) lockup stays as-is. */
+html.light .brand-logo--free { filter: brightness(0); }
+
 /* Borders */
 html.light .border-white\/10,
 html.light .border-white\/15,

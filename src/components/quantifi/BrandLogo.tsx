@@ -24,7 +24,9 @@ export default function BrandLogo({
     <img
       src={isPro ? "/logo-gold.png" : "/logo-white.png"}
       alt="Quantifi"
-      className={`w-auto object-contain ${className}`}
+      // `brand-logo` + plan modifier let globals.css recolour the white
+      // (free) wordmark to dark ink in light mode so it stays visible.
+      className={`brand-logo ${isPro ? "brand-logo--pro" : "brand-logo--free"} w-auto object-contain ${className}`}
     />
   );
 }
