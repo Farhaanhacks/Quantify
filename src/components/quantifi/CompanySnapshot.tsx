@@ -376,7 +376,7 @@ export default function CompanySnapshot({
       )}
 
       {/* Risk & reward */}
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
+      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
         <GlassCard className="p-5 sm:p-6">
           <h4 className="font-display text-base font-semibold text-up">Rewards</h4>
           <ul className="mt-3 space-y-2.5">

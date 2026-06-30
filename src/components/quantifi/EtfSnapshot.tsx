@@ -142,7 +142,7 @@ export default function EtfSnapshot({
         ))}
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Top holdings */}
         <GlassCard className="p-5 sm:p-6">
           <div className="flex items-baseline justify-between">
@@ -280,7 +280,7 @@ export default function EtfSnapshot({
       </div>
 
       {/* Rewards / flags */}
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
+      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
         <GlassCard className="p-5 sm:p-6">
           <h4 className="font-display text-base font-semibold text-up">What works</h4>
           <ul className="mt-3 space-y-2.5">

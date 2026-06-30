@@ -161,7 +161,7 @@ export default function Diversification({ heading = true }: { heading?: boolean 
         </GlassCard>
       ) : (
       <>
-      <div className="mt-6 grid gap-4 lg:grid-cols-3">
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <GlassCard className="p-5">
           <h3 className="font-display text-base font-semibold text-white">Concentration risk</h3>
           <ul className="mt-4 space-y-4">
@@ -219,7 +219,7 @@ export default function Diversification({ heading = true }: { heading?: boolean 
           <h3 className="font-display text-base font-semibold text-white">Diversification across holdings</h3>
           <span className="text-xs text-slate-500">{weights.length} positions</span>
         </div>
-        <div className="mt-5 grid gap-x-8 gap-y-4 sm:grid-cols-2">
+        <div className="mt-5 grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
           {weights.map((h, i) => (
             <BarMeter key={h.ticker} label={h.ticker} value={h.pct} color={PALETTE[i % PALETTE.length]} />
           ))}

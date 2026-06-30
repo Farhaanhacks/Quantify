@@ -153,7 +153,7 @@ export default function TradingIdeas({
         </div>
       ) : null}
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((idea) => {
           const locked = isLocked(idea);
           // Preview is identical for everyone; only full-dashboard access differs.
@@ -394,7 +394,7 @@ function IdeaModal({ idea, pro, onClose }: { idea: TradingIdea; pro: boolean; on
           {/* Scorecard — near the top so the user sees the conclusion fast */}
           <div id="scorecard" className="mt-4 scroll-mt-2">
             <SectionLabel>Quantifi scorecard</SectionLabel>
-            <div className="mt-2.5 grid gap-x-6 gap-y-2 sm:grid-cols-2">
+            <div className="mt-2.5 grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
               {idea.scores.map((s) => (
                 <div key={s.label} className="flex items-center gap-3">
                   <span className="w-40 flex-none text-xs text-slate-300">{s.label}</span>
@@ -545,7 +545,7 @@ function IdeaModal({ idea, pro, onClose }: { idea: TradingIdea; pro: boolean; on
                     <h5 className="text-xs font-semibold text-teal">{group.label}</h5>
                     {group.note ? <span className="text-[0.7rem] text-slate-500">— {group.note}</span> : null}
                   </div>
-                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {group.names.map((n) => (
                       <Link
                         key={`${group.label}-${n.symbol}`}
@@ -586,7 +586,7 @@ function IdeaModal({ idea, pro, onClose }: { idea: TradingIdea; pro: boolean; on
               <p className="mt-1 text-xs text-slate-500">
                 The signals that decide whether this theme is strengthening or weakening.
               </p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {idea.thesisTests.map((t) => (
                   <div key={t.test} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
                     <div className="flex items-start justify-between gap-2">
@@ -619,7 +619,7 @@ function IdeaModal({ idea, pro, onClose }: { idea: TradingIdea; pro: boolean; on
 
           {/* What would prove / break the thesis */}
           {idea.proves?.length || idea.breaks?.length ? (
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {idea.proves?.length ? (
                 <div className="rounded-xl border border-up/20 bg-up/5 p-4">
                   <div className="text-[0.62rem] uppercase tracking-[0.16em] text-up/80">What would prove the theme right</div>
@@ -672,7 +672,7 @@ function IdeaModal({ idea, pro, onClose }: { idea: TradingIdea; pro: boolean; on
           ) : idea.sourcePack?.length ? (
             <div id="sources" className="mt-6 scroll-mt-2">
               <SectionLabel>Source pack</SectionLabel>
-              <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
+              <div className="mt-2.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {idea.sourcePack.map((s) => (
                   <div key={s.type} className="flex flex-col rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
                     <div className="text-sm font-medium text-white">{s.type}</div>

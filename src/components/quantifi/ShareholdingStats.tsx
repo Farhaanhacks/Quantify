@@ -84,7 +84,7 @@ export default function ShareholdingStats({ symbol }: { symbol: string }) {
       <h3 className="font-display text-lg font-semibold text-white">Shareholding</h3>
       <p className="mt-1 text-xs text-slate-500">Who owns the stock — from public 13F / ownership disclosures.</p>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Top institutional holders */}
         {hasHolders ? (
           <GlassCard className="p-5">

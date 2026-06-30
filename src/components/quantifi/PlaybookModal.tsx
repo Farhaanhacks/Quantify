@@ -165,7 +165,7 @@ export default function PlaybookModal({ playbook, onClose }: { playbook: Playboo
           {/* D — Executive summary */}
           <div id="summary" className="mt-6 scroll-mt-2">
             <SectionLabel>Executive summary</SectionLabel>
-            <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
+            <div className="mt-2.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
               {playbook.summary.map((c, i) => (
                 <div key={c.title} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
                   <div className="flex items-center gap-2">
@@ -222,7 +222,7 @@ export default function PlaybookModal({ playbook, onClose }: { playbook: Playboo
           </div>
 
           {/* F — Bull / bear case */}
-          <div id="bull-bear" className="mt-6 grid gap-3 scroll-mt-2 sm:grid-cols-2">
+          <div id="bull-bear" className="mt-6 grid grid-cols-1 gap-3 scroll-mt-2 sm:grid-cols-2">
             <div className="rounded-xl border border-up/20 bg-up/5 p-4">
               <div className="text-[0.62rem] uppercase tracking-[0.16em] text-up/80">Bull case</div>
               <p className="mt-1.5 text-sm leading-relaxed text-slate-300">{playbook.bullCase}</p>
@@ -237,7 +237,7 @@ export default function PlaybookModal({ playbook, onClose }: { playbook: Playboo
           <div id="thesis-tests" className="mt-6 scroll-mt-2">
             <SectionLabel>Thesis tests</SectionLabel>
             <p className="mt-1 text-xs text-slate-500">The signals that decide whether this framework is strengthening or weakening.</p>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
               {playbook.thesisTests.map((t) => (
                 <div key={t.test} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
                   <div className="flex items-start justify-between gap-2">

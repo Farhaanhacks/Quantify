@@ -152,7 +152,7 @@ export default function NewsFeed({ items }: { items: NewsArticle[] }) {
 
       <p className="mt-3 text-xs text-slate-500">{filtered.length} stories</p>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {visible.map((a, i) => {
           const ts = tickersByLink.get(a.link) ?? [];
           return (
@@ -274,7 +274,7 @@ export default function NewsFeed({ items }: { items: NewsArticle[] }) {
             <div className="mt-5">
               <div className="text-[0.62rem] uppercase tracking-[0.16em] text-slate-500">Stocks affected</div>
               {detail.affected.length ? (
-                <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2">
+                <div className="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                   {detail.affected.map((a) => (
                     <div key={a.ticker} className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3.5">
                       <div className="flex items-center gap-2">
@@ -342,7 +342,7 @@ export default function NewsFeed({ items }: { items: NewsArticle[] }) {
             </div>
 
             {/* 8 · Signal classification */}
-            <div className="mt-5 grid gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 sm:grid-cols-3">
+            <div className="mt-5 grid grid-cols-1 gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 sm:grid-cols-3">
               <div>
                 <div className="text-[0.58rem] uppercase tracking-[0.16em] text-slate-500">Signal type</div>
                 <div className="mt-1 text-xs font-medium text-slate-200">{detail.signalType}</div>

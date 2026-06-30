@@ -145,7 +145,7 @@ export default function IdeaSlugPage({ params }: { params: { slug: string } }) {
       ) : null}
 
       {/* Bull / bear */}
-      <div className="mt-8 grid gap-3 sm:grid-cols-2">
+      <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="rounded-xl border border-up/20 bg-up/5 p-4">
           <h2 className="text-[0.62rem] uppercase tracking-[0.16em] text-up/80">Bull case</h2>
           <p className="mt-1.5 text-sm leading-relaxed text-slate-300">{idea.bullCase}</p>

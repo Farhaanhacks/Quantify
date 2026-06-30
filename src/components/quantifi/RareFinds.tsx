@@ -135,7 +135,7 @@ function ScenarioRange({ find }: { find: RareFind }) {
       </div>
 
       {/* Scenario notes */}
-      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
         {[
           { label: "Downside", s: downside, cls: "border-down/25 bg-down/[0.06]", txt: "text-down" },
           { label: "Base case", s: base, cls: "border-white/[0.08] bg-white/[0.02]", txt: "text-slate-300" },
@@ -181,7 +181,7 @@ export default function RareFinds() {
       {/* Rare Finds grid */}
       <h3 className="mt-10 font-display text-lg font-semibold text-white">The watchlist</h3>
       <p className="mt-1 text-xs text-slate-500">Tap a card to see why it&apos;s a rare find and its scenario range.</p>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {rareFinds.map((f) => {
           const isOpen = open === f.ticker;
           return (
@@ -223,7 +223,7 @@ export default function RareFinds() {
                       <InsiderBuyLine ticker={f.ticker} note={f.insiderNote} />
                     </div>
                   ) : null}
-                  <div className="grid gap-5 lg:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
                   <div>
                     <span className="text-[0.62rem] uppercase tracking-[0.14em] text-gold/80">Why it&apos;s a rare find</span>
                     <ul className="mt-2 space-y-1.5">
@@ -257,7 +257,7 @@ export default function RareFinds() {
 
       {/* Investment plans */}
       <h3 className="mt-12 font-display text-lg font-semibold text-white">2–3 year plans</h3>
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         {investmentPlans.map((p) => (
           <GlassCard key={p.id} className="flex h-full flex-col p-6">
             <div className="flex items-center justify-between gap-2">
@@ -271,7 +271,7 @@ export default function RareFinds() {
               <p className="mt-1 text-sm leading-relaxed text-slate-200">{p.bubbleAngle}</p>
             </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <span className="text-[0.62rem] uppercase tracking-[0.12em] text-teal">What to watch</span>
                 <p className="mt-0.5 text-xs leading-relaxed text-slate-300">{p.watch}</p>

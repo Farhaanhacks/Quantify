@@ -190,7 +190,7 @@ function Cagr() {
   return (
     <div>
       <p className="text-sm text-slate-400">Compound annual growth rate — the smoothed yearly return that takes a starting value to an ending value.</p>
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
         {field("Beginning value", begin, setBegin)}
         {field("Ending value", end, setEnd)}
         {field("Number of years", years, setYears)}
@@ -249,7 +249,7 @@ function Dividend() {
   return (
     <div>
       <p className="text-sm text-slate-400">Estimate dividend income over time, with optional annual dividend growth and reinvestment. An estimate — it assumes a steady yield and flat share price.</p>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {field("Investment", amount, setAmount)}
         {field("Dividend yield %", yieldPct, setYieldPct)}
         {field("Dividend growth %/yr", growth, setGrowth)}

@@ -185,7 +185,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
               </section>
             ) : null}
 
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <section className="rounded-2xl border border-up/20 bg-up/5 p-5">
                 <div className="text-[0.62rem] uppercase tracking-[0.18em] text-up/80">Bull case</div>
                 <p className="mt-2 text-sm leading-relaxed text-slate-300">{playbook.bullCase}</p>
@@ -232,7 +232,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
             </p>
 
             {/* Beneficiaries vs Bearish — the core split, side by side */}
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               {longG ? (
                 <section className="rounded-2xl border border-up/25 bg-up/[0.06] p-5">
                   <h3 className="font-display text-lg font-semibold text-up">{longG.title}</h3>
@@ -285,7 +285,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
 
                 {/* Remaining private labs */}
                 {privateG.items.length > 1 ? (
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {privateG.items.slice(1).map((it) => (
                       <div key={it.name} className="rounded-xl border border-white/[0.06] bg-ink-900/30 p-3.5">
                         <div className="flex flex-wrap items-center gap-2">
@@ -333,7 +333,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
           <section>
             <SectionLabel>Thesis tests</SectionLabel>
             <p className="mt-1 text-xs text-slate-500">The signals that decide whether this framework is strengthening or weakening.</p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {playbook.thesisTests.map((t) => (
                 <div key={t.test} className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
                   <div className="flex items-start justify-between gap-2">
@@ -357,7 +357,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
         {tab === "scenarios" ? (
           <section>
             <SectionLabel>Scenario map</SectionLabel>
-            <div className="mt-4 grid gap-3 lg:grid-cols-3">
+            <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-3">
               {playbook.scenarios.map((s) => {
                 const tone = s.kind === "Best case" ? "border-up/25 bg-up/[0.06]" : s.kind === "Worst case" ? "border-down/25 bg-down/[0.06]" : "border-white/[0.08] bg-white/[0.02]";
                 const kindColor = s.kind === "Best case" ? "text-up" : s.kind === "Worst case" ? "text-down" : "text-slate-300";
@@ -381,7 +381,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
             </div>
 
             {/* Bull / bear road kept compact under scenarios */}
-            <div className="mt-5 grid gap-2 sm:grid-cols-2">
+            <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
               {([["Bull road", playbook.bullRoad, "up"], ["Bear road", playbook.bearRoad, "down"]] as const).map(([label, steps, tone]) => (
                 <div key={label} className={`rounded-2xl border p-4 ${tone === "up" ? "border-up/20 bg-up/5" : "border-down/20 bg-down/5"}`}>
                   <div className={`text-[0.62rem] uppercase tracking-[0.16em] ${tone === "up" ? "text-up/80" : "text-down/80"}`}>{label}</div>
@@ -404,7 +404,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
             <div>
               <SectionLabel>Source pack</SectionLabel>
               <p className="mt-1 text-xs text-slate-500">External and reference sources — what each checks, and the thesis test it informs.</p>
-              <div className="mt-3 grid gap-3 lg:grid-cols-2">
+              <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
                 {playbook.sourcePack.map((s) => (
                   <div key={s.title} className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
                     <div className="text-sm font-semibold text-white">{s.title}</div>
@@ -424,7 +424,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
 
             <div>
               <SectionLabel>Related Quantifi Ideas</SectionLabel>
-              <div className="mt-3 grid gap-2 lg:grid-cols-2">
+              <div className="mt-3 grid grid-cols-1 gap-2 lg:grid-cols-2">
                 {playbook.linkedIdeas.map((idea) => (
                   <Link key={idea.ideaId} href={`/ideas?theme=${encodeURIComponent(idea.ideaId)}`} className="group block rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 transition hover:border-gold/40">
                     <div className="flex items-center justify-between gap-2">

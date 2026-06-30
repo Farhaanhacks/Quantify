@@ -306,7 +306,7 @@ export default function PortfolioManager() {
           {/* Add holding */}
           <GlassCard className="mt-4 p-5">
             <h4 className="text-sm font-medium text-white">Add a holding</h4>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <div>
                 <label className="mb-1 block text-[0.7rem] uppercase tracking-[0.14em] text-slate-500">Ticker</label>
                 <input

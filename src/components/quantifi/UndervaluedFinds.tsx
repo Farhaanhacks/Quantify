@@ -77,7 +77,7 @@ function AnalystRange({ row }: { row: Row }) {
         );
       })()}
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
         {[
           { label: "Bear · low target", price: lowP, pct: down, cls: "border-down/25 bg-down/[0.06]", txt: "text-down" },
           { label: "Base · mean target", price: row.target, pct: base, cls: "border-gold/25 bg-gold/[0.06]", txt: "text-gold" },

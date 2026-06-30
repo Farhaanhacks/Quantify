@@ -80,7 +80,7 @@ export default function CompanyNewsSection({
           <p className="text-sm text-slate-500">No recent news found for {symbol}.</p>
         </GlassCard>
       ) : (
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {items.map((a, i) => (
             <button key={`${a.link}-${i}`} type="button" onClick={() => setSelected(a)} className="text-left">
               <GlassCard hover className="flex h-full flex-col p-4">

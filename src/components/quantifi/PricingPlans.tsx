@@ -93,7 +93,7 @@ export default function PricingPlans() {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
       {/* Free / Explorer */}
       <GlassCard className="flex flex-col p-6">
         <div className="flex items-center justify-between">

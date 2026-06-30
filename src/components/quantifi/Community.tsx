@@ -104,7 +104,7 @@ export default function Community() {
       {/* Featured Research Playbooks */}
       <div className="mt-6">
         <Eyebrow>Featured research playbooks</Eyebrow>
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
           {playbooks.map((p) => (
             <PlaybookCard key={p.id} playbook={p} />
           ))}
@@ -113,7 +113,7 @@ export default function Community() {
 
       {/* Ask a research question — real submissions, no fake contributors */}
       <GlassCard className="mt-10 border-gold/20 bg-gold/[0.04] p-6 sm:p-8">
-        <div className="grid gap-6 lg:grid-cols-2 lg:items-center">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-center">
           <div>
             <h3 className="font-display text-xl font-semibold text-white">Request a playbook or ask a research question</h3>
             <p className="mt-2 text-sm leading-relaxed text-slate-400">

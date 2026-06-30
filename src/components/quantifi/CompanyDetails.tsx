@@ -145,7 +145,7 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
               {data.description ? (
                 <p className="text-sm leading-relaxed text-slate-300">{data.description}</p>
               ) : <p className="text-sm text-slate-500">No description available.</p>}
-              <div className="mt-5 grid gap-x-8 gap-y-0 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="mt-5 grid grid-cols-1 gap-x-8 gap-y-0 sm:grid-cols-2 lg:grid-cols-3">
                 <Row label="Market Cap" value={compact(data.marketCap)} />
                 <Row label={`Revenue (ttm)${data.revenueGrowth != null ? ` (${pct(data.revenueGrowth)})` : ""}`} value={compact(data.revenue)} />
                 <Row label="Net Income" value={compact(data.netIncome)} />
@@ -169,7 +169,7 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
           ) : null}
 
           {tab === "statistics" ? (
-            <div className="grid gap-x-10 gap-y-6 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-x-10 gap-y-6 md:grid-cols-2">
               <Group title="Total Valuation">
                 <Row label="Market Cap" value={compact(data.marketCap)} />
                 <Row label="Enterprise Value" value={compact(data.enterpriseValue)} />

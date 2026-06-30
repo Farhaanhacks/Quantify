@@ -97,7 +97,7 @@ export default function ExploreCompanies({
       <div className="mt-6">
         {tab === "Browse All Stocks" ? (
           <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {shownStocks.map((s) => (
               <Link key={s.ticker} href={`/stock-analysis?symbol=${s.ticker}`}>
                 <GlassCard hover className="h-full p-4">
@@ -137,7 +137,7 @@ export default function ExploreCompanies({
         ) : null}
 
         {tab === "Investing Ideas" ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {tradingIdeas.map((idea) => (
               <Link key={idea.id} href="/ideas">
                 <GlassCard hover className="h-full p-4">
@@ -156,7 +156,7 @@ export default function ExploreCompanies({
         ) : null}
 
         {tab === "Markets" ? (
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {marketRows
               .filter((m) => region === "Global" || m.region === region)
               .map((m) => (

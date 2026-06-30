@@ -96,7 +96,7 @@ export default function CompanyVitals({ symbol }: { symbol: string }) {
   if (data === undefined) {
     return (
       <section className="mx-auto max-w-7xl px-4 pb-4 sm:px-6 lg:px-8">
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           {[0, 1, 2].map((i) => (
             <div key={i} className="h-44 animate-pulse rounded-2xl border border-white/[0.06] bg-white/[0.02]" />
           ))}
@@ -129,7 +129,7 @@ export default function CompanyVitals({ symbol }: { symbol: string }) {
 
   return (
     <section className="mx-auto max-w-7xl px-4 pb-6 sm:px-6 lg:px-8">
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Analyst rating gauge */}
         <GlassCard className="p-5">
           <div className="flex items-center justify-between">

@@ -282,7 +282,7 @@ export default function Screener({ heading = true }: { heading?: boolean }) {
 
       {/* Controls */}
       <GlassCard className="mt-4 p-5">
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <div className="mb-2 text-[0.7rem] uppercase tracking-[0.16em] text-slate-500">Region</div>
             <div className="flex flex-wrap gap-2">
@@ -367,7 +367,7 @@ export default function Screener({ heading = true }: { heading?: boolean }) {
           <h3 className="font-display text-base font-semibold text-white">Snowflake filter</h3>
           <span className="text-xs text-slate-500">Minimum score per axis · 0–6</span>
         </div>
-        <div className="mt-4 grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-5">
           {SCORE_AXES.map((axdef) => (
             <div key={axdef.key}>
               <div className="mb-2 flex items-center justify-between text-xs">
@@ -459,7 +459,7 @@ export default function Screener({ heading = true }: { heading?: boolean }) {
                           size={170}
                         />
                       </div>
-                      <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+                      <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
                         {SCORE_AXES.map((axdef) => (
                           <div key={axdef.key}>
                             <div className="flex items-center justify-between text-xs">
