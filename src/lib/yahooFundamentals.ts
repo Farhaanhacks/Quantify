@@ -71,6 +71,11 @@ function dcfPerShare(
   years = 10
 ): number | undefined {
   if (fcf == null || fcf <= 0 || shares == null || shares <= 0) return undefined;
+  // Cap the discount rate (cost of equity / WACC) to a sane 7–11% band. A raw
+  // WACC can drift too low for a low-beta defensive name (inflating value) or
+  // spike during a volatile quarter (crushing it); clamping keeps the estimate
+  // stable and comparable across names.
+  const rate = Math.min(0.11, Math.max(0.07, discount));
   // Initial growth: allow genuinely fast growers up to 30% (the fade keeps this
   // from exploding), floor at 3% so a sleepy name still gets a fair terminal.
   const g0 = Math.min(0.3, Math.max(0.03, growth ?? 0.05));
@@ -81,10 +86,10 @@ function dcfPerShare(
     // year, so the explicit window captures high-but-decaying growth.
     const g = g0 + ((termGrowth - g0) * (t - 1)) / (years - 1);
     cf *= 1 + g;
-    pv += cf / Math.pow(1 + discount, t);
+    pv += cf / Math.pow(1 + rate, t);
   }
-  const terminal = (cf * (1 + termGrowth)) / (discount - termGrowth);
-  pv += terminal / Math.pow(1 + discount, years);
+  const terminal = (cf * (1 + termGrowth)) / (rate - termGrowth);
+  pv += terminal / Math.pow(1 + rate, years);
   const perShare = pv / shares;
   return isFinite(perShare) && perShare > 0 ? perShare : undefined;
 }
@@ -102,6 +107,15 @@ function cagr(series: number[]): number | undefined {
   const periods = vals.length - 1;
   const rate = Math.pow(last / first, 1 / periods) - 1;
   return isFinite(rate) ? rate : undefined;
+}
+
+// Median of a numeric series — robust to a single outlier year (a peak or a
+// trough) in a way the mean is not, which matters for cyclical businesses.
+function median(series: number[]): number | undefined {
+  const vals = series.filter((v) => typeof v === "number" && isFinite(v)).sort((a, b) => a - b);
+  if (!vals.length) return undefined;
+  const mid = Math.floor(vals.length / 2);
+  return vals.length % 2 ? vals[mid] : (vals[mid - 1] + vals[mid]) / 2;
 }
 
 // A steadier growth input for the DCF than any single Yahoo field. Revenue
@@ -177,6 +191,8 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   const pe = num(sd.trailingPE) ?? num(ks.trailingPE);
   const peg = num(ks.pegRatio);
   const profitMargins = num(fd.profitMargins) ?? num(ks.profitMargins);
+  const operatingMargins = num(fd.operatingMargins);
+  const revenue = num(fd.totalRevenue) ?? num(ks.totalRevenue);
   const roe = num(fd.returnOnEquity);
   const revGrowth = num(fd.revenueGrowth);
   const earnGrowth = num(fd.earningsGrowth) ?? num(ks.earningsQuarterlyGrowth);
@@ -252,13 +268,33 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   const avgNorm = normSeries.length
     ? normSeries.reduce((a, b) => a + b, 0) / normSeries.length
     : undefined;
+  const medNorm = median(normSeries);
+  //   • Margin-based normalisation (the key fix for cyclical large-caps). The
+  //     multi-year cash-flow statements are sometimes sparse, and raw FCF swings
+  //     hard with capex and working capital — so at a cyclical trough (e.g. a
+  //     Nike mid-cycle year) the base above can collapse to a single depressed
+  //     figure and the model reads the company as structurally dying, spitting
+  //     out an absurdly low intrinsic value. Operating margin × revenue is far
+  //     steadier and almost always reported, so we rebuild a normalised earning
+  //     power from it: EBIT = revenue × operating margin, then NOPAT =
+  //     EBIT × (1 − tax). For a mature company D&A ≈ maintenance capex, so
+  //     NOPAT ≈ free cash flow; a blended 23% tax keeps it conservative. This is
+  //     only ever used to lift a depressed base (via the max below), never to
+  //     drag a genuine cash generator down.
+  const marginNormFcf =
+    revenue != null && revenue > 0 && operatingMargins != null && operatingMargins > 0
+      ? revenue * operatingMargins * (1 - 0.23)
+      : undefined;
   let baseCashflow: number | undefined;
   if (ocfTTM != null && ocfTTM > 0) {
     const capex = fcfTTM != null ? Math.max(0, ocfTTM - fcfTTM) : 0;
     const ttmNorm = ocfTTM - Math.min(capex, 0.4 * ocfTTM);
-    baseCashflow = avgNorm != null ? Math.max(ttmNorm, avgNorm) : ttmNorm;
+    // Through-cycle base: the greatest of the current run-rate, the multi-year
+    // mean and median normalised cash flow, and the margin-based estimate — so
+    // no single trough year can define intrinsic value.
+    baseCashflow = Math.max(ttmNorm, avgNorm ?? 0, medNorm ?? 0, marginNormFcf ?? 0);
   } else {
-    baseCashflow = avgNorm ?? fcfTTM ?? ocfTTM;
+    baseCashflow = medNorm ?? avgNorm ?? marginNormFcf ?? fcfTTM ?? ocfTTM;
   }
   const sharesOutstanding = num(ks.sharesOutstanding) ?? num(pr.sharesOutstanding);
   const name = str(pr.longName) ?? str(pr.shortName) ?? symbol.toUpperCase();
