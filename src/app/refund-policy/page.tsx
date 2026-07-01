@@ -9,7 +9,7 @@ export default function RefundPolicyPage() {
   return (
     <LegalShell eyebrow="Billing" title="Refund & Cancellation Policy" updated="26 June 2026">
       <p>
-        Quantifi Pro is a monthly subscription (₹49/month launch price, standard ₹500/month) billed
+        Quantifi Pro is a monthly subscription (¢0.55/month launch price, standard ₹500/month) billed
         securely by Razorpay. This policy explains how to cancel and how refunds work.
       </p>
 

@@ -16,7 +16,7 @@ export default function PricingPage() {
       <div className="text-center">
         <Eyebrow>Quantifi Pro</Eyebrow>
         <h1 className="mt-3 font-display text-3xl font-semibold text-white sm:text-4xl">
-          Less than a Red Bull. Built for better market thinking.
+          Built for better market thinking.
         </h1>
         <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-slate-400">
           Just {QUANTIFI_PRO.price}/month (standard price ₹500) — cancel anytime.

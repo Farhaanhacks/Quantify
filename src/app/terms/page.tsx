@@ -36,7 +36,7 @@ export default function TermsPage() {
 
       <H2>4. Quantifi Pro subscription</H2>
       <ul className="list-disc space-y-1.5 pl-5">
-        <li>Quantifi Pro is a recurring subscription billed at ₹49 per month (a limited launch price; standard ₹500/month) through Razorpay.</li>
+        <li>Quantifi Pro is a recurring subscription billed at ¢0.55 per month (a limited launch price; standard ₹500/month) through Razorpay.</li>
         <li>By subscribing you authorise Razorpay to charge the subscription each month until you cancel.</li>
         <li>You can cancel at any time; cancellation stops future charges. See our <a href="/refund-policy" className="text-gold hover:underline">Refund &amp; Cancellation Policy</a>.</li>
         <li>Prices and features may change with notice; changes never apply retroactively to a period you&apos;ve already paid for.</li>
