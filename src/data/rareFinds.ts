@@ -32,23 +32,23 @@ export interface RareFind {
 
 export const rareFinds: RareFind[] = [
   {
-    ticker: "NKE",
-    name: "Nike",
-    tag: "Quality on sale",
-    conviction: "Medium",
-    signal: "Screened ~50%+ below some fair-value estimates in 2026",
+    ticker: "ZETA",
+    name: "Zeta Global Holdings",
+    tag: "AI marketing cloud",
+    conviction: "Speculative",
+    signal: "Fast-growing AI marketing cloud — free-cash-flow positive, GAAP lossmaking",
     thesis:
-      "A wide-moat consumer brand deep in a turnaround, trading at a fraction of its peak multiple. Margin recovery and inventory normalization are the swing factors — and it's barely correlated to the AI trade.",
-    risk: "Turnarounds take longer than hoped; weak consumer and China exposure can drag results for several quarters.",
+      "An AI-driven marketing and data cloud: it pairs a large proprietary identity dataset with machine-learning models to target, personalise and measure omnichannel campaigns. Revenue is compounding quickly and free cash flow is positive, even though heavy stock-based compensation keeps GAAP results in the red.",
+    risk: "GAAP-lossmaking with high stock-based comp diluting holders; a 2024 short-seller report questioned its data sourcing and revenue quality; ad budgets are cyclical and soften in a downturn.",
     reasons: [
-      "Wide-moat global brand trading well below its historical multiple.",
-      "The driver is self-help (margins, inventory) — not the AI cycle, so low correlation to a tech-led drawdown.",
-      "Screens deeply below several independent fair-value estimates.",
+      "Rapid, durable revenue growth as marketers consolidate onto AI-driven data platforms.",
+      "Already free-cash-flow positive — uncommon for a company still growing this fast.",
+      "Proprietary identity data plus AI models is a hard-to-replicate moat in ad-tech.",
     ],
     scenarios: {
-      downside: { pct: -15, note: "Turnaround stalls; weak consumer & China drag persist." },
-      base: { pct: 35, note: "Margins and inventory normalise; multiple partly recovers." },
-      upside: { pct: 80, note: "Full brand re-rate back toward historical multiples." },
+      downside: { pct: -55, note: "Ad-spend downturn or renewed accounting scrutiny re-rates it sharply lower." },
+      base: { pct: 30, note: "Growth keeps compounding and GAAP losses narrow toward profitability." },
+      upside: { pct: 140, note: "Scales into sustained GAAP profitability and re-rates as an AI-platform winner." },
     },
   },
   {
@@ -294,26 +294,6 @@ export const rareFinds: RareFind[] = [
       upside: { pct: 90, note: "Record launch plus sustained online monetisation." },
     },
   },
-  {
-    ticker: "SPCX",
-    name: "SpaceX",
-    tag: "Speculative growth",
-    conviction: "Speculative",
-    signal: "Newly public (June 2026); currently lossmaking",
-    thesis:
-      "The dominant launch + Starlink franchise, finally public. A multi-year story on launch cadence and satellite connectivity — but priced for a lot of future success.",
-    risk: "Rich valuation, negative earnings, thin trading history, and lock-up dynamics make early volatility likely.",
-    reasons: [
-      "Dominant launch franchise plus the Starlink connectivity business.",
-      "Newly public — scarce, high-demand growth optionality.",
-      "Multi-year runway on launch cadence and satellite broadband.",
-    ],
-    scenarios: {
-      downside: { pct: -50, note: "Rich valuation + losses + lock-up unwinds drive volatility." },
-      base: { pct: 30, note: "Execution on launch cadence and Starlink growth." },
-      upside: { pct: 200, note: "Starlink scales and the launch moat widens further." },
-    },
-  },
 ];
 
 export interface InvestmentPlan {
@@ -374,6 +354,6 @@ export const investmentPlans: InvestmentPlan[] = [
       "These names can keep working even if AI multiples compress, because their stories (brand turnaround, mortgage cycle, pricing power) are their own.",
     watch: "Margin recovery, free-cash-flow trends, and whether the discount to fair value is closing.",
     risk: "'Cheap for a reason' is real — turnarounds can stay broken longer than you can stay patient.",
-    tickers: ["NKE", "RKT"],
+    tickers: ["RKT", "DOC"],
   },
 ];

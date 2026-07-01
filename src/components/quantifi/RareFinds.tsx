@@ -99,6 +99,74 @@ function InsiderBuyLine({ ticker, note }: { ticker: string; note?: string }) {
   );
 }
 
+// Pulls a name's live cash-flow (DCF) valuation from the same model that powers
+// Stock Analysis — real model output via /api/score, never a hardcoded number.
+// When the company's cash flows don't support a reliable estimate (lossmaking or
+// highly cyclical) we say so honestly rather than invent a figure.
+function CashFlowValueLine({ ticker }: { ticker: string }) {
+  const [state, setState] = useState<{ estimate: number; price: number } | null | undefined>(undefined);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(`/api/score/${encodeURIComponent(ticker)}`);
+        const d = await r.json();
+        const est = d?.analytics?.cashflowValue?.estimate;
+        const price = d?.price;
+        if (cancelled) return;
+        setState(typeof est === "number" && typeof price === "number" ? { estimate: est, price } : null);
+      } catch {
+        if (!cancelled) setState(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ticker]);
+
+  const money = (n: number) => `$${n.toFixed(2)}`;
+
+  return (
+    <div className="rounded-xl border border-gold/25 bg-gold/[0.06] p-3.5">
+      <div className="flex items-center gap-2">
+        <span className="text-sm">📈</span>
+        <span className="text-[0.62rem] uppercase tracking-[0.14em] text-gold/90">Cash-flow value · live DCF</span>
+      </div>
+      {state === undefined ? (
+        <p className="mt-1.5 text-xs text-slate-400">Running the discounted-cash-flow model…</p>
+      ) : state ? (
+        (() => {
+          const gap = ((state.estimate - state.price) / state.price) * 100;
+          const under = gap >= 0;
+          return (
+            <p className="mt-1.5 text-sm leading-relaxed text-slate-200">
+              Intrinsic <span className="font-mono text-white">{money(state.estimate)}</span> vs current{" "}
+              <span className="font-mono text-white">{money(state.price)}</span>{" "}
+              <span className={under ? "text-up" : "text-down"}>
+                ({under ? `${Math.round(gap)}% below value` : `${Math.abs(Math.round(gap))}% above value`})
+              </span>
+            </p>
+          );
+        })()
+      ) : (
+        <p className="mt-1.5 text-xs leading-relaxed text-slate-400">
+          A cash-flow (DCF) valuation isn&apos;t available for this name yet — its cash flows don&apos;t
+          support a reliable estimate (e.g. lossmaking or highly cyclical). We show nothing rather than
+          a made-up number.
+        </p>
+      )}
+      <Link
+        href={`/stock-analysis?symbol=${ticker}`}
+        onClick={(e) => e.stopPropagation()}
+        className="mt-2 inline-block text-[0.7rem] text-gold underline-offset-2 hover:underline"
+      >
+        See the full valuation →
+      </Link>
+    </div>
+  );
+}
+
 // The upside / base / downside scenario range — an illustrative visual, not a
 // price target. The track runs from the downside return to the upside return,
 // with "today" (0%) and the base case marked.
@@ -218,6 +286,9 @@ export default function RareFinds() {
                 </div>
               ) : (
                 <div className="mt-4 border-t border-white/[0.08] pt-4">
+                  <div className="mb-4">
+                    <CashFlowValueLine ticker={f.ticker} />
+                  </div>
                   {f.insiderLive ? (
                     <div className="mb-4">
                       <InsiderBuyLine ticker={f.ticker} note={f.insiderNote} />
