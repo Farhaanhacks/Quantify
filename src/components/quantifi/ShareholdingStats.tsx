@@ -182,13 +182,7 @@ export default function ShareholdingStats({ symbol }: { symbol: string }) {
             </table>
           </div>
         </GlassCard>
-      ) : (
-        <GlassCard className="mt-4 p-5 text-center text-xs text-slate-500">
-          Quarterly institutional-ownership history needs a connected data source (set
-          <span className="mx-1 font-mono text-slate-400">FMP_API_KEY</span>). Top holders and the ownership
-          split above are live from public disclosures.
-        </GlassCard>
-      )}
+      ) : null}
     </section>
   );
 }
