@@ -34,7 +34,9 @@ export const metadata: Metadata = {
   description: SITE.description,
   applicationName: SITE.name,
   robots: { index: true, follow: true },
-  icons: { icon: "/icon.png", apple: "/icon.png" },
+  // Icons are provided by the app/ file conventions (favicon.ico, icon.png,
+  // apple-icon.png) so Next emits one authoritative, cache-busted set of
+  // <link> tags — favicon.ico is the path Google looks for first.
   openGraph: {
     type: "website",
     siteName: SITE.name,
