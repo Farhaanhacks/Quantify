@@ -17,6 +17,11 @@ const ALIASES: { re: RegExp; ticker: string }[] = [
   { re: /\bsensex\b|\bnifty\b|\bnse\b|\bbse\b|\bdalal street\b|\bindian (stocks|shares|equities|market|markets)\b/i, ticker: "NIFTYBEES.NS" },
 ];
 
+// Company names that clean down to a single common English word. Matching these
+// as prose would misfire badly — e.g. MicroStrategy rebranded to "Strategy", so
+// the bare word "strategy" (as in "growth strategy") must NOT pull in MSTR and
+// its preferred-share tickers. Such names can still be detected by their ticker
+// symbol via the all-caps pass below.
 const STOP_NAME = new Set([
   "first", "general", "american", "national", "united", "global", "capital",
   "energy", "financial", "group", "holdings", "international", "industries",
@@ -24,7 +29,27 @@ const STOP_NAME = new Set([
   "income", "growth", "corporate", "enterprise", "digital", "data", "health",
   "medical", "power", "water", "gold", "silver", "mining", "banks", "retail",
   "media", "networks", "global", "value", "core", "select", "premier",
+  "strategy", "strategies", "momentum", "quality", "dividend", "opportunity",
+  "opportunities", "innovation", "technology", "technologies", "dynamics",
+  "materials", "properties", "advantage", "signal", "sector", "index",
 ]);
+
+// ETFs are absent from SEC company_tickers.json (that file is operating
+// companies), so a named ETF ticker like MSOS would never be recognised. Seed a
+// curated set of widely-covered ETFs so their tickers are detectable in prose.
+const CURATED_ETFS = [
+  "SPY", "VOO", "IVV", "VTI", "QQQ", "DIA", "IWM", "RSP", "MDY",
+  "XLK", "XLF", "XLE", "XLY", "XLP", "XLI", "XLB", "XLU", "XLRE", "XLC", "XLV",
+  "SMH", "SOXX", "IGV", "VGT", "ARKK", "ARKG", "ARKW", "ARKF",
+  "TAN", "ICLN", "LIT", "XBI", "IBB", "KRE", "KBE", "ITB", "XHB", "PAVE",
+  "GDX", "GDXJ", "SIL", "GLD", "IAU", "SLV", "USO", "UNG", "XOP", "OIH", "URA", "URNM",
+  "MSOS", "MSOX", "YOLO", "MJ", "POTX", "THCX", "MJUS",
+  "KWEB", "FXI", "MCHI", "EEM", "EFA", "VEA", "VWO", "INDA", "EWZ", "EWJ",
+  "HACK", "BUG", "BOTZ", "ROBO", "DRIV", "IDRV", "JETS", "SKYY", "FINX",
+  "TLT", "IEF", "SHY", "HYG", "LQD", "AGG", "BND", "TIP", "MUB",
+  "VNQ", "SCHD", "VIG", "VYM", "DVY", "NOBL", "JEPI", "JEPQ", "DGRO", "SPHD",
+  "BITO", "IBIT", "FBTC", "GBTC", "ETHE", "BITB",
+];
 
 const STOP_TICKER = new Set([
   "CEO", "CFO", "COO", "CTO", "GDP", "CPI", "USA", "USD", "EUR", "GBP", "INR",
@@ -85,9 +110,12 @@ async function loadUniverse(): Promise<{ names: Entry[]; syms: Set<string> }> {
   // Always include curated names (India + supplemental) so coverage never regresses.
   for (const p of popularTickers) {
     const kw = cleanName(p.n);
-    if (kw.length >= 4) names.push({ ticker: p.s, kw });
+    if (kw.length >= 4 && !STOP_NAME.has(kw)) names.push({ ticker: p.s, kw });
     syms.add(p.s.replace(/\.(NS|BO)$/, "").toUpperCase());
   }
+
+  // Curated ETF tickers (not in the SEC company file) so named ETFs resolve.
+  for (const t of CURATED_ETFS) syms.add(t);
 
   cachedNames = names;
   cachedSyms = syms;
