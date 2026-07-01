@@ -109,7 +109,7 @@ export const playbooks: Playbook[] = [
     oneLineThesis:
       "AI capability growth may turn compute, power and national-security infrastructure into strategic assets. The winners may be the companies that control cloud, chips, power, data centres and defence infrastructure — but the most crowded AI names may face near-term de-rating risk.",
     soWhat:
-      "This framework is not simply saying 'buy AI stocks.' It separates AI-infrastructure beneficiaries from crowded AI winners that may already price in too much optimism. The key distinction is between long-term strategic demand and near-term valuation risk — a name can be central to the theme and still be a poor entry today.",
+      "This framework is not simply 'buy AI stocks.' The positioning is a barbell: LONG the physical enablers (data-centre power, cooling, specialized GPU cloud) and SHORT the crowded, richly-valued AI-hardware names (semis, SMH, NVDA, AVGO, AMD, ORCL) via puts. A name can be central to the theme and still be a poor entry — central to AI ≠ a good position today.",
     tags: ["AI", "Compute", "Sovereign AI", "Power", "Defence", "Semiconductors"],
     detailTags: [
       "AI",
@@ -122,7 +122,7 @@ export const playbooks: Playbook[] = [
     ],
     type: "Research Playbook",
     timeHorizon: "3–10 years",
-    riskLens: "High uncertainty",
+    riskLens: "Relatively Risky",
     bestFor: "Macro / geopolitics-aware investors",
     status: "Framework decode",
     lastUpdated: "26 Jun 2026",
@@ -178,28 +178,37 @@ export const playbooks: Playbook[] = [
     exposure: [
       {
         key: "long",
-        title: "Core Beneficiaries",
-        note: "Listed companies positively exposed to the infrastructure side of the thesis — chips, networking, power and cloud. Thematic exposure, not fund holdings or recommendations. NVDA is deliberately not here (see Near-Term Bearish).",
+        title: "Long Book — Data-Center Power & Specialized Compute",
+        note: "The fund's ~$3.85bn equity/call book: raw data-centre power, specialized GPU cloud and digital-infrastructure proxies — the physical enablers of AI rather than the crowded chip names. Positions as disclosed; sizes are approximate and move over time. Thematic exposure, not a recommendation.",
         items: [
-          { name: "Broadcom", ticker: "AVGO", assetType: "stock", exposureType: "long", conviction: "high", isDirectExposure: true, explanation: "Custom AI silicon + networking — the non-Nvidia compute leg, with a more diversified revenue base." },
-          { name: "AMD", ticker: "AMD", assetType: "stock", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "Second-source AI accelerators and data-centre CPUs — leverage to the buildout without Nvidia's crowding." },
-          { name: "Arista Networks", ticker: "ANET", assetType: "stock", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "AI data-centre networking (Ethernet fabric) — picks-and-shovels to compute scale-out." },
-          { name: "Vertiv", ticker: "VRT", assetType: "stock", exposureType: "long", conviction: "high", isDirectExposure: true, explanation: "Data-centre power & cooling — a direct play on power becoming the binding constraint." },
-          { name: "GE Vernova", ticker: "GEV", assetType: "stock", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "Power generation + grid equipment for rising AI electricity load." },
-          { name: "Microsoft", ticker: "MSFT", assetType: "stock", exposureType: "long", conviction: "high", isDirectExposure: true, explanation: "Hyperscaler capex + cloud AI demand (and the key OpenAI proxy — see Private/Proxy)." },
-          { name: "Alphabet", ticker: "GOOGL", assetType: "stock", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "Hyperscaler + in-house frontier lab (DeepMind), TPU compute, and an Anthropic investor." },
-          { name: "Amazon", ticker: "AMZN", assetType: "stock", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "AWS capacity for the buildout, and the lead Anthropic investor / compute partner." },
+          { name: "Bloom Energy", ticker: "BE", assetType: "stock", exposureType: "long", conviction: "high", isDirectExposure: true, explanation: "On-site fuel-cell power for data centres — ~$879M common (6.5M shares) plus ~$55M calls. A direct play on power becoming the binding AI constraint." },
+          { name: "Nebius Group", ticker: "NBIS", assetType: "stock", exposureType: "long", conviction: "high", isDirectExposure: true, explanation: "AI cloud / GPU infrastructure — a ~$2.6bn+ combined stake, the book's largest single long." },
+          { name: "CoreWeave", ticker: "CRWV", assetType: "stock", exposureType: "long", conviction: "high", isDirectExposure: true, explanation: "Specialized GPU cloud for AI training and inference — a major long on rented compute capacity." },
+          { name: "Sandisk", ticker: "SNDK", assetType: "stock", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "Storage / NAND for AI data pipelines — a common-stock position above 1M shares plus new calls." },
+          { name: "IREN Limited", ticker: "IREN", assetType: "stock", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "Clean-energy data centres repurposing power capacity for AI compute." },
+          { name: "Core Scientific", ticker: "CORZ", assetType: "stock", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "Large-scale HPC / AI hosting infrastructure with contracted power." },
+          { name: "Applied Digital", ticker: "APLD", assetType: "stock", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "Next-generation data-centre hosting build-out for AI tenants." },
+          { name: "Riot Platforms", ticker: "RIOT", assetType: "stock", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "Power-grid and high-density infrastructure proxy pivoting toward AI compute." },
+          { name: "CleanSpark", ticker: "CLSK", assetType: "stock", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "Energy-led data-centre operator — a power-and-siting proxy for the buildout." },
+          { name: "Lumentum", ticker: "LITE", assetType: "stock", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "Optical-networking components for data-centre interconnect — picks-and-shovels to compute scale-out." },
         ],
       },
       {
         key: "short",
-        title: "Near-Term Bearish / De-rating Risk",
-        note: "Important to the theme but vulnerable if AI capex, valuation or monetisation disappoints. These are de-rating risks, NOT short recommendations or verified short positions.",
+        title: "Short Book — AI-Hardware Puts / De-rating Risk",
+        note: "The fund's ~$8.46bn put book, targeting the AI-hardware supply chain and over-extended semi valuations. These are put / bearish positions (de-rating risk), NOT short recommendations; notional sizes are approximate. Note — TSM and MU appear here AND in the long book: the fund holds puts AND calls on them. That is a volatility structure, not a contradiction. Long options on both sides profit from a LARGE move in EITHER direction and let the fund monetise short-term rallies while keeping a bearish directional tilt — a bet on turbulence, not simply on price going down.",
         items: [
-          { name: "NVIDIA", ticker: "NVDA", assetType: "stock", exposureType: "short", conviction: "high", isDirectExposure: true, explanation: "Important to the AI-infrastructure cycle, but the Situational Awareness view is bearish near term: stretched valuation, capex-sustainability risk, customer concentration and a possible AI-narrative reversal. Central to the theme ≠ a good entry today." },
-          { name: "Palantir", ticker: "PLTR", assetType: "stock", exposureType: "short", conviction: "medium", isDirectExposure: true, explanation: "Richly valued on the AI/defence narrative; among the first to de-rate if AI monetisation disappoints." },
-          { name: "Super Micro", ticker: "SMCI", assetType: "stock", exposureType: "short", conviction: "medium", isDirectExposure: true, explanation: "Thin-margin AI-server assembler; highly sensitive to a capex slowdown." },
-          { name: "Arm Holdings", ticker: "ARM", assetType: "stock", exposureType: "short", conviction: "low", isDirectExposure: true, explanation: "Premium multiple tied to AI-licensing optimism; vulnerable if the cycle cools." },
+          { name: "VanEck Semiconductor ETF", ticker: "SMH", assetType: "etf", exposureType: "short", conviction: "high", isDirectExposure: true, explanation: "~$2.0bn notional put exposure — the single largest short, a basket bet against listed chipmakers." },
+          { name: "NVIDIA", ticker: "NVDA", assetType: "stock", exposureType: "short", conviction: "high", isDirectExposure: true, explanation: "~$1.6bn notional puts. Central to the AI cycle, but the view here is bearish near term: stretched valuation, capex-sustainability and customer-concentration risk." },
+          { name: "Oracle", ticker: "ORCL", assetType: "stock", exposureType: "short", conviction: "high", isDirectExposure: true, explanation: "~$1.07bn notional puts — a bet that its AI-cloud capex and backlog optimism is over-extended." },
+          { name: "Broadcom", ticker: "AVGO", assetType: "stock", exposureType: "short", conviction: "high", isDirectExposure: true, explanation: "~$1.0bn notional puts. Custom AI-silicon leader, but priced for continued hyperscaler spend — a de-rating candidate if capex cools." },
+          { name: "Advanced Micro Devices", ticker: "AMD", assetType: "stock", exposureType: "short", conviction: "high", isDirectExposure: true, explanation: "~$970M notional puts — leverage to the buildout cuts both ways if AI-accelerator demand disappoints." },
+          { name: "Taiwan Semiconductor", ticker: "TSM", assetType: "stock", exposureType: "short", conviction: "medium", isDirectExposure: true, explanation: "~$535M notional puts — but the fund ALSO holds ~$354M of TSM calls: a volatility structure, not a clean directional short (see the note above)." },
+          { name: "ASML Holding", ticker: "ASML", assetType: "stock", exposureType: "short", conviction: "medium", isDirectExposure: true, explanation: "Put exposure (size undisclosed) — the lithography monopoly geared to the same capex cycle the fund is fading." },
+          { name: "Micron Technology", ticker: "MU", assetType: "stock", exposureType: "short", conviction: "medium", isDirectExposure: true, explanation: "Put exposure (size undisclosed) alongside offsetting calls — again a volatility trade rather than a pure short (see the note above)." },
+          { name: "Intel", ticker: "INTC", assetType: "stock", exposureType: "short", conviction: "low", isDirectExposure: true, explanation: "Put exposure (size undisclosed) — a laggard / foundry-execution short within the semis basket." },
+          { name: "Corning", ticker: "GLW", assetType: "stock", exposureType: "short", conviction: "low", isDirectExposure: true, explanation: "Put exposure (size undisclosed) — optical / fibre supplier tied to the same data-centre capex." },
+          { name: "Infosys", ticker: "INFY", assetType: "stock", exposureType: "short", conviction: "low", isDirectExposure: true, explanation: "Put exposure (size undisclosed) — an international macro short on IT-services demand." },
         ],
       },
       {
@@ -210,6 +219,7 @@ export const playbooks: Playbook[] = [
           { name: "Anthropic", assetType: "private_company", exposureType: "private", isDirectExposure: false, explanation: "Central private frontier-AI lab (Claude). Not directly tradable as a public stock. Public exposure is indirect, primarily via AMZN and GOOGL, who are investors and compute partners. ETFs do not hold Anthropic directly.", sourceUrl: "https://www.anthropic.com" },
           { name: "OpenAI", assetType: "private_company", exposureType: "private", isDirectExposure: false, explanation: "Frontier lab at the centre of the framework. Private — not directly tradable. Public exposure is indirect, primarily via MSFT (strategic partner / investor).", sourceUrl: "https://openai.com" },
           { name: "xAI", assetType: "private_company", exposureType: "private", isDirectExposure: false, explanation: "Frontier lab. Private — not directly tradable as a public stock; no clean listed proxy.", sourceUrl: "https://x.ai" },
+          { name: "SharonAI", assetType: "private_company", exposureType: "private", isDirectExposure: false, explanation: "Newly disclosed private foundational-infrastructure position in the fund's book. Private — no direct public ticker; public-market exposure would only be indirect via listed data-centre/compute proxies in the Long Book." },
         ],
       },
       {
@@ -226,18 +236,17 @@ export const playbooks: Playbook[] = [
       {
         key: "etf",
         title: "ETF / Basket Exposure",
-        note: "Indirect basket exposure, shown last. These ETFs generally own listed semiconductor / cloud / platform companies — not private AI labs. None hold Anthropic, OpenAI or xAI directly.",
+        note: "Basket context, shown for reference. The fund's own ETF position is a SHORT — the SMH puts in the Short Book — so the semiconductor baskets below are what it is fading, not holding.",
         items: [
-          { name: "VanEck Semiconductor ETF", ticker: "SMH", assetType: "etf", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "Holds listed semiconductor companies (NVDA, AVGO, AMD…). Direct exposure to listed chipmakers — no private-lab exposure." },
-          { name: "iShares Semiconductor ETF", ticker: "SOXX", assetType: "etf", exposureType: "long", conviction: "medium", isDirectExposure: true, explanation: "Broad basket of listed semiconductor companies. No private-lab exposure." },
-          { name: "Invesco QQQ Trust", ticker: "QQQ", assetType: "etf", exposureType: "proxy", conviction: "low", isDirectExposure: true, explanation: "Mega-cap tech index incl. MSFT, GOOGL, AMZN, NVDA — exposure is to the listed proxies, not the private labs." },
+          { name: "iShares Semiconductor ETF", ticker: "SOXX", assetType: "etf", exposureType: "watchlist", conviction: "low", isDirectExposure: true, explanation: "Broad basket of listed chipmakers (NVDA, AVGO, AMD…) — the same names the fund is shorting via SMH puts. Shown as context, not a long." },
+          { name: "Invesco QQQ Trust", ticker: "QQQ", assetType: "etf", exposureType: "watchlist", conviction: "low", isDirectExposure: true, explanation: "Mega-cap tech index incl. MSFT, GOOGL, AMZN, NVDA — a read on the crowded AI-mega-cap complex, not a position here." },
         ],
       },
     ],
     bullCase:
-      "The playbook is directionally right. AI capability keeps accelerating, compute demand rises, governments fund sovereign AI, hyperscalers continue capex, and power/grid bottlenecks create second-order beneficiaries.",
+      "The barbell pays off. AI compute demand is real, but the value accrues to power, cooling, siting and specialized cloud — the Long Book — while the crowded, richly-valued chip names in the Short Book de-rate as capex growth slows and compute gets more efficient. The ~$8.46bn of puts also hedges the longs if the whole AI complex sells off together.",
     bearCase:
-      "The playbook is too aggressive. AI progress slows, monetisation disappoints, compute becomes more efficient, regulation delays deployment, or investors reject long-duration AI capex stories.",
+      "The chip shorts are the pain trade. If hyperscaler capex keeps compounding, NVDA / AVGO / AMD and the semis keep re-rating and the put book bleeds premium. Meanwhile several longs are unprofitable, power-hungry, crypto-adjacent infrastructure names that can fall hardest in a risk-off — so both legs can lose at once.",
     thesisTests: [
       { test: "Frontier AI progress", signal: "Watch closely", metric: "model capability jumps, benchmark gains, enterprise adoption", breaksIf: "model progress slows materially" },
       { test: "Hyperscaler capex", signal: "Strengthening", metric: "MSFT, AMZN, GOOGL, META, ORCL capex guidance", breaksIf: "capex guidance is cut across multiple hyperscalers" },
