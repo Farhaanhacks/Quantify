@@ -164,7 +164,17 @@ export interface CompanyAnalytics {
   cashflowValue?: { estimate: number; note: string };
   // Optional sector-appropriate valuation (SaaS→EV/Sales, banks→P/B,
   // telecom/infra→EV/EBITDA, real-estate/commodities→NAV, else→P/E).
-  sectorValuation?: { sector: string; method: string; metricLabel: string; estimate: number; note: string };
+  sectorValuation?: {
+    sector: string;
+    method: string;
+    metricLabel: string;
+    estimate: number;
+    valueLabel: string;
+    tag: string;
+    tagUnder: boolean;
+    showBar: boolean;
+    note: string;
+  };
   rewards: string[];
   riskFlags: string[];
 }

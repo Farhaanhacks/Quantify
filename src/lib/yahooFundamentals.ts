@@ -151,6 +151,10 @@ type SectorMethod = {
   kind: "pb" | "ev_ebitda" | "ev_sales" | "pe";
   benchmark: number;
   why: string;
+  // Real estate / commodities: book value is only a conservative NAV FLOOR
+  // (property & land carried at historical cost), not a fair-value target — so
+  // we show the premium/discount to book rather than an over/under %.
+  navFloor?: boolean;
 };
 
 function classifySector(
@@ -165,9 +169,9 @@ function classifySector(
   if (s.includes("financial"))
     return { clusterLabel: "Banks & Financial Institutions", method: "P / B (price to book)", metricShort: "P/B", kind: "pb", benchmark: 1.2, why: "For lenders debt is raw material, not a capital-structure choice, so EV/EBITDA is mis-specified — book value and P/B are the cleaner lens." };
   if (s.includes("real estate"))
-    return { clusterLabel: "Real Estate", method: "Net asset value (P / B proxy)", metricShort: "P/B", kind: "pb", benchmark: 1.0, why: "A property company's value is tied to the appraised value of its assets, so price-to-book approximates a NAV lens." };
+    return { clusterLabel: "Real Estate", method: "Net asset value (book proxy)", metricShort: "P/B", kind: "pb", benchmark: 1.0, navFloor: true, why: "A property company's value is tied to the appraised value of its land and buildings." };
   if (s.includes("basic materials") || s.includes("energy"))
-    return { clusterLabel: "Commodities & Resources", method: "Asset value (P / B proxy)", metricShort: "P/B", kind: "pb", benchmark: 1.2, why: "Producers are valued off the worth of reserves and physical assets — an asset/NAV lens fits better than earnings multiples through the cycle." };
+    return { clusterLabel: "Commodities & Resources", method: "Asset value (book proxy)", metricShort: "P/B", kind: "pb", benchmark: 1.2, navFloor: true, why: "Producers are valued off the worth of reserves and physical assets — an asset/NAV lens fits better than earnings multiples through the cycle." };
   if (
     s.includes("utilities") ||
     (s.includes("communication") && ind.includes("telecom")) ||
@@ -202,11 +206,44 @@ interface SectorValuationInput {
   evToRevenue?: number;
 }
 
-function computeSectorValuation(
-  i: SectorValuationInput
-): { sector: string; method: string; metricLabel: string; estimate: number; note: string } | undefined {
+interface SectorValuationResult {
+  sector: string;
+  method: string;
+  metricLabel: string;
+  estimate: number;
+  valueLabel: string; // what the estimate represents ("Sector fair value" / "Book value · NAV floor")
+  tag: string; // pill text
+  tagUnder: boolean; // tone (true = green/cheaper)
+  showBar: boolean; // draw the price-vs-value bar
+  note: string;
+}
+
+function computeSectorValuation(i: SectorValuationInput): SectorValuationResult | undefined {
   const cfg = classifySector(i.sector, i.industry, i.profitMargins, i.revGrowth);
   if (!cfg || !(i.price > 0)) return undefined;
+  const mult = (n: number | undefined) => (n != null && isFinite(n) ? `${n.toFixed(1)}×` : "—");
+
+  // Real estate / commodities: book value is a conservative NAV FLOOR (land and
+  // property at historical cost), and true appraised NAV isn't in our data feed.
+  // Show the premium/discount to book — never a misleading "% over/under".
+  if (cfg.kind === "pb" && cfg.navFloor) {
+    const bvps = i.bookValuePerShare;
+    if (bvps == null || bvps <= 0 || bvps > i.price * 10) return undefined;
+    const pb = i.priceToBook ?? i.price / bvps;
+    return {
+      sector: cfg.clusterLabel,
+      method: cfg.method,
+      metricLabel: `P/B ${mult(pb)}`,
+      estimate: bvps,
+      valueLabel: "Book value · NAV floor",
+      tag: `${pb.toFixed(1)}× book value`,
+      tagUnder: pb < 1,
+      showBar: false,
+      note: `${cfg.clusterLabel} — ${cfg.why} Book value is only a CONSERVATIVE NAV floor: property and land are carried at historical cost, so the true appraised NAV is typically well above book — and isn't available from our data source. Treat it as a floor, not a price target; a name trading above book isn't necessarily overvalued.`,
+    };
+  }
+
+  // Standard multiple → implied fair value + over/under vs the live price.
   let estimate: number | undefined;
   let current: number | undefined;
   if (cfg.kind === "pb") {
@@ -229,10 +266,19 @@ function computeSectorValuation(
   if (estimate == null || !isFinite(estimate) || estimate <= 0) return undefined;
   // Plausibility band — a multiples read outside this range is a data artefact.
   if (estimate < i.price * 0.25 || estimate > i.price * 4) return undefined;
-  const mult = current != null && isFinite(current) ? `${current.toFixed(1)}×` : "—";
-  const metricLabel = `${cfg.metricShort} ${mult} vs ~${cfg.benchmark}× typical`;
-  const note = `${cfg.clusterLabel} — valued on ${cfg.method}. ${cfg.why} Fair value applies a ~${cfg.benchmark}× ${cfg.metricShort} sector benchmark to the company's own figures. A sector heuristic, not a precise target.`;
-  return { sector: cfg.clusterLabel, method: cfg.method, metricLabel, estimate, note };
+  const gap = ((estimate - i.price) / i.price) * 100;
+  const under = gap >= 0;
+  return {
+    sector: cfg.clusterLabel,
+    method: cfg.method,
+    metricLabel: `${cfg.metricShort} ${mult(current)} vs ~${cfg.benchmark}× typical`,
+    estimate,
+    valueLabel: "Sector fair value",
+    tag: `${under ? "Below" : "Above"} sector value · ${Math.abs(gap).toFixed(0)}%`,
+    tagUnder: under,
+    showBar: true,
+    note: `${cfg.clusterLabel} — valued on ${cfg.method}. ${cfg.why} Fair value applies a ~${cfg.benchmark}× ${cfg.metricShort} sector benchmark to the company's own figures. A sector heuristic, not a precise target.`,
+  };
 }
 
 export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
