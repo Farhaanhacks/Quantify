@@ -1,13 +1,11 @@
-// Server-only market-data access layer.
+// Server-only market-data type surface.
 //
-// Provider-agnostic: reads MARKET_DATA_PROVIDER + MARKET_DATA_API_KEY from the
-// environment. With no key (or provider="demo") it returns the bundled demo
-// data, so the app always renders. Set the env vars to switch to live data.
+// This module is currently unused — live quotes are fetched via /api/quote and
+// the live scoring/timeseries endpoints. It is kept only as a thin, provider-
+// agnostic type surface and contains NO demo/sample data: with no configured
+// provider it reports "not available" rather than a placeholder.
 //
-// NOTE: this file must only be imported from server components or route
-// handlers (it reads process.env and never ships to the browser).
-
-import { stockByTicker } from "@/data/demo";
+// NOTE: must only be imported from server components or route handlers.
 
 export interface LiveQuote {
   ticker: string;
@@ -15,82 +13,11 @@ export interface LiveQuote {
   price: number;
   changePct: number;
   marketCap?: string;
-  live: boolean; // true = from provider, false = demo fallback
+  live: boolean; // true = from a live provider
 }
 
-const PROVIDER = process.env.MARKET_DATA_PROVIDER ?? "demo";
-const KEY = process.env.MARKET_DATA_API_KEY ?? "";
-
-function formatCap(n: number | null | undefined): string | undefined {
-  if (!n || n <= 0) return undefined;
-  if (n >= 1e12) return `$${(n / 1e12).toFixed(1)}T`;
-  if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;
-  if (n >= 1e6) return `$${(n / 1e6).toFixed(0)}M`;
-  return `$${n.toFixed(0)}`;
-}
-
-function demoQuote(ticker: string): LiveQuote {
-  const s = stockByTicker[ticker];
-  return {
-    ticker,
-    name: s?.name ?? ticker,
-    price: s?.price ?? 0,
-    changePct: s?.changePct ?? 0,
-    marketCap: s?.marketCap,
-    live: false,
-  };
-}
-
-// ── Financial Modeling Prep adapter ──────────────────────────────────────────
-// Docs: https://site.financialmodelingprep.com/developer/docs
-// Batch quote endpoint accepts comma-separated symbols. Indian symbols use the
-// ".NS" suffix (e.g. RELIANCE.NS), which matches our demo tickers.
-
-async function fmpQuotes(tickers: string[]): Promise<LiveQuote[]> {
-  const url = `https://financialmodelingprep.com/api/v3/quote/${encodeURIComponent(
-    tickers.join(",")
-  )}?apikey=${KEY}`;
-  // Revalidate at most once a minute so we are not hammering the API.
-  const res = await fetch(url, { next: { revalidate: 60 } });
-  if (!res.ok) throw new Error(`FMP responded ${res.status}`);
-  const data = (await res.json()) as Array<{
-    symbol: string;
-    name?: string;
-    price?: number;
-    changesPercentage?: number;
-    marketCap?: number;
-  }>;
-  return data.map((q) => ({
-    ticker: q.symbol,
-    name: q.name ?? q.symbol,
-    price: q.price ?? 0,
-    changePct: q.changesPercentage ?? 0,
-    marketCap: formatCap(q.marketCap),
-    live: true,
-  }));
-}
-
-// ── Public API ───────────────────────────────────────────────────────────────
-
-export async function getQuotes(tickers: string[]): Promise<LiveQuote[]> {
-  if (PROVIDER === "fmp" && KEY) {
-    try {
-      const live = await fmpQuotes(tickers);
-      const byTicker = new Map(live.map((q) => [q.ticker, q]));
-      // Guarantee one entry per requested ticker; fall back per-missing.
-      return tickers.map((t) => byTicker.get(t) ?? demoQuote(t));
-    } catch (err) {
-      // Any failure (bad key, rate limit, network) degrades gracefully.
-      console.error("[marketData] live fetch failed, using demo:", err);
-    }
-  }
-  return tickers.map(demoQuote);
-}
-
-export async function getQuote(ticker: string): Promise<LiveQuote> {
-  return (await getQuotes([ticker]))[0];
-}
-
-export function isLiveConfigured(): boolean {
-  return PROVIDER === "fmp" && Boolean(KEY);
+// With no configured provider there is nothing to return — say so honestly
+// instead of inventing a price.
+export function notAvailableQuote(ticker: string): LiveQuote {
+  return { ticker, name: ticker, price: 0, changePct: 0, live: false };
 }
