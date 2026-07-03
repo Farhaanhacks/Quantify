@@ -99,6 +99,12 @@ export default function CompanySnapshot({
   const cfGap = cf ? ((cf.estimate - resolvedPrice) / resolvedPrice) * 100 : 0;
   const cfUnder = cfGap > 0;
 
+  // Sector-appropriate valuation (SaaS→EV/Sales, banks→P/B, telecom/infra→
+  // EV/EBITDA, real-estate/commodities→NAV, else→P/E), when available.
+  const sv = a.sectorValuation;
+  const svGap = sv ? ((sv.estimate - resolvedPrice) / resolvedPrice) * 100 : 0;
+  const svUnder = svGap > 0;
+
   // For AI-bubble names, price reflects future expectations more than near-term
   // analyst targets, so we LEAD with the share-price-vs-future-cash-flow lens —
   // but the analyst view always stays visible right below it (both lenses, every
@@ -215,6 +221,53 @@ export default function CompanySnapshot({
         heavy-investment names this figure reads conservative by design; weigh it against the
         analyst target above, which is forward-looking.
       </p>
+    </GlassCard>
+  ) : null;
+
+  const sectorCard = sv ? (
+    <GlassCard className="mt-4 p-5 sm:p-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div className="text-[0.7rem] uppercase tracking-[0.16em] text-slate-500">
+            Sector valuation · {sv.method}
+          </div>
+          <p className="mt-1 max-w-md text-xs text-slate-500">{sv.note}</p>
+        </div>
+        <div className="flex items-center gap-6">
+          <div>
+            <div className="text-xs text-slate-500">Current</div>
+            <div className="font-mono text-xl font-semibold tnum text-white">{cur}{fmtPrice(resolvedPrice)}</div>
+          </div>
+          <div>
+            <div className="text-xs text-slate-500">Sector fair value</div>
+            <div className="font-mono text-xl font-semibold tnum text-white">{cur}{fmtPrice(sv.estimate)}</div>
+          </div>
+          <Tag tone={svUnder ? "up" : "down"}>
+            {svUnder ? "Below" : "Above"} sector value · {Math.abs(svGap).toFixed(0)}%
+          </Tag>
+        </div>
+      </div>
+      <div className="mt-3 text-[0.7rem] uppercase tracking-[0.14em] text-slate-500">
+        {sv.sector} · <span className="font-mono normal-case tracking-normal text-slate-300">{sv.metricLabel}</span>
+      </div>
+      <div className="mt-4">
+        <div className="relative h-2 rounded-full bg-white/[0.06]">
+          <div
+            className="absolute top-1/2 h-3.5 w-0.5 -translate-y-1/2 bg-teal"
+            style={{ left: `${Math.min(95, Math.max(5, (sv.estimate / Math.max(sv.estimate, resolvedPrice)) * 90))}%` }}
+            aria-hidden
+          />
+          <div
+            className="absolute top-1/2 h-3.5 w-0.5 -translate-y-1/2 bg-gold"
+            style={{ left: `${Math.min(95, Math.max(5, (resolvedPrice / Math.max(sv.estimate, resolvedPrice)) * 90))}%` }}
+            aria-hidden
+          />
+        </div>
+        <div className="mt-2 flex gap-4 text-[0.7rem] text-slate-500">
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-gold" /> Current price</span>
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-teal" /> Sector fair value</span>
+        </div>
+      </div>
     </GlassCard>
   ) : null;
 
@@ -366,11 +419,13 @@ export default function CompanySnapshot({
       {featureCashflow ? (
         <>
           {cashflowCard}
+          {sectorCard}
           {analystCard}
         </>
       ) : (
         <>
           {analystCard}
+          {sectorCard}
           {cashflowCard}
         </>
       )}

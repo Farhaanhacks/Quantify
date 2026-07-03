@@ -136,13 +136,112 @@ function forwardGrowth(
   return rev ?? earn;
 }
 
+// ── Sector-appropriate valuation ─────────────────────────────────────────────
+// A single trailing DCF suits only mature, cash-generative businesses. For most
+// companies the right lens depends on the sector: SaaS on revenue multiples,
+// banks on book value, telecom/infra on EV/EBITDA, real-estate/commodities on
+// asset value. We classify the company, apply the sector's preferred multiple to
+// ITS OWN figures against a typical sector benchmark, and derive an implied fair
+// value + over/under read. Benchmarks are documented sector heuristics, not
+// precise targets — always shown alongside the analyst view.
+type SectorMethod = {
+  clusterLabel: string;
+  method: string; // full display name
+  metricShort: string; // "EV/EBITDA"
+  kind: "pb" | "ev_ebitda" | "ev_sales" | "pe";
+  benchmark: number;
+  why: string;
+};
+
+function classifySector(
+  sector: string | undefined,
+  industry: string | undefined,
+  profitMargins: number | undefined,
+  revGrowth: number | undefined
+): SectorMethod | undefined {
+  const s = (sector ?? "").toLowerCase();
+  const ind = (industry ?? "").toLowerCase();
+  if (!s) return undefined;
+  if (s.includes("financial"))
+    return { clusterLabel: "Banks & Financial Institutions", method: "P / B (price to book)", metricShort: "P/B", kind: "pb", benchmark: 1.2, why: "For lenders debt is raw material, not a capital-structure choice, so EV/EBITDA is mis-specified — book value and P/B are the cleaner lens." };
+  if (s.includes("real estate"))
+    return { clusterLabel: "Real Estate", method: "Net asset value (P / B proxy)", metricShort: "P/B", kind: "pb", benchmark: 1.0, why: "A property company's value is tied to the appraised value of its assets, so price-to-book approximates a NAV lens." };
+  if (s.includes("basic materials") || s.includes("energy"))
+    return { clusterLabel: "Commodities & Resources", method: "Asset value (P / B proxy)", metricShort: "P/B", kind: "pb", benchmark: 1.2, why: "Producers are valued off the worth of reserves and physical assets — an asset/NAV lens fits better than earnings multiples through the cycle." };
+  if (
+    s.includes("utilities") ||
+    (s.includes("communication") && ind.includes("telecom")) ||
+    (s.includes("industrials") && /infrastructure|railroad|engineering|freight|utilities|construction/.test(ind))
+  )
+    return { clusterLabel: "Telecom & Infrastructure", method: "EV / EBITDA", metricShort: "EV/EBITDA", kind: "ev_ebitda", benchmark: 8, why: "Capital-heavy, debt-financed businesses: EV/EBITDA normalises very different debt loads and heavy asset depreciation." };
+  const isTech = s.includes("technology") || (s.includes("communication") && /internet|software|entertainment|media/.test(ind));
+  if (isTech) {
+    const hyper = (profitMargins != null && profitMargins <= 0.05) || (revGrowth != null && revGrowth > 0.2);
+    if (hyper)
+      return { clusterLabel: "High-Growth Tech / SaaS", method: "EV / Sales", metricShort: "EV/Sales", kind: "ev_sales", benchmark: 6, why: "Near-term earnings are thin or non-existent while the company scales, so revenue multiples (EV/Sales) are the working lens." };
+    return { clusterLabel: "Technology", method: "P / E", metricShort: "P/E", kind: "pe", benchmark: 24, why: "A profitable tech compounder — an earnings multiple with a growth premium is the cleanest read." };
+  }
+  return { clusterLabel: "Broad Market", method: "P / E", metricShort: "P/E", kind: "pe", benchmark: 18, why: "A general earnings-multiple lens for a mature, profitable business." };
+}
+
+interface SectorValuationInput {
+  sector?: string;
+  industry?: string;
+  price: number;
+  shares?: number;
+  profitMargins?: number;
+  revGrowth?: number;
+  eps?: number;
+  bookValuePerShare?: number;
+  ebitda?: number;
+  revenue?: number;
+  netDebt?: number;
+  pe?: number;
+  priceToBook?: number;
+  evToEbitda?: number;
+  evToRevenue?: number;
+}
+
+function computeSectorValuation(
+  i: SectorValuationInput
+): { sector: string; method: string; metricLabel: string; estimate: number; note: string } | undefined {
+  const cfg = classifySector(i.sector, i.industry, i.profitMargins, i.revGrowth);
+  if (!cfg || !(i.price > 0)) return undefined;
+  let estimate: number | undefined;
+  let current: number | undefined;
+  if (cfg.kind === "pb") {
+    if (i.bookValuePerShare == null || i.bookValuePerShare <= 0) return undefined;
+    estimate = cfg.benchmark * i.bookValuePerShare;
+    current = i.priceToBook ?? i.price / i.bookValuePerShare;
+  } else if (cfg.kind === "pe") {
+    if (i.eps == null || i.eps <= 0) return undefined;
+    estimate = cfg.benchmark * i.eps;
+    current = i.pe ?? i.price / i.eps;
+  } else if (cfg.kind === "ev_ebitda") {
+    if (i.ebitda == null || i.ebitda <= 0 || i.shares == null || i.shares <= 0) return undefined;
+    estimate = (cfg.benchmark * i.ebitda - (i.netDebt ?? 0)) / i.shares;
+    current = i.evToEbitda;
+  } else {
+    if (i.revenue == null || i.revenue <= 0 || i.shares == null || i.shares <= 0) return undefined;
+    estimate = (cfg.benchmark * i.revenue - (i.netDebt ?? 0)) / i.shares;
+    current = i.evToRevenue;
+  }
+  if (estimate == null || !isFinite(estimate) || estimate <= 0) return undefined;
+  // Plausibility band — a multiples read outside this range is a data artefact.
+  if (estimate < i.price * 0.25 || estimate > i.price * 4) return undefined;
+  const mult = current != null && isFinite(current) ? `${current.toFixed(1)}×` : "—";
+  const metricLabel = `${cfg.metricShort} ${mult} vs ~${cfg.benchmark}× typical`;
+  const note = `${cfg.clusterLabel} — valued on ${cfg.method}. ${cfg.why} Fair value applies a ~${cfg.benchmark}× ${cfg.metricShort} sector benchmark to the company's own figures. A sector heuristic, not a precise target.`;
+  return { sector: cfg.clusterLabel, method: cfg.method, metricLabel, estimate, note };
+}
+
 export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   // Curated funds Yahoo misclassifies as equities (e.g. DXYZ) must never be
   // company-scored — route them straight to the ETF X-ray.
   if (knownFund(symbol)) return null;
 
   const modules =
-    "quoteType,summaryDetail,defaultKeyStatistics,financialData,price,topHoldings,cashflowStatementHistory";
+    "quoteType,summaryDetail,defaultKeyStatistics,financialData,price,topHoldings,cashflowStatementHistory,assetProfile";
   let result = await yahooQuoteSummary(symbol, modules);
   // Some inputs need normalising (a company name, or a missing exchange suffix);
   // resolve and retry once so valid names don't read as "not available".
@@ -160,6 +259,7 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   const pr = (result.price ?? {}) as Record<string, unknown>;
   const th = (result.topHoldings ?? {}) as Record<string, unknown>;
   const cfh = (result.cashflowStatementHistory ?? {}) as Record<string, unknown>;
+  const ap = (result.assetProfile ?? {}) as Record<string, unknown>;
 
   // Funds aren't companies — they have no margins, ROE or growth, so a company
   // score would read ~0/30. Detect them and bail so the caller falls back to the
@@ -361,6 +461,29 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
       ? cfRaw
       : undefined;
 
+  // Sector-appropriate valuation: pick the right multiple for the company's
+  // sector, apply a typical benchmark to its own figures, and read over/under.
+  const eps = num(ks.trailingEps) ?? num(fd.epsTrailingTwelveMonths) ?? (pe != null && pe > 0 ? price / pe : undefined);
+  const sectorValuation = currencyOk
+    ? computeSectorValuation({
+        sector: str(ap.sector),
+        industry: str(ap.industry),
+        price,
+        shares: sharesOutstanding,
+        profitMargins,
+        revGrowth,
+        eps,
+        bookValuePerShare: num(ks.bookValue),
+        ebitda: num(fd.ebitda),
+        revenue: num(fd.totalRevenue) ?? num(ks.totalRevenue),
+        netDebt: (totalDebt ?? 0) - (totalCash ?? 0),
+        pe,
+        priceToBook: num(ks.priceToBook),
+        evToEbitda: num(ks.enterpriseToEbitda),
+        evToRevenue: num(ks.enterpriseToRevenue),
+      })
+    : undefined;
+
   const analytics: CompanyAnalytics = {
     ticker: symbol.toUpperCase(),
     scores,
@@ -376,6 +499,7 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
             note: "A discounted-cash-flow estimate built from the company's REAL trailing free cash flow (through-cycle median), grown at its own historical rate fading to a sustainable pace and discounted back. Shown only for currently-profitable, cash-generative companies — where trailing cash flows are meaningful; suppressed for loss-making or cash-burning names. Model-based, not advice.",
           }
         : undefined,
+    sectorValuation,
     rewards: rewards.slice(0, 4),
     riskFlags: riskFlags.slice(0, 4),
   };

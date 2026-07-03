@@ -162,6 +162,9 @@ export interface CompanyAnalytics {
   fairValue: { estimate: number; method: string; note: string };
   // Optional 2-stage discounted-cash-flow intrinsic value per share.
   cashflowValue?: { estimate: number; note: string };
+  // Optional sector-appropriate valuation (SaaS→EV/Sales, banks→P/B,
+  // telecom/infra→EV/EBITDA, real-estate/commodities→NAV, else→P/E).
+  sectorValuation?: { sector: string; method: string; metricLabel: string; estimate: number; note: string };
   rewards: string[];
   riskFlags: string[];
 }
