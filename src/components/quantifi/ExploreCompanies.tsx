@@ -6,17 +6,9 @@ import {
   GlassCard,
   SectionHeading,
   TickerChip,
-  ChangePill,
-  Sparkline,
   Tag,
 } from "@/components/quantifi/Cards";
-import {
-  stocks,
-  tradingIdeas,
-  fmtPrice,
-  dirOf,
-  type MarketRegion,
-} from "@/data/demo";
+import { tradingIdeas, type MarketRegion } from "@/data/demo";
 
 type Tab = "Investing Ideas" | "Browse All Stocks" | "Markets";
 const tabs: Tab[] = ["Investing Ideas", "Browse All Stocks", "Markets"];
@@ -25,6 +17,30 @@ const regions: MarketRegion[] = ["Global", "India", "US"];
 const marketRows: { region: Exclude<MarketRegion, "Global">; venues: string[]; note: string }[] = [
   { region: "US", venues: ["NYSE", "NASDAQ"], note: "Deepest coverage — broad large- and mid-cap exposure." },
   { region: "India", venues: ["NSE", "BSE"], note: "IT services and large-cap conglomerate exposure." },
+];
+
+// A curated browse list — factual company reference only (ticker, name, venue,
+// sector). No prices or charts here: those load live on the analysis page, so
+// nothing shown is fabricated market data.
+const browseUniverse: {
+  ticker: string;
+  name: string;
+  region: Exclude<MarketRegion, "Global">;
+  exchange: string;
+  sector: string;
+}[] = [
+  { ticker: "NVDA", name: "NVIDIA Corp.", region: "US", exchange: "NASDAQ", sector: "Semiconductors" },
+  { ticker: "MSFT", name: "Microsoft Corp.", region: "US", exchange: "NASDAQ", sector: "Software" },
+  { ticker: "AMZN", name: "Amazon.com Inc.", region: "US", exchange: "NASDAQ", sector: "E-commerce" },
+  { ticker: "GOOGL", name: "Alphabet Inc.", region: "US", exchange: "NASDAQ", sector: "Internet" },
+  { ticker: "META", name: "Meta Platforms", region: "US", exchange: "NASDAQ", sector: "Internet" },
+  { ticker: "AMD", name: "Advanced Micro Devices", region: "US", exchange: "NASDAQ", sector: "Semiconductors" },
+  { ticker: "PLTR", name: "Palantir Technologies", region: "US", exchange: "NASDAQ", sector: "Software" },
+  { ticker: "ORCL", name: "Oracle Corp.", region: "US", exchange: "NYSE", sector: "Software" },
+  { ticker: "TSLA", name: "Tesla Inc.", region: "US", exchange: "NASDAQ", sector: "Autos" },
+  { ticker: "TCS.NS", name: "Tata Consultancy Services", region: "India", exchange: "NSE", sector: "IT Services" },
+  { ticker: "RELIANCE.NS", name: "Reliance Industries", region: "India", exchange: "NSE", sector: "Conglomerate" },
+  { ticker: "INFY.NS", name: "Infosys Ltd.", region: "India", exchange: "NSE", sector: "IT Services" },
 ];
 
 export default function ExploreCompanies({
@@ -38,7 +54,7 @@ export default function ExploreCompanies({
   const [region, setRegion] = useState<MarketRegion>("Global");
 
   const visibleStocks = useMemo(
-    () => (region === "Global" ? stocks : stocks.filter((s) => s.region === region)),
+    () => (region === "Global" ? browseUniverse : browseUniverse.filter((s) => s.region === region)),
     [region],
   );
 
@@ -50,7 +66,7 @@ export default function ExploreCompanies({
         <SectionHeading
           eyebrow="Explore"
           title="Explore companies & ETFs"
-          subtitle="Browse the demo universe by idea, by name, or by market. A discovery surface, not a screener of recommendations."
+          subtitle="Browse by idea, by name, or by market, then open any name for its live analysis. A discovery surface, not a screener of recommendations."
           href={preview ? "/explore" : undefined}
           cta={preview ? "Open explorer" : undefined}
         />
@@ -101,26 +117,17 @@ export default function ExploreCompanies({
             {shownStocks.map((s) => (
               <Link key={s.ticker} href={`/stock-analysis?symbol=${s.ticker}`}>
                 <GlassCard hover className="h-full p-4">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <TickerChip ticker={s.ticker} />
-                      <p className="mt-2 text-sm font-medium text-white">{s.name}</p>
-                      <p className="text-xs text-slate-500">
-                        {s.exchange} · {s.sector}
-                      </p>
-                    </div>
-                    <Sparkline data={s.spark} dir={dirOf(s.changePct)} className="h-9 w-20" />
-                  </div>
-                  <div className="mt-3 flex items-center justify-between">
-                    <span className="font-mono text-sm tnum text-white">{fmtPrice(s.price)}</span>
-                    <ChangePill value={s.changePct} />
-                  </div>
-                  <div className="mt-3 text-xs text-gold/80">View analysis →</div>
+                  <TickerChip ticker={s.ticker} />
+                  <p className="mt-2 text-sm font-medium text-white">{s.name}</p>
+                  <p className="text-xs text-slate-500">
+                    {s.exchange} · {s.sector}
+                  </p>
+                  <div className="mt-3 text-xs text-gold/80">View live analysis →</div>
                 </GlassCard>
               </Link>
             ))}
             {visibleStocks.length === 0 ? (
-              <p className="text-sm text-slate-500">No demo names for this market yet.</p>
+              <p className="text-sm text-slate-500">No names for this market yet.</p>
             ) : null}
           </div>
           {preview && visibleStocks.length > shownStocks.length ? (
@@ -173,7 +180,7 @@ export default function ExploreCompanies({
                   </div>
                   <p className="mt-2 text-sm text-slate-400">{m.note}</p>
                   <div className="mt-3 flex flex-wrap gap-1.5">
-                    {stocks
+                    {browseUniverse
                       .filter((s) => s.region === m.region)
                       .slice(0, 6)
                       .map((s) => (

@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback } from "react";
-import { stockByTicker } from "@/data/demo";
 import { useSyncedState } from "@/lib/useSyncedState";
 
 export interface UserHolding {
@@ -24,12 +23,12 @@ const uid = () =>
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2);
 
-// Resolve a current price from the bundled universe when the ticker is known.
-export const resolvePrice = (ticker: string, fallback = 0): number =>
-  stockByTicker[ticker.toUpperCase()]?.price ?? fallback;
+// Prices and names come from live quotes (/api/quote). With no bundled universe
+// there's nothing to resolve locally, so price falls back to the caller's value
+// (user-entered) and the name is left for the live quote to fill in.
+export const resolvePrice = (_ticker: string, fallback = 0): number => fallback;
 
-export const resolveName = (ticker: string): string | undefined =>
-  stockByTicker[ticker.toUpperCase()]?.name;
+export const resolveName = (_ticker: string): string | undefined => undefined;
 
 export function usePortfolios() {
   const { value: portfolios, setValue, ready, scope } = useSyncedState<UserPortfolio[]>(

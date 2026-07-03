@@ -59,7 +59,7 @@ export default function CompanySnapshot({
 
   const gap = ((a.fairValue.estimate - resolvedPrice) / resolvedPrice) * 100;
   const under = gap > 0;
-  const tag = live ? "" : " (demo)";
+  const tag = "";
 
   // --- Synthesis: strongest / weakest axis, a risk lens and a one-line read ---
   const ranked = [...SCORE_AXES]
@@ -293,7 +293,7 @@ export default function CompanySnapshot({
                 <span className="text-base text-slate-500">/30</span>
               </div>
               <div className="text-[0.7rem] uppercase tracking-[0.14em] text-slate-500">
-                {live ? "Overall · live" : "Overall (demo)"}
+                {live ? "Overall · live" : "Overall"}
               </div>
             </div>
           </div>

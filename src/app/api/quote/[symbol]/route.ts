@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { stockByTicker } from "@/data/demo";
 import { getStooqSeries } from "@/lib/stooq";
 import { yahooQuotes } from "@/lib/yahooCrumb";
 
@@ -110,18 +109,6 @@ export async function GET(
     console.error("[quote] Stooq failed:", err);
   }
 
-  // Fallback 2: demo names are always considered valid.
-  const demo = stockByTicker[symbol];
-  if (demo) {
-    return NextResponse.json({
-      valid: true,
-      price: demo.price,
-      prevClose: Number((demo.price / (1 + demo.changePct / 100)).toFixed(2)),
-      changePct: demo.changePct,
-      currency: "USD",
-      name: demo.name,
-    });
-  }
-
+  // No live source had a quote — report it honestly rather than inventing one.
   return NextResponse.json({ valid: false });
 }

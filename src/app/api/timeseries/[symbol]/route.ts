@@ -1,55 +1,14 @@
 import { NextResponse } from "next/server";
-import { stockByTicker } from "@/data/demo";
 import { getStooqSeries, type StooqPoint } from "@/lib/stooq";
 
 // Personal-use price history. Pulls daily closes from Yahoo Finance's (unofficial)
-// chart endpoint and falls back to synthesized demo data if Yahoo is unavailable,
-// so the chart always renders. Intended for a personal, non-commercial app.
+// chart endpoint, falling back to Stooq. Returns real data only — when neither
+// source has the series we return an empty, not-available result rather than a
+// synthesized chart.
 
 interface Point {
   time: string; // YYYY-MM-DD
   value: number;
-}
-
-function hashSeed(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-  return h || 1;
-}
-
-// Deterministic synthetic series so the demo chart is stable across reloads.
-function demoSeries(symbol: string) {
-  const known = stockByTicker[symbol.toUpperCase()];
-  const target = known?.price ?? 40 + (hashSeed(symbol) % 260);
-  let seed = hashSeed(symbol);
-  const rand = () => {
-    seed = (seed * 9301 + 49297) % 233280;
-    return seed / 233280;
-  };
-  let v = target * 0.8;
-  const points: Point[] = [];
-  const today = new Date();
-  for (let i = 250; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    const dow = d.getDay();
-    if (dow === 0 || dow === 6) continue; // weekdays only
-    v = Math.max(1, v * (1 + (rand() - 0.48) * 0.03));
-    points.push({ time: d.toISOString().slice(0, 10), value: Number(v.toFixed(2)) });
-  }
-  const last = points[points.length - 1]?.value ?? target;
-  const prev = points[points.length - 2]?.value ?? last;
-  return {
-    symbol,
-    points,
-    meta: {
-      price: last,
-      change: Number((last - prev).toFixed(2)),
-      changePct: prev ? Number((((last - prev) / prev) * 100).toFixed(2)) : 0,
-      currency: symbol.toUpperCase().endsWith(".NS") ? "INR" : "USD",
-    },
-    live: false,
-  };
 }
 
 async function yahooSeries(symbol: string, range: string) {
@@ -149,6 +108,18 @@ export async function GET(
     console.error("[timeseries] Stooq failed:", err);
   }
 
-  // 3) Demo so the chart never breaks
-  return NextResponse.json(demoSeries(symbol));
+  // 3) No live source had the series — return an honest not-available result
+  //    (empty points) rather than a synthesized chart.
+  return NextResponse.json({
+    symbol,
+    points: [],
+    meta: {
+      price: 0,
+      change: 0,
+      changePct: 0,
+      currency: symbol.toUpperCase().endsWith(".NS") ? "INR" : "USD",
+    },
+    live: false,
+    available: false,
+  });
 }

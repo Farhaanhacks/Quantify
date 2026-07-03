@@ -15,8 +15,7 @@ import CompanyNewsSection from "@/components/quantifi/CompanyNewsSection";
 import MyNotes from "@/components/quantifi/MyNotes";
 import InsiderActivity from "@/components/quantifi/InsiderActivity";
 import { GlassCard, TickerChip, Eyebrow } from "@/components/quantifi/Cards";
-import { tvSymbol } from "@/lib/tvSymbol";
-import { stockByTicker, type CompanyAnalytics } from "@/data/demo";
+import type { CompanyAnalytics } from "@/data/demo";
 import type { EtfData } from "@/lib/yahooEtf";
 import { popularTickers } from "@/data/popularTickers";
 import { useProStatus } from "@/lib/useProStatus";
@@ -32,8 +31,6 @@ function toTvSymbol(raw: string): string {
   const t = raw.trim().toUpperCase();
   if (!t) return "NASDAQ:NVDA";
   if (t.includes(":")) return t;
-  const known = stockByTicker[t];
-  if (known) return tvSymbol(t, known.exchange);
   if (t.endsWith(".NS")) return `NSE:${t.replace(".NS", "")}`;
   return t;
 }

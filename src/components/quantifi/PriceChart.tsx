@@ -116,10 +116,10 @@ export default function PriceChart({
                 : "border-white/10 bg-white/[0.03] text-slate-500"
             }`}
           >
-            {live ? "LIVE" : "DEMO"}
+            {live ? "LIVE" : "No data"}
           </span>
         </div>
-        {meta?.price != null ? (
+        {meta?.price ? (
           <div className="flex items-center gap-2">
             <span className="font-mono text-lg font-semibold tnum text-white">
               {symbolCurrency}

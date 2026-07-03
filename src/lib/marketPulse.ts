@@ -1,10 +1,14 @@
-import { marketPulse as demoPulse, topMovers } from "@/data/demo";
 import { yahooQuotes } from "@/lib/yahooCrumb";
 
 // Live market pulse — indices, commodities, crypto, rates and movers — pulled
-// from Yahoo's keyless chart endpoint (the same source the charts use). Each
-// item falls back to its demo value if that one symbol fails, so the bar always
-// renders something sensible.
+// from Yahoo's keyless chart endpoint (the same source the charts use). Real
+// data only: an index that can't be fetched shows "—", and a mover with no live
+// quote is dropped, rather than showing a stale/fabricated value.
+
+// The watched movers row — a curated set of tickers we surface day-change for.
+// Only their LIVE change is ever shown; if a quote is missing the name is
+// dropped from the row.
+const MOVER_TICKERS = ["NVDA", "AMD", "PLTR", "TSLA", "ASTS", "RKLB", "RELIANCE.NS"];
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36";
@@ -90,10 +94,10 @@ export async function getPulse(): Promise<{
   // One batched, authoritative quote call for every symbol on the bar. We use
   // Yahoo's reported day-change directly so the numbers match what a broker
   // shows. Anything missing here falls back to the per-symbol chart endpoint,
-  // then to the demo value, so the bar always renders.
+  // then shows a dash — never a stale or fabricated value.
   const quotes = await yahooQuotes([
     ...SYMBOLS.map((s) => s.symbol),
-    ...topMovers.map((m) => m.ticker),
+    ...MOVER_TICKERS,
   ]);
 
   const idx = await Promise.all(
@@ -117,33 +121,25 @@ export async function getPulse(): Promise<{
       live = true;
       return idx[i] as PulseEntry;
     }
-    const demo = demoPulse.find((p) => p.label === s.label);
-    return demo ? { label: demo.label, value: demo.value, changePct: demo.changePct } : { label: s.label, value: "—", changePct: 0 };
+    // No live value for this symbol — show a dash, never a stale/fabricated one.
+    return { label: s.label, value: "—", changePct: 0 };
   });
 
   const moverResults = await Promise.all(
-    topMovers.map(async (m): Promise<MoverEntry | null> => {
-      const q = quotes.get(m.ticker.toUpperCase());
+    MOVER_TICKERS.map(async (ticker): Promise<MoverEntry | null> => {
+      const q = quotes.get(ticker.toUpperCase());
       if (q && q.changePercent != null) {
-        return {
-          ticker: m.ticker,
-          changePct: Number(q.changePercent.toFixed(2)),
-          price: q.price ?? 0,
-        };
+        return { ticker, changePct: Number(q.changePercent.toFixed(2)), price: q.price ?? 0 };
       }
-      const d = await fetchOne(m.ticker);
+      const d = await fetchOne(ticker);
       if (!d) return null;
       const changePct = d.prev ? ((d.price - d.prev) / d.prev) * 100 : 0;
-      return { ticker: m.ticker, changePct: Number(changePct.toFixed(2)), price: d.price };
+      return { ticker, changePct: Number(changePct.toFixed(2)), price: d.price };
     })
   );
-  const movers: MoverEntry[] = topMovers.map((m, i) => {
-    if (moverResults[i]) {
-      live = true;
-      return moverResults[i] as MoverEntry;
-    }
-    return { ticker: m.ticker, changePct: m.changePct, price: 0 };
-  });
+  // Only movers with a live quote are shown — no fabricated day-change.
+  const movers: MoverEntry[] = moverResults.filter((m): m is MoverEntry => m != null);
+  if (movers.length) live = true;
 
   return { pulse, movers, live, asOf };
 }
