@@ -43,10 +43,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "pe-ratio-comparison",
   ].map((t) => u(`/tools/${t}`, 0.6, "monthly"));
 
-  // Public stock pages for a curated set of popular tickers.
-  const stocks = popularTickers
-    .slice(0, 60)
-    .map((t) => u(`/stocks/${encodeURIComponent(t.s)}`, 0.6, "daily"));
+  // Programmatic stock pages — one per curated, liquid ticker. Every page is
+  // data-rich and rendered from live fundamentals, so this is genuine long-tail
+  // coverage (quality over raw count), not thin auto-generated filler.
+  const stocks = popularTickers.map((t) =>
+    u(`/stocks/${encodeURIComponent(t.s)}`, 0.6, "daily")
+  );
 
   return [...core, ...themes, ...research, ...tools, ...stocks];
 }

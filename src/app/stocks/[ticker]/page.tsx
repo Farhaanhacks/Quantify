@@ -7,19 +7,31 @@ import JsonLd from "@/components/JsonLd";
 import { buildMetadata, faqJsonLd, breadcrumbJsonLd } from "@/lib/seo";
 import { getYahooCompany } from "@/lib/yahooCompany";
 
-export const dynamic = "force-dynamic";
+// Incremental Static Regeneration: each ticker page is rendered on first request
+// and cached for an hour, so Google gets a fast, static-quality page that still
+// refreshes its live data. Far better for crawl/indexing than SSR-on-every-hit.
+export const revalidate = 3600;
 
 function clean(t: string): string {
   return t.toUpperCase().replace(/[^A-Z0-9.\-]/g, "").slice(0, 12);
 }
 
-export function generateMetadata({ params }: { params: { ticker: string } }): Metadata {
+export async function generateMetadata({ params }: { params: { ticker: string } }): Promise<Metadata> {
   const t = clean(params.ticker);
+  // Resolve the real company so the title/description carry the actual name and
+  // sector (better long-tail relevance) — and, crucially, so a ticker with NO
+  // real data is marked noindex. Publishing empty ticker pages would be thin /
+  // soft-404 content that damages the whole site's standing with Google.
+  const company = await getYahooCompany(t).catch(() => null);
+  const named = company?.name ? `${t} (${company.name})` : t;
   return buildMetadata({
-    title: `${t} Stock Analysis — Price, Valuation, Financials & Research`,
-    description: `${t} stock analysis on Quantifi — live price, valuation snapshot, analyst targets, financial summary, ownership and risks. Research only, not investment advice.`,
+    title: company?.name
+      ? `${company.name} (${t}) Stock — Price, Valuation, Insider Activity & Financials`
+      : `${t} Stock Analysis — Price, Valuation, Financials & Research`,
+    description: `${named} stock analysis on Quantifi${company?.sector ? ` · ${company.sector}` : ""} — live price, valuation vs analyst targets, financial summary, ownership, insider activity and SEC-filing context. Research only, not investment advice.`,
     path: `/stocks/${t}`,
     type: "article",
+    noindex: !company, // no real data → don't let Google index a thin page
   });
 }
 
@@ -48,6 +60,14 @@ export default async function StockSeoPage({ params }: { params: { ticker: strin
     {
       q: `How is ${ticker} valued?`,
       a: `The analysis compares the current price against analysts' price targets and a cash-flow-based fair-value estimate, alongside a financial-health scorecard. Valuations move daily.`,
+    },
+    {
+      q: `Is there recent insider trading activity in ${ticker}?`,
+      a: `Quantifi surfaces ${ticker} insider activity from SEC Form 4 filings — who bought or sold, how many shares and at what price — as research context. Open the Insider Activity page for the latest filings. Insider transactions are one signal among many, not a recommendation.`,
+    },
+    {
+      q: `Where can I see ${ticker} SEC filings and financials?`,
+      a: `${ticker}'s financial summary, ownership and insider (Form 4) activity on Quantifi are built from public SEC and market-data sources. Use them as a starting point and confirm against the company's official SEC EDGAR filings before acting.`,
     },
     {
       q: `Does Quantifi give buy or sell signals for ${ticker}?`,
@@ -109,6 +129,7 @@ export default async function StockSeoPage({ params }: { params: { ticker: strin
 
         <h2 className="mt-8 font-display text-lg font-semibold text-white">Research tools</h2>
         <div className="mt-3 flex flex-wrap gap-2 text-sm">
+          <Link href="/insider-activity" className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-slate-300 transition hover:border-gold/40 hover:text-gold">Insider Activity (SEC Form 4)</Link>
           <Link href="/tools/dcf-calculator" className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-slate-300 transition hover:border-gold/40 hover:text-gold">DCF Calculator</Link>
           <Link href="/tools/portfolio-risk-analyzer" className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-slate-300 transition hover:border-gold/40 hover:text-gold">Portfolio Risk Analyzer</Link>
           <Link href="/screener" className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-slate-300 transition hover:border-gold/40 hover:text-gold">Stock Screener</Link>
