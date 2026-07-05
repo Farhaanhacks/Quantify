@@ -4,7 +4,7 @@ import type {
   ScoreCheck,
   ScoreAxisKey,
 } from "@/data/demo";
-import { yahooQuoteSummary, resolveYahooSymbol } from "@/lib/yahooCrumb";
+import { yahooQuoteSummary, resolveYahooSymbol, yahooQuotes } from "@/lib/yahooCrumb";
 import { knownFund } from "@/data/knownFunds";
 
 // Builds a Quantifi Score from Yahoo Finance fundamentals (keyless, personal
@@ -185,6 +185,13 @@ function classifySector(
       return { clusterLabel: "High-Growth Tech / SaaS", method: "EV / Sales", metricShort: "EV/Sales", kind: "ev_sales", benchmark: 6, why: "Near-term earnings are thin or non-existent while the company scales, so revenue multiples (EV/Sales) are the working lens." };
     return { clusterLabel: "Technology", method: "P / E", metricShort: "P/E", kind: "pe", benchmark: 24, why: "A profitable tech compounder — an earnings multiple with a growth premium is the cleanest read." };
   }
+  // Any not-yet-profitable company (in any sector outside banks / real estate /
+  // telecom / commodities, which have their own asset- or EBITDA-based lens):
+  // earnings multiples don't apply, so fall back to a revenue multiple — the
+  // same EV/Sales lens SaaS uses. This is what lets a loss-making growth name
+  // still get an independent valuation instead of no card at all.
+  if (profitMargins != null && profitMargins <= 0)
+    return { clusterLabel: "High-Growth / Pre-Profit", method: "EV / Sales", metricShort: "EV/Sales", kind: "ev_sales", benchmark: 5, why: "Not yet profitable, so earnings multiples don't apply — a revenue multiple (EV/Sales) is the working lens until profits arrive." };
   return { clusterLabel: "Broad Market", method: "P / E", metricShort: "P/E", kind: "pe", benchmark: 18, why: "A general earnings-multiple lens for a mature, profitable business." };
 }
 
@@ -411,6 +418,26 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   if (profitMargins == null && roe == null && revGrowth == null && earnGrowth == null)
     return null;
   if (price == null) return null;
+
+  // Wrong-security guard. A newly-renamed or thinly-covered ticker can collide
+  // with an unrelated security in the data source (e.g. "PSKY" returning a $1.20
+  // small-cap instead of Paramount Skydance at ~$10). Cross-check the scorecard
+  // price against an independent live quote for the SAME requested symbol; if
+  // they disagree by more than ~2x, the fundamentals are for a different company
+  // — refuse to publish rather than show a flatly wrong price.
+  try {
+    const q = (await yahooQuotes([symbol])).get(symbol.toUpperCase());
+    const qp = q?.price;
+    if (qp != null && qp > 0) {
+      const ratio = qp / price;
+      if (ratio > 2 || ratio < 0.5) {
+        console.warn(`[score] price mismatch for ${symbol}: fundamentals ${price} vs quote ${qp} — suppressing`);
+        return null;
+      }
+    }
+  } catch {
+    /* only suppress on a confident contradiction; ignore quote errors */
+  }
 
   const scores: Record<ScoreAxisKey, ScoreAxis> = {
     value: axis([
