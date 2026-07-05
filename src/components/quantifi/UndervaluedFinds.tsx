@@ -39,21 +39,37 @@ function AnalystRange({ row }: { row: Row }) {
   const base = pctOf(row.price, row.target);
   const up = pctOf(row.price, highP);
 
+  // A "range" only means something if the low and high targets genuinely differ.
+  // With a single analyst — or when a provider reports low = mean = high — the
+  // three bars collapse to one value and a range chart is nonsensical (Low, Mean
+  // and High all "+233%"). In that case show a plain current-vs-target view.
+  const spread = Math.abs(highP - lowP);
+  const realRange =
+    hasRange && (row.numAnalysts ?? 0) > 1 && spread > Math.max(0.01, row.price * 0.01);
+
   return (
     <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4">
       <div className="flex items-center justify-between text-[0.62rem] uppercase tracking-[0.14em] text-slate-500">
-        <span>Analyst price-target range</span>
-        <span className="text-slate-600">{row.numAnalysts ?? "—"} analysts</span>
+        <span>Analyst {realRange ? "price-target range" : "price target"}</span>
+        <span className="text-slate-600">
+          {row.numAnalysts ?? "—"} analyst{row.numAnalysts === 1 ? "" : "s"}
+        </span>
       </div>
 
-      {/* Bar chart: current price vs analyst low / mean / high targets */}
+      {/* Bar chart: full low/mean/high only when there's a real spread; otherwise
+          just current vs the single target. */}
       {(() => {
-        const bars = [
-          { label: "Now", val: row.price, color: "#94A3B8", pct: 0 },
-          { label: "Low", val: lowP, color: "#FB7185", pct: down },
-          { label: "Mean", val: row.target, color: "#E9B872", pct: base },
-          { label: "High", val: highP, color: "#34D399", pct: up },
-        ];
+        const bars = realRange
+          ? [
+              { label: "Now", val: row.price, color: "#94A3B8", pct: 0 },
+              { label: "Low", val: lowP, color: "#FB7185", pct: down },
+              { label: "Mean", val: row.target, color: "#E9B872", pct: base },
+              { label: "High", val: highP, color: "#34D399", pct: up },
+            ]
+          : [
+              { label: "Now", val: row.price, color: "#94A3B8", pct: 0 },
+              { label: "Target", val: row.target, color: base >= 0 ? "#34D399" : "#FB7185", pct: base },
+            ];
         const maxV = Math.max(...bars.map((b) => b.val)) || 1;
         return (
           <div className="mt-4 flex h-32 items-end gap-3 border-b border-white/[0.08] pb-0">
@@ -77,25 +93,37 @@ function AnalystRange({ row }: { row: Row }) {
         );
       })()}
 
-      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
-        {[
-          { label: "Bear · low target", price: lowP, pct: down, cls: "border-down/25 bg-down/[0.06]", txt: "text-down" },
-          { label: "Base · mean target", price: row.target, pct: base, cls: "border-gold/25 bg-gold/[0.06]", txt: "text-gold" },
-          { label: "Bull · high target", price: highP, pct: up, cls: "border-up/25 bg-up/[0.06]", txt: "text-up" },
-        ].map((c) => (
-          <div key={c.label} className={`rounded-lg border p-2.5 ${c.cls}`}>
-            <div className="text-[0.55rem] uppercase tracking-[0.12em] text-slate-500">{c.label}</div>
-            <div className="mt-1 flex items-baseline justify-between">
-              <span className="font-mono text-sm tnum text-white">{c.price.toFixed(2)}</span>
-              <span className={`font-mono text-xs font-semibold ${c.txt}`}>{fmtPct(c.pct)}</span>
+      {realRange ? (
+        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          {[
+            { label: "Bear · low target", price: lowP, pct: down, cls: "border-down/25 bg-down/[0.06]", txt: "text-down" },
+            { label: "Base · mean target", price: row.target, pct: base, cls: "border-gold/25 bg-gold/[0.06]", txt: "text-gold" },
+            { label: "Bull · high target", price: highP, pct: up, cls: "border-up/25 bg-up/[0.06]", txt: "text-up" },
+          ].map((c) => (
+            <div key={c.label} className={`rounded-lg border p-2.5 ${c.cls}`}>
+              <div className="text-[0.55rem] uppercase tracking-[0.12em] text-slate-500">{c.label}</div>
+              <div className="mt-1 flex items-baseline justify-between">
+                <span className="font-mono text-sm tnum text-white">{c.price.toFixed(2)}</span>
+                <span className={`font-mono text-xs font-semibold ${c.txt}`}>{fmtPct(c.pct)}</span>
+              </div>
             </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-4 rounded-lg border border-gold/25 bg-gold/[0.06] p-2.5">
+          <div className="text-[0.55rem] uppercase tracking-[0.12em] text-slate-500">Mean target</div>
+          <div className="mt-1 flex items-baseline justify-between">
+            <span className="font-mono text-sm tnum text-white">{row.target.toFixed(2)}</span>
+            <span className={`font-mono text-xs font-semibold ${base >= 0 ? "text-up" : "text-down"}`}>{fmtPct(base)}</span>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
 
-      {!hasRange ? (
+      {!realRange ? (
         <p className="mt-3 text-[0.7rem] text-slate-500">
-          Only the mean analyst target is available for this name — the high/low range isn&apos;t published.
+          {(row.numAnalysts ?? 0) <= 1
+            ? "Only one analyst covers this name — a single target, so there's no high/low range to plot."
+            : "The published high and low targets match, so there's no meaningful range to show."}
         </p>
       ) : null}
 
