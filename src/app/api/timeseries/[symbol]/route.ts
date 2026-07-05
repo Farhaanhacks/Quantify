@@ -12,7 +12,9 @@ interface Point {
 }
 
 async function yahooSeries(symbol: string, range: string) {
-  const interval = range === "max" || range === "10y" ? "1wk" : "1d";
+  // Intraday for 1D, weekly for the very long ranges, daily otherwise.
+  const interval =
+    range === "1d" ? "5m" : range === "max" || range === "10y" ? "1wk" : "1d";
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
     symbol
   )}?range=${encodeURIComponent(range)}&interval=${interval}`;
@@ -58,8 +60,11 @@ async function yahooSeries(symbol: string, range: string) {
 }
 
 const RANGE_COUNT: Record<string, number> = {
+  "1d": 2, // Stooq is EOD-only, so 1D can't be intraday on the fallback path
   "1mo": 22,
+  "3mo": 66,
   "6mo": 126,
+  ytd: 180,
   "1y": 252,
   "5y": 1260,
   max: 100000,
@@ -89,7 +94,7 @@ export async function GET(
   { params }: { params: { symbol: string } }
 ) {
   const symbol = params.symbol;
-  const allowed = ["1mo", "6mo", "1y", "5y", "max"];
+  const allowed = ["1d", "3mo", "6mo", "ytd", "1y", "5y", "max", "1mo"];
   const reqRange = new URL(req.url).searchParams.get("range") ?? "1y";
   const range = allowed.includes(reqRange) ? reqRange : "1y";
 

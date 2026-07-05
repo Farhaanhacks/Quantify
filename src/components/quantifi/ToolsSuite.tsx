@@ -31,7 +31,10 @@ function fmtMoney(n: number, cur = "USD") {
 // ── Comparison ───────────────────────────────────────────────────────────────
 const CMP_COLORS = ["#818CF8", "#38BDF8", "#F59E0B", "#34D399"];
 const CMP_RANGES: { key: string; label: string }[] = [
+  { key: "1d", label: "1D" },
+  { key: "3mo", label: "3M" },
   { key: "6mo", label: "6M" },
+  { key: "ytd", label: "YTD" },
   { key: "1y", label: "1Y" },
   { key: "5y", label: "5Y" },
 ];
@@ -72,7 +75,7 @@ function Compare() {
     setInput("");
   };
 
-  const run = async () => {
+  const run = async (r: string = range) => {
     if (!symbols.length) return;
     setLoading(true);
     setRows(null);
@@ -88,7 +91,7 @@ function Compare() {
         }
         const [score, ts] = await Promise.all([
           fetch(`/api/score/${encodeURIComponent(sym)}`).then((r) => r.json()).catch(() => ({})),
-          fetch(`/api/timeseries/${encodeURIComponent(sym)}?range=${range}`).then((r) => r.json()).catch(() => ({})),
+          fetch(`/api/timeseries/${encodeURIComponent(sym)}?range=${r}`).then((r) => r.json()).catch(() => ({})),
         ]);
         const pts: { t: string; v: number }[] = Array.isArray(ts?.points)
           ? ts.points
@@ -162,10 +165,22 @@ function Compare() {
         <button type="button" onClick={add} className="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-200 hover:text-white">Add</button>
         <div className="inline-flex rounded-lg border border-white/10 bg-white/[0.03] p-0.5">
           {CMP_RANGES.map((rg) => (
-            <button key={rg.key} type="button" onClick={() => setRange(rg.key)} className={`rounded-md px-2.5 py-1.5 text-xs ${range === rg.key ? "bg-gold/15 text-gold" : "text-slate-400 hover:text-white"}`}>{rg.label}</button>
+            <button
+              key={rg.key}
+              type="button"
+              onClick={() => {
+                setRange(rg.key);
+                // If a comparison is already showing, re-pull immediately with
+                // the new window so the chart actually changes on click.
+                if (rows) run(rg.key);
+              }}
+              className={`rounded-md px-2.5 py-1.5 text-xs ${range === rg.key ? "bg-gold/15 text-gold" : "text-slate-400 hover:text-white"}`}
+            >
+              {rg.label}
+            </button>
           ))}
         </div>
-        <button type="button" onClick={run} className="rounded-lg bg-gradient-to-r from-gold-400 to-gold-600 px-4 py-2 text-sm font-semibold text-ink hover:opacity-90">Compare</button>
+        <button type="button" onClick={() => run()} className="rounded-lg bg-gradient-to-r from-gold-400 to-gold-600 px-4 py-2 text-sm font-semibold text-ink hover:opacity-90">Compare</button>
       </div>
 
       {loading ? <p className="mt-6 text-sm text-slate-400">Pulling live data…</p> : null}
