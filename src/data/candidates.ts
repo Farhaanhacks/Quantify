@@ -4,12 +4,12 @@
 // semis, media, space and fintech — where price-target gaps often show up.
 // Extend this list to widen the net.
 export const UNDERVALUED_CANDIDATES: string[] = [
-  "AMRC", "ICE", "PL", "BOBS", "IAG", "QBTS", "EXE",
+  "AMRC", "ICE", "PL", "BOBS", "IAG", "EXE",
   "DVN", "OXY", "KMI", "CTRA",
   "FCX", "NEM", "GOLD", "MOS", "CF",
-  "SOFI", "ALLY", "COF",
+  "SOFI", "ZETA", "ALLY", "COF",
   "PFE", "BMY", "CVS", "GILD", "VTRS",
-  "MU", "INTC", "ON",
+  "MU", "ON",
   "WBD", "PARA",
   "RKLB", "ASTS",
 ];

@@ -192,26 +192,6 @@ export const rareFinds: RareFind[] = [
     },
   },
   {
-    ticker: "ANET",
-    name: "Arista Networks",
-    tag: "AI infrastructure — buy weakness",
-    conviction: "Medium",
-    signal: "Fair-value estimates raised on datacenter growth, 2026",
-    thesis:
-      "The networking backbone of AI datacenters, with genuine earnings (unlike many AI names). The plan isn't to chase it — it's to have a price in mind and accumulate if an AI pullback drags it down with the rest.",
-    risk: "Still an AI-cycle name: a datacenter capex slowdown or overbuild would hit it hard.",
-    reasons: [
-      "Profitable AI-networking backbone — real earnings, not just a story.",
-      "A 'buy the dip' candidate if an AI pullback drags it with the group.",
-      "Fair-value estimates have been rising on datacenter growth.",
-    ],
-    scenarios: {
-      downside: { pct: -45, note: "Datacenter capex slowdown or overbuild hits it hard." },
-      base: { pct: 25, note: "Steady datacenter growth supports earnings." },
-      upside: { pct: 80, note: "AI networking demand keeps compounding." },
-    },
-  },
-  {
     ticker: "SOFI",
     name: "SoFi Technologies",
     tag: "Insider-backed fintech",
@@ -232,26 +212,6 @@ export const rareFinds: RareFind[] = [
       downside: { pct: -40, note: "Recession spikes loan charge-offs and credit losses." },
       base: { pct: 30, note: "Steady member growth; profitability compounds." },
       upside: { pct: 120, note: "Becomes a primary-bank platform and re-rates as a fintech winner." },
-    },
-  },
-  {
-    ticker: "NOW",
-    name: "ServiceNow",
-    tag: "Quality compounder · AI workflows",
-    conviction: "Medium",
-    signal: "Durable 20%+ growth; AI agents embedded across enterprise workflows",
-    thesis:
-      "The platform large enterprises run their IT, HR and operations workflows on — sticky, high-margin and cash-generative, now embedding AI agents (Now Assist) across those workflows. A profitable way to own enterprise-AI adoption rather than a speculative bet on it.",
-    risk: "Premium valuation leaves little room for error; an enterprise IT-spend slowdown would compress the multiple even if the business stays solid.",
-    reasons: [
-      "Mission-critical workflow platform with very high retention and margins.",
-      "Real, profitable AI monetisation (Now Assist agents) — not just a narrative.",
-      "Durable ~20%+ growth backed by strong free cash flow.",
-    ],
-    scenarios: {
-      downside: { pct: -30, note: "IT-spend slowdown compresses a rich multiple." },
-      base: { pct: 25, note: "Steady growth plus AI upsell across the base." },
-      upside: { pct: 70, note: "AI agents accelerate growth and the multiple re-rates higher." },
     },
   },
   {
@@ -313,12 +273,12 @@ export const investmentPlans: InvestmentPlan[] = [
     title: "The Barbell",
     horizon: "2–3 years",
     thesis:
-      "Pair a few quality, profitable AI-infrastructure names with a sleeve of cheap defensive value. You stay exposed to the AI build-out without betting the whole book on lofty multiples holding.",
+      "Skip the overhyped mega-cap AI names. Pair the physical-world inputs the AI build-out actually needs (power) plus a reasonably-valued AI software grower, with a sleeve of cheap defensive value. You stay exposed to the theme without betting the book on lofty mega-cap multiples holding.",
     bubbleAngle:
-      "If the AI trade corrects (analysts model 20–50% drawdowns in the mega-cap leaders), the value sleeve cushions you — and gives you dry powder to add to the AI names after they overshoot to the downside.",
-    watch: "Hyperscaler capex guidance, datacenter utilization, and whether AI revenue actually scales with the spend.",
+      "If the AI trade corrects (analysts model 20–50% drawdowns in the mega-cap leaders), the value sleeve cushions you — and gives you dry powder to add on the way down.",
+    watch: "Hyperscaler capex guidance, datacenter power demand, and whether AI revenue actually scales with the spend.",
     risk: "If the bubble keeps inflating, the defensive sleeve lags and you underperform a melt-up.",
-    tickers: ["ANET", "MSFT", "DOC", "VZ"],
+    tickers: ["EXE", "ZETA", "DOC", "VZ"],
   },
   {
     id: "power",

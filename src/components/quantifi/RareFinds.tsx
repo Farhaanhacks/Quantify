@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { GlassCard, SectionHeading, Tag } from "@/components/quantifi/Cards";
-import { rareFinds, investmentPlans, type Conviction, type RareFind } from "@/data/rareFinds";
+import { rareFinds, investmentPlans, type Conviction, type RareFind, type InvestmentPlan } from "@/data/rareFinds";
 
 const tone = (c: Conviction): "teal" | "gold" | "down" =>
   c === "High" ? "teal" : c === "Medium" ? "gold" : "down";
@@ -222,8 +222,95 @@ function ScenarioRange({ find }: { find: RareFind }) {
   );
 }
 
+// A full-screen, large-type reader for a 2–3 year plan — opened by tapping a
+// plan card so the whole thesis is easy to read on any screen.
+function PlanModal({ plan, onClose }: { plan: InvestmentPlan; onClose: () => void }) {
+  // Close on Escape and lock body scroll while the reader is open.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-ink/80 p-4 backdrop-blur-sm sm:p-6"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="relative my-6 w-full max-w-3xl rounded-2xl border border-gold/25 bg-[#0b0f1a] p-6 shadow-2xl sm:p-8"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-lg text-slate-300 transition hover:border-gold/40 hover:text-white"
+        >
+          ✕
+        </button>
+
+        <div className="flex flex-wrap items-center gap-3 pr-10">
+          <h3 className="font-display text-2xl font-semibold text-white sm:text-3xl">{plan.title}</h3>
+          <Tag tone="gold">{plan.horizon}</Tag>
+        </div>
+
+        <p className="mt-5 text-base leading-relaxed text-slate-200 sm:text-lg">{plan.thesis}</p>
+
+        <div className="mt-6 rounded-xl border border-gold/20 bg-gold/[0.06] px-5 py-4">
+          <span className="text-xs uppercase tracking-[0.14em] text-gold/80">If the AI bubble pops</span>
+          <p className="mt-2 text-base leading-relaxed text-slate-100">{plan.bubbleAngle}</p>
+        </div>
+
+        <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-5 py-4">
+            <span className="text-xs uppercase tracking-[0.12em] text-teal">What to watch</span>
+            <p className="mt-1.5 text-sm leading-relaxed text-slate-200 sm:text-base">{plan.watch}</p>
+          </div>
+          <div className="rounded-xl border border-down/20 bg-down/[0.05] px-5 py-4">
+            <span className="text-xs uppercase tracking-[0.12em] text-down/80">Main risk</span>
+            <p className="mt-1.5 text-sm leading-relaxed text-slate-300 sm:text-base">{plan.risk}</p>
+          </div>
+        </div>
+
+        <div className="mt-6">
+          <span className="text-xs uppercase tracking-[0.12em] text-slate-500">Names in this plan</span>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {plan.tickers.map((t) => (
+              <Link
+                key={t}
+                href={`/stock-analysis?symbol=${t}`}
+                className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-1.5 font-mono text-sm text-slate-200 transition hover:border-gold/40 hover:text-white"
+              >
+                {t}
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        <p className="mt-6 border-t border-white/[0.06] pt-4 text-xs leading-relaxed text-slate-500">
+          Educational research only — not investment advice, and not personalized to your situation.
+          Valuations and fair-value estimates move daily, and the AI-bubble scenario is one view among
+          many. Do your own work before acting on anything.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function RareFinds() {
   const [open, setOpen] = useState<string | null>(null);
+  const [openPlan, setOpenPlan] = useState<string | null>(null);
+  const activePlan = investmentPlans.find((p) => p.id === openPlan) ?? null;
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
@@ -328,9 +415,14 @@ export default function RareFinds() {
 
       {/* Investment plans */}
       <h3 className="mt-12 font-display text-lg font-semibold text-white">2–3 year plans</h3>
+      <p className="mt-1 text-xs text-slate-500">Tap a plan to open it full-screen and read it in larger type.</p>
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         {investmentPlans.map((p) => (
-          <GlassCard key={p.id} className="flex h-full flex-col p-6">
+          <GlassCard
+            key={p.id}
+            className="flex h-full cursor-pointer flex-col p-6 transition hover:border-gold/30"
+            onClick={() => setOpenPlan(p.id)}
+          >
             <div className="flex items-center justify-between gap-2">
               <h4 className="font-display text-base font-semibold text-white">{p.title}</h4>
               <Tag tone="gold">{p.horizon}</Tag>
@@ -353,17 +445,21 @@ export default function RareFinds() {
               </div>
             </div>
 
-            <div className="mt-auto flex flex-wrap gap-2 pt-4">
+            <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
               {p.tickers.map((t) => (
                 <Link key={t} href={`/stock-analysis?symbol=${t}`}
+                  onClick={(e) => e.stopPropagation()}
                   className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 font-mono text-xs text-slate-300 transition hover:border-gold/40 hover:text-white">
                   {t}
                 </Link>
               ))}
+              <span className="ml-auto text-[0.7rem] font-medium text-gold/80">Tap to enlarge →</span>
             </div>
           </GlassCard>
         ))}
       </div>
+
+      {activePlan ? <PlanModal plan={activePlan} onClose={() => setOpenPlan(null)} /> : null}
 
       <p className="mt-8 text-xs leading-relaxed text-slate-500">
         Educational research only — not investment advice, and not personalized to your situation.
