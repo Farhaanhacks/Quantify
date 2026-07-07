@@ -32,6 +32,13 @@ export const CANDIDATE_SECTORS: CandidateSector[] = [
     tickers: ["MU", "ON", "ZETA", "TEAM", "PATH"],
   },
   {
+    id: "quantum",
+    name: "Quantum computing",
+    blurb:
+      "Pure-play quantum computing — these companies do essentially nothing except build quantum machines, so this is a binary, long-dated bet. If quantum crosses the chasm from lab science into commercial viability, the winners could compound exponentially off a tiny base; if it stays a research project, they burn cash and dilute holders. They're in a deep R&D phase, so expect extreme volatility and a real risk of permanent loss — size this as speculative money only. It's largely uncorrelated to the AI-software bubble on the way up, but it is NOT a safe haven: in a risk-off crash, unprofitable frontier tech usually falls hardest. The names here — IonQ (IONQ), the first pure-play hardware maker to go public, using trapped-ion tech natively integrated across AWS, Azure and Google Cloud with strong commercial-booking momentum; D-Wave (QBTS), focused on quantum annealing for optimization problems like logistics and finance; and Rigetti (RGTI), building modular superconducting chips — the latter two being small-cap, highly speculative SPAC alumni. IBM is the structured enterprise play: a fully transparent public roadmap, the dominant open-source quantum software network (Qiskit) and globally deployed systems like its 133-qubit Heron chip — plus a dividend to collect while the technology matures. (Quantinuum — the Honeywell / Cambridge Quantum pure-play with some of the industry's highest operational fidelities and a Microsoft logical-qubit partnership — is not yet publicly traded; only an IPO has been signalled, so it can't be scanned here. Honeywell (HON) offers partial indirect exposure.) Risk: most of these are pre-profit and cash-burning, technical timelines routinely slip, and a single setback or capital raise can halve a stock overnight.",
+    tickers: ["IONQ", "IBM", "QBTS", "RGTI"],
+  },
+  {
     id: "healthcare",
     name: "Healthcare",
     blurb:
