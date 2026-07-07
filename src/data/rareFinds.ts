@@ -254,6 +254,46 @@ export const rareFinds: RareFind[] = [
       upside: { pct: 90, note: "Record launch plus sustained online monetisation." },
     },
   },
+  {
+    ticker: "TEAM",
+    name: "Atlassian",
+    tag: "Quality SaaS compounder",
+    conviction: "Medium",
+    signal: "Durable double-digit growth; free-cash-flow generative developer-software platform",
+    thesis:
+      "Owns the tools software teams run on — Jira, Confluence and a growing cloud portfolio — with a low-touch, land-and-expand model and very high retention. Strongly free-cash-flow generative even while GAAP results carry heavy stock-based compensation, and it's layering AI (Rovo) on top of a huge installed base rather than betting the company on a single AI narrative.",
+    risk: "Premium valuation leaves little room for error; a seat-based model is exposed if AI-driven productivity slows headcount growth at its customers, and stock-based comp dilutes holders.",
+    reasons: [
+      "Mission-critical developer/collaboration software with very high retention and pricing power.",
+      "Highly free-cash-flow generative with a long cloud-migration and upsell runway.",
+      "Adding AI (Rovo) across a large installed base — monetising AI from strength, not hype.",
+    ],
+    scenarios: {
+      downside: { pct: -35, note: "A software-spend slowdown compresses a rich multiple." },
+      base: { pct: 30, note: "Steady cloud growth plus AI upsell across the base." },
+      upside: { pct: 90, note: "Cloud migration and AI attach reaccelerate growth and the multiple re-rates." },
+    },
+  },
+  {
+    ticker: "PATH",
+    name: "UiPath",
+    tag: "Beaten-down automation · AI optionality",
+    conviction: "Speculative",
+    signal: "Down heavily from its IPO highs; net cash, free-cash-flow positive automation leader",
+    thesis:
+      "The leader in robotic process automation, sold off hard since its 2021 IPO on decelerating growth. What's left is a company with a large net-cash balance sheet, positive free cash flow and a real, sticky enterprise customer base — now pivoting from rules-based bots toward agentic AI automation. A contrarian bet that the market has over-punished the growth slowdown and under-priced the AI-agent optionality.",
+    risk: "Growth has slowed sharply and could stall further; large tech and AI-agent start-ups are crowding into automation, and a botched agentic transition would leave it a shrinking legacy vendor.",
+    reasons: [
+      "Deeply out of favour and far below IPO highs — expectations are low.",
+      "Strong net-cash balance sheet and positive free cash flow give it staying power.",
+      "Agentic-AI pivot gives real optionality on top of a sticky RPA install base.",
+    ],
+    scenarios: {
+      downside: { pct: -50, note: "Growth stalls further and AI-agent rivals erode the RPA franchise." },
+      base: { pct: 35, note: "Growth stabilises; cash generation and buybacks support the floor." },
+      upside: { pct: 130, note: "The agentic-AI transition reignites growth and the market re-rates it." },
+    },
+  },
 ];
 
 export interface InvestmentPlan {

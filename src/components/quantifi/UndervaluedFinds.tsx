@@ -8,7 +8,7 @@ import {
   TickerChip,
   Tag,
 } from "@/components/quantifi/Cards";
-import { UNDERVALUED_CANDIDATES } from "@/data/candidates";
+import { UNDERVALUED_CANDIDATES, CANDIDATE_SECTORS } from "@/data/candidates";
 
 interface Row {
   ticker: string;
@@ -168,6 +168,59 @@ function ratingTone(r?: string): "up" | "gold" | "down" | "neutral" {
   return "neutral";
 }
 
+// One scanner row + its expandable analyst-range panel. Shared across every
+// sector table so the layout stays identical.
+function ScanRow({
+  r,
+  i,
+  isOpen,
+  onToggle,
+}: {
+  r: Row;
+  i: number;
+  isOpen: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <li>
+      <div
+        onClick={onToggle}
+        className={`grid cursor-pointer grid-cols-2 gap-2 px-5 py-3.5 transition hover:bg-white/[0.02] lg:grid-cols-[0.4fr_0.7fr_2fr_1fr_0.7fr_0.8fr_0.9fr_0.9fr] lg:items-center ${
+          isOpen ? "bg-white/[0.02]" : ""
+        }`}
+      >
+        <span className="font-mono text-xs text-slate-500">{i + 1}</span>
+        <Link href={`/stock-analysis?symbol=${r.ticker}`} onClick={(e) => e.stopPropagation()}>
+          <TickerChip ticker={r.ticker} />
+        </Link>
+        <span className="truncate text-sm text-slate-200">
+          {r.name}
+          <span className="ml-2 text-[0.65rem] text-gold/70">{isOpen ? "▲" : "▾"}</span>
+        </span>
+        <span>
+          <Tag tone={ratingTone(r.recommendation)}>{ratingLabel(r.recommendation)}</Tag>
+        </span>
+        <span className="text-right font-mono text-sm tnum text-slate-400">{r.numAnalysts ?? "—"}</span>
+        <span className="text-right font-mono text-sm tnum text-white">{r.target.toFixed(2)}</span>
+        <span
+          className={`text-right font-mono text-sm font-semibold tnum ${
+            r.upside >= 0 ? "text-up" : "text-down"
+          }`}
+        >
+          {r.upside >= 0 ? "+" : ""}
+          {r.upside.toFixed(1)}%
+        </span>
+        <span className="text-right font-mono text-sm tnum text-slate-400">{fmtCap(r.marketCap)}</span>
+      </div>
+      {isOpen ? (
+        <div className="px-5 pb-4">
+          <AnalystRange row={r} />
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
 export default function UndervaluedFinds() {
   const [rows, setRows] = useState<Row[]>([]);
   const [done, setDone] = useState(0);
@@ -226,15 +279,38 @@ export default function UndervaluedFinds() {
     };
   }, []);
 
-  const sorted = [...rows].sort((a, b) => b.upside - a.upside);
   const loading = done < total;
+
+  // Group the loaded rows under their curated sector, in the curated order
+  // (precious-metals first, tech/AI next, healthcare, then the rest). Within a
+  // sector, rank by the analyst-target gap. Sectors with nothing loaded yet are
+  // hidden so we never show an empty header.
+  const sections = CANDIDATE_SECTORS.map((sec) => ({
+    sector: sec,
+    rows: rows
+      .filter((r) => sec.tickers.includes(r.ticker))
+      .sort((a, b) => b.upside - a.upside),
+  })).filter((s) => s.rows.length > 0);
+
+  const HEADER = (
+    <div className="hidden grid-cols-[0.4fr_0.7fr_2fr_1fr_0.7fr_0.8fr_0.9fr_0.9fr] gap-3 border-b border-white/[0.06] px-5 py-3 text-[0.6rem] uppercase tracking-[0.14em] text-slate-500 lg:grid">
+      <span>#</span>
+      <span>Symbol</span>
+      <span>Company</span>
+      <span>Top rating</span>
+      <span className="text-right">Analysts</span>
+      <span className="text-right">Target</span>
+      <span className="text-right">Upside</span>
+      <span className="text-right">Mkt cap</span>
+    </div>
+  );
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
       <SectionHeading
         eyebrow="Undervalued Finds"
-        title="Biggest gaps to analyst fair value"
-        subtitle="A live scan of a curated universe, ranked by how far each trades below the analysts' average price target. Tap any row for the analyst bear / base / bull range. Real data — a research starting point, not advice."
+        title="Biggest gaps to analyst fair value, by sector"
+        subtitle="A live scan of a curated universe, grouped by sector and ranked by how far each trades below the analysts' average price target. Each sector opens with how it tends to behave if the AI-bubble debate turns — starting with gold miners as the classic safe haven. Tap any row for the analyst bear / base / bull range. Real data — a research starting point, not advice."
       />
 
       {loading ? (
@@ -251,79 +327,47 @@ export default function UndervaluedFinds() {
         </div>
       ) : null}
 
-      <GlassCard className="mt-5 overflow-hidden">
-        <div className="hidden grid-cols-[0.4fr_0.7fr_2fr_1fr_0.7fr_0.8fr_0.9fr_0.9fr] gap-3 border-b border-white/[0.06] px-5 py-3 text-[0.6rem] uppercase tracking-[0.14em] text-slate-500 lg:grid">
-          <span>#</span>
-          <span>Symbol</span>
-          <span>Company</span>
-          <span>Top rating</span>
-          <span className="text-right">Analysts</span>
-          <span className="text-right">Target</span>
-          <span className="text-right">Upside</span>
-          <span className="text-right">Mkt cap</span>
+      {sections.length === 0 && !loading ? (
+        <GlassCard className="mt-5 px-5 py-10 text-center text-sm text-slate-500">
+          Couldn&apos;t pull analyst data right now — try refreshing in a moment.
+        </GlassCard>
+      ) : (
+        <div className="mt-6 space-y-10">
+          {sections.map(({ sector, rows: secRows }, si) => (
+            <div key={sector.id}>
+              <div className="flex items-baseline gap-3">
+                <span className="font-mono text-xs text-gold/70">{String(si + 1).padStart(2, "0")}</span>
+                <h3 className="font-display text-lg font-semibold text-white">{sector.name}</h3>
+                <span className="text-xs text-slate-500">
+                  {secRows.length} name{secRows.length === 1 ? "" : "s"}
+                </span>
+              </div>
+              <p className="mt-2 max-w-4xl text-xs leading-relaxed text-slate-400">{sector.blurb}</p>
+
+              <GlassCard className="mt-4 overflow-hidden">
+                {HEADER}
+                <ul className="divide-y divide-white/[0.05]">
+                  {secRows.map((r, i) => (
+                    <ScanRow
+                      key={r.ticker}
+                      r={r}
+                      i={i}
+                      isOpen={open === r.ticker}
+                      onToggle={() => setOpen(open === r.ticker ? null : r.ticker)}
+                    />
+                  ))}
+                </ul>
+              </GlassCard>
+            </div>
+          ))}
         </div>
+      )}
 
-        {sorted.length === 0 && !loading ? (
-          <div className="px-5 py-10 text-center text-sm text-slate-500">
-            Couldn&apos;t pull analyst data right now — try refreshing in a moment.
-          </div>
-        ) : (
-          <ul className="divide-y divide-white/[0.05]">
-            {sorted.map((r, i) => {
-              const isOpen = open === r.ticker;
-              return (
-                <li key={r.ticker}>
-                  <div
-                    onClick={() => setOpen(isOpen ? null : r.ticker)}
-                    className={`grid cursor-pointer grid-cols-2 gap-2 px-5 py-3.5 transition hover:bg-white/[0.02] lg:grid-cols-[0.4fr_0.7fr_2fr_1fr_0.7fr_0.8fr_0.9fr_0.9fr] lg:items-center ${
-                      isOpen ? "bg-white/[0.02]" : ""
-                    }`}
-                  >
-                    <span className="font-mono text-xs text-slate-500">{i + 1}</span>
-                    <Link href={`/stock-analysis?symbol=${r.ticker}`} onClick={(e) => e.stopPropagation()}>
-                      <TickerChip ticker={r.ticker} />
-                    </Link>
-                    <span className="truncate text-sm text-slate-200">
-                      {r.name}
-                      <span className="ml-2 text-[0.65rem] text-gold/70">{isOpen ? "▲" : "▾"}</span>
-                    </span>
-                    <span>
-                      <Tag tone={ratingTone(r.recommendation)}>{ratingLabel(r.recommendation)}</Tag>
-                    </span>
-                    <span className="text-right font-mono text-sm tnum text-slate-400">
-                      {r.numAnalysts ?? "—"}
-                    </span>
-                    <span className="text-right font-mono text-sm tnum text-white">
-                      {r.target.toFixed(2)}
-                    </span>
-                    <span
-                      className={`text-right font-mono text-sm font-semibold tnum ${
-                        r.upside >= 0 ? "text-up" : "text-down"
-                      }`}
-                    >
-                      {r.upside >= 0 ? "+" : ""}
-                      {r.upside.toFixed(1)}%
-                    </span>
-                    <span className="text-right font-mono text-sm tnum text-slate-400">
-                      {fmtCap(r.marketCap)}
-                    </span>
-                  </div>
-                  {isOpen ? (
-                    <div className="px-5 pb-4">
-                      <AnalystRange row={r} />
-                    </div>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </GlassCard>
-
-      <p className="mt-3 text-xs text-slate-600">
+      <p className="mt-8 text-xs text-slate-600">
         &quot;Upside&quot; is the analysts&apos; average price target versus the current price, pulled
         live from public data. It reflects a curated watch-universe, not the entire market, and a high
-        target gap is not a recommendation — always do your own research.
+        target gap is not a recommendation. The sector framings describe general tendencies, not
+        forecasts — always do your own research.
       </p>
     </section>
   );
