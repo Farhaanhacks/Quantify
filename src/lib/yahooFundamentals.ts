@@ -271,8 +271,12 @@ function computeSectorValuation(i: SectorValuationInput): SectorValuationResult 
     current = i.evToRevenue;
   }
   if (estimate == null || !isFinite(estimate) || estimate <= 0) return undefined;
-  // Plausibility band — a multiples read outside this range is a data artefact.
-  if (estimate < i.price * 0.25 || estimate > i.price * 4) return undefined;
+  // Plausibility band — only reject genuine data artefacts. A sector-multiple
+  // value that lands well BELOW the price is a legitimate "expensive vs the
+  // sector" read (exactly what a richly-valued name should surface), so we keep a
+  // tiny near-zero floor rather than the old 0.25× floor that hid those cases and
+  // left only the analyst target. The upper cap still guards against artefacts.
+  if (estimate < i.price * 0.05 || estimate > i.price * 4) return undefined;
   const gap = ((estimate - i.price) / i.price) * 100;
   const under = gap >= 0;
   return {
@@ -518,19 +522,33 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   const fcfPositive = fcfTTM != null && fcfTTM > 0;
   const throughCyclePositive = medFcf != null && medFcf > 0;
   const profitable = profitMargins != null && profitMargins > 0;
+  // A trailing DCF is meaningful for a currently-profitable company that
+  // generates cash through the cycle. We require profitability plus a positive
+  // cash-flow base — either a positive through-cycle median (preferred) OR, when
+  // there's no multi-year history, a positive TTM figure. We deliberately DON'T
+  // insist the very latest TTM year be positive when a healthy multi-year median
+  // exists, so a single working-capital-driven dip doesn't erase the estimate for
+  // an otherwise cash-generative name (common for lumpy EPC/construction names
+  // like AGX). Loss-making / cash-burning names still get no DCF — there the
+  // sector lens (EV/Sales) carries the second view.
   const dcfEligible =
-    baseCashflow != null && baseCashflow > 0 && fcfPositive && throughCyclePositive && profitable;
+    profitable && baseCashflow != null && baseCashflow > 0 && (throughCyclePositive || fcfPositive);
   const cfRaw = dcfEligible ? dcfPerShare(baseCashflow, sharesOutstanding, cashflowGrowth) : undefined;
-  // Plausibility: a real intrinsic estimate sits within a sane band of the live
-  // price (0.33x–3x — tighter than before), and does not wildly contradict
-  // analyst consensus when we have it. Anything outside is a data artefact, not
-  // a valuation, so we drop it rather than show a credible-looking wrong number.
+  // Plausibility guard. We keep only the checks that catch genuine DATA ARTEFACTS
+  // — not the old lower floors that were suppressing legitimate-but-low estimates
+  // and leaving users with the analyst target alone. A trailing DCF that lands
+  // well BELOW the price is NOT an error: for a richly-valued name (say a P/E-60
+  // compounder) it's the honest, conservative read, and revealing that gap is the
+  // whole point of showing a second lens. So we drop the ≥0.33× price and
+  // ≥0.4× target floors and keep: currency consistency, a tiny near-zero floor,
+  // and an upper cap that guards the "trailing-cash-flow trap" (overstated cash
+  // generation for capital-heavy names). The wrong-security price cross-check
+  // above already handles data collisions.
   const cfPerShare =
     cfRaw != null &&
     currencyOk &&
-    cfRaw >= price * 0.33 &&
-    cfRaw <= price * 3 &&
-    (target == null || (cfRaw >= target * 0.4 && cfRaw <= target * 2.5))
+    cfRaw >= price * 0.05 &&
+    cfRaw <= price * 3
       ? cfRaw
       : undefined;
 
