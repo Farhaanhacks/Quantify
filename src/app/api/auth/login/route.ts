@@ -10,7 +10,15 @@ export const dynamic = "force-dynamic";
 // scary block screen); instead we show a clean "open in your browser" page.
 function isEmbeddedWebview(ua: string): boolean {
   if (!ua) return false;
-  return /\b(FBAN|FBAV|FB_IAB|Instagram|LinkedInApp|Twitter|Line\/|MicroMessenger|Snapchat|Pinterest|musical_ly|Bytedance|TikTok|GSA\/|Reddit)\b/i.test(
+  // First-class mobile browsers must NEVER be treated as an in-app webview.
+  // Chrome-for-iOS (CriOS), Firefox-for-iOS (FxiOS) and Edge (EdgiOS) are real
+  // browsers where Google sign-in works — guard against any accidental match.
+  if (/\b(CriOS|FxiOS|EdgiOS)\b/i.test(ua)) return false;
+  // Only the embedded webviews Google's OAuth actually blocks with
+  // "disallowed_useragent". We deliberately DON'T flag the Google app (GSA) —
+  // it's Google's own first-party browser, sign-in generally works there, and
+  // flagging it was falsely walling off real users who tapped a link inside it.
+  return /\b(FBAN|FBAV|FB_IAB|Instagram|LinkedInApp|Twitter|Line\/|MicroMessenger|Snapchat|Pinterest|musical_ly|Bytedance|TikTok|Reddit)\b/i.test(
     ua
   ) || /; wv\)/i.test(ua); // generic Android WebView
 }
@@ -23,7 +31,8 @@ function webviewPage(origin: string): string {
 <title>Open in your browser · Quantifi</title>
 <style>
   :root { color-scheme: dark; }
-  body { margin:0; background:#05070D; color:#E5E7EB; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  html, body { background:#05070D !important; }
+  body { margin:0; color:#E5E7EB; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
   .wrap { max-width:520px; margin:0 auto; padding:48px 24px; }
   h1 { font-size:1.4rem; line-height:1.3; margin:0 0 12px; }
   p { color:#9CA3AF; line-height:1.6; font-size:0.95rem; }
@@ -51,7 +60,10 @@ function webviewPage(origin: string): string {
       <li>Or paste the copied link into Chrome or Safari.</li>
     </ol>
   </div>
-  <p style="margin-top:24px"><a href="${origin}/" style="color:#D9A441">← Back to Quantifi home</a></p>
+  <p style="margin-top:20px;font-size:0.9rem">Already in Chrome or Safari, or happy to try anyway?
+    <a href="${origin}/api/auth/login?force=1" style="color:#D9A441;font-weight:600;white-space:nowrap">Continue to sign in →</a>
+  </p>
+  <p style="margin-top:16px"><a href="${origin}/" style="color:#9CA3AF">← Back to Quantifi home</a></p>
 </div>
 <script>
   function copy(){
@@ -70,8 +82,12 @@ export async function GET(req: Request) {
   if (!clientId) return NextResponse.redirect(`${origin}/?auth=unconfigured`);
 
   // In-app webview → friendly interstitial instead of Google's block screen.
+  // The `force=1` escape hatch lets anyone bypass it and proceed to Google
+  // anyway — so a false positive (or a user who knows they're fine) is never a
+  // hard wall. The interstitial itself links here with force=1.
   const ua = req.headers.get("user-agent") ?? "";
-  if (isEmbeddedWebview(ua)) {
+  const force = new URL(req.url).searchParams.get("force") === "1";
+  if (!force && isEmbeddedWebview(ua)) {
     return new NextResponse(webviewPage(origin), {
       status: 200,
       headers: { "content-type": "text/html; charset=utf-8" },
