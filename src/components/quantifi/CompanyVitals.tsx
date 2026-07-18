@@ -5,19 +5,10 @@ import { GlassCard } from "@/components/quantifi/Cards";
 import SupportResistanceChart from "@/components/quantifi/SupportResistanceChart";
 import type { CompanyData } from "@/lib/yahooCompany";
 import { toneOf } from "@/lib/newsImpact";
+import { fmtCompactCur, isIndianCurrency } from "@/data/demo";
 
 const cur = (c?: string, ticker?: string) =>
   c === "INR" || (ticker && /\.(NS|BO)$/i.test(ticker)) ? "₹" : c === "GBp" ? "p" : "$";
-
-function compact(n?: number): string {
-  if (n == null || !isFinite(n)) return "—";
-  const a = Math.abs(n);
-  if (a >= 1e12) return `${(n / 1e12).toFixed(2)}T`;
-  if (a >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
-  if (a >= 1e6) return `${(n / 1e6).toFixed(2)}M`;
-  if (a >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
-  return `${Math.round(n)}`;
-}
 
 function fmtDate(d?: string): string {
   if (!d) return "—";
@@ -107,6 +98,7 @@ export default function CompanyVitals({ symbol }: { symbol: string }) {
   if (!data) return null;
 
   const c = cur(data.currency, symbol);
+  const indian = isIndianCurrency(data.currency, symbol);
   const price = data.price ?? 0;
   const rating = RATING[(data.recommendationKey || "").toLowerCase()];
   const upside = data.targetMean && price ? ((data.targetMean - price) / price) * 100 : null;
@@ -172,10 +164,10 @@ export default function CompanyVitals({ symbol }: { symbol: string }) {
           <div className="mt-3 grid grid-cols-2 gap-2.5">
             <Stat label="Employees" value={data.employees ? data.employees.toLocaleString() : "—"} />
             <Stat label="Next earnings" value={fmtDate(data.earningsDate)} />
-            <Stat label="Revenue / employee" value={revPerEmp ? `${c}${compact(revPerEmp)}` : "—"} />
+            <Stat label="Revenue / employee" value={revPerEmp ? `${c}${fmtCompactCur(revPerEmp, indian)}` : "—"} />
             <Stat
               label="Earnings / employee"
-              value={earnPerEmp ? `${earnPerEmp < 0 ? "-" : ""}${c}${compact(Math.abs(earnPerEmp))}` : "—"}
+              value={earnPerEmp ? `${earnPerEmp < 0 ? "-" : ""}${c}${fmtCompactCur(Math.abs(earnPerEmp), indian)}` : "—"}
               sub={earnPerEmp != null && earnPerEmp < 0 ? "net loss" : undefined}
             />
           </div>

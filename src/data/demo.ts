@@ -97,4 +97,35 @@ export const fmtCompact = (n: number) => {
   return n.toFixed(0);
 };
 
+// Whether a currency / ticker should use the Indian lakh–crore number system.
+export const isIndianCurrency = (currency?: string, ticker?: string): boolean =>
+  currency === "INR" || (!!ticker && /\.(NS|BO)$/i.test(ticker));
+
+// Compact number formatting, currency-aware. For Indian (INR) contexts we use
+// the lakh / crore system the way Indian investors actually read financials
+// (L = lakh = 1e5, Cr = crore = 1e7, lakh Cr = 1e12) instead of M / B. Every
+// other currency keeps the Western K / M / B / T. `na` is what to show for a
+// missing value (callers differ: "—" vs "n/a").
+export const fmtCompactCur = (
+  n: number | undefined | null,
+  indian = false,
+  na = "—"
+): string => {
+  if (n == null || !isFinite(n)) return na;
+  const a = Math.abs(n);
+  const sign = n < 0 ? "-" : "";
+  if (indian) {
+    if (a >= 1e12) return `${sign}${(a / 1e12).toFixed(2)} lakh Cr`;
+    if (a >= 1e7) return `${sign}${(a / 1e7).toLocaleString("en-IN", { maximumFractionDigits: 2 })} Cr`;
+    if (a >= 1e5) return `${sign}${(a / 1e5).toFixed(2)} L`;
+    if (a >= 1e3) return `${sign}${(a / 1e3).toFixed(1)}K`;
+    return `${sign}${Math.round(a)}`;
+  }
+  if (a >= 1e12) return `${sign}${(a / 1e12).toFixed(2)}T`;
+  if (a >= 1e9) return `${sign}${(a / 1e9).toFixed(2)}B`;
+  if (a >= 1e6) return `${sign}${(a / 1e6).toFixed(2)}M`;
+  if (a >= 1e3) return `${sign}${(a / 1e3).toFixed(1)}K`;
+  return `${sign}${Math.round(a)}`;
+};
+
 export const dirOf = (n: number): Direction => (n > 0 ? "up" : n < 0 ? "down" : "flat");

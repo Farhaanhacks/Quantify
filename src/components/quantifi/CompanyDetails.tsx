@@ -3,18 +3,13 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { GlassCard } from "@/components/quantifi/Cards";
 import type { CompanyData, FinRow } from "@/lib/yahooCompany";
+import { fmtCompactCur, isIndianCurrency } from "@/data/demo";
 
 type Tab = "overview" | "statistics" | "financials";
 
-const compact = (n?: number): string => {
-  if (n == null || !isFinite(n)) return "n/a";
-  const a = Math.abs(n);
-  if (a >= 1e12) return `${(n / 1e12).toFixed(2)}T`;
-  if (a >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
-  if (a >= 1e6) return `${(n / 1e6).toFixed(2)}M`;
-  if (a >= 1e3) return `${(n / 1e3).toFixed(2)}K`;
-  return n.toFixed(2);
-};
+// Currency-aware compact formatting: Indian stocks read in lakh / crore, the
+// rest in K / M / B / T. See fmtCompactCur in demo.ts.
+const compact = (n?: number, indian = false): string => fmtCompactCur(n, indian, "n/a");
 const pct = (n?: number): string => (n == null || !isFinite(n) ? "n/a" : `${(n * 100).toFixed(2)}%`);
 const ratio = (n?: number): string => (n == null || !isFinite(n) ? "n/a" : n.toFixed(2));
 const money = (n: number | undefined, cur = "USD"): string => {
@@ -42,7 +37,7 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function StatementTable({ rows, labels }: { rows?: FinRow[]; labels: { key: string; label: string }[] }) {
+function StatementTable({ rows, labels, indian }: { rows?: FinRow[]; labels: { key: string; label: string }[]; indian?: boolean }) {
   if (!rows || rows.length === 0) return <p className="text-sm text-slate-500">Not available for this symbol.</p>;
   return (
     <div className="overflow-x-auto">
@@ -60,7 +55,7 @@ function StatementTable({ rows, labels }: { rows?: FinRow[]; labels: { key: stri
             <tr key={l.key} className="border-b border-white/[0.05]">
               <td className="py-1.5 pr-4 text-slate-400">{l.label}</td>
               {rows.map((r, i) => (
-                <td key={i} className="py-1.5 pr-4 font-mono text-slate-200">{compact(r.values[l.key])}</td>
+                <td key={i} className="py-1.5 pr-4 font-mono text-slate-200">{compact(r.values[l.key], indian)}</td>
               ))}
             </tr>
           ))}
@@ -109,6 +104,11 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
   }
 
   const cur = data.currency ?? "USD";
+  const indian = isIndianCurrency(data.currency, symbol);
+  // Shadow the module-level helper so every compact(...) in this component's
+  // render is currency-aware (lakh/crore for Indian stocks) without threading
+  // the flag through each call site.
+  const compact = (n?: number) => fmtCompactCur(n, indian, "n/a");
   const TABS: { key: Tab; label: string }[] = [
     { key: "overview", label: "Overview" },
     { key: "statistics", label: "Statistics" },
@@ -235,7 +235,7 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
             <div className="space-y-8">
               <div>
                 <h4 className="mb-2 font-display text-sm font-semibold text-white">Income Statement</h4>
-                <StatementTable rows={data.incomeStatements} labels={[
+                <StatementTable indian={indian} rows={data.incomeStatements} labels={[
                   { key: "revenue", label: "Revenue" },
                   { key: "grossProfit", label: "Gross Profit" },
                   { key: "operatingIncome", label: "Operating Income" },
@@ -244,7 +244,7 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
               </div>
               <div>
                 <h4 className="mb-2 font-display text-sm font-semibold text-white">Balance Sheet</h4>
-                <StatementTable rows={data.balanceSheets} labels={[
+                <StatementTable indian={indian} rows={data.balanceSheets} labels={[
                   { key: "totalAssets", label: "Total Assets" },
                   { key: "totalLiabilities", label: "Total Liabilities" },
                   { key: "totalEquity", label: "Total Equity" },
@@ -254,13 +254,18 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
               </div>
               <div>
                 <h4 className="mb-2 font-display text-sm font-semibold text-white">Cash Flow Statement</h4>
-                <StatementTable rows={data.cashflowStatements} labels={[
+                <StatementTable indian={indian} rows={data.cashflowStatements} labels={[
                   { key: "operatingCashFlow", label: "Operating Cash Flow" },
                   { key: "capex", label: "Capital Expenditures" },
                   { key: "freeCashFlow", label: "Free Cash Flow" },
                 ]} />
               </div>
-              <p className="text-xs text-slate-500">Most recent reported annual periods, from Yahoo Finance. Values in the listed currency.</p>
+              <p className="text-xs leading-relaxed text-slate-500">
+                Source: Yahoo Finance · most recent reported annual periods, in {cur === "INR" ? "Indian rupees (lakh / crore)" : "the listed currency"}.
+                Figures may be reported on a standalone or consolidated basis and can differ slightly from a
+                company&apos;s official filings or be revised later — always verify against the latest annual
+                report or exchange (e.g. NSE/BSE, SEC) filing before relying on them.
+              </p>
             </div>
           ) : null}
         </div>
