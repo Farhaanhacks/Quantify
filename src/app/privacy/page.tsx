@@ -55,8 +55,8 @@ export default function PrivacyPage() {
       <p>
         You can remove portfolio holdings at any time in the app, and you can sign out to clear your
         session. To delete your account data entirely, email{" "}
-        <a href="mailto:farhaankuka2009@gmail.com" className="text-gold hover:underline">
-          farhaankuka2009@gmail.com
+        <a href="mailto:quantifiapp@gmail.com" className="text-gold hover:underline">
+          quantifiapp@gmail.com
         </a>{" "}
         and we will erase it.
       </p>
@@ -64,8 +64,8 @@ export default function PrivacyPage() {
       <H2>Contact</H2>
       <p>
         Questions about this policy? Email{" "}
-        <a href="mailto:farhaankuka2009@gmail.com" className="text-gold hover:underline">
-          farhaankuka2009@gmail.com
+        <a href="mailto:quantifiapp@gmail.com" className="text-gold hover:underline">
+          quantifiapp@gmail.com
         </a>
         .
       </p>

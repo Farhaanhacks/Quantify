@@ -15,8 +15,8 @@ export default function ContactPage() {
 
       <H2>Email</H2>
       <p>
-        <a href="mailto:farhaankuka2009@gmail.com" className="text-gold hover:underline">
-          farhaankuka2009@gmail.com
+        <a href="mailto:quantifiapp@gmail.com" className="text-gold hover:underline">
+          quantifiapp@gmail.com
         </a>
         <br />
         We aim to reply within 2–3 business days.

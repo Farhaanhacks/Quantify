@@ -59,8 +59,8 @@ export default function TermsPage() {
       <H2>7. Contact</H2>
       <p>
         Questions? Email{" "}
-        <a href="mailto:farhaankuka2009@gmail.com" className="text-gold hover:underline">
-          farhaankuka2009@gmail.com
+        <a href="mailto:quantifiapp@gmail.com" className="text-gold hover:underline">
+          quantifiapp@gmail.com
         </a>
         .
       </p>

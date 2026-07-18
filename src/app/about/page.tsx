@@ -44,8 +44,8 @@ export default function AboutPage() {
       <p>
         Quantifi is operated by its founder as an independent product. For any question — support,
         billing, privacy or data deletion — email{" "}
-        <a href="mailto:farhaankuka2009@gmail.com" className="text-gold hover:underline">
-          farhaankuka2009@gmail.com
+        <a href="mailto:quantifiapp@gmail.com" className="text-gold hover:underline">
+          quantifiapp@gmail.com
         </a>
         .
       </p>
