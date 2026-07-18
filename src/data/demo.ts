@@ -116,8 +116,8 @@ export const fmtCompactCur = (
   const sign = n < 0 ? "-" : "";
   if (indian) {
     if (a >= 1e12) return `${sign}${(a / 1e12).toFixed(2)} lakh Cr`;
-    if (a >= 1e7) return `${sign}${(a / 1e7).toLocaleString("en-IN", { maximumFractionDigits: 2 })} Cr`;
-    if (a >= 1e5) return `${sign}${(a / 1e5).toFixed(2)} L`;
+    if (a >= 1e7) return `${sign}${(a / 1e7).toLocaleString("en-IN", { maximumFractionDigits: 2 })}Cr`;
+    if (a >= 1e5) return `${sign}${(a / 1e5).toFixed(2)}L`;
     if (a >= 1e3) return `${sign}${(a / 1e3).toFixed(1)}K`;
     return `${sign}${Math.round(a)}`;
   }

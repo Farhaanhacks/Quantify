@@ -348,6 +348,9 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
                 name={score.name}
                 live={Boolean(score.live)}
               />
+              {/* Company overview + financials sits right above the analyst
+                  rating / company facts so the business context comes first. */}
+              <CompanyDetails symbol={ticker} />
               <CompanyVitals symbol={ticker} />
               <ShareholdingStats symbol={ticker} />
               <Competitors symbol={ticker} name={score.name} kind="stocks" />
@@ -387,10 +390,7 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
               don't have them, and this keeps insider data out of the free
               "not available" view). */}
           {hasAnalysis && !etf ? (
-            <>
-              <CompanyDetails symbol={ticker} />
-              <InsiderActivity ticker={ticker} heading showFilter />
-            </>
+            <InsiderActivity ticker={ticker} heading showFilter />
           ) : null}
         </>
       ) : stage === "loading" ? (

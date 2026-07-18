@@ -47,13 +47,20 @@ export interface NewsImpactAnalysis {
 const POS = ["surge", "jump", "gain", "beat", "rally", "soar", "record", "upgrade", "profit", "rise", "rose", "boost", "outperform", "strong", "high", "win", "wins", "approval", "expand"];
 const NEG = ["plunge", "fall", "fell", "drop", "miss", "cut", "loss", "downgrade", "slump", "crash", "lawsuit", "probe", "warn", "weak", "decline", "tumble", "sink", "fear", "selloff", "sell-off", "delay", "halt", "ban", "fine"];
 
+// Whole-word match (with common inflections), NOT a substring test. Using
+// `includes()` produced badly wrong tone reads: "ban" matched inside "Ambani",
+// "fine" inside "refined"/"define", "war" inside "toward", "high" inside
+// "highlight" — so ordinary Reliance/Ambani headlines were scored negative even
+// when the news was clearly positive. Word boundaries eliminate those false hits.
+const wordHit = (word: string, text: string): boolean =>
+  new RegExp(`\\b${word}(?:s|es|ed|ing)?\\b`, "i").test(text);
+
 export function toneOf(text: string): Tone {
-  const t = text.toLowerCase();
   let p = 0;
   let n = 0;
-  for (const w of POS) if (t.includes(w)) p++;
-  for (const w of NEG) if (t.includes(w)) n++;
-  if (p > 0 && n > 0) return "mixed";
+  for (const w of POS) if (wordHit(w, text)) p++;
+  for (const w of NEG) if (wordHit(w, text)) n++;
+  if (p > 0 && n > 0) return p > n ? "positive" : n > p ? "negative" : "mixed";
   if (p > 0) return "positive";
   if (n > 0) return "negative";
   return "neutral";
