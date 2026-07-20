@@ -20,7 +20,7 @@ export default function ResearchPriming() {
     <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
       <div className="rounded-3xl border border-white/[0.08] bg-white/[0.02] p-6 sm:p-9">
         <p className="text-[0.7rem] uppercase tracking-[0.18em] text-gold">
-          Quantifi is not stock tips. It's research maps.
+          Quantifi is not stock tips. It&apos;s research maps.
         </p>
         <h2 className="mt-3 max-w-2xl font-display text-2xl font-semibold leading-tight text-white sm:text-3xl">
           Stop asking only “what should I buy?”

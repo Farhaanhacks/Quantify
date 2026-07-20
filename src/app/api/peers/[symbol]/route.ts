@@ -8,14 +8,6 @@ const UA =
 
 const str = (x: unknown): string | undefined =>
   typeof x === "string" && x.length ? x : undefined;
-const num = (x: unknown): number | undefined => {
-  if (typeof x === "number" && isFinite(x)) return x;
-  if (x && typeof x === "object" && "raw" in x) {
-    const r = (x as { raw: unknown }).raw;
-    if (typeof r === "number" && isFinite(r)) return r;
-  }
-  return undefined;
-};
 
 interface PeerInfo {
   symbol: string;

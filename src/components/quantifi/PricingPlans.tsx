@@ -11,11 +11,19 @@ interface RazorpayResponse {
   razorpay_signature: string;
 }
 
+// Minimal shape of Razorpay's Checkout global (loaded from their CDN script).
+interface RazorpayInstance {
+  open: () => void;
+  on: (event: string, cb: () => void) => void;
+}
+type RazorpayConstructor = new (options: Record<string, unknown>) => RazorpayInstance;
+type WindowWithRazorpay = Window & { Razorpay?: RazorpayConstructor };
+
 // Loads Razorpay's Checkout script once, on demand.
 function loadRazorpay(): Promise<boolean> {
   return new Promise((resolve) => {
     if (typeof window === "undefined") return resolve(false);
-    if ((window as any).Razorpay) return resolve(true);
+    if ((window as WindowWithRazorpay).Razorpay) return resolve(true);
     const s = document.createElement("script");
     s.src = "https://checkout.razorpay.com/v1/checkout.js";
     s.onload = () => resolve(true);
@@ -80,7 +88,8 @@ export default function PricingPlans() {
         return;
       }
 
-      const rzp = new (window as any).Razorpay({
+      const Razorpay = (window as WindowWithRazorpay).Razorpay!;
+      const rzp = new Razorpay({
         key: data.keyId,
         subscription_id: data.subscriptionId,
         name: "Quantifi Pro",
