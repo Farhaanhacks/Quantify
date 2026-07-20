@@ -36,6 +36,18 @@ interface Row {
   dateText: string;
 }
 
+// Indian (BSE) insider/SAST disclosures are announcement filings, not the
+// structured per-transaction rows US Form 4 gives us.
+interface ApiDisclosure {
+  id: string;
+  ticker: string;
+  company: string;
+  headline: string;
+  category: string;
+  date: string;
+  url?: string;
+}
+
 type Filter = "All" | "Buys" | "Sells" | "Planned";
 
 function fmtDate(d: string): string {
@@ -73,6 +85,8 @@ export default function InsiderActivity({
   ticker?: string;
 }) {
   const [trades, setTrades] = useState<ApiTrade[] | null>(null);
+  const [disclosures, setDisclosures] = useState<ApiDisclosure[]>([]);
+  const [market, setMarket] = useState<"US" | "IN">("US");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [filter, setFilter] = useState<Filter>("All");
@@ -94,12 +108,26 @@ export default function InsiderActivity({
       try {
         const r = await fetch(url);
         if (!r.ok) throw new Error(`status ${r.status}`);
-        const d = (await r.json()) as { available?: boolean; trades?: ApiTrade[] };
+        const d = (await r.json()) as {
+          available?: boolean;
+          market?: "US" | "IN";
+          trades?: ApiTrade[];
+          disclosures?: ApiDisclosure[];
+        };
         if (cancelled) return;
-        setTrades(d.available && Array.isArray(d.trades) ? d.trades : []);
+        if (d.market === "IN") {
+          setMarket("IN");
+          setDisclosures(d.available && Array.isArray(d.disclosures) ? d.disclosures : []);
+          setTrades([]);
+        } else {
+          setMarket("US");
+          setTrades(d.available && Array.isArray(d.trades) ? d.trades : []);
+          setDisclosures([]);
+        }
       } catch {
         if (!cancelled) {
           setTrades([]);
+          setDisclosures([]);
           setError(true);
         }
       } finally {
@@ -112,6 +140,10 @@ export default function InsiderActivity({
   }, [activeTicker]);
 
   const live = !!trades && trades.length > 0;
+  // For an Indian symbol we lean on the fetched market flag, but also on the
+  // ticker itself so the labels switch immediately (before the fetch resolves).
+  const isIndia = market === "IN" || (!!activeTicker && /\.(NS|BO)$/i.test(activeTicker));
+  const liveIN = disclosures.length > 0;
   // Live SEC EDGAR data only — never a demo fallback. An empty result is an
   // honest empty state, not a reason to show fabricated trades.
   const source: Row[] = useMemo(
@@ -142,7 +174,11 @@ export default function InsiderActivity({
         <SectionHeading
           eyebrow="Insider Activity"
           title={activeTicker ? `Insider trades · ${activeTicker}` : "Who is buying and selling"}
-          subtitle="Real Form 4 filings from SEC EDGAR — directors and officers, with a 10b5-1 flag when the trade was pre-arranged. Disclosed after the fact; never a signal on its own."
+          subtitle={
+            isIndia
+              ? "Insider / SAST disclosures filed with BSE — promoters, directors and designated persons under SEBI (PIT) Regulation 7. Official filings shown as disclosed; never a signal on its own. Beta."
+              : "Real Form 4 filings from SEC EDGAR — directors and officers, with a 10b5-1 flag when the trade was pre-arranged. Disclosed after the fact; never a signal on its own."
+          }
           href={ticker ? undefined : "/insider-activity"}
           cta={ticker ? undefined : "All activity"}
         />
@@ -183,14 +219,26 @@ export default function InsiderActivity({
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <span
           className={`rounded-full border px-2 py-0.5 text-[0.6rem] uppercase tracking-[0.12em] ${
-            live
+            (isIndia ? liveIN : live)
               ? "border-up/30 bg-up/10 text-up"
               : "border-white/10 bg-white/[0.03] text-slate-500"
           }`}
         >
-          {loading ? "Loading…" : live ? "Live · SEC EDGAR" : error ? "Unavailable" : "No filings"}
+          {loading
+            ? "Loading…"
+            : isIndia
+            ? liveIN
+              ? "Live · BSE · Beta"
+              : error
+              ? "Unavailable"
+              : "No disclosures"
+            : live
+            ? "Live · SEC EDGAR"
+            : error
+            ? "Unavailable"
+            : "No filings"}
         </span>
-        {showFilter
+        {showFilter && !isIndia
           ? filters.map((t) => (
               <button
                 key={t}
@@ -208,6 +256,51 @@ export default function InsiderActivity({
           : null}
       </div>
 
+      {isIndia ? (
+        <GlassCard className="mt-6 overflow-hidden">
+          <div className="hidden grid-cols-[2.6fr_1fr] gap-3 border-b border-white/[0.06] px-5 py-3 text-[0.62rem] uppercase tracking-[0.16em] text-slate-500 lg:grid">
+            <span>Disclosure</span>
+            <span className="text-right">When</span>
+          </div>
+          <ul className="divide-y divide-white/[0.05]">
+            {(limit ? disclosures.slice(0, limit) : disclosures).map((d) => (
+              <li
+                key={d.id}
+                className="grid grid-cols-1 gap-1.5 px-5 py-4 lg:grid-cols-[2.6fr_1fr] lg:items-center"
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <TickerChip ticker={d.ticker} />
+                    <span className="text-[0.58rem] uppercase tracking-[0.12em] text-teal">{d.category}</span>
+                  </div>
+                  <div className="mt-1 text-sm leading-relaxed text-slate-200">{d.headline}</div>
+                  {d.url ? (
+                    <a
+                      href={d.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1 inline-block text-[0.7rem] text-gold hover:underline"
+                    >
+                      View filing on BSE →
+                    </a>
+                  ) : null}
+                </div>
+                <div className="text-right text-xs text-slate-500">{fmtDate(d.date)}</div>
+              </li>
+            ))}
+          </ul>
+          {!loading && disclosures.length === 0 ? (
+            <div className="px-5 py-10 text-center text-sm text-slate-500">
+              {error
+                ? "Couldn't reach BSE right now — Indian disclosures are fetched live from BSE and it may be rate-limiting or blocking the request. Please try again shortly."
+                : `No recent insider / SAST disclosures found for ${activeTicker} on BSE. This covers BSE-filed disclosures; some names or periods simply have none.`}
+            </div>
+          ) : null}
+          {loading && disclosures.length === 0 ? (
+            <div className="px-5 py-10 text-center text-sm text-slate-500">Loading BSE disclosures…</div>
+          ) : null}
+        </GlassCard>
+      ) : (
       <GlassCard className="mt-6 overflow-hidden">
         <div className="hidden grid-cols-[1.3fr_1.1fr_1fr_0.8fr_0.8fr] gap-3 border-b border-white/[0.06] px-5 py-3 text-[0.62rem] uppercase tracking-[0.16em] text-slate-500 lg:grid">
           <span>Company</span>
@@ -267,6 +360,7 @@ export default function InsiderActivity({
           <div className="px-5 py-10 text-center text-sm text-slate-500">Loading insider filings…</div>
         ) : null}
       </GlassCard>
+      )}
     </section>
   );
 }
