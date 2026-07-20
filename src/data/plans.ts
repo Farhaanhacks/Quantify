@@ -71,4 +71,4 @@ export const QUANTIFI_PRO: ProPlan = {
 // free grants already handed out lapse on their own when their access window
 // (FREE_LAUNCH_DAYS) runs out — so their Pro is "blocked again unless they buy".
 export const FREE_LAUNCH_OFFER = true;
-export const FREE_LAUNCH_DAYS = 365;
+export const FREE_LAUNCH_DAYS = 7; // each free grant lasts one week, then lapses

@@ -160,7 +160,7 @@ export default function PricingPlans() {
                 </span>
                 <span className="font-display text-4xl font-bold text-gradient-gold">Free</span>
               </div>
-              <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 px-3 py-1 text-[0.7rem] font-semibold text-gold">
+              <div className="mt-2.5 inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-gold/40 bg-gold/10 px-2.5 py-0.5 text-[0.65rem] font-semibold tracking-wide text-gold">
                 ✦ Limited-time launch offer
               </div>
               <p className="mt-2 text-sm text-slate-400">
@@ -187,6 +187,11 @@ export default function PricingPlans() {
               </p>
             </>
           )
+        ) : FREE_LAUNCH_OFFER ? (
+          <div className="mt-3">
+            <span className="font-display text-3xl font-semibold text-gradient-gold">Free</span>
+            <p className="mt-1 text-sm text-slate-400">Launch access — Pro is on us right now.</p>
+          </div>
         ) : (
           <div className="mt-3 flex items-baseline gap-1.5">
             <span className="font-display text-3xl font-semibold text-white">

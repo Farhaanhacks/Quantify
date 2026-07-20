@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useProStatus } from "@/lib/useProStatus";
-import { QUANTIFI_PRO } from "@/data/plans";
+import { QUANTIFI_PRO, FREE_LAUNCH_OFFER, FREE_LAUNCH_DAYS } from "@/data/plans";
 
 // One-time launch-offer modal. Shows on first app open per browser session
 // (sessionStorage flag), leading with the ₹49/month limited launch price vs the
@@ -68,21 +68,31 @@ export default function LimitedOfferPopup() {
         </button>
 
         <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 px-3 py-1 text-[0.7rem] font-medium uppercase tracking-[0.16em] text-gold">
-          Limited launch offer
+          {FREE_LAUNCH_OFFER ? `${FREE_LAUNCH_DAYS} days free` : "Limited launch offer"}
         </span>
 
         <h2 className="mt-4 font-display text-2xl font-bold text-white">
-          Unlock Quantifi Pro
+          {FREE_LAUNCH_OFFER ? "Your first week of Pro is on us" : "Unlock Quantifi Pro"}
         </h2>
 
-        <p className="mt-2 text-sm leading-relaxed text-slate-300">
-          Full access to the research suite for just{" "}
-          <span className="font-semibold text-gold">{QUANTIFI_PRO.price}/month</span> (standard price{" "}
-          <span className="font-semibold text-slate-200 line-through decoration-slate-400/70">
-            ₹500/month
-          </span>
-          ). Cancel anytime.
-        </p>
+        {FREE_LAUNCH_OFFER ? (
+          <p className="mt-2 text-sm leading-relaxed text-slate-300">
+            Unlock the full research suite — <span className="text-white">Stock Analysis</span>,{" "}
+            <span className="text-white">Insider Activity</span>,{" "}
+            <span className="text-white">Rare Finds</span> and more —{" "}
+            <span className="font-semibold text-gold">free for {FREE_LAUNCH_DAYS} days</span>. No card, no
+            catch — claim it in one tap.
+          </p>
+        ) : (
+          <p className="mt-2 text-sm leading-relaxed text-slate-300">
+            Full access to the research suite for just{" "}
+            <span className="font-semibold text-gold">{QUANTIFI_PRO.price}/month</span> (standard price{" "}
+            <span className="font-semibold text-slate-200 line-through decoration-slate-400/70">
+              ₹500/month
+            </span>
+            ). Cancel anytime.
+          </p>
+        )}
 
         <div className="mt-6 flex flex-col gap-2 sm:flex-row">
           <Link
