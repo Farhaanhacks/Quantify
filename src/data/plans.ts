@@ -62,3 +62,13 @@ export const QUANTIFI_PRO: ProPlan = {
   freeFeatures: [...FREE_FEATURES],
   cta: "Get Quantifi Pro",
 };
+
+// ── Limited-time launch: Pro is FREE, unlocked instantly (no card, no Razorpay) ──
+// While this is true, clicking "Get Quantifi Pro" grants Pro immediately for
+// FREE_LAUNCH_DAYS by writing the same KV record the paid path uses. To END the
+// offer and switch the paywall back on, set FREE_LAUNCH_OFFER to false and
+// redeploy: new users then go through the regular Razorpay checkout, and the
+// free grants already handed out lapse on their own when their access window
+// (FREE_LAUNCH_DAYS) runs out — so their Pro is "blocked again unless they buy".
+export const FREE_LAUNCH_OFFER = true;
+export const FREE_LAUNCH_DAYS = 365;

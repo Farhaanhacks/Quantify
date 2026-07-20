@@ -10,6 +10,7 @@ export interface ProRecord {
   active?: boolean;
   subscription_id?: string;
   current_end?: number; // unix seconds; access lapses after this
+  source?: string; // "launch" for the free launch grant, else the paid path
 }
 
 // Owner / comp allowlist. Tolerant by design: accepts a few common env-var

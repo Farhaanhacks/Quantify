@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { GlassCard, Tag } from "@/components/quantifi/Cards";
-import { QUANTIFI_PRO } from "@/data/plans";
+import { QUANTIFI_PRO, FREE_LAUNCH_OFFER } from "@/data/plans";
 import { useProStatus } from "@/lib/useProStatus";
 
 interface RazorpayResponse {
@@ -28,6 +28,26 @@ export default function PricingPlans() {
   const { pro, user, ready } = useProStatus();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Limited-time launch: unlock Pro instantly with no card and no Razorpay. The
+  // server writes the KV Pro record, then we reload so /api/auth/session reports
+  // Pro and every gated surface opens — seamless.
+  async function claim() {
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/claim-pro", { method: "POST" });
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (res.ok && data.ok) {
+        window.location.reload();
+        return;
+      }
+      setError(data.error ?? "Couldn't activate Pro. Please try again.");
+    } catch {
+      setError("Network error. Please try again.");
+    }
+    setLoading(false);
+  }
 
   async function subscribe() {
     setError(null);
@@ -131,23 +151,42 @@ export default function PricingPlans() {
           <Tag tone="gold">{pro ? "Active" : "Pro"}</Tag>
         </div>
         {!pro ? (
-          <>
-            {/* Anchor the ₹500 first, then ₹49. Keep "₹500/month" one uniform
-                size so the strike is a single clean line (mixed sizes made it
-                look stepped/diagonal), with a neutral grey rule. */}
-            <div className="mt-3 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-              <span className="font-display text-xl font-medium text-slate-500 line-through decoration-slate-400/70 decoration-2">
-                ₹500/month
-              </span>
-              <span className="font-display text-4xl font-bold text-white">
-                {QUANTIFI_PRO.price}
-              </span>
-              <span className="text-sm text-slate-500">/ {QUANTIFI_PRO.period}</span>
-            </div>
-            <p className="mt-2 text-sm text-slate-400">
-              Limited launch price — billed {QUANTIFI_PRO.price}/month. Cancel anytime.
-            </p>
-          </>
+          FREE_LAUNCH_OFFER ? (
+            <>
+              {/* Launch offer: free for now. Keep the ₹500 anchor struck through. */}
+              <div className="mt-3 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+                <span className="font-display text-xl font-medium text-slate-500 line-through decoration-slate-400/70 decoration-2">
+                  ₹500/month
+                </span>
+                <span className="font-display text-4xl font-bold text-gradient-gold">Free</span>
+              </div>
+              <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 px-3 py-1 text-[0.7rem] font-semibold text-gold">
+                ✦ Limited-time launch offer
+              </div>
+              <p className="mt-2 text-sm text-slate-400">
+                Free while it lasts — instant access, no card required. When the offer
+                ends, Pro returns to its regular price.
+              </p>
+            </>
+          ) : (
+            <>
+              {/* Anchor the ₹500 first, then ₹49. Keep "₹500/month" one uniform
+                  size so the strike is a single clean line (mixed sizes made it
+                  look stepped/diagonal), with a neutral grey rule. */}
+              <div className="mt-3 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+                <span className="font-display text-xl font-medium text-slate-500 line-through decoration-slate-400/70 decoration-2">
+                  ₹500/month
+                </span>
+                <span className="font-display text-4xl font-bold text-white">
+                  {QUANTIFI_PRO.price}
+                </span>
+                <span className="text-sm text-slate-500">/ {QUANTIFI_PRO.period}</span>
+              </div>
+              <p className="mt-2 text-sm text-slate-400">
+                Limited launch price — billed {QUANTIFI_PRO.price}/month. Cancel anytime.
+              </p>
+            </>
+          )
         ) : (
           <div className="mt-3 flex items-baseline gap-1.5">
             <span className="font-display text-3xl font-semibold text-white">
@@ -181,18 +220,22 @@ export default function PricingPlans() {
             href="/api/auth/login"
             className="mt-6 rounded-full bg-gradient-to-r from-gold-400 to-gold-600 px-5 py-2.5 text-center text-sm font-semibold text-ink transition hover:opacity-90"
           >
-            Sign in to upgrade
+            {FREE_LAUNCH_OFFER ? "Sign in to unlock free Pro" : "Sign in to upgrade"}
           </a>
         ) : (
           <button
             type="button"
             disabled={loading}
-            onClick={subscribe}
+            onClick={FREE_LAUNCH_OFFER ? claim : subscribe}
             className={`mt-6 rounded-full bg-gradient-to-r from-gold-400 to-gold-600 px-5 py-2.5 text-sm font-semibold text-ink transition hover:opacity-90 ${
               loading ? "opacity-60" : ""
             }`}
           >
-            {loading ? "Opening checkout…" : QUANTIFI_PRO.cta}
+            {loading
+              ? FREE_LAUNCH_OFFER
+                ? "Activating…"
+                : "Opening checkout…"
+              : QUANTIFI_PRO.cta}
           </button>
         )}
       </GlassCard>
