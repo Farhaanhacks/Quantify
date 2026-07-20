@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import Navbar from "@/components/quantifi/Navbar";
 import Footer from "@/components/quantifi/Footer";
@@ -77,6 +78,7 @@ export default function RootLayout({
         <main>{children}</main>
         <Footer />
         <LimitedOfferPopup />
+        <Analytics />
       </body>
     </html>
   );
