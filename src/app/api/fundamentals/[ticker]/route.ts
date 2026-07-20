@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getEdgarFundamentals } from "@/lib/ingest/edgar";
+import { jsonCached } from "@/lib/httpCache";
 
 // GET /api/fundamentals/AAPL  → free fundamentals from SEC EDGAR (US filers).
 export async function GET(
@@ -16,5 +17,6 @@ export async function GET(
       { status: 404 }
     );
   }
-  return NextResponse.json(data);
+  // SEC filings change quarterly — safe to cache for an hour.
+  return jsonCached(data, 3600, 7200);
 }

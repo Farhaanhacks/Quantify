@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { getYahooEtf } from "@/lib/yahooEtf";
+import { jsonCached } from "@/lib/httpCache";
 
 export const dynamic = "force-dynamic";
 
@@ -12,10 +12,10 @@ export async function GET(
 ) {
   try {
     const etf = await getYahooEtf(params.symbol);
-    if (!etf) return NextResponse.json({ available: false });
-    return NextResponse.json({ available: true, etf });
+    if (!etf) return jsonCached({ available: false }, 300);
+    return jsonCached({ available: true, etf }, 600, 1800);
   } catch (err) {
     console.error("[etf] failed:", err);
-    return NextResponse.json({ available: false });
+    return jsonCached({ available: false }, 60);
   }
 }

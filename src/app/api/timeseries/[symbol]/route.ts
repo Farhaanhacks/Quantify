@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getStooqSeries, type StooqPoint } from "@/lib/stooq";
+import { cacheHeaders } from "@/lib/httpCache";
 
 // Personal-use price history. Pulls daily closes from Yahoo Finance's (unofficial)
 // chart endpoint, falling back to Stooq. Returns real data only — when neither
@@ -98,9 +99,13 @@ export async function GET(
   const reqRange = new URL(req.url).searchParams.get("range") ?? "1y";
   const range = allowed.includes(reqRange) ? reqRange : "1y";
 
+  // Chart data is cached at the edge for 5 min so repeat views and range
+  // switches don't re-run the function.
+  const ok = cacheHeaders(300, 900);
+
   // 1) Yahoo (broadest coverage)
   try {
-    return NextResponse.json(await yahooSeries(symbol, range));
+    return NextResponse.json(await yahooSeries(symbol, range), { headers: ok });
   } catch (err) {
     console.error("[timeseries] Yahoo failed:", err);
   }
@@ -108,23 +113,26 @@ export async function GET(
   // 2) Stooq fallback (free EOD)
   try {
     const stooq = await getStooqSeries(symbol);
-    if (stooq) return NextResponse.json(fromStooq(symbol, stooq, range));
+    if (stooq) return NextResponse.json(fromStooq(symbol, stooq, range), { headers: ok });
   } catch (err) {
     console.error("[timeseries] Stooq failed:", err);
   }
 
   // 3) No live source had the series — return an honest not-available result
-  //    (empty points) rather than a synthesized chart.
-  return NextResponse.json({
-    symbol,
-    points: [],
-    meta: {
-      price: 0,
-      change: 0,
-      changePct: 0,
-      currency: symbol.toUpperCase().endsWith(".NS") ? "INR" : "USD",
+  //    (empty points) rather than a synthesized chart. Cache briefly only.
+  return NextResponse.json(
+    {
+      symbol,
+      points: [],
+      meta: {
+        price: 0,
+        change: 0,
+        changePct: 0,
+        currency: symbol.toUpperCase().endsWith(".NS") ? "INR" : "USD",
+      },
+      live: false,
+      available: false,
     },
-    live: false,
-    available: false,
-  });
+    { headers: cacheHeaders(60, 120) }
+  );
 }

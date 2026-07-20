@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { yahooQuoteSummary } from "@/lib/yahooCrumb";
+import { jsonCached } from "@/lib/httpCache";
 
 export const dynamic = "force-dynamic";
 
@@ -55,7 +55,7 @@ export async function GET(
   } catch {
     /* fall through */
   }
-  if (!candidates.length) return NextResponse.json({ peers: [] });
+  if (!candidates.length) return jsonCached({ peers: [] }, 600);
 
   // 2) Base classification + candidate classifications (parallel, cached).
   const [base, ...infos] = await Promise.all([
@@ -81,5 +81,6 @@ export async function GET(
   }
 
   const peers = chosen.slice(0, 4).map((p) => p.symbol);
-  return NextResponse.json({ peers });
+  // Peer lists are very stable — cache an hour.
+  return jsonCached({ peers }, 3600, 7200);
 }

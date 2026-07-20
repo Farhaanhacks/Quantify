@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { getStooqSeries } from "@/lib/stooq";
 import { yahooQuotes } from "@/lib/yahooCrumb";
+import { cacheHeaders } from "@/lib/httpCache";
+
+// Live price — cache briefly (1 min) so watchlists/portfolios don't re-invoke
+// the function on every render, while staying fresh enough for a day-change.
+const QUOTE_CACHE = cacheHeaders(60, 180);
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +44,7 @@ export async function GET(
         changePct,
         currency: q.currency || (symbol.endsWith(".NS") ? "INR" : "USD"),
         name: q.name || symbol,
-      });
+      }, { headers: QUOTE_CACHE });
     }
   } catch (err) {
     console.error("[quote] authoritative quote failed:", err);
@@ -81,7 +86,7 @@ export async function GET(
             (typeof meta.shortName === "string" && meta.shortName) ||
             (typeof meta.longName === "string" && meta.longName) ||
             symbol,
-        });
+        }, { headers: QUOTE_CACHE });
       }
     }
   } catch (err) {
@@ -103,12 +108,12 @@ export async function GET(
         currency: symbol.endsWith(".NS") ? "INR" : "USD",
         name: symbol,
         source: "stooq",
-      });
+      }, { headers: QUOTE_CACHE });
     }
   } catch (err) {
     console.error("[quote] Stooq failed:", err);
   }
 
   // No live source had a quote — report it honestly rather than inventing one.
-  return NextResponse.json({ valid: false });
+  return NextResponse.json({ valid: false }, { headers: cacheHeaders(30, 60) });
 }
