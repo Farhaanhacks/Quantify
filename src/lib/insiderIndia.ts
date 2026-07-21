@@ -23,6 +23,7 @@ export interface IndiaDisclosure {
 }
 
 export interface IndiaDebug {
+  via: string; // "scraperapi" (proxy active) | "direct" (no key set)
   scrip: string | null;
   httpStatus: number | null;
   topLevelKeys: string[];
@@ -68,15 +69,35 @@ const pick = (o: Rec, ...keys: string[]): string => {
   return "";
 };
 
+// BSE blocks datacenter IPs (like Vercel's), so a live fetch from the server is
+// refused. When SCRAPER_API_KEY is set we route the request through ScraperAPI
+// from an Indian IP that BSE actually serves — same BSE endpoint and JSON, just
+// delivered from an un-blocked address. Without the key we fetch directly (which
+// works from a residential IP in dev, and degrades to the honest empty state in
+// prod). Set the key in Vercel to turn the feature on.
+export const usingProxy = (): boolean => !!process.env.SCRAPER_API_KEY;
+
+function proxied(url: string): string {
+  const key = process.env.SCRAPER_API_KEY;
+  if (!key) return url;
+  // country_code (geotargeting) is a PAID ScraperAPI feature — sending it on the
+  // free plan can fail the request. Off by default (free plan works fine, since
+  // ScraperAPI's default residential IPs usually get past BSE's datacenter
+  // block). Set SCRAPER_COUNTRY=in only if your plan includes geotargeting.
+  const country = process.env.SCRAPER_COUNTRY;
+  const geo = country ? `&country_code=${encodeURIComponent(country)}` : "";
+  return `https://api.scraperapi.com/?api_key=${key}${geo}&url=${encodeURIComponent(url)}`;
+}
+
 // Fetch JSON and report the HTTP status so a block (403/401/5xx) is visible.
 async function fetchStatus(
   url: string,
-  timeoutMs = 9000
+  timeoutMs = usingProxy() ? 25000 : 9000
 ): Promise<{ status: number | null; json: unknown }> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch(url, {
+    const res = await fetch(proxied(url), {
       headers: BSE_HEADERS,
       signal: ctrl.signal,
       next: { revalidate: 1800 },
@@ -127,6 +148,7 @@ export async function getIndiaInsiderWithDebug(
   limit = 20
 ): Promise<{ disclosures: IndiaDisclosure[]; debug: IndiaDebug }> {
   const debug: IndiaDebug = {
+    via: usingProxy() ? "scraperapi" : "direct",
     scrip: null,
     httpStatus: null,
     topLevelKeys: [],
