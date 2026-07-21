@@ -179,7 +179,7 @@ async function fetchNews(symbol: string): Promise<CompanyNews[]> {
 // Yahoo deprecated the quoteSummary statement modules (they return dates but
 // null values). The fundamentals-timeseries service is what actually serves
 // financial statements now.
-async function getYahooStatements(
+export async function getYahooStatements(
   symbol: string
 ): Promise<{ income: FinRow[]; balance: FinRow[]; cashflow: FinRow[] }> {
   const empty = { income: [], balance: [], cashflow: [] };
@@ -188,6 +188,7 @@ async function getYahooStatements(
       "annualTotalRevenue", "annualGrossProfit", "annualOperatingIncome", "annualNetIncome",
       "annualTotalAssets", "annualTotalLiabilitiesNetMinorityInterest", "annualStockholdersEquity",
       "annualCashAndCashEquivalents", "annualLongTermDebt",
+      "annualCurrentAssets", "annualCurrentLiabilities", "annualInventory",
       "annualOperatingCashFlow", "annualCapitalExpenditure", "annualFreeCashFlow",
     ];
     const now = Math.floor(Date.now() / 1000);
@@ -236,6 +237,8 @@ async function getYahooStatements(
         totalAssets: "annualTotalAssets", totalLiabilities: "annualTotalLiabilitiesNetMinorityInterest",
         totalEquity: "annualStockholdersEquity", cash: "annualCashAndCashEquivalents",
         longTermDebt: "annualLongTermDebt",
+        currentAssets: "annualCurrentAssets", currentLiabilities: "annualCurrentLiabilities",
+        inventory: "annualInventory",
       })),
       cashflow: dates.map((d) => pick(d, {
         operatingCashFlow: "annualOperatingCashFlow", capex: "annualCapitalExpenditure",
@@ -321,6 +324,52 @@ export async function getYahooCompany(input: string): Promise<CompanyData | null
   if (sharesOutstandingResolved == null && marketCapResolved != null && livePrice != null && livePrice > 0)
     sharesOutstandingResolved = marketCapResolved / livePrice;
 
+  // Yahoo's financialData module is frequently PARTIAL for Indian listings — it
+  // returned margins/EBITDA for Reliance but dropped current/quick ratio, ROE,
+  // ROA, operating & free cash flow, and the P/S & P/B ratios. Derive each from
+  // the financial statements (fetched above) or from figures we already have, so
+  // the Statistics tab isn't a wall of "n/a" for a company this size.
+  const bal0 = stmts.balance[0]?.values ?? {};
+  const cf0 = stmts.cashflow[0]?.values ?? {};
+  const inc0 = stmts.income[0]?.values ?? {};
+  const nonZero = (v: number | undefined): v is number => v != null && v !== 0;
+
+  const netIncomeVal2 = num(ks.netIncomeToCommon) ?? inc0.netIncome;
+  const revenueVal = num(fd.totalRevenue) ?? inc0.revenue;
+
+  const operatingCashflowResolved = num(fd.operatingCashflow) ?? cf0.operatingCashFlow;
+  const freeCashflowResolved =
+    num(fd.freeCashflow) ??
+    cf0.freeCashFlow ??
+    (cf0.operatingCashFlow != null && cf0.capex != null
+      ? cf0.operatingCashFlow + cf0.capex // capex is reported negative
+      : undefined);
+
+  const roeResolved =
+    num(fd.returnOnEquity) ??
+    (netIncomeVal2 != null && nonZero(bal0.totalEquity) ? netIncomeVal2 / bal0.totalEquity : undefined);
+  const roaResolved =
+    num(fd.returnOnAssets) ??
+    (netIncomeVal2 != null && nonZero(bal0.totalAssets) ? netIncomeVal2 / bal0.totalAssets : undefined);
+
+  const currentRatioResolved =
+    num(fd.currentRatio) ??
+    (bal0.currentAssets != null && nonZero(bal0.currentLiabilities)
+      ? bal0.currentAssets / bal0.currentLiabilities
+      : undefined);
+  const quickRatioResolved =
+    num(fd.quickRatio) ??
+    (bal0.currentAssets != null && nonZero(bal0.currentLiabilities)
+      ? (bal0.currentAssets - (bal0.inventory ?? 0)) / bal0.currentLiabilities
+      : undefined);
+
+  const priceToSalesResolved =
+    num(sd.priceToSalesTrailing12Months) ??
+    (marketCapResolved != null && nonZero(revenueVal) ? marketCapResolved / revenueVal : undefined);
+  const priceToBookResolved =
+    num(ks.priceToBook) ??
+    (marketCapResolved != null && nonZero(bal0.totalEquity) ? marketCapResolved / bal0.totalEquity : undefined);
+
   const data: CompanyData = {
     symbol,
     resolvedFrom,
@@ -351,8 +400,8 @@ export async function getYahooCompany(input: string): Promise<CompanyData | null
     sharesOutstanding: sharesOutstandingResolved,
     trailingPE: num(sd.trailingPE) ?? num(ks.trailingPE),
     forwardPE: num(sd.forwardPE) ?? num(ks.forwardPE),
-    priceToSales: num(sd.priceToSalesTrailing12Months),
-    priceToBook: num(ks.priceToBook),
+    priceToSales: priceToSalesResolved,
+    priceToBook: priceToBookResolved,
     pegRatio: num(ks.pegRatio),
     evToRevenue: num(ks.enterpriseToRevenue),
     evToEbitda: num(ks.enterpriseToEbitda),
@@ -366,15 +415,15 @@ export async function getYahooCompany(input: string): Promise<CompanyData | null
     grossMargin: num(fd.grossMargins),
     operatingMargin: num(fd.operatingMargins),
     profitMargin: num(fd.profitMargins),
-    currentRatio: num(fd.currentRatio),
-    quickRatio: num(fd.quickRatio),
+    currentRatio: currentRatioResolved,
+    quickRatio: quickRatioResolved,
     debtToEquity: num(fd.debtToEquity),
     totalCash: num(fd.totalCash),
     totalDebt: num(fd.totalDebt),
-    roe: num(fd.returnOnEquity),
-    roa: num(fd.returnOnAssets),
-    operatingCashflow: num(fd.operatingCashflow),
-    freeCashflow: num(fd.freeCashflow),
+    roe: roeResolved,
+    roa: roaResolved,
+    operatingCashflow: operatingCashflowResolved,
+    freeCashflow: freeCashflowResolved,
     dividendRate: num(sd.dividendRate),
     dividendYield: num(sd.dividendYield),
     payoutRatio: num(sd.payoutRatio),

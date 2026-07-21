@@ -25,6 +25,7 @@ export interface IndiaDisclosure {
 export interface IndiaDebug {
   via: string; // "scraperapi" (proxy active) | "direct" (no key set)
   premium: boolean; // residential proxies on (needed to beat BSE's datacenter block)
+  escalated: boolean; // auto-retried on ultra_premium after a block
   scrip: string | null;
   httpStatus: number | null;
   topLevelKeys: string[];
@@ -88,7 +89,7 @@ export const usingProxy = (): boolean => scraperKey().length > 0;
 export const usingPremium = (): boolean =>
   usingProxy() && process.env.SCRAPER_PREMIUM !== "0";
 
-function proxied(url: string): string {
+function proxied(url: string, opts?: { ultra?: boolean }): string {
   const key = scraperKey();
   if (!key) return url;
   const p = new URLSearchParams({ api_key: key, url });
@@ -100,10 +101,13 @@ function proxied(url: string): string {
   // BSE blocks datacenter IPs, which is ScraperAPI's DEFAULT proxy pool.
   // Residential ("premium") proxies are the documented way past that block, so
   // this is ON by default. Set SCRAPER_PREMIUM=0 to fall back to datacenter (and
-  // save credits) only if you've confirmed BSE serves it. SCRAPER_ULTRA=1
-  // escalates to ultra_premium for the most aggressively-blocked runs.
+  // save credits) only if you've confirmed BSE serves it.
   if (process.env.SCRAPER_PREMIUM !== "0") p.set("premium", "true");
-  if (process.env.SCRAPER_ULTRA === "1") p.set("ultra_premium", "true");
+  // ultra_premium is the toughest (and priciest) tier. We DON'T send it on every
+  // call — instead we auto-escalate to it (opts.ultra) only after a normal
+  // premium call is actually blocked, so credits are spent only when needed.
+  // SCRAPER_ULTRA=1 forces it on always.
+  if (opts?.ultra || process.env.SCRAPER_ULTRA === "1") p.set("ultra_premium", "true");
   // country_code (geotargeting) is a paid add-on — only send it if your plan
   // includes it. SCRAPER_COUNTRY=in pins to Indian exit IPs.
   const country = process.env.SCRAPER_COUNTRY;
@@ -117,12 +121,13 @@ function proxied(url: string): string {
 // apart from a plan limit, from the live ?debug=1 URL, without more round trips.
 async function fetchStatus(
   url: string,
-  timeoutMs = usingProxy() ? 20000 : 9000
+  timeoutMs = usingProxy() ? 18000 : 9000,
+  opts?: { ultra?: boolean }
 ): Promise<{ status: number | null; json: unknown; bodySnippet?: string }> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch(proxied(url), {
+    const res = await fetch(proxied(url, opts), {
       headers: BSE_HEADERS,
       signal: ctrl.signal,
       next: { revalidate: 1800 },
@@ -181,6 +186,7 @@ export async function getIndiaInsiderWithDebug(
   const debug: IndiaDebug = {
     via: usingProxy() ? "scraperapi" : "direct",
     premium: usingPremium(),
+    escalated: false,
     scrip: null,
     httpStatus: null,
     topLevelKeys: [],
@@ -210,9 +216,31 @@ export async function getIndiaInsiderWithDebug(
       `https://api.bseindia.com/BseIndiaAPI/api/AnnGetData/w?pageno=${page}&strCat=-1` +
       `&strPrevDate=${ymd(from)}&strScrip=${scrip}&strSearch=P&strToDate=${ymd(to)}&strType=C`;
 
-    const results = await Promise.all(
+    let results = await Promise.all(
       Array.from({ length: PAGES }, (_, i) => fetchStatus(pageUrl(i + 1)))
     );
+
+    // Auto-escalate to ultra_premium ONLY on a genuine block signal (no response,
+    // or an upstream 4xx/5xx on page 1) — not merely "no insider rows", which is a
+    // legitimate empty result. This spends the pricier tier only when the normal
+    // premium proxy was actually refused, then serves from it. Skipped if the key
+    // is missing or ultra is already forced on for every call.
+    const blocked = (r: { status: number | null }) =>
+      r.status == null || r.status >= 400;
+    if (
+      usingProxy() &&
+      process.env.SCRAPER_ULTRA !== "1" &&
+      blocked(results[0])
+    ) {
+      debug.escalated = true;
+      const retry = await Promise.all(
+        Array.from({ length: PAGES }, (_, i) =>
+          fetchStatus(pageUrl(i + 1), undefined, { ultra: true })
+        )
+      );
+      // Keep the retry only if it actually did better (got a response back).
+      if (!blocked(retry[0])) results = retry;
+    }
 
     // Diagnostics come from page 1's response so ?debug=1 reflects the real call.
     const first = results[0];

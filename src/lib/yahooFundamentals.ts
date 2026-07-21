@@ -5,6 +5,7 @@ import type {
   ScoreAxisKey,
 } from "@/data/demo";
 import { yahooQuoteSummary, resolveYahooSymbol, yahooQuotes } from "@/lib/yahooCrumb";
+import { getYahooStatements } from "@/lib/yahooCompany";
 import { knownFund } from "@/data/knownFunds";
 
 // Builds a Quantifi Score from Yahoo Finance fundamentals (keyless, personal
@@ -393,6 +394,28 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
     if (ocf != null) {
       ocfSeries.push(ocf);
       fcfSeries.push(capex != null ? ocf + capex : ocf);
+    }
+  }
+  // Yahoo's cashflowStatementHistory MODULE is deprecated (dates, null values) for
+  // many names — notably Indian listings like Reliance — so the loop above comes
+  // back empty and the DCF has nothing to value. Fall back to the fundamentals-
+  // TIMESERIES service (the one that actually serves statements now), oldest →
+  // newest, so a large cash-generative company still gets a cash-flow value.
+  if (ocfSeries.length === 0) {
+    try {
+      const ts = await getYahooStatements(symbol);
+      for (let i = ts.cashflow.length - 1; i >= 0; i--) {
+        const v = ts.cashflow[i]?.values ?? {};
+        const ocf = v.operatingCashFlow;
+        const capex = v.capex; // reported negative
+        const fcf = v.freeCashFlow;
+        if (ocf != null) {
+          ocfSeries.push(ocf);
+          fcfSeries.push(fcf != null ? fcf : capex != null ? ocf + capex : ocf);
+        }
+      }
+    } catch {
+      /* leave empty → DCF simply won't publish, which is the honest fallback */
     }
   }
   // Growth signal: operating-cash-flow CAGR (steadier than FCF), then FCF CAGR,

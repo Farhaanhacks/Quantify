@@ -3,11 +3,12 @@ import { getIndiaInsiderWithDebug } from "@/lib/insiderIndia";
 import { jsonCached } from "@/lib/httpCache";
 
 export const dynamic = "force-dynamic";
-// The Indian path proxies BSE through ScraperAPI (residential proxies, slow).
-// The default serverless budget can kill that cold call mid-flight — which left
-// the UI stuck on "Loading…" and, because the request never finished, nothing
-// was ever cached so every load retried from cold. Give it real headroom.
-export const maxDuration = 40;
+// The Indian path proxies BSE through ScraperAPI (residential proxies, slow) and
+// may auto-escalate to a second ultra_premium pass on a block. The default
+// serverless budget can kill that mid-flight — which left the UI stuck on
+// "Loading…" and, because the request never finished, nothing was ever cached so
+// every load retried from cold. Give it headroom for both passes.
+export const maxDuration = 60;
 
 export async function GET(req: Request, { params }: { params: { ticker: string } }) {
   const ticker = params.ticker;
@@ -17,15 +18,19 @@ export async function GET(req: Request, { params }: { params: { ticker: string }
   if (/\.(NS|BO)$/i.test(ticker)) {
     try {
       const { disclosures, debug } = await getIndiaInsiderWithDebug(ticker, 20);
+      const hit = disclosures.length > 0;
+      // Cache a HIT for 15 min (BSE disclosures change slowly). Cache a MISS only
+      // briefly (2 min) so a transient BSE block clears fast instead of freezing
+      // "no data" on the page for a full 15 minutes.
       return jsonCached(
         {
-          available: disclosures.length > 0,
+          available: hit,
           market: "IN",
           disclosures,
           ...(wantDebug ? { debug } : {}),
         },
-        900,
-        1800
+        hit ? 900 : 120,
+        hit ? 1800 : 240
       );
     } catch {
       return jsonCached({ available: false, market: "IN", disclosures: [] }, 60);
