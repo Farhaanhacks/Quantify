@@ -222,6 +222,42 @@ export default function CompanySnapshot({
     </GlassCard>
   ) : null;
 
+  // When we can't publish a trustworthy DCF (loss-making, cash-burning, or a
+  // capital-heavy business whose real free cash flow — operating cash flow minus
+  // ALL capex — is lumpy or negative), we deliberately DON'T invent one: a wrong
+  // intrinsic value is worse than none. But render an honest explanation in that
+  // slot rather than a blank, and point to the two lenses we DO show.
+  const cashflowUnavailableCard = cf ? null : (
+    <GlassCard className="mt-4 p-5 sm:p-6">
+      <div className="text-[0.7rem] uppercase tracking-[0.16em] text-slate-500">
+        Share price vs future cash flow value
+      </div>
+      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-400">
+        A trailing cash-flow (DCF) value isn&apos;t shown for {a.ticker}. This
+        model values off <span className="text-slate-300">real free cash flow</span>{" "}
+        (operating cash flow minus <span className="text-slate-300">all</span>{" "}
+        capital spending), and for capital-heavy businesses that reinvest
+        aggressively — or for names that don&apos;t yet convert to positive free
+        cash flow — that figure is lumpy or negative, so a trailing DCF would be
+        misleading rather than useful.
+      </p>
+      <p className="mt-2 max-w-2xl text-[0.7rem] leading-relaxed text-slate-500">
+        For this company the{" "}
+        {sv ? (
+          <>
+            <span className="text-slate-400">sector valuation ({sv.metricLabel})</span>{" "}
+            and the analyst target
+          </>
+        ) : (
+          <>analyst mean target</>
+        )}{" "}
+        {sv ? "carry" : "carries"} the valuation view instead — shown{" "}
+        {featureCashflow ? "below" : "above"}. We show nothing here rather than
+        publish a number we don&apos;t trust.
+      </p>
+    </GlassCard>
+  );
+
   const sectorCard = sv ? (
     <GlassCard className="mt-4 p-5 sm:p-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -424,7 +460,7 @@ export default function CompanySnapshot({
         <>
           {analystCard}
           {sectorCard}
-          {cashflowCard}
+          {cashflowCard ?? cashflowUnavailableCard}
         </>
       )}
 

@@ -46,7 +46,13 @@ async function yahooSeries(symbol: string, range: string) {
 
   const m = result.meta ?? {};
   const price = m.regularMarketPrice ?? points[points.length - 1].value;
-  const prev = m.chartPreviousClose ?? m.previousClose ?? points[points.length - 2]?.value ?? price;
+  // Use Yahoo's OWN previous close (yesterday's session) for the day change.
+  // chartPreviousClose is the close at the START of the requested range window,
+  // so on a 1y/5y range it turns the whole-period return into a bogus "today"
+  // figure — the price badge now reads /api/quote instead, but keep this correct
+  // for any other consumer of this meta.
+  const prev =
+    m.previousClose ?? m.regularMarketPreviousClose ?? m.chartPreviousClose ?? price;
   return {
     symbol,
     points,

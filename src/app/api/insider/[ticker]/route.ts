@@ -3,6 +3,11 @@ import { getIndiaInsiderWithDebug } from "@/lib/insiderIndia";
 import { jsonCached } from "@/lib/httpCache";
 
 export const dynamic = "force-dynamic";
+// The Indian path proxies BSE through ScraperAPI (residential proxies, slow).
+// The default serverless budget can kill that cold call mid-flight — which left
+// the UI stuck on "Loading…" and, because the request never finished, nothing
+// was ever cached so every load retried from cold. Give it real headroom.
+export const maxDuration = 40;
 
 export async function GET(req: Request, { params }: { params: { ticker: string } }) {
   const ticker = params.ticker;

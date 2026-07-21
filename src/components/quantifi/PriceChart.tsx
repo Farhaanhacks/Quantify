@@ -34,6 +34,39 @@ export default function PriceChart({
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
+  // Price badge comes from the authoritative live quote (/api/quote) — the SAME
+  // source the valuation cards, watchlist and portfolio use — so the number and
+  // today's move always match the rest of the site (and your broker/Google). We
+  // deliberately do NOT read price/change from the timeseries meta: on a wide
+  // range that meta's "previous close" is the close at the START of the window,
+  // which turns the whole-period return into a bogus "today" figure.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(`/api/quote/${encodeURIComponent(symbol)}`);
+        const q = (await r.json()) as {
+          valid?: boolean;
+          price?: number;
+          changePct?: number;
+          currency?: string;
+        };
+        if (cancelled) return;
+        if (q.valid && typeof q.price === "number") {
+          setMeta({ price: q.price, changePct: q.changePct, currency: q.currency });
+          setLive(true);
+        } else {
+          setLive(false);
+        }
+      } catch {
+        if (!cancelled) setLive(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [symbol]);
+
   useEffect(() => {
     let chart: ReturnType<typeof createChart> | undefined;
     let ro: ResizeObserver | undefined;
@@ -49,9 +82,7 @@ export default function PriceChart({
         const data = await res.json();
         if (cancelled) return;
 
-        setMeta(data.meta ?? null);
-        setLive(Boolean(data.live));
-
+        // Chart LINE only — the price badge is driven by /api/quote above.
         const el = elRef.current;
         if (!el) return;
         el.innerHTML = "";

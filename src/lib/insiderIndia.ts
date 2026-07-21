@@ -24,12 +24,14 @@ export interface IndiaDisclosure {
 
 export interface IndiaDebug {
   via: string; // "scraperapi" (proxy active) | "direct" (no key set)
+  premium: boolean; // residential proxies on (needed to beat BSE's datacenter block)
   scrip: string | null;
   httpStatus: number | null;
   topLevelKeys: string[];
   rawCount: number;
   keptCount: number;
   sampleCategories: string[];
+  bodySnippet?: string; // first bytes of a non-OK response (key error vs BSE block vs timeout)
   note?: string;
 }
 
@@ -80,23 +82,43 @@ const pick = (o: Rec, ...keys: string[]): string => {
 const scraperKey = (): string => (process.env.SCRAPER_API_KEY || "").trim();
 export const usingProxy = (): boolean => scraperKey().length > 0;
 
+// True when residential ("premium") ScraperAPI proxies are in use — on by
+// default (see proxied()), since BSE blocks the datacenter IPs ScraperAPI uses
+// by default. Exposed for the debug payload.
+export const usingPremium = (): boolean =>
+  usingProxy() && process.env.SCRAPER_PREMIUM !== "0";
+
 function proxied(url: string): string {
   const key = scraperKey();
   if (!key) return url;
-  // country_code (geotargeting) is a PAID ScraperAPI feature — sending it on the
-  // free plan can fail the request. Off by default (free plan works fine, since
-  // ScraperAPI's default residential IPs usually get past BSE's datacenter
-  // block). Set SCRAPER_COUNTRY=in only if your plan includes geotargeting.
+  const p = new URLSearchParams({ api_key: key, url });
+  // CRITICAL: ScraperAPI DROPS all custom request headers unless keep_headers is
+  // set. BSE's JSON API refuses requests that don't carry its own Referer/Origin
+  // (returns 403/empty), so without this the call silently comes back empty even
+  // with a perfectly valid key — the single most likely cause of "no trades".
+  p.set("keep_headers", "true");
+  // BSE blocks datacenter IPs, which is ScraperAPI's DEFAULT proxy pool.
+  // Residential ("premium") proxies are the documented way past that block, so
+  // this is ON by default. Set SCRAPER_PREMIUM=0 to fall back to datacenter (and
+  // save credits) only if you've confirmed BSE serves it. SCRAPER_ULTRA=1
+  // escalates to ultra_premium for the most aggressively-blocked runs.
+  if (process.env.SCRAPER_PREMIUM !== "0") p.set("premium", "true");
+  if (process.env.SCRAPER_ULTRA === "1") p.set("ultra_premium", "true");
+  // country_code (geotargeting) is a paid add-on — only send it if your plan
+  // includes it. SCRAPER_COUNTRY=in pins to Indian exit IPs.
   const country = process.env.SCRAPER_COUNTRY;
-  const geo = country ? `&country_code=${encodeURIComponent(country)}` : "";
-  return `https://api.scraperapi.com/?api_key=${key}${geo}&url=${encodeURIComponent(url)}`;
+  if (country) p.set("country_code", country);
+  return `https://api.scraperapi.com/?${p.toString()}`;
 }
 
 // Fetch JSON and report the HTTP status so a block (403/401/5xx) is visible.
+// On a non-OK response we also keep a short body snippet — that's what tells a
+// ScraperAPI key error (401 "invalid api key") apart from a BSE block (403/upstream)
+// apart from a plan limit, from the live ?debug=1 URL, without more round trips.
 async function fetchStatus(
   url: string,
-  timeoutMs = usingProxy() ? 25000 : 9000
-): Promise<{ status: number | null; json: unknown }> {
+  timeoutMs = usingProxy() ? 20000 : 9000
+): Promise<{ status: number | null; json: unknown; bodySnippet?: string }> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
@@ -105,10 +127,14 @@ async function fetchStatus(
       signal: ctrl.signal,
       next: { revalidate: 1800 },
     });
-    if (!res.ok) return { status: res.status, json: null };
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      return { status: res.status, json: null, bodySnippet: body.slice(0, 200) };
+    }
     return { status: res.status, json: await res.json().catch(() => null) };
-  } catch {
-    return { status: null, json: null };
+  } catch (err) {
+    const aborted = err instanceof Error && err.name === "AbortError";
+    return { status: null, json: null, bodySnippet: aborted ? "timeout" : undefined };
   } finally {
     clearTimeout(timer);
   }
@@ -142,7 +168,9 @@ const ymd = (d: Date): string =>
   `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
 
 const isInsiderRow = (cat: string, sub: string): boolean =>
-  /insider|sast|prohibition of insider|reg(\.|ulation)?\s*7|pit\b|acquisition\/disposal/i.test(
+  // PIT Reg 7 (insider) and SAST Reg 29/30 (substantial acquisition) — the two
+  // categories BSE files promoter/designated-person dealings under.
+  /insider|\bsast\b|prohibition of insider|reg(\.|ulation)?\s*(7|29|30)\b|pit\b|acquisition\s*\/\s*disposal|substantial acqui/i.test(
     `${cat} ${sub}`
   );
 
@@ -152,6 +180,7 @@ export async function getIndiaInsiderWithDebug(
 ): Promise<{ disclosures: IndiaDisclosure[]; debug: IndiaDebug }> {
   const debug: IndiaDebug = {
     via: usingProxy() ? "scraperapi" : "direct",
+    premium: usingPremium(),
     scrip: null,
     httpStatus: null,
     topLevelKeys: [],
@@ -172,26 +201,35 @@ export async function getIndiaInsiderWithDebug(
     const out: IndiaDisclosure[] = [];
     const cats = new Set<string>();
 
-    // Walk a few pages of announcements (they're paged newest-first, so the
-    // insider filings may not be on page 1) until we have enough or run out.
-    for (let page = 1; page <= 4 && out.length < limit; page++) {
-      const url =
-        `https://api.bseindia.com/BseIndiaAPI/api/AnnGetData/w?pageno=${page}&strCat=-1` +
-        `&strPrevDate=${ymd(from)}&strScrip=${scrip}&strSearch=P&strToDate=${ymd(to)}&strType=C`;
-      const { status, json } = await fetchStatus(url);
-      if (page === 1) {
-        debug.httpStatus = status;
-        if (isRec(json)) debug.topLevelKeys = Object.keys(json);
-      }
-      const rows: unknown[] =
-        isRec(json) && Array.isArray(json.Table)
-          ? (json.Table as unknown[])
-          : Array.isArray(json)
-          ? (json as unknown[])
-          : [];
-      if (page === 1) debug.rawCount = rows.length;
-      if (rows.length === 0) break;
+    // Announcements are paged newest-first, so insider/SAST filings may not be on
+    // page 1. Fetch a few pages IN PARALLEL (not sequentially) — each proxied BSE
+    // call is slow, and four in series blew past the serverless time budget, which
+    // is what left the UI stuck on "Loading…". Parallel keeps wall time to ~one call.
+    const PAGES = 3;
+    const pageUrl = (page: number) =>
+      `https://api.bseindia.com/BseIndiaAPI/api/AnnGetData/w?pageno=${page}&strCat=-1` +
+      `&strPrevDate=${ymd(from)}&strScrip=${scrip}&strSearch=P&strToDate=${ymd(to)}&strType=C`;
 
+    const results = await Promise.all(
+      Array.from({ length: PAGES }, (_, i) => fetchStatus(pageUrl(i + 1)))
+    );
+
+    // Diagnostics come from page 1's response so ?debug=1 reflects the real call.
+    const first = results[0];
+    debug.httpStatus = first.status;
+    if (isRec(first.json)) debug.topLevelKeys = Object.keys(first.json);
+    if (first.bodySnippet) debug.bodySnippet = first.bodySnippet;
+
+    const rowsFor = (json: unknown): unknown[] =>
+      isRec(json) && Array.isArray(json.Table)
+        ? (json.Table as unknown[])
+        : Array.isArray(json)
+        ? (json as unknown[])
+        : [];
+    debug.rawCount = rowsFor(first.json).length;
+
+    for (let page = 0; page < results.length && out.length < limit; page++) {
+      const rows = rowsFor(results[page].json);
       for (const r of rows) {
         if (!isRec(r)) continue;
         const cat = pick(r, "CATEGORYNAME", "Category", "NEWSCATEGORYNAME", "News_Category");
@@ -206,7 +244,7 @@ export async function getIndiaInsiderWithDebug(
         const company = pick(r, "SLONGNAME", "Sname", "SNAME") || baseSymbol(ticker);
 
         out.push({
-          id: pick(r, "NEWSID", "NEWS_ID") || `${scrip}-${page}-${out.length}`,
+          id: pick(r, "NEWSID", "NEWS_ID") || `${scrip}-${page + 1}-${out.length}`,
           ticker: ticker.toUpperCase(),
           company,
           headline: sub || cat || "Insider / SAST disclosure",
@@ -223,7 +261,15 @@ export async function getIndiaInsiderWithDebug(
     debug.keptCount = out.length;
     debug.sampleCategories = Array.from(cats).slice(0, 12);
     if (out.length === 0 && debug.httpStatus == null)
-      debug.note = "BSE did not respond (blocked, or network unavailable from this host).";
+      debug.note =
+        debug.bodySnippet === "timeout"
+          ? "The proxied BSE request timed out — try SCRAPER_PREMIUM (on) or raise the route maxDuration."
+          : "BSE did not respond (blocked, or network unavailable from this host).";
+    else if (out.length === 0 && debug.httpStatus && debug.httpStatus >= 400)
+      debug.note =
+        `Upstream returned HTTP ${debug.httpStatus}. 401/403 with a ScraperAPI body ` +
+        `usually means an invalid key or a plan that can't reach BSE (need premium/residential); ` +
+        `a BSE 403 means the IP is still blocked. See bodySnippet.`;
     else if (out.length === 0 && debug.rawCount === 0)
       debug.note = `BSE responded (HTTP ${debug.httpStatus}) but returned no announcements for this scrip.`;
     else if (out.length === 0)

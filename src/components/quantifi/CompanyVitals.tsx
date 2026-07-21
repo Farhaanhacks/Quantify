@@ -217,10 +217,21 @@ export default function CompanyVitals({ symbol }: { symbol: string }) {
                 </li>
               ))}
             </ul>
+          ) : indian ? (
+            <p className="mt-3 text-sm text-slate-500">
+              Named mutual-fund &amp; ETF holders aren&apos;t published for Indian
+              listings by our data source. See the{" "}
+              <span className="text-slate-300">Shareholding</span> breakdown below
+              for the promoter / FII / DII / public split.
+            </p>
           ) : (
             <p className="mt-3 text-sm text-slate-500">No fund/ETF ownership disclosed for this name.</p>
           )}
-          <p className="mt-3 text-[0.65rem] text-slate-500">% of shares held, from public fund disclosures.</p>
+          <p className="mt-3 text-[0.65rem] text-slate-500">
+            {indian
+              ? "Aggregate ownership shown in the Shareholding section; named holders are US-coverage only."
+              : "% of shares held, from public fund disclosures."}
+          </p>
         </GlassCard>
       </div>
     </section>
