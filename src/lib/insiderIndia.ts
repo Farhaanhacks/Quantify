@@ -62,6 +62,7 @@ const BSE_SCRIP: Record<string, string> = {
 
 type Rec = Record<string, unknown>;
 const isRec = (v: unknown): v is Rec => typeof v === "object" && v !== null;
+const sleep = (ms: number): Promise<void> => new Promise((res) => setTimeout(res, ms));
 const asStr = (v: unknown): string =>
   typeof v === "string" ? v : typeof v === "number" ? String(v) : "";
 const pick = (o: Rec, ...keys: string[]): string => {
@@ -132,11 +133,29 @@ async function fetchStatus(
       signal: ctrl.signal,
       next: { revalidate: 1800 },
     });
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      return { status: res.status, json: null, bodySnippet: body.slice(0, 200) };
+    // Always read the body as TEXT first, then parse — so a 200 that isn't the
+    // JSON we expect (an HTML block page, a wrapped/double-encoded string, an
+    // error blob) is still visible via bodySnippet instead of silently becoming
+    // an empty result. ScraperAPI sometimes returns the target body JSON-encoded
+    // as a string, so we double-decode when the first parse yields a string.
+    const text = await res.text().catch(() => "");
+    if (!res.ok) return { status: res.status, json: null, bodySnippet: text.slice(0, 220) };
+
+    let json: unknown = null;
+    try {
+      json = JSON.parse(text);
+      if (typeof json === "string") json = JSON.parse(json);
+    } catch {
+      json = null;
     }
-    return { status: res.status, json: await res.json().catch(() => null) };
+    // Keep a snippet whenever we didn't get a usable object/array back — that's
+    // the case worth diagnosing (a 200 with rawCount 0 and no top-level keys).
+    const usable = json != null && typeof json === "object";
+    return {
+      status: res.status,
+      json,
+      bodySnippet: usable ? undefined : text.slice(0, 220) || "empty-body",
+    };
   } catch (err) {
     const aborted = err instanceof Error && err.name === "AbortError";
     return { status: null, json: null, bodySnippet: aborted ? "timeout" : undefined };
@@ -208,56 +227,56 @@ export async function getIndiaInsiderWithDebug(
     const cats = new Set<string>();
 
     // Announcements are paged newest-first, so insider/SAST filings may not be on
-    // page 1. Fetch a few pages IN PARALLEL (not sequentially) — each proxied BSE
-    // call is slow, and four in series blew past the serverless time budget, which
-    // is what left the UI stuck on "Loading…". Parallel keeps wall time to ~one call.
+    // page 1. Fetch pages SEQUENTIALLY — never more than one ScraperAPI request in
+    // flight at a time. Fetching them in parallel tripped ScraperAPI's per-plan
+    // CONCURRENCY cap (HTTP 429 "too many simultaneous requests"); one-at-a-time
+    // respects even a single-thread plan. We stop as soon as we have enough rows
+    // or hit an empty/blocked page.
     const PAGES = 3;
     const pageUrl = (page: number) =>
       `https://api.bseindia.com/BseIndiaAPI/api/AnnGetData/w?pageno=${page}&strCat=-1` +
       `&strPrevDate=${ymd(from)}&strScrip=${scrip}&strSearch=P&strToDate=${ymd(to)}&strType=C`;
 
-    let results = await Promise.all(
-      Array.from({ length: PAGES }, (_, i) => fetchStatus(pageUrl(i + 1)))
-    );
-
-    // Auto-escalate to ultra_premium ONLY on a genuine block signal (no response,
-    // or an upstream 4xx/5xx on page 1) — not merely "no insider rows", which is a
-    // legitimate empty result. This spends the pricier tier only when the normal
-    // premium proxy was actually refused, then serves from it. Skipped if the key
-    // is missing or ultra is already forced on for every call.
-    const blocked = (r: { status: number | null }) =>
-      r.status == null || r.status >= 400;
-    if (
-      usingProxy() &&
-      process.env.SCRAPER_ULTRA !== "1" &&
-      blocked(results[0])
-    ) {
-      debug.escalated = true;
-      const retry = await Promise.all(
-        Array.from({ length: PAGES }, (_, i) =>
-          fetchStatus(pageUrl(i + 1), undefined, { ultra: true })
-        )
-      );
-      // Keep the retry only if it actually did better (got a response back).
-      if (!blocked(retry[0])) results = retry;
-    }
-
-    // Diagnostics come from page 1's response so ?debug=1 reflects the real call.
-    const first = results[0];
-    debug.httpStatus = first.status;
-    if (isRec(first.json)) debug.topLevelKeys = Object.keys(first.json);
-    if (first.bodySnippet) debug.bodySnippet = first.bodySnippet;
-
+    const blocked = (r: { status: number | null }) => r.status == null || r.status >= 400;
     const rowsFor = (json: unknown): unknown[] =>
       isRec(json) && Array.isArray(json.Table)
         ? (json.Table as unknown[])
         : Array.isArray(json)
         ? (json as unknown[])
         : [];
-    debug.rawCount = rowsFor(first.json).length;
 
-    for (let page = 0; page < results.length && out.length < limit; page++) {
-      const rows = rowsFor(results[page].json);
+    // Fetch one page, with the RIGHT recovery per failure kind:
+    //   • 429 (ScraperAPI concurrency) → back off and retry the SAME request;
+    //     never fan out — more requests is exactly what caused the 429.
+    //   • hard block (403 / no response) on page 1 → one ultra_premium retry
+    //     (residential-heavy), which is about IPs, not concurrency.
+    const fetchPage = async (page: number, isFirst: boolean) => {
+      let r = await fetchStatus(pageUrl(page));
+      if (r.status === 429) {
+        await sleep(2500);
+        r = await fetchStatus(pageUrl(page));
+      } else if (isFirst && blocked(r) && usingProxy() && process.env.SCRAPER_ULTRA !== "1") {
+        debug.escalated = true;
+        const retry = await fetchStatus(pageUrl(page), undefined, { ultra: true });
+        if (!blocked(retry)) r = retry;
+      }
+      return r;
+    };
+
+    for (let page = 1; page <= PAGES && out.length < limit; page++) {
+      const res = await fetchPage(page, page === 1);
+      if (page === 1) {
+        // Diagnostics from page 1 so ?debug=1 reflects the real call.
+        debug.httpStatus = res.status;
+        if (isRec(res.json)) debug.topLevelKeys = Object.keys(res.json);
+        if (res.bodySnippet) debug.bodySnippet = res.bodySnippet;
+      }
+      const rows = rowsFor(res.json);
+      if (page === 1) debug.rawCount = rows.length;
+      // Empty or blocked page → later pages won't help; stop (also avoids more
+      // needless ScraperAPI calls).
+      if (rows.length === 0) break;
+
       for (const r of rows) {
         if (!isRec(r)) continue;
         const cat = pick(r, "CATEGORYNAME", "Category", "NEWSCATEGORYNAME", "News_Category");
@@ -272,7 +291,7 @@ export async function getIndiaInsiderWithDebug(
         const company = pick(r, "SLONGNAME", "Sname", "SNAME") || baseSymbol(ticker);
 
         out.push({
-          id: pick(r, "NEWSID", "NEWS_ID") || `${scrip}-${page + 1}-${out.length}`,
+          id: pick(r, "NEWSID", "NEWS_ID") || `${scrip}-${page}-${out.length}`,
           ticker: ticker.toUpperCase(),
           company,
           headline: sub || cat || "Insider / SAST disclosure",
@@ -293,13 +312,22 @@ export async function getIndiaInsiderWithDebug(
         debug.bodySnippet === "timeout"
           ? "The proxied BSE request timed out — try SCRAPER_PREMIUM (on) or raise the route maxDuration."
           : "BSE did not respond (blocked, or network unavailable from this host).";
+    else if (out.length === 0 && debug.httpStatus === 429)
+      debug.note =
+        `ScraperAPI 429 — your plan's CONCURRENT-request limit was hit (requests are now ` +
+        `sequential, so this usually means other traffic is using the same key at once, ` +
+        `or the free plan allows only 1 concurrent thread). Upgrade the plan's concurrency ` +
+        `or reduce simultaneous scans. See bodySnippet.`;
     else if (out.length === 0 && debug.httpStatus && debug.httpStatus >= 400)
       debug.note =
         `Upstream returned HTTP ${debug.httpStatus}. 401/403 with a ScraperAPI body ` +
         `usually means an invalid key or a plan that can't reach BSE (need premium/residential); ` +
         `a BSE 403 means the IP is still blocked. See bodySnippet.`;
     else if (out.length === 0 && debug.rawCount === 0)
-      debug.note = `BSE responded (HTTP ${debug.httpStatus}) but returned no announcements for this scrip.`;
+      debug.note =
+        debug.topLevelKeys.length === 0
+          ? `HTTP ${debug.httpStatus} but the body was NOT the expected BSE JSON (no "Table"). See bodySnippet: if it starts with "<" it's an HTML block/challenge page from the proxy; if it's JSON in a different shape, we'll adjust the parser.`
+          : `BSE responded (HTTP ${debug.httpStatus}) with keys [${debug.topLevelKeys.join(", ")}] but an empty Table — no announcements for this scrip in the window.`;
     else if (out.length === 0)
       debug.note = `BSE returned ${debug.rawCount} announcements but none were insider/SAST in the window.`;
     return { disclosures: out, debug };

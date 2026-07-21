@@ -223,7 +223,14 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
               </Group>
               <Group title="Analyst Forecast">
                 <Row label="Price Target" value={money(data.targetMean, cur)} />
-                <Row label="Consensus" value={data.recommendationKey ?? "n/a"} />
+                <Row
+                  label="Consensus"
+                  value={
+                    data.recommendationKey
+                      ? data.recommendationKey.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+                      : "n/a"
+                  }
+                />
                 <Row label="Analyst Count" value={data.numberOfAnalysts != null ? String(data.numberOfAnalysts) : "n/a"} />
                 <Row label="Revenue Growth" value={pct(data.revenueGrowth)} />
                 <Row label="Earnings Growth" value={pct(data.earningsGrowth)} />
