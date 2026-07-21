@@ -254,16 +254,16 @@ export async function getIndiaInsiderWithDebug(
         : [];
 
     // Fetch one URL, with the RIGHT recovery per failure kind:
-    //   • 429 (ScraperAPI concurrency) → back off and retry the SAME request;
-    //     never fan out — more requests is exactly what caused the 429.
-    //   • hard block (403 / no response) → one ultra_premium retry (residential-
-    //     heavy), which is about IPs, not concurrency.
+    //   • 429 (ScraperAPI concurrency) → back off and retry the SAME request once.
+    //   • 403 (a genuine IP block) → one ultra_premium retry (residential-heavy).
+    // A TIMEOUT (status null) is NOT a block — escalating to the slower ultra tier
+    // on a timeout is what blew the 60s budget, so we do NOT escalate on it.
     const fetchUrl = async (url: string, allowUltra: boolean) => {
       let r = await fetchStatus(url);
       if (r.status === 429) {
         await sleep(2500);
         r = await fetchStatus(url);
-      } else if (allowUltra && blocked(r) && usingProxy() && process.env.SCRAPER_ULTRA !== "1") {
+      } else if (allowUltra && r.status === 403 && usingProxy() && process.env.SCRAPER_ULTRA !== "1") {
         debug.escalated = true;
         const retry = await fetchStatus(url, undefined, { ultra: true });
         if (!blocked(retry)) r = retry;
@@ -326,6 +326,10 @@ export async function getIndiaInsiderWithDebug(
         debug.rawCount = rows.length;
         break;
       }
+      // If the proxy timed out or hard-failed, stop probing — more windows will
+      // just time out too and blow the function budget. BSE answering "No Record
+      // Found!" (status 200) is fast, so we DO keep trying other windows there.
+      if (r.status == null || r.status >= 500) break;
     }
 
     // 2) If a window worked, collect page 1 then walk further pages with it.
