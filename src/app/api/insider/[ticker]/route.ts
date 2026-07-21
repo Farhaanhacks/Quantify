@@ -16,8 +16,9 @@ export async function GET(req: Request, { params }: { params: { ticker: string }
   const wantDebug = new URL(req.url).searchParams.get("debug") === "1";
 
   // Indian listings (.NS / .BO). PRIMARY: NSE's structured insider-trading API
-  // (acquirer, shares, value, buy/sell — screener.in-style). FALLBACK: BSE's
-  // headline insider/SAST announcements. US → SEC Form 4.
+  // (acquirer, shares, value, buy/sell — screener.in-style, with a retry across
+  // fresh cookie sessions). FALLBACK: BSE's headline insider/SAST announcements.
+  // US → SEC Form 4.
   if (/\.(NS|BO)$/i.test(ticker)) {
     try {
       // 1) NSE first — the richer, structured source.
