@@ -33,6 +33,7 @@ export interface IndiaDebug {
   keptCount: number;
   sampleCategories: string[];
   bodySnippet?: string; // first bytes of a non-OK response (key error vs BSE block vs timeout)
+  bseUrl?: string; // exact BSE URL requested (open it directly from an Indian IP to ground-truth params)
   note?: string;
 }
 
@@ -222,20 +223,27 @@ export async function getIndiaInsiderWithDebug(
     }
 
     const to = new Date();
-    const from = new Date(Date.now() - 400 * 24 * 60 * 60 * 1000);
     const out: IndiaDisclosure[] = [];
     const cats = new Set<string>();
 
-    // Announcements are paged newest-first, so insider/SAST filings may not be on
-    // page 1. Fetch pages SEQUENTIALLY — never more than one ScraperAPI request in
-    // flight at a time. Fetching them in parallel tripped ScraperAPI's per-plan
-    // CONCURRENCY cap (HTTP 429 "too many simultaneous requests"); one-at-a-time
-    // respects even a single-thread plan. We stop as soon as we have enough rows
-    // or hit an empty/blocked page.
+    // BSE's AnnGetData answers "No Record Found!" for date windows it doesn't like
+    // (an over-wide range is the usual culprit). Rather than hard-code one window
+    // and hope, TRY a few — widest first — and adopt whichever actually returns
+    // rows. BSE_WINDOW_DAYS forces a single window if you've confirmed one.
+    const forced = Number(process.env.BSE_WINDOW_DAYS) || 0;
+    const windows = forced > 0 ? [forced] : [180, 90, 30, 7];
+
     const PAGES = 3;
-    const pageUrl = (page: number) =>
-      `https://api.bseindia.com/BseIndiaAPI/api/AnnGetData/w?pageno=${page}&strCat=-1` +
-      `&strPrevDate=${ymd(from)}&strScrip=${scrip}&strSearch=P&strToDate=${ymd(to)}&strType=C`;
+    const pageUrlFor = (page: number, days: number) => {
+      const from = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      return (
+        `https://api.bseindia.com/BseIndiaAPI/api/AnnGetData/w?pageno=${page}&strCat=-1` +
+        `&strPrevDate=${ymd(from)}&strScrip=${scrip}&strSearch=P&strToDate=${ymd(to)}&strType=C`
+      );
+    };
+    // Echo the widest URL up front so it's always available to open from an Indian
+    // IP for ground truth; overwritten with the winning window if one is found.
+    debug.bseUrl = pageUrlFor(1, windows[0]);
 
     const blocked = (r: { status: number | null }) => r.status == null || r.status >= 400;
     const rowsFor = (json: unknown): unknown[] =>
@@ -245,38 +253,26 @@ export async function getIndiaInsiderWithDebug(
         ? (json as unknown[])
         : [];
 
-    // Fetch one page, with the RIGHT recovery per failure kind:
+    // Fetch one URL, with the RIGHT recovery per failure kind:
     //   • 429 (ScraperAPI concurrency) → back off and retry the SAME request;
     //     never fan out — more requests is exactly what caused the 429.
-    //   • hard block (403 / no response) on page 1 → one ultra_premium retry
-    //     (residential-heavy), which is about IPs, not concurrency.
-    const fetchPage = async (page: number, isFirst: boolean) => {
-      let r = await fetchStatus(pageUrl(page));
+    //   • hard block (403 / no response) → one ultra_premium retry (residential-
+    //     heavy), which is about IPs, not concurrency.
+    const fetchUrl = async (url: string, allowUltra: boolean) => {
+      let r = await fetchStatus(url);
       if (r.status === 429) {
         await sleep(2500);
-        r = await fetchStatus(pageUrl(page));
-      } else if (isFirst && blocked(r) && usingProxy() && process.env.SCRAPER_ULTRA !== "1") {
+        r = await fetchStatus(url);
+      } else if (allowUltra && blocked(r) && usingProxy() && process.env.SCRAPER_ULTRA !== "1") {
         debug.escalated = true;
-        const retry = await fetchStatus(pageUrl(page), undefined, { ultra: true });
+        const retry = await fetchStatus(url, undefined, { ultra: true });
         if (!blocked(retry)) r = retry;
       }
       return r;
     };
 
-    for (let page = 1; page <= PAGES && out.length < limit; page++) {
-      const res = await fetchPage(page, page === 1);
-      if (page === 1) {
-        // Diagnostics from page 1 so ?debug=1 reflects the real call.
-        debug.httpStatus = res.status;
-        if (isRec(res.json)) debug.topLevelKeys = Object.keys(res.json);
-        if (res.bodySnippet) debug.bodySnippet = res.bodySnippet;
-      }
-      const rows = rowsFor(res.json);
-      if (page === 1) debug.rawCount = rows.length;
-      // Empty or blocked page → later pages won't help; stop (also avoids more
-      // needless ScraperAPI calls).
-      if (rows.length === 0) break;
-
+    // Pull insider/SAST rows out of one page's rows into `out`.
+    const collect = (rows: unknown[], page: number) => {
       for (const r of rows) {
         if (!isRec(r)) continue;
         const cat = pick(r, "CATEGORYNAME", "Category", "NEWSCATEGORYNAME", "News_Category");
@@ -303,6 +299,44 @@ export async function getIndiaInsiderWithDebug(
         });
         if (out.length >= limit) break;
       }
+    };
+
+    // 1) Probe windows (page 1) until one returns rows. Record diagnostics from
+    //    the FIRST physical attempt so ?debug=1 always reflects a real call.
+    let chosenDays = 0;
+    let page1Rows: unknown[] = [];
+    let firstCaptured = false;
+    for (const days of windows) {
+      const r = await fetchUrl(pageUrlFor(1, days), !firstCaptured);
+      if (!firstCaptured) {
+        firstCaptured = true;
+        debug.httpStatus = r.status;
+        debug.topLevelKeys = isRec(r.json) ? Object.keys(r.json) : [];
+        if (r.bodySnippet) debug.bodySnippet = r.bodySnippet;
+        debug.rawCount = rowsFor(r.json).length;
+      }
+      const rows = rowsFor(r.json);
+      if (rows.length > 0) {
+        chosenDays = days;
+        page1Rows = rows;
+        debug.bseUrl = pageUrlFor(1, days);
+        debug.httpStatus = r.status;
+        debug.topLevelKeys = isRec(r.json) ? Object.keys(r.json) : [];
+        debug.bodySnippet = r.bodySnippet;
+        debug.rawCount = rows.length;
+        break;
+      }
+    }
+
+    // 2) If a window worked, collect page 1 then walk further pages with it.
+    if (chosenDays > 0) {
+      collect(page1Rows, 1);
+      for (let page = 2; page <= PAGES && out.length < limit; page++) {
+        const r = await fetchUrl(pageUrlFor(page, chosenDays), false);
+        const rows = rowsFor(r.json);
+        if (rows.length === 0) break;
+        collect(rows, page);
+      }
     }
 
     debug.keptCount = out.length;
@@ -323,11 +357,21 @@ export async function getIndiaInsiderWithDebug(
         `Upstream returned HTTP ${debug.httpStatus}. 401/403 with a ScraperAPI body ` +
         `usually means an invalid key or a plan that can't reach BSE (need premium/residential); ` +
         `a BSE 403 means the IP is still blocked. See bodySnippet.`;
+    else if (out.length === 0 && /no record found/i.test(debug.bodySnippet ?? ""))
+      debug.note =
+        `PROXY WORKS — this is BSE's own "No Record Found!", not a block: the key, IP and scrip ` +
+        `all resolve and BSE answers. We already tried multiple date windows (180/90/30/7d) and ` +
+        `all came back empty, so it's a PARAMETER, not the window. Fastest fix: on bseindia.com/` +
+        `corporates/ann.html filter for this company, open DevTools ▸ Network, and copy the ` +
+        `AnnGetData request URL that returns data — that gives the exact params to match. ` +
+        `(debug.bseUrl is the URL we send.)`;
+    else if (out.length === 0 && debug.topLevelKeys.length === 0)
+      debug.note =
+        `HTTP ${debug.httpStatus} but the body was NOT the expected BSE JSON (no "Table"). See bodySnippet: ` +
+        `if it starts with "<" it's an HTML block/challenge page from the proxy; if it's JSON in a different shape, we'll adjust the parser.`;
     else if (out.length === 0 && debug.rawCount === 0)
       debug.note =
-        debug.topLevelKeys.length === 0
-          ? `HTTP ${debug.httpStatus} but the body was NOT the expected BSE JSON (no "Table"). See bodySnippet: if it starts with "<" it's an HTML block/challenge page from the proxy; if it's JSON in a different shape, we'll adjust the parser.`
-          : `BSE responded (HTTP ${debug.httpStatus}) with keys [${debug.topLevelKeys.join(", ")}] but an empty Table — no announcements for this scrip in the window.`;
+        `BSE responded (HTTP ${debug.httpStatus}) with keys [${debug.topLevelKeys.join(", ")}] but an empty Table — no announcements for this scrip in the window.`;
     else if (out.length === 0)
       debug.note = `BSE returned ${debug.rawCount} announcements but none were insider/SAST in the window.`;
     return { disclosures: out, debug };
