@@ -413,11 +413,39 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   // multi-year history. A base that isn't positive means a trailing DCF is not
   // meaningful for this company — handled by the eligibility gate below.
   const medFcf = median(fcfSeries.filter((v) => v > 0));
+  // Operating-cash-flow base, used as a fallback when real free cash flow is
+  // lumpy or negative. A capital-heavy business that reinvests aggressively (e.g.
+  // Reliance) still throws off large OPERATING cash flow even when free cash flow
+  // is temporarily negative, so valuing off OCF lets a genuinely cash-generative
+  // company show a cash-flow value instead of a blank.
+  const medOcf = median(ocfSeries.filter((v) => v > 0));
+  const ocfTTM =
+    num(fd.operatingCashflow) ??
+    (ocfSeries.length ? ocfSeries[ocfSeries.length - 1] : undefined);
   let baseCashflow: number | undefined;
+  let baseIsOcf = false;
   if (medFcf != null && medFcf > 0) baseCashflow = medFcf;
   else if (fcfTTM != null && fcfTTM > 0) baseCashflow = fcfTTM;
-  else baseCashflow = undefined;
-  const sharesOutstanding = num(ks.sharesOutstanding) ?? num(pr.sharesOutstanding);
+  else if (medOcf != null && medOcf > 0) {
+    baseCashflow = medOcf;
+    baseIsOcf = true;
+  } else if (ocfTTM != null && ocfTTM > 0) {
+    baseCashflow = ocfTTM;
+    baseIsOcf = true;
+  } else baseCashflow = undefined;
+  // Share count: Yahoo omits sharesOutstanding for some listings (notably several
+  // Indian names, which also blanks their Market Cap). Derive it from net income
+  // ÷ EPS, or market cap ÷ price, so per-share maths (and the DCF) still work.
+  const sharesOutstanding =
+    num(ks.sharesOutstanding) ??
+    num(pr.sharesOutstanding) ??
+    (() => {
+      const ni = num(ks.netIncomeToCommon);
+      const te = num(ks.trailingEps);
+      if (ni != null && te != null && te > 0) return ni / te;
+      if (marketCap != null && price != null && price > 0) return marketCap / price;
+      return undefined;
+    })();
   const name = str(pr.longName) ?? str(pr.shortName) ?? symbol.toUpperCase();
 
   // No company fundamentals (e.g. ETF/index) → score doesn't apply. A fund can
@@ -523,36 +551,25 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   // "the trailing-cash-flow trap": it prints a misleadingly high or negative
   // number. Showing nothing — and leaning on the analyst lens — is far safer
   // than publishing a wrong valuation.
-  const fcfPositive = fcfTTM != null && fcfTTM > 0;
-  const throughCyclePositive = medFcf != null && medFcf > 0;
-  const profitable = profitMargins != null && profitMargins > 0;
-  // A trailing DCF is meaningful for a currently-profitable company that
-  // generates cash through the cycle. We require profitability plus a positive
-  // cash-flow base — either a positive through-cycle median (preferred) OR, when
-  // there's no multi-year history, a positive TTM figure. We deliberately DON'T
-  // insist the very latest TTM year be positive when a healthy multi-year median
-  // exists, so a single working-capital-driven dip doesn't erase the estimate for
-  // an otherwise cash-generative name (common for lumpy EPC/construction names
-  // like AGX). Loss-making / cash-burning names still get no DCF — there the
-  // sector lens (EV/Sales) carries the second view.
-  const dcfEligible =
-    profitable && baseCashflow != null && baseCashflow > 0 && (throughCyclePositive || fcfPositive);
-  const cfRaw = dcfEligible ? dcfPerShare(baseCashflow, sharesOutstanding, cashflowGrowth) : undefined;
-  // Plausibility guard. We keep only the checks that catch genuine DATA ARTEFACTS
-  // — not the old lower floors that were suppressing legitimate-but-low estimates
-  // and leaving users with the analyst target alone. A trailing DCF that lands
-  // well BELOW the price is NOT an error: for a richly-valued name (say a P/E-60
-  // compounder) it's the honest, conservative read, and revealing that gap is the
-  // whole point of showing a second lens. So we drop the ≥0.33× price and
-  // ≥0.4× target floors and keep: currency consistency, a tiny near-zero floor,
-  // and an upper cap that guards the "trailing-cash-flow trap" (overstated cash
-  // generation for capital-heavy names). The wrong-security price cross-check
-  // above already handles data collisions.
+  // Compute the cash-flow value whenever we can do it honestly: a positive
+  // cash-flow base (real free cash flow, or operating cash flow for reinvestment-
+  // heavy names) and a known share count, in a consistent currency. We no longer
+  // gate on GAAP profitability or a positive FCF — a cash-generative company
+  // should always surface a cash-flow value. A true cash-burner (no positive
+  // operating cash flow at all) still can't produce one, and the honest fallback
+  // note covers that rare case.
+  const dcfComputable =
+    baseCashflow != null && baseCashflow > 0 && sharesOutstanding != null && sharesOutstanding > 0;
+  const cfRaw = dcfComputable ? dcfPerShare(baseCashflow, sharesOutstanding, cashflowGrowth) : undefined;
+  // Sanity band only — reject clearly-broken data (e.g. a unit mismatch that
+  // slips past the currency check), NOT to second-guess a legitimate low/high
+  // estimate. Kept wide so a genuine value is essentially always shown.
   const cfPerShare =
     cfRaw != null &&
     currencyOk &&
-    cfRaw >= price * 0.05 &&
-    cfRaw <= price * 3
+    cfRaw > 0 &&
+    cfRaw >= price * 0.02 &&
+    cfRaw <= price * 25
       ? cfRaw
       : undefined;
 
@@ -591,7 +608,9 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
       cfPerShare != null
         ? {
             estimate: cfPerShare,
-            note: "A discounted-cash-flow estimate built from the company's REAL trailing free cash flow (through-cycle median), grown at its own historical rate fading to a sustainable pace and discounted back. Shown only for currently-profitable, cash-generative companies — where trailing cash flows are meaningful; suppressed for loss-making or cash-burning names. Model-based, not advice.",
+            note: baseIsOcf
+              ? "A discounted-cash-flow estimate built from the company's trailing OPERATING cash flow (through-cycle median), grown at its own historical rate fading to a sustainable pace and discounted back. Operating cash flow is used here because this is a capital-heavy business whose free cash flow (after heavy reinvestment) is lumpy or negative — so it reads before that reinvestment. Model-based, not advice."
+              : "A discounted-cash-flow estimate built from the company's REAL trailing free cash flow (through-cycle median), grown at its own historical rate fading to a sustainable pace and discounted back. Model-based, not advice.",
           }
         : undefined,
     sectorValuation,

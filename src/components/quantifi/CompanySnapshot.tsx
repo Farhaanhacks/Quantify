@@ -233,13 +233,12 @@ export default function CompanySnapshot({
         Share price vs future cash flow value
       </div>
       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-400">
-        A trailing cash-flow (DCF) value isn&apos;t shown for {a.ticker}. This
-        model values off <span className="text-slate-300">real free cash flow</span>{" "}
-        (operating cash flow minus <span className="text-slate-300">all</span>{" "}
-        capital spending), and for capital-heavy businesses that reinvest
-        aggressively — or for names that don&apos;t yet convert to positive free
-        cash flow — that figure is lumpy or negative, so a trailing DCF would be
-        misleading rather than useful.
+        A cash-flow value isn&apos;t available for {a.ticker} yet. This company
+        doesn&apos;t currently generate positive{" "}
+        <span className="text-slate-300">operating cash flow</span>, so a
+        cash-flow valuation would be negative or meaningless rather than useful —
+        common for early-stage or heavy-investment names still scaling toward
+        cash generation.
       </p>
       <p className="mt-2 max-w-2xl text-[0.7rem] leading-relaxed text-slate-500">
         For this company the{" "}

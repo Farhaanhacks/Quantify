@@ -304,6 +304,23 @@ export async function getYahooCompany(input: string): Promise<CompanyData | null
 
   const stmts = await getYahooStatements(symbol);
 
+  // Yahoo omits marketCap / sharesOutstanding for some listings (notably several
+  // Indian names), which showed "n/a" even though the pieces to derive them are
+  // present. Shares ≈ net income ÷ EPS (or market cap ÷ price); market cap ≈
+  // price × shares. Derived only when the source values are missing.
+  const livePrice = num(pr.regularMarketPrice) ?? num(fd.currentPrice);
+  const netIncomeVal = num(ks.netIncomeToCommon);
+  const epsVal = num(ks.trailingEps);
+  let sharesOutstandingResolved = num(ks.sharesOutstanding);
+  if (sharesOutstandingResolved == null && netIncomeVal != null && epsVal != null && epsVal > 0)
+    sharesOutstandingResolved = netIncomeVal / epsVal;
+  let marketCapResolved = num(sd.marketCap) ?? num(pr.marketCap);
+  if (marketCapResolved == null && livePrice != null && sharesOutstandingResolved != null)
+    marketCapResolved = livePrice * sharesOutstandingResolved;
+  // Backfill shares from a known market cap when EPS wasn't available either.
+  if (sharesOutstandingResolved == null && marketCapResolved != null && livePrice != null && livePrice > 0)
+    sharesOutstandingResolved = marketCapResolved / livePrice;
+
   const data: CompanyData = {
     symbol,
     resolvedFrom,
@@ -314,7 +331,10 @@ export async function getYahooCompany(input: string): Promise<CompanyData | null
     website: str(ap.website),
     employees: num(ap.fullTimeEmployees),
     currency: str(pr.currency) ?? str(sd.currency),
-    price: num(fd.currentPrice) ?? num(pr.regularMarketPrice),
+    // Prefer the live quote (regularMarketPrice) over financialData.currentPrice,
+    // which is a fundamentals-module snapshot that lags during market hours and
+    // made this header disagree with the live chart/quote by a rupee or two.
+    price: num(pr.regularMarketPrice) ?? num(fd.currentPrice),
     open: num(pr.regularMarketOpen) ?? num(sd.open),
     previousClose: num(sd.previousClose) ?? num(pr.regularMarketPreviousClose),
     dayLow: num(sd.dayLow) ?? num(pr.regularMarketDayLow),
@@ -326,9 +346,9 @@ export async function getYahooCompany(input: string): Promise<CompanyData | null
     volume: num(sd.volume) ?? num(pr.regularMarketVolume),
     avgVolume: num(sd.averageVolume),
     beta: num(sd.beta) ?? num(ks.beta),
-    marketCap: num(sd.marketCap) ?? num(pr.marketCap),
+    marketCap: marketCapResolved,
     enterpriseValue: num(ks.enterpriseValue),
-    sharesOutstanding: num(ks.sharesOutstanding),
+    sharesOutstanding: sharesOutstandingResolved,
     trailingPE: num(sd.trailingPE) ?? num(ks.trailingPE),
     forwardPE: num(sd.forwardPE) ?? num(ks.forwardPE),
     priceToSales: num(sd.priceToSalesTrailing12Months),
