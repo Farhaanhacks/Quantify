@@ -1,0 +1,181 @@
+// NSE structured insider trading (SEBI PIT Regulation 7) — richer than BSE's
+// headline-only announcements. NSE's corporate-insider-trading endpoint returns
+// per-transaction rows: the acquirer, their category (Promoter / Designated
+// Person…), the security type, the NUMBER of securities acquired/disposed, the
+// value, and the transaction type (Buy/Sell) — the same shape screener.in shows.
+//
+// Like BSE, NSE blocks datacenter IPs and additionally gates its API behind a
+// cookie handshake (you must load a page first so NSE sets cookies, then call the
+// API with them). We route through ScraperAPI with a stable session_number so the
+// warm-up request's cookies carry into the API request. Everything is defensive:
+// any failure yields an empty list (+ a debug reason) and the caller falls back to
+// the BSE path — never fabricated data.
+
+import type { IndiaDisclosure } from "@/lib/insiderIndia";
+
+export interface NSEDebug {
+  source: "nse";
+  symbol: string;
+  httpStatus: number | null;
+  rawCount: number;
+  keptCount: number;
+  snippet?: string;
+  note?: string;
+}
+
+const NSE_HEADERS: Record<string, string> = {
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  Accept: "application/json, text/plain, */*",
+  "Accept-Language": "en-US,en;q=0.9",
+  Referer: "https://www.nseindia.com/companies-listing/corporate-filings-insider-trading",
+};
+
+type Rec = Record<string, unknown>;
+const isRec = (v: unknown): v is Rec => typeof v === "object" && v !== null;
+const str = (v: unknown): string =>
+  typeof v === "string" ? v.trim() : typeof v === "number" ? String(v) : "";
+
+const scraperKey = (): string => (process.env.SCRAPER_API_KEY || "").trim();
+const usingProxy = (): boolean => scraperKey().length > 0;
+
+// ScraperAPI wrapper. session_number keeps cookies across the warm-up + API call
+// (NSE won't serve the API without the cookies its pages set). Same premium/ultra
+// knobs as the BSE path.
+function proxied(url: string, session?: number): string {
+  const key = scraperKey();
+  if (!key) return url;
+  const p = new URLSearchParams({ api_key: key, url });
+  p.set("keep_headers", "true");
+  if (process.env.SCRAPER_PREMIUM !== "0") p.set("premium", "true");
+  if (process.env.SCRAPER_ULTRA === "1") p.set("ultra_premium", "true");
+  if (session != null) p.set("session_number", String(session));
+  const country = process.env.SCRAPER_COUNTRY;
+  if (country) p.set("country_code", country);
+  return `https://api.scraperapi.com/?${p.toString()}`;
+}
+
+async function nseFetch(
+  url: string,
+  session: number,
+  timeoutMs = usingProxy() ? 16000 : 8000
+): Promise<{ status: number | null; json: unknown; snippet?: string }> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(proxied(url, session), {
+      headers: NSE_HEADERS,
+      signal: ctrl.signal,
+      next: { revalidate: 1800 },
+    });
+    const text = await res.text().catch(() => "");
+    if (!res.ok) return { status: res.status, json: null, snippet: text.slice(0, 200) };
+    let json: unknown = null;
+    try {
+      json = JSON.parse(text);
+      if (typeof json === "string") json = JSON.parse(json);
+    } catch {
+      json = null;
+    }
+    const usable = json != null && typeof json === "object";
+    return { status: res.status, json, snippet: usable ? undefined : text.slice(0, 200) || "empty-body" };
+  } catch (err) {
+    const aborted = err instanceof Error && err.name === "AbortError";
+    return { status: null, json: null, snippet: aborted ? "timeout" : undefined };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const nseSymbol = (ticker: string): string =>
+  ticker.toUpperCase().replace(/\.(NS|BO)$/i, "").trim();
+
+// NSE dates come as "05-Jul-2026 15:30:00" or ISO — normalise to YYYY-MM-DD.
+function normDate(s: string): string {
+  const t = Date.parse(s);
+  if (isFinite(t)) return new Date(t).toISOString().slice(0, 10);
+  const m = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : s.slice(0, 10);
+}
+
+export async function getNSEInsiderWithDebug(
+  ticker: string,
+  limit = 20
+): Promise<{ disclosures: IndiaDisclosure[]; debug: NSEDebug }> {
+  const symbol = nseSymbol(ticker);
+  const debug: NSEDebug = { source: "nse", symbol, httpStatus: null, rawCount: 0, keptCount: 0 };
+  // A stable per-request session so the warm-up cookies reach the API call.
+  const session = Math.floor(Math.random() * 900000) + 100000;
+  try {
+    // 1) Warm up: load the quote page so NSE issues its cookies into this session.
+    //    Best-effort — ignore the result, we just want the Set-Cookie.
+    await nseFetch(
+      `https://www.nseindia.com/get-quotes/equity?symbol=${encodeURIComponent(symbol)}`,
+      session
+    ).catch(() => undefined);
+
+    // 2) The structured insider-trading API.
+    const apiUrl = `https://www.nseindia.com/api/corporate-insider-trading?index=equities&symbol=${encodeURIComponent(
+      symbol
+    )}`;
+    const { status, json, snippet } = await nseFetch(apiUrl, session);
+    debug.httpStatus = status;
+    if (snippet) debug.snippet = snippet;
+
+    const data: unknown[] = isRec(json) && Array.isArray(json.data) ? (json.data as unknown[]) : [];
+    debug.rawCount = data.length;
+
+    const out: IndiaDisclosure[] = [];
+    for (const row of data) {
+      if (!isRec(row)) continue;
+      const acq = str(row.acqName);
+      const cat = str(row.personCategory);
+      const tx = str(row.tdpTransactionType) || str(row.acqMode);
+      const secType = str(row.secType) || "shares";
+      const secAcq = str(row.secAcq);
+      const secVal = str(row.secVal);
+      const date = normDate(
+        str(row.date) || str(row.anexDate) || str(row.acqfromDt) || str(row.besdate)
+      );
+      // Build a human headline that carries the real numbers, e.g.
+      // "Nandan M. Nilekani · Promoter · Buy · 6,400 Equity Shares · ₹1,20,00,000".
+      const parts = [
+        acq,
+        cat,
+        tx,
+        secAcq ? `${secAcq} ${secType}` : "",
+        secVal ? `₹${secVal}` : "",
+      ].filter(Boolean);
+      const headline = parts.join(" · ") || "Insider / SAST disclosure";
+      const xbrl = str(row.xbrl);
+
+      out.push({
+        id: `nse-${symbol}-${out.length}`,
+        ticker: ticker.toUpperCase(),
+        company: str(row.company) || symbol,
+        headline,
+        category: cat || "Insider Trading (PIT Reg 7)",
+        date,
+        url: /^https?:\/\//.test(xbrl) ? xbrl : undefined,
+      });
+      if (out.length >= limit) break;
+    }
+
+    debug.keptCount = out.length;
+    if (out.length === 0) {
+      if (status == null)
+        debug.note =
+          snippet === "timeout"
+            ? "NSE request timed out through the proxy."
+            : "NSE did not respond (blocked or network error).";
+      else if (status >= 400)
+        debug.note = `NSE returned HTTP ${status} (needs the cookie handshake or a residential IP). See snippet.`;
+      else if (data.length === 0)
+        debug.note = `NSE responded (HTTP ${status}) but had no insider rows for ${symbol}.`;
+    }
+    return { disclosures: out, debug };
+  } catch (err) {
+    debug.note = `error: ${err instanceof Error ? err.message : "unknown"}`;
+    return { disclosures: [], debug };
+  }
+}

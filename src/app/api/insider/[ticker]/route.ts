@@ -1,5 +1,6 @@
 import { getCompanyInsiderTrades } from "@/lib/insider";
 import { getIndiaInsiderWithDebug } from "@/lib/insiderIndia";
+import { getNSEInsiderWithDebug } from "@/lib/insiderIndiaNSE";
 import { jsonCached } from "@/lib/httpCache";
 
 export const dynamic = "force-dynamic";
@@ -14,20 +15,41 @@ export async function GET(req: Request, { params }: { params: { ticker: string }
   const ticker = params.ticker;
   const wantDebug = new URL(req.url).searchParams.get("debug") === "1";
 
-  // Indian listings (.NS / .BO) → BSE insider/SAST disclosures. US → SEC Form 4.
+  // Indian listings (.NS / .BO). PRIMARY: NSE's structured insider-trading API
+  // (acquirer, shares, value, buy/sell — screener.in-style). FALLBACK: BSE's
+  // headline insider/SAST announcements. US → SEC Form 4.
   if (/\.(NS|BO)$/i.test(ticker)) {
     try {
+      // 1) NSE first — the richer, structured source.
+      const nse = await getNSEInsiderWithDebug(ticker, 20);
+      if (nse.disclosures.length > 0) {
+        return jsonCached(
+          {
+            available: true,
+            market: "IN",
+            source: "nse",
+            disclosures: nse.disclosures,
+            ...(wantDebug ? { debug: nse.debug } : {}),
+          },
+          900,
+          1800
+        );
+      }
+
+      // 2) Fall back to BSE announcements.
       const { disclosures, debug } = await getIndiaInsiderWithDebug(ticker, 20);
       const hit = disclosures.length > 0;
-      // Cache a HIT for 15 min (BSE disclosures change slowly). Cache a MISS only
-      // briefly (2 min) so a transient BSE block clears fast instead of freezing
+      // Cache a HIT for 15 min (disclosures change slowly). Cache a MISS only
+      // briefly (2 min) so a transient block clears fast instead of freezing
       // "no data" on the page for a full 15 minutes.
       return jsonCached(
         {
           available: hit,
           market: "IN",
+          source: hit ? "bse" : "none",
           disclosures,
-          ...(wantDebug ? { debug } : {}),
+          // On a miss, surface BOTH sources' debug so we can see why each failed.
+          ...(wantDebug ? { debug: { nse: nse.debug, bse: debug } } : {}),
         },
         hit ? 900 : 120,
         hit ? 1800 : 240
