@@ -90,6 +90,10 @@ async function nseFetch(
 const nseSymbol = (ticker: string): string =>
   ticker.toUpperCase().replace(/\.(NS|BO)$/i, "").trim();
 
+// NSE's PIT API wants dates as DD-MM-YYYY.
+const ddmmyyyy = (d: Date): string =>
+  `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`;
+
 // NSE dates come as "05-Jul-2026 15:30:00" or ISO — normalise to YYYY-MM-DD.
 function normDate(s: string): string {
   const t = Date.parse(s);
@@ -107,17 +111,21 @@ export async function getNSEInsiderWithDebug(
   // A stable per-request session so the warm-up cookies reach the API call.
   const session = Math.floor(Math.random() * 900000) + 100000;
   try {
-    // 1) Warm up: load the quote page so NSE issues its cookies into this session.
-    //    Best-effort — ignore the result, we just want the Set-Cookie.
+    // 1) Warm up: load the insider-filings page so NSE issues its cookies into
+    //    this session. Best-effort — we just want the Set-Cookie.
     await nseFetch(
-      `https://www.nseindia.com/get-quotes/equity?symbol=${encodeURIComponent(symbol)}`,
+      "https://www.nseindia.com/companies-listing/corporate-filings-insider-trading",
       session
     ).catch(() => undefined);
 
-    // 2) The structured insider-trading API.
-    const apiUrl = `https://www.nseindia.com/api/corporate-insider-trading?index=equities&symbol=${encodeURIComponent(
-      symbol
-    )}`;
+    // 2) The structured PIT (Prohibition of Insider Trading) API. Endpoint is
+    //    "corporates-pit" (NOT "corporate-insider-trading", which 404s), and it
+    //    takes a DD-MM-YYYY date range.
+    const toD = new Date();
+    const fromD = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
+    const apiUrl =
+      `https://www.nseindia.com/api/corporates-pit?index=equities&symbol=${encodeURIComponent(symbol)}` +
+      `&from_date=${ddmmyyyy(fromD)}&to_date=${ddmmyyyy(toD)}`;
     const { status, json, snippet } = await nseFetch(apiUrl, session);
     debug.httpStatus = status;
     if (snippet) debug.snippet = snippet;
