@@ -75,10 +75,13 @@ const pick = (o: Rec, ...keys: string[]): string => {
 // delivered from an un-blocked address. Without the key we fetch directly (which
 // works from a residential IP in dev, and degrades to the honest empty state in
 // prod). Set the key in Vercel to turn the feature on.
-export const usingProxy = (): boolean => !!process.env.SCRAPER_API_KEY;
+// Trim defensively — a trailing space/newline pasted into the Vercel env var is
+// the most common cause of a ScraperAPI 401 (invalid-key) response.
+const scraperKey = (): string => (process.env.SCRAPER_API_KEY || "").trim();
+export const usingProxy = (): boolean => scraperKey().length > 0;
 
 function proxied(url: string): string {
-  const key = process.env.SCRAPER_API_KEY;
+  const key = scraperKey();
   if (!key) return url;
   // country_code (geotargeting) is a PAID ScraperAPI feature — sending it on the
   // free plan can fail the request. Off by default (free plan works fine, since

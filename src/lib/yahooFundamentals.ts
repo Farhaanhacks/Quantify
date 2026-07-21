@@ -358,7 +358,11 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   const totalDebt = num(fd.totalDebt);
   const divYield = num(sd.dividendYield); // fraction
   const payout = num(sd.payoutRatio); // fraction
-  const price = num(fd.currentPrice) ?? num(pr.regularMarketPrice);
+  // Prefer the live quote (regularMarketPrice) over financialData.currentPrice —
+  // the latter is a fundamentals-module snapshot that lags during market hours,
+  // which made the "current price" on the valuation cards disagree with the live
+  // chart. Fall back to currentPrice only when the quote field is missing.
+  const price = num(pr.regularMarketPrice) ?? num(fd.currentPrice);
   const target = num(fd.targetMeanPrice);
   const targetHigh = num(fd.targetHighPrice);
   const targetLow = num(fd.targetLowPrice);

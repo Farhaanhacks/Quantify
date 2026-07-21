@@ -16,8 +16,9 @@ export async function GET(
   try {
     const y = await getYahooScore(symbol);
     if (y) {
-      // Cache a real score at the edge for 5 min (fundamentals barely move
-      // intraday) so the scanner's fan-out and repeat page views don't re-run.
+      // Cache at the edge for 90s — long enough to absorb the scanner's fan-out
+      // and quick reloads, short enough that the current price stays close to the
+      // live market during trading hours.
       return jsonCached(
         {
           available: true,
@@ -36,8 +37,8 @@ export async function GET(
           priceToSales: y.priceToSales,
           trailingPE: y.trailingPE,
         },
-        300,
-        900
+        90,
+        300
       );
     }
 

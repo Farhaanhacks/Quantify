@@ -9,6 +9,30 @@ const UA =
 const str = (x: unknown): string | undefined =>
   typeof x === "string" && x.length ? x : undefined;
 
+// Curated peer overrides. Yahoo's "people also watch" feed is unreliable for
+// newly-listed and Indian names (it returns 0–1 loosely-related tickers — e.g.
+// Meesho → only Swiggy), so for these we hand-pick the real competitors. Keyed
+// by the exact symbol; the generic Yahoo path still handles everything else.
+// Extend this map as needed — it's the correctness lever for headline names.
+const PEER_OVERRIDES: Record<string, string[]> = {
+  // Indian new-age consumer-internet / e-commerce / marketplaces
+  "MEESHO.NS": ["ETERNAL.NS", "NYKAA.NS", "SWIGGY.NS", "PAYTM.NS"],
+  "SWIGGY.NS": ["ETERNAL.NS", "NYKAA.NS", "MEESHO.NS", "PAYTM.NS"],
+  "NYKAA.NS": ["ETERNAL.NS", "TRENT.NS", "MEESHO.NS", "SWIGGY.NS"],
+  "ETERNAL.NS": ["SWIGGY.NS", "NYKAA.NS", "MEESHO.NS", "PAYTM.NS"], // Zomato → Eternal Ltd
+  "ZOMATO.NS": ["SWIGGY.NS", "NYKAA.NS", "MEESHO.NS", "PAYTM.NS"],
+  "PAYTM.NS": ["POLICYBZR.NS", "NYKAA.NS", "ETERNAL.NS", "MEESHO.NS"],
+  "POLICYBZR.NS": ["PAYTM.NS", "NYKAA.NS", "ETERNAL.NS"],
+  "NAUKRI.NS": ["ETERNAL.NS", "PAYTM.NS", "NYKAA.NS"], // Info Edge
+};
+
+function overrideFor(symbol: string): string[] | null {
+  const bare = symbol.replace(/\.(NS|BO)$/i, "");
+  const list = PEER_OVERRIDES[symbol] || PEER_OVERRIDES[`${bare}.NS`] || PEER_OVERRIDES[bare];
+  if (!list) return null;
+  return list.filter((s) => s.toUpperCase() !== symbol.toUpperCase()).slice(0, 4);
+}
+
 interface PeerInfo {
   symbol: string;
   sector?: string;
@@ -33,6 +57,11 @@ export async function GET(
   { params }: { params: { symbol: string } }
 ) {
   const symbol = params.symbol.toUpperCase();
+
+  // 0) Curated override wins — hand-picked real competitors for names where
+  //    Yahoo's peer feed is unreliable (e.g. Meesho).
+  const override = overrideFor(symbol);
+  if (override && override.length) return jsonCached({ peers: override }, 3600, 7200);
 
   // 1) Candidate symbols.
   let candidates: string[] = [];
