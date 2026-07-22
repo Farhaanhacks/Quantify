@@ -158,7 +158,7 @@ function WatchRow({ ticker, onRemove }: { ticker: string; onRemove: () => void }
         >
           {row?.scores ? (
             <span
-              className="relative flex h-16 w-16 flex-none items-center justify-center rounded-xl border border-gold/30 bg-gold/[0.08] shadow-[0_0_20px_-6px_rgba(233,184,114,0.55)] transition group-hover:border-gold/60"
+              className="relative flex h-16 w-16 flex-none items-center justify-center rounded-xl border border-gold/30 bg-gold/[0.08] shadow-[0_0_20px_-6px_rgba(79, 147, 247,0.55)] transition group-hover:border-gold/60"
               title="Quantifi Score snowflake"
             >
               <ScoreRadar

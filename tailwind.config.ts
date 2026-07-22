@@ -14,12 +14,21 @@ const config: Config = {
           700: "#111726",
           600: "#1A2234",
         },
-        // Signature warm gold accent (used sparingly)
+        // Signature accent — cool electric blue on the deep-ink base (replaces the
+        // old golden-brown). Token stays named `gold` so every existing
+        // text-gold / bg-gold / from-gold-400 utility picks up the new hue.
         gold: {
-          DEFAULT: "#E9B872",
-          400: "#F2CD8E",
-          500: "#E9B872",
-          600: "#C9962F",
+          DEFAULT: "#4F93F7",
+          400: "#7FB2FB",
+          500: "#4F93F7",
+          600: "#2E6FE0",
+        },
+        // Explicit brand-blue alias for new code that shouldn't say "gold".
+        brand: {
+          DEFAULT: "#4F93F7",
+          400: "#7FB2FB",
+          500: "#4F93F7",
+          600: "#2E6FE0",
         },
         // Secondary "data" accent
         teal: {
@@ -41,7 +50,7 @@ const config: Config = {
         "3xl": "1.5rem",
       },
       boxShadow: {
-        glow: "0 0 0 1px rgba(233,184,114,0.18), 0 18px 60px -18px rgba(233,184,114,0.30)",
+        glow: "0 0 0 1px rgba(79,147,247,0.18), 0 18px 60px -18px rgba(79,147,247,0.30)",
         panel: "0 24px 80px -32px rgba(0,0,0,0.85)",
       },
       backgroundImage: {

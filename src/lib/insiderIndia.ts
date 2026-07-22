@@ -48,7 +48,7 @@ const BSE_HEADERS: Record<string, string> = {
 
 // Stable BSE scrip codes for common large-caps, so the most-searched names work
 // even when BSE's search endpoint blocks our IP. Public, fixed identifiers.
-const BSE_SCRIP: Record<string, string> = {
+export const BSE_SCRIP: Record<string, string> = {
   RELIANCE: "500325", TCS: "532540", HDFCBANK: "500180", INFY: "500209",
   ICICIBANK: "532174", HINDUNILVR: "500696", SBIN: "500112", BHARTIARTL: "532454",
   ITC: "500875", KOTAKBANK: "500247", LT: "500510", BAJFINANCE: "500034",

@@ -292,7 +292,7 @@ export function Donut({
 export function BarMeter({
   label,
   value,
-  color = "#E9B872",
+  color = "#4F93F7",
   suffix = "%",
 }: {
   label: string;
@@ -391,7 +391,7 @@ export function ScoreRadar({
     <svg viewBox={`-52 -8 ${size + 104} ${size + 16}`} width="100%" height="100%" role="img" aria-label="Quantifi Score radar">
       <defs>
         <linearGradient id="radarFill" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#E9B872" stopOpacity="0.45" />
+          <stop offset="0%" stopColor="#4F93F7" stopOpacity="0.45" />
           <stop offset="100%" stopColor="#4FD1C5" stopOpacity="0.30" />
         </linearGradient>
       </defs>
@@ -408,10 +408,10 @@ export function ScoreRadar({
         const [x, y] = point(i, r);
         return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />;
       })}
-      <polygon points={shape} fill="url(#radarFill)" stroke="#E9B872" strokeWidth="1.5" />
+      <polygon points={shape} fill="url(#radarFill)" stroke="#4F93F7" strokeWidth="1.5" />
       {values.map((v, i) => {
         const [x, y] = point(i, (Math.max(0, Math.min(max, v)) / max) * r);
-        return <circle key={i} cx={x} cy={y} r="2.5" fill="#F2CD8E" />;
+        return <circle key={i} cx={x} cy={y} r="2.5" fill="#7FB2FB" />;
       })}
       {labels.map((label, i) => {
         const [x, y] = point(i, r + 16);

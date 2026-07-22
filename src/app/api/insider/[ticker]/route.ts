@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 // serverless budget can kill that mid-flight — which left the UI stuck on
 // "Loading…" and, because the request never finished, nothing was ever cached so
 // every load retried from cold. Give it headroom for both passes.
-export const maxDuration = 60;
+export const maxDuration = 110;
 
 export async function GET(req: Request, { params }: { params: { ticker: string } }) {
   const ticker = aliasSymbol(params.ticker);

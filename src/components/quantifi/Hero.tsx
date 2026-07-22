@@ -28,10 +28,10 @@ export default function Hero() {
 
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
-              href="/ideas"
+              href="/stock-analysis"
               className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-gold-400 to-gold-600 px-6 py-3 text-sm font-semibold text-ink transition hover:opacity-90"
             >
-              Explore Ideas
+              Analyse Stocks
               <span aria-hidden>→</span>
             </Link>
             <Link

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import AuthButton from "@/components/quantifi/AuthButton";
 import ThemeToggle from "@/components/quantifi/ThemeToggle";
@@ -13,15 +13,40 @@ const links = [
   { href: "/news", label: "News Impact" },
   { href: "/ideas", label: "Ideas" },
   { href: "/rare-finds", label: "Rare Finds" },
-  { href: "/insider-activity", label: "Insider Activity" },
-  { href: "/explore", label: "Explore" },
   { href: "/screener", label: "Screener" },
-  { href: "/stock-analysis", label: "Stock Analysis" },
   { href: "/portfolio", label: "Portfolio" },
   { href: "/tools", label: "Tools" },
   { href: "/watchlist", label: "Watchlist" },
-  { href: "/pricing", label: "Pricing" },
+  { href: "/pricing", label: "Subscribe" },
 ];
+
+// Search a company/ticker → lands on the same Stock Analysis page as before.
+function SearchBox({ onGo, className = "" }: { onGo?: () => void; className?: string }) {
+  const router = useRouter();
+  const [q, setQ] = useState("");
+  const go = () => {
+    const term = q.trim();
+    if (!term) return;
+    router.push(`/stock-analysis?symbol=${encodeURIComponent(term.toUpperCase())}`);
+    onGo?.();
+  };
+  return (
+    <div className={`flex items-center rounded-full border border-white/10 bg-white/[0.04] px-2.5 ${className}`}>
+      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 flex-none text-slate-500" fill="none" stroke="currentColor" strokeWidth="2">
+        <circle cx="11" cy="11" r="7" />
+        <path d="m21 21-4.3-4.3" strokeLinecap="round" />
+      </svg>
+      <input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && go()}
+        placeholder="Search a stock or ticker…"
+        aria-label="Search a stock or ticker"
+        className="w-full bg-transparent px-2 py-1.5 text-[0.72rem] text-white placeholder:text-slate-500 outline-none"
+      />
+    </div>
+  );
+}
 
 function BrandMark() {
   return (
@@ -60,6 +85,7 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-2">
+          <SearchBox className="hidden w-52 md:flex" />
           <ThemeToggle />
           <NotificationBell />
           <AuthButton />
@@ -77,6 +103,7 @@ export default function Navbar() {
 
       {open ? (
         <div className="border-t border-white/[0.06] bg-ink/95 px-4 pb-4 pt-2 xl:hidden">
+          <SearchBox className="mb-2" onGo={() => setOpen(false)} />
           <div className="grid grid-cols-2 gap-1">
             {links.map((l) => (
               <Link

@@ -13,7 +13,7 @@ import type { ScoreAxisKey } from "@/data/demo";
 
 const AXIS_COLORS: Record<ScoreAxisKey, string> = {
   value: "#4FD1C5",
-  growth: "#E9B872",
+  growth: "#4F93F7",
   past: "#818CF8",
   health: "#34D399",
   dividends: "#F472B6",

@@ -12,7 +12,7 @@ import type { EtfData } from "@/lib/yahooEtf";
 
 function axisColor(score: number): string {
   if (score >= 5) return "#34D399";
-  if (score >= 3) return "#E9B872";
+  if (score >= 3) return "#4F93F7";
   return "#FB7185";
 }
 
@@ -55,7 +55,7 @@ export default function EtfSnapshot({
   // Allocation (stock / bond / cash) — only render bars we actually have.
   const alloc = [
     { label: "Stocks", value: etf.stockPosition, color: "#4FD1C5" },
-    { label: "Bonds", value: etf.bondPosition, color: "#E9B872" },
+    { label: "Bonds", value: etf.bondPosition, color: "#4F93F7" },
     { label: "Cash", value: etf.cashPosition, color: "#94A3B8" },
   ].filter((a) => typeof a.value === "number" && a.value! > 0);
 

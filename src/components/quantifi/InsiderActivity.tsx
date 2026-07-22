@@ -87,6 +87,7 @@ export default function InsiderActivity({
   const [trades, setTrades] = useState<ApiTrade[] | null>(null);
   const [disclosures, setDisclosures] = useState<ApiDisclosure[]>([]);
   const [market, setMarket] = useState<"US" | "IN">("US");
+  const [exchange, setExchange] = useState<"NSE" | "BSE">("NSE");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [filter, setFilter] = useState<Filter>("All");
@@ -111,12 +112,15 @@ export default function InsiderActivity({
         const d = (await r.json()) as {
           available?: boolean;
           market?: "US" | "IN";
+          source?: string;
           trades?: ApiTrade[];
           disclosures?: ApiDisclosure[];
         };
         if (cancelled) return;
         if (d.market === "IN") {
           setMarket("IN");
+          // "store"/"nse" → NSE; "bse" → BSE. Default NSE (the primary source now).
+          setExchange(d.source === "bse" ? "BSE" : "NSE");
           setDisclosures(d.available && Array.isArray(d.disclosures) ? d.disclosures : []);
           setTrades([]);
         } else {
@@ -166,6 +170,12 @@ export default function InsiderActivity({
     return limit ? out.slice(0, limit) : out;
   }, [source, filter, limit]);
 
+  // When embedded on a stock page (a fixed `ticker`), don't render an empty
+  // Insider Activity section at all once the fetch has resolved with nothing —
+  // a blank "no disclosures" card just looks broken. The standalone page (no
+  // fixed ticker, has its own search UI) always renders.
+  if (ticker && !loading && !live && !liveIN) return null;
+
   const filters: Filter[] = ["All", "Buys", "Sells", "Planned"];
 
   return (
@@ -176,7 +186,7 @@ export default function InsiderActivity({
           title={activeTicker ? `Insider trades · ${activeTicker}` : "Who is buying and selling"}
           subtitle={
             isIndia
-              ? "Insider / SAST disclosures filed with BSE — promoters, directors and designated persons under SEBI (PIT) Regulation 7. Official filings shown as disclosed; never a signal on its own. Beta."
+              ? `Insider / SAST disclosures filed with ${exchange} — promoters, directors and designated persons under SEBI (PIT) Regulation 7. Official filings shown as disclosed; never a signal on its own. Beta.`
               : "Real Form 4 filings from SEC EDGAR — directors and officers, with a 10b5-1 flag when the trade was pre-arranged. Disclosed after the fact; never a signal on its own."
           }
           href={ticker ? undefined : "/insider-activity"}
@@ -228,7 +238,7 @@ export default function InsiderActivity({
             ? "Loading…"
             : isIndia
             ? liveIN
-              ? "Live · BSE · Beta"
+              ? `Live · ${exchange} · Beta`
               : error
               ? "Unavailable"
               : "No disclosures"
@@ -281,7 +291,7 @@ export default function InsiderActivity({
                       rel="noopener noreferrer"
                       className="mt-1 inline-block text-[0.7rem] text-gold hover:underline"
                     >
-                      View filing on BSE →
+                      View official filing →
                     </a>
                   ) : null}
                 </div>
@@ -292,12 +302,12 @@ export default function InsiderActivity({
           {!loading && disclosures.length === 0 ? (
             <div className="px-5 py-10 text-center text-sm text-slate-500">
               {error
-                ? "Couldn't reach BSE right now — Indian disclosures are fetched live from BSE and it may be rate-limiting or blocking the request. Please try again shortly."
-                : `No recent insider / SAST disclosures found for ${activeTicker} on BSE. This covers BSE-filed disclosures; some names or periods simply have none.`}
+                ? `Couldn't reach ${exchange} right now — Indian disclosures are fetched live and it may be rate-limiting or blocking the request. Please try again shortly.`
+                : `No recent insider / SAST disclosures found for ${activeTicker}. This covers NSE/BSE-filed SEBI PIT disclosures; some names or periods simply have none.`}
             </div>
           ) : null}
           {loading && disclosures.length === 0 ? (
-            <div className="px-5 py-10 text-center text-sm text-slate-500">Loading BSE disclosures…</div>
+            <div className="px-5 py-10 text-center text-sm text-slate-500">Loading disclosures…</div>
           ) : null}
         </GlassCard>
       ) : (

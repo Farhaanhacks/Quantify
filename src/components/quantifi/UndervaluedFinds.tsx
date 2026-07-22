@@ -63,7 +63,7 @@ function AnalystRange({ row }: { row: Row }) {
           ? [
               { label: "Now", val: row.price, color: "#94A3B8", pct: 0 },
               { label: "Low", val: lowP, color: "#FB7185", pct: down },
-              { label: "Mean", val: row.target, color: "#E9B872", pct: base },
+              { label: "Mean", val: row.target, color: "#4F93F7", pct: base },
               { label: "High", val: highP, color: "#34D399", pct: up },
             ]
           : [

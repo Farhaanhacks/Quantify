@@ -43,7 +43,7 @@ html.light {
 }
 html.light body::before {
   background:
-    radial-gradient(60rem 40rem at 12% -10%, rgba(233, 184, 114, 0.14), transparent 60%),
+    radial-gradient(60rem 40rem at 12% -10%, rgba(79, 147, 247, 0.14), transparent 60%),
     radial-gradient(50rem 36rem at 92% 4%, rgba(79, 209, 197, 0.12), transparent 55%);
 }
 html.light body::after {
@@ -63,7 +63,7 @@ html.light ::-webkit-scrollbar-thumb {
   background-clip: content-box;
 }
 html.light ::selection {
-  background: rgba(233, 184, 114, 0.35);
+  background: rgba(79, 147, 247, 0.35);
   color: #0b0f1a;
 }
 
@@ -157,12 +157,12 @@ html.light .text-gold\/90,
 html.light .text-gold\/80,
 html.light .text-gold\/70,
 html.light .text-gold\/60,
-html.light .hover\:text-gold:hover { color: #9a6a12; }
+html.light .hover\:text-gold:hover { color: #2358c9; }
 
 /* The brand gold gradient text (headlines) — swap the light gradient stops
    for a deeper amber gradient so it stays readable on white. */
 html.light .text-gradient-gold {
-  background: linear-gradient(120deg, #b07d1a 0%, #9a6a12 50%, #7a520c 100%);
+  background: linear-gradient(120deg, #2e6fe0 0%, #2358c9 50%, #1c449e 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -209,7 +209,7 @@ body::before {
   inset: 0;
   z-index: -2;
   background:
-    radial-gradient(60rem 40rem at 12% -10%, rgba(233, 184, 114, 0.10), transparent 60%),
+    radial-gradient(60rem 40rem at 12% -10%, rgba(79, 147, 247, 0.10), transparent 60%),
     radial-gradient(50rem 36rem at 92% 4%, rgba(79, 209, 197, 0.10), transparent 55%),
     radial-gradient(46rem 34rem at 50% 120%, rgba(99, 102, 241, 0.08), transparent 60%);
   pointer-events: none;
@@ -241,7 +241,7 @@ body::after {
     transition: border-color 0.25s ease, background-color 0.25s ease, transform 0.25s ease;
   }
   .glass-hover:hover {
-    border-color: rgba(233, 184, 114, 0.35);
+    border-color: rgba(79, 147, 247, 0.35);
     background: rgba(255, 255, 255, 0.06);
   }
 
@@ -259,7 +259,7 @@ body::after {
   }
 
   .text-gradient-gold {
-    background: linear-gradient(120deg, #fbe2b6 0%, #e9b872 45%, #c9962f 100%);
+    background: linear-gradient(120deg, #cfe1ff 0%, #4F93F7 45%, #2E6FE0 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -298,17 +298,17 @@ body::after {
   background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(233, 184, 114, 0.4);
+  background: rgba(79, 147, 247, 0.4);
   background-clip: content-box;
 }
 
 ::selection {
-  background: rgba(233, 184, 114, 0.28);
+  background: rgba(79, 147, 247, 0.28);
   color: #fff;
 }
 
 :focus-visible {
-  outline: 2px solid rgba(233, 184, 114, 0.7);
+  outline: 2px solid rgba(79, 147, 247, 0.7);
   outline-offset: 2px;
   border-radius: 4px;
 }

@@ -428,7 +428,7 @@ export default function PortfolioManager() {
                       key={r.id}
                       label={r.ticker}
                       value={summary.totalValue > 0 ? Math.round((r.value / summary.totalValue) * 100) : 0}
-                      color="#E9B872"
+                      color="#4F93F7"
                     />
                   ))}
               </div>

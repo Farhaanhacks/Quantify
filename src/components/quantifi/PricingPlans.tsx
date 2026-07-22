@@ -95,7 +95,7 @@ export default function PricingPlans() {
         name: "Quantifi Pro",
         description: `${QUANTIFI_PRO.price}/month · Quantifi Pro (auto-renews, cancel anytime)`,
         prefill: { name: data.user?.name, email: data.user?.email },
-        theme: { color: "#E9B872" },
+        theme: { color: "#4F93F7" },
         handler: async (resp: RazorpayResponse) => {
           const verify = await fetch("/api/razorpay/verify", {
             method: "POST",

@@ -14,7 +14,7 @@ const FREE_IDS = new Set(tradingIdeas.slice(0, FREE_IDEA_COUNT).map((i) => i.id)
 
 function scoreColor(score: number): string {
   if (score >= 7) return "#34D399";
-  if (score >= 4) return "#E9B872";
+  if (score >= 4) return "#4F93F7";
   return "#FB7185";
 }
 

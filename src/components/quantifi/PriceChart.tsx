@@ -110,9 +110,9 @@ export default function PriceChart({
         });
 
         const series = chart.addAreaSeries({
-          lineColor: "#E9B872",
-          topColor: "rgba(233,184,114,0.30)",
-          bottomColor: "rgba(233,184,114,0.02)",
+          lineColor: "#4F93F7",
+          topColor: "rgba(79, 147, 247,0.30)",
+          bottomColor: "rgba(79, 147, 247,0.02)",
           lineWidth: 2,
           priceLineVisible: false,
         });

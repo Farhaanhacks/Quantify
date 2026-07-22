@@ -49,7 +49,7 @@ function Gauge({ value, color, label, sub }: { value: number; color: string; lab
 const RATING: Record<string, { score: number; label: string; color: string }> = {
   strong_buy: { score: 0.94, label: "Strong Buy", color: "#34D399" },
   buy: { score: 0.74, label: "Buy", color: "#4FD1C5" },
-  hold: { score: 0.5, label: "Hold", color: "#E9B872" },
+  hold: { score: 0.5, label: "Hold", color: "#4F93F7" },
   underperform: { score: 0.28, label: "Underperform", color: "#FB7185" },
   sell: { score: 0.08, label: "Sell", color: "#F43F5E" },
 };
@@ -117,7 +117,7 @@ export default function CompanyVitals({ symbol }: { symbol: string }) {
   }
   const coverageScore = news.length ? Math.max(0.05, Math.min(0.95, 0.5 + (pos - neg) / (news.length * 2))) : 0.5;
   const coverageLabel = !news.length ? "Low" : pos > neg ? "Positive" : neg > pos ? "Negative" : "Neutral";
-  const coverageColor = coverageLabel === "Positive" ? "#34D399" : coverageLabel === "Negative" ? "#FB7185" : "#E9B872";
+  const coverageColor = coverageLabel === "Positive" ? "#34D399" : coverageLabel === "Negative" ? "#FB7185" : "#4F93F7";
 
   return (
     <section className="mx-auto max-w-7xl px-4 pb-6 sm:px-6 lg:px-8">

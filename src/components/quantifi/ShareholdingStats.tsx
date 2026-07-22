@@ -5,7 +5,7 @@ import { GlassCard, Donut } from "@/components/quantifi/Cards";
 import type { CompanyData } from "@/lib/yahooCompany";
 import type { InstQuarter } from "@/lib/institutional";
 
-const PALETTE = ["#818CF8", "#E9B872", "#4FD1C5", "#34D399", "#F472B6", "#FB7185", "#94A3B8"];
+const PALETTE = ["#818CF8", "#4F93F7", "#4FD1C5", "#34D399", "#F472B6", "#FB7185", "#94A3B8"];
 
 function compact(n?: number): string {
   if (n == null || !isFinite(n)) return "—";
@@ -73,7 +73,7 @@ export default function ShareholdingStats({ symbol }: { symbol: string }) {
   const floatPct = Math.max(0, 100 - instPct - insidPct);
   const ownSegs = [
     { name: "Institutions", pct: Math.round(instPct * 100) / 100, color: "#818CF8" },
-    { name: "Insiders", pct: Math.round(insidPct * 100) / 100, color: "#E9B872" },
+    { name: "Insiders", pct: Math.round(insidPct * 100) / 100, color: "#4F93F7" },
     { name: "Public float", pct: Math.round(floatPct * 100) / 100, color: "#4FD1C5" },
   ].filter((s) => s.pct > 0);
 

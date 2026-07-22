@@ -16,6 +16,7 @@
 // BSE — never fabricated data.
 
 import type { IndiaDisclosure } from "@/lib/insiderIndia";
+import { BSE_SCRIP } from "@/lib/insiderIndia";
 
 export interface NSEDebug {
   source: "nse";
@@ -136,7 +137,20 @@ function pitRowToDisclosure(
   // Human headline that carries the real numbers, e.g.
   // "Nandan M. Nilekani · Promoter · Buy · 6,400 Equity Shares · ₹…".
   const parts = [acq, cat, tx, secAcq ? `${secAcq} ${secType}` : "", secVal ? `₹${secVal}` : ""].filter(Boolean);
+  // Prefer a human-readable PDF over the raw XBRL (which renders as an unstyled
+  // XML wall). NSE ships a PDF attachment for most filings; fall back to XBRL only
+  // when there isn't one, and to a BSE-scrip announcements page as a last resort.
+  const pdf = [str(row.attchmntFile), str(row.attachmentFile), str(row.attachment)].find(
+    (u) => u && /^https?:\/\/\S+\.pdf(\?|$)/i.test(u)
+  );
   const xbrl = str(row.xbrl);
+  const scrip = BSE_SCRIP[sym];
+  const url =
+    pdf ||
+    (/^https?:\/\//.test(xbrl) ? xbrl : undefined) ||
+    (scrip
+      ? `https://www.bseindia.com/stock-share-price/x/x/${scrip}/corp-announcements/`
+      : undefined);
   // Stable id from content so re-ingesting the same filing dedupes cleanly.
   const id = `nse-${sym}-${date}-${acq.slice(0, 10)}-${secAcq}-${tx}`.replace(/\s+/g, "");
   const disc: IndiaDisclosure = {
@@ -146,7 +160,7 @@ function pitRowToDisclosure(
     headline: parts.join(" · ") || "Insider / SAST disclosure",
     category: cat || "Insider Trading (PIT Reg 7)",
     date,
-    url: /^https?:\/\//.test(xbrl) ? xbrl : undefined,
+    url,
   };
   return { symbol: sym, disc };
 }
@@ -165,7 +179,7 @@ async function attemptOnce(
   //    the homepage is where NSE's base cookies (nsit, nseappid) are set, and the
   //    JS render establishes them. Those cookies then authorise every /api call in
   //    the same session — the fix for the silent 200-with-empty-array.
-  await nseFetch("https://www.nseindia.com/", session, usingProxy() ? 40000 : 8000, true).catch(
+  await nseFetch("https://www.nseindia.com/", session, usingProxy() ? 30000 : 8000, true).catch(
     () => undefined
   );
 
@@ -281,9 +295,10 @@ export async function getNSEInsiderWithDebug(
   // often succeeds where the previous one returned 401/empty. Retry a couple of
   // times, adopting the first attempt that yields rows. We DON'T retry once we
   // have rows (success). Empty/401 → try a new session.
-  // Render warm-up is slow (~40s) but reliable, so one attempt is enough and keeps
-  // the whole call within the route's 60s budget (3 rendered attempts would blow it).
-  const MAX = 1;
+  // Render warm-up is slow but mostly reliable; a second session catches the
+  // occasional cold miss (e.g. Siemens landed first-try, NMDC didn't). Two
+  // rendered attempts (~2×42s) fit the route's raised 110s budget.
+  const MAX = 2;
   try {
     for (let attempt = 1; attempt <= MAX; attempt++) {
       debug.attempts = attempt;

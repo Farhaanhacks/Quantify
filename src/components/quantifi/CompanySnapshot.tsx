@@ -16,7 +16,7 @@ import { isAiBubbleStock } from "@/data/aiBubble";
 
 function axisColor(score: number): string {
   if (score >= 5) return "#34D399";
-  if (score >= 3) return "#E9B872";
+  if (score >= 3) return "#4F93F7";
   return "#FB7185";
 }
 

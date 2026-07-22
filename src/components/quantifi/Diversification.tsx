@@ -18,7 +18,7 @@ const levelTone: Record<Level, "up" | "gold" | "down"> = {
   Elevated: "gold",
   High: "down",
 };
-const PALETTE = ["#E9B872", "#4FD1C5", "#818CF8", "#F472B6", "#34D399", "#94A3B8", "#FB7185"];
+const PALETTE = ["#4F93F7", "#4FD1C5", "#818CF8", "#F472B6", "#34D399", "#94A3B8", "#FB7185"];
 const toneFor = (pct: number): Level => (pct >= 40 ? "High" : pct >= 25 ? "Elevated" : "Moderate");
 
 interface Seg {

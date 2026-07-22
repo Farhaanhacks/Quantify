@@ -9,8 +9,7 @@ export default function ContactPage() {
   return (
     <LegalShell eyebrow="Contact" title="Contact us">
       <p>
-        We&apos;re a small, independent product and we read every message. The fastest way to reach us is
-        by email.
+        We read every message. The fastest way to reach us is by email.
       </p>
 
       <H2>Email</H2>
@@ -19,7 +18,7 @@ export default function ContactPage() {
           quantifiapp@gmail.com
         </a>
         <br />
-        We aim to reply within 2–3 business days.
+        We reply within 24 hours.
       </p>
 
       <H2>What to contact us about</H2>
