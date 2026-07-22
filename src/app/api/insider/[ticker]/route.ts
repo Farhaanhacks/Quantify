@@ -1,6 +1,7 @@
 import { getCompanyInsiderTrades } from "@/lib/insider";
 import { getIndiaInsiderWithDebug } from "@/lib/insiderIndia";
 import { getNSEInsiderWithDebug } from "@/lib/insiderIndiaNSE";
+import { getStoredInsider } from "@/lib/insiderStore";
 import { jsonCached } from "@/lib/httpCache";
 
 export const dynamic = "force-dynamic";
@@ -15,12 +16,30 @@ export async function GET(req: Request, { params }: { params: { ticker: string }
   const ticker = params.ticker;
   const wantDebug = new URL(req.url).searchParams.get("debug") === "1";
 
-  // Indian listings (.NS / .BO). PRIMARY: NSE's structured insider-trading API
-  // (acquirer, shares, value, buy/sell — screener.in-style, with a retry across
-  // fresh cookie sessions). FALLBACK: BSE's headline insider/SAST announcements.
+  // Indian listings (.NS / .BO). Serving order:
+  //   0) The ingested STORE (Redis) — fast, deterministic, filled by the daily
+  //      cron. This is the reliable path once ingestion has run.
+  //   1) LIVE NSE structured API — fallback for symbols not yet ingested.
+  //   2) LIVE BSE announcements — final fallback.
   // US → SEC Form 4.
   if (/\.(NS|BO)$/i.test(ticker)) {
     try {
+      // 0) Ingested store first.
+      const stored = await getStoredInsider(ticker);
+      if (stored && stored.length > 0) {
+        return jsonCached(
+          {
+            available: true,
+            market: "IN",
+            source: "store",
+            disclosures: stored,
+            ...(wantDebug ? { debug: { source: "store", count: stored.length } } : {}),
+          },
+          900,
+          1800
+        );
+      }
+
       // 1) NSE first — the richer, structured source.
       const nse = await getNSEInsiderWithDebug(ticker, 20);
       if (nse.disclosures.length > 0) {

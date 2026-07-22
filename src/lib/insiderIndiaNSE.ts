@@ -108,6 +108,42 @@ function normDate(s: string): string {
   return m ? `${m[1]}-${m[2]}-${m[3]}` : s.slice(0, 10);
 }
 
+// Parse one NSE PIT row into a disclosure. Each row carries its own `symbol`, so
+// this works for both the per-symbol API and the market-wide feed.
+function pitRowToDisclosure(
+  row: unknown,
+  fallbackTicker?: string
+): { symbol: string; disc: IndiaDisclosure } | null {
+  if (!isRec(row)) return null;
+  const sym = str(row.symbol) || (fallbackTicker ? nseSymbol(fallbackTicker) : "");
+  if (!sym) return null;
+  const acq = str(row.acqName);
+  const cat = str(row.personCategory);
+  const tx = str(row.tdpTransactionType) || str(row.acqMode);
+  const secType = str(row.secType) || "shares";
+  const secAcq = str(row.secAcq);
+  const secVal = str(row.secVal);
+  const date = normDate(
+    str(row.date) || str(row.anexDate) || str(row.acqfromDt) || str(row.besdate)
+  );
+  // Human headline that carries the real numbers, e.g.
+  // "Nandan M. Nilekani · Promoter · Buy · 6,400 Equity Shares · ₹…".
+  const parts = [acq, cat, tx, secAcq ? `${secAcq} ${secType}` : "", secVal ? `₹${secVal}` : ""].filter(Boolean);
+  const xbrl = str(row.xbrl);
+  // Stable id from content so re-ingesting the same filing dedupes cleanly.
+  const id = `nse-${sym}-${date}-${acq.slice(0, 10)}-${secAcq}-${tx}`.replace(/\s+/g, "");
+  const disc: IndiaDisclosure = {
+    id,
+    ticker: `${sym}.NS`,
+    company: str(row.company) || sym,
+    headline: parts.join(" · ") || "Insider / SAST disclosure",
+    category: cat || "Insider Trading (PIT Reg 7)",
+    date,
+    url: /^https?:\/\//.test(xbrl) ? xbrl : undefined,
+  };
+  return { symbol: sym, disc };
+}
+
 // One session attempt: warm up cookies, then hit the PIT API. Returns the parsed
 // rows plus the raw status so the caller can decide whether to retry.
 async function attemptOnce(
@@ -136,34 +172,61 @@ async function attemptOnce(
 
   const out: IndiaDisclosure[] = [];
   for (const row of data) {
-    if (!isRec(row)) continue;
-    const acq = str(row.acqName);
-    const cat = str(row.personCategory);
-    const tx = str(row.tdpTransactionType) || str(row.acqMode);
-    const secType = str(row.secType) || "shares";
-    const secAcq = str(row.secAcq);
-    const secVal = str(row.secVal);
-    const date = normDate(
-      str(row.date) || str(row.anexDate) || str(row.acqfromDt) || str(row.besdate)
-    );
-    // Human headline that carries the real numbers, e.g.
-    // "Nandan M. Nilekani · Promoter · Buy · 6,400 Equity Shares · ₹…".
-    const parts = [acq, cat, tx, secAcq ? `${secAcq} ${secType}` : "", secVal ? `₹${secVal}` : ""].filter(Boolean);
-    const headline = parts.join(" · ") || "Insider / SAST disclosure";
-    const xbrl = str(row.xbrl);
-
-    out.push({
-      id: `nse-${symbol}-${out.length}`,
-      ticker: ticker.toUpperCase(),
-      company: str(row.company) || symbol,
-      headline,
-      category: cat || "Insider Trading (PIT Reg 7)",
-      date,
-      url: /^https?:\/\//.test(xbrl) ? xbrl : undefined,
-    });
+    const parsed = pitRowToDisclosure(row, ticker);
+    if (!parsed) continue;
+    out.push(parsed.disc);
     if (out.length >= limit) break;
   }
   return { out, status, rawCount: data.length, snippet };
+}
+
+// Market-wide PIT feed (no `symbol` param) — one call returns EVERY company's
+// insider filings in the window. This is what the daily ingest cron uses: fetch
+// once, bucket by symbol, store. Retries hard (off the user path) because NSE's
+// cookie handshake is flaky through a rotating proxy.
+export async function fetchNSEInsiderMarketWide(
+  days = 7,
+  maxAttempts = 8
+): Promise<{
+  bySymbol: Map<string, IndiaDisclosure[]>;
+  attempts: number;
+  status: number | null;
+  rawCount: number;
+  snippet?: string;
+}> {
+  const toD = new Date();
+  const fromD = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const apiUrl =
+    `https://www.nseindia.com/api/corporates-pit?index=equities` +
+    `&from_date=${ddmmyyyy(fromD)}&to_date=${ddmmyyyy(toD)}`;
+
+  let status: number | null = null;
+  let snippet: string | undefined;
+  let attempt = 0;
+  for (; attempt < maxAttempts; attempt++) {
+    const session = Math.floor(Math.random() * 900000) + 100000;
+    await nseFetch(
+      "https://www.nseindia.com/companies-listing/corporate-filings-insider-trading",
+      session
+    ).catch(() => undefined);
+    const res = await nseFetch(apiUrl, session, usingProxy() ? 22000 : 10000);
+    status = res.status;
+    snippet = res.snippet;
+    const data: unknown[] = isRec(res.json) && Array.isArray(res.json.data) ? (res.json.data as unknown[]) : [];
+    if (data.length > 0) {
+      const bySymbol = new Map<string, IndiaDisclosure[]>();
+      for (const row of data) {
+        const parsed = pitRowToDisclosure(row);
+        if (!parsed) continue;
+        const list = bySymbol.get(parsed.symbol) ?? [];
+        list.push(parsed.disc);
+        bySymbol.set(parsed.symbol, list);
+      }
+      return { bySymbol, attempts: attempt + 1, status, rawCount: data.length, snippet };
+    }
+    await sleep(800);
+  }
+  return { bySymbol: new Map(), attempts: attempt, status, rawCount: 0, snippet };
 }
 
 export async function getNSEInsiderWithDebug(
