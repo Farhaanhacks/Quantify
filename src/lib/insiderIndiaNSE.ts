@@ -48,7 +48,7 @@ const usingProxy = (): boolean => scraperKey().length > 0;
 // ScraperAPI wrapper. session_number keeps cookies across the warm-up + API call
 // (NSE won't serve the API without the cookies its pages set). Same premium/ultra
 // knobs as the BSE path.
-function proxied(url: string, session?: number): string {
+function proxied(url: string, session?: number, render = false): string {
   const key = scraperKey();
   if (!key) return url;
   const p = new URLSearchParams({ api_key: key, url });
@@ -56,6 +56,12 @@ function proxied(url: string, session?: number): string {
   if (process.env.SCRAPER_PREMIUM !== "0") p.set("premium", "true");
   if (process.env.SCRAPER_ULTRA === "1") p.set("ultra_premium", "true");
   if (session != null) p.set("session_number", String(session));
+  // render=true runs a headless browser that executes NSE's JavaScript and sets
+  // the cookies its API demands. This is the fix for the silent "200 with an empty
+  // array" response — a plain GET doesn't fully establish NSE's cookies, so the
+  // API returns no rows even for stocks that clearly have filings (e.g. NMDC).
+  // Used on the warm-up page; the JSON API call reuses the session's cookies.
+  if (render) p.set("render", "true");
   const country = process.env.SCRAPER_COUNTRY;
   if (country) p.set("country_code", country);
   return `https://api.scraperapi.com/?${p.toString()}`;
@@ -64,12 +70,13 @@ function proxied(url: string, session?: number): string {
 async function nseFetch(
   url: string,
   session: number,
-  timeoutMs = usingProxy() ? 12000 : 8000
+  timeoutMs = usingProxy() ? 12000 : 8000,
+  render = false
 ): Promise<{ status: number | null; json: unknown; snippet?: string }> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch(proxied(url, session), {
+    const res = await fetch(proxied(url, session, render), {
       headers: NSE_HEADERS,
       signal: ctrl.signal,
       next: { revalidate: 1800 },
@@ -153,11 +160,13 @@ async function attemptOnce(
 ): Promise<{ out: IndiaDisclosure[]; status: number | null; rawCount: number; snippet?: string }> {
   const session = Math.floor(Math.random() * 900000) + 100000;
 
-  // 1) Warm up: load the insider-filings page so NSE issues its cookies into this
-  //    session. Best-effort — we just want the Set-Cookie.
+  // 1) Warm up WITH BROWSER RENDER so NSE's JS sets the cookies its API needs.
+  //    Slower, so allow a longer timeout. This is the fix for the 200-empty bug.
   await nseFetch(
     "https://www.nseindia.com/companies-listing/corporate-filings-insider-trading",
-    session
+    session,
+    usingProxy() ? 40000 : 8000,
+    true
   ).catch(() => undefined);
 
   // 2) The structured PIT API (endpoint is "corporates-pit"), DD-MM-YYYY range.
@@ -211,9 +220,14 @@ export async function fetchNSEInsiderMarketWide(
 
   for (let s = 0; s < maxSessions; s++) {
     const session = Math.floor(Math.random() * 900000) + 100000;
+    // Warm up WITH BROWSER RENDER so NSE's JS establishes the cookies its API
+    // needs (the fix for the 200-empty). Off the user path, so the extra time is
+    // fine.
     await nseFetch(
       "https://www.nseindia.com/companies-listing/corporate-filings-insider-trading",
-      session
+      session,
+      usingProxy() ? 40000 : 8000,
+      true
     ).catch(() => undefined);
 
     let sawAuthFail = false;
@@ -270,7 +284,9 @@ export async function getNSEInsiderWithDebug(
   // often succeeds where the previous one returned 401/empty. Retry a couple of
   // times, adopting the first attempt that yields rows. We DON'T retry once we
   // have rows (success). Empty/401 → try a new session.
-  const MAX = 3;
+  // Render warm-up is slow (~40s) but reliable, so one attempt is enough and keeps
+  // the whole call within the route's 60s budget (3 rendered attempts would blow it).
+  const MAX = 1;
   try {
     for (let attempt = 1; attempt <= MAX; attempt++) {
       debug.attempts = attempt;
