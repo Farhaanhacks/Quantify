@@ -185,48 +185,71 @@ async function attemptOnce(
 // once, bucket by symbol, store. Retries hard (off the user path) because NSE's
 // cookie handshake is flaky through a rotating proxy.
 export async function fetchNSEInsiderMarketWide(
-  days = 7,
-  maxAttempts = 8
+  maxSessions = 3
 ): Promise<{
   bySymbol: Map<string, IndiaDisclosure[]>;
-  attempts: number;
+  sessions: number;
   status: number | null;
   rawCount: number;
-  snippet?: string;
+  wonWith?: string;
+  tried: { q: string; status: number | null; rows: number }[];
 }> {
-  const toD = new Date();
-  const fromD = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-  const apiUrl =
-    `https://www.nseindia.com/api/corporates-pit?index=equities` +
-    `&from_date=${ddmmyyyy(fromD)}&to_date=${ddmmyyyy(toD)}`;
+  const today = new Date();
+  const win = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const base = "https://www.nseindia.com/api/corporates-pit?index=equities";
+  // A market-wide query over a wide window comes back empty (too large), so probe
+  // SHORT windows and a no-date "latest" variant. Widest useful first.
+  const variants: { q: string; url: string }[] = [
+    { q: "7d", url: `${base}&from_date=${ddmmyyyy(win(7))}&to_date=${ddmmyyyy(today)}` },
+    { q: "3d", url: `${base}&from_date=${ddmmyyyy(win(3))}&to_date=${ddmmyyyy(today)}` },
+    { q: "1d", url: `${base}&from_date=${ddmmyyyy(win(1))}&to_date=${ddmmyyyy(today)}` },
+    { q: "latest(no-date)", url: base },
+  ];
 
+  const tried: { q: string; status: number | null; rows: number }[] = [];
   let status: number | null = null;
-  let snippet: string | undefined;
-  let attempt = 0;
-  for (; attempt < maxAttempts; attempt++) {
+
+  for (let s = 0; s < maxSessions; s++) {
     const session = Math.floor(Math.random() * 900000) + 100000;
     await nseFetch(
       "https://www.nseindia.com/companies-listing/corporate-filings-insider-trading",
       session
     ).catch(() => undefined);
-    const res = await nseFetch(apiUrl, session, usingProxy() ? 22000 : 10000);
-    status = res.status;
-    snippet = res.snippet;
-    const data: unknown[] = isRec(res.json) && Array.isArray(res.json.data) ? (res.json.data as unknown[]) : [];
-    if (data.length > 0) {
-      const bySymbol = new Map<string, IndiaDisclosure[]>();
-      for (const row of data) {
-        const parsed = pitRowToDisclosure(row);
-        if (!parsed) continue;
-        const list = bySymbol.get(parsed.symbol) ?? [];
-        list.push(parsed.disc);
-        bySymbol.set(parsed.symbol, list);
+
+    let sawAuthFail = false;
+    for (const v of variants) {
+      const res = await nseFetch(v.url, session, usingProxy() ? 22000 : 10000);
+      status = res.status;
+      const data: unknown[] =
+        isRec(res.json) && Array.isArray(res.json.data) ? (res.json.data as unknown[]) : [];
+      tried.push({ q: v.q, status: res.status, rows: data.length });
+
+      if (data.length > 0) {
+        const bySymbol = new Map<string, IndiaDisclosure[]>();
+        for (const row of data) {
+          const parsed = pitRowToDisclosure(row);
+          if (!parsed) continue;
+          const list = bySymbol.get(parsed.symbol) ?? [];
+          list.push(parsed.disc);
+          bySymbol.set(parsed.symbol, list);
+        }
+        return { bySymbol, sessions: s + 1, status, rawCount: data.length, wonWith: v.q, tried };
       }
-      return { bySymbol, attempts: attempt + 1, status, rawCount: data.length, snippet };
+      // A null/401/403 means the session (cookies) failed — a fresh session may
+      // help, so stop trying variants on this one and re-warm. A clean 200-empty
+      // is a query problem; move to the next variant.
+      if (res.status == null || res.status === 401 || res.status === 403) {
+        sawAuthFail = true;
+        break;
+      }
     }
+    // Every variant returned a clean 200-empty → not a session issue; a new
+    // session won't change the result, so stop.
+    if (!sawAuthFail) break;
     await sleep(800);
   }
-  return { bySymbol: new Map(), attempts: attempt, status, rawCount: 0, snippet };
+
+  return { bySymbol: new Map(), sessions: maxSessions, status, rawCount: 0, tried };
 }
 
 export async function getNSEInsiderWithDebug(

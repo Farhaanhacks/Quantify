@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { fetchNSEInsiderMarketWide } from "@/lib/insiderIndiaNSE";
 import { fetchVendorInsiderMarketWide } from "@/lib/insiderVendor";
-import { setStoredInsider, setIngestMeta, kvConfigured } from "@/lib/insiderStore";
+import { mergeStoredInsider, setIngestMeta, kvConfigured } from "@/lib/insiderStore";
 import type { IndiaDisclosure } from "@/lib/insiderIndia";
 
 // Daily ingestion of Indian insider disclosures. This runs OFF the user path
@@ -34,34 +34,34 @@ export async function GET(req: Request) {
     );
   }
 
-  // A rolling window is refreshed in full each run (overwrite, not merge) — fast
-  // (one write per symbol, no read) and always shows the last ~45 days.
-  const days = Number(new URL(req.url).searchParams.get("days")) || 45;
-
   // Layer 1: paid vendor (InsiderScreener etc.) if configured, else Layer 2: NSE.
+  // The NSE market-wide feed uses SHORT windows internally (a wide window returns
+  // empty), so we MERGE each run's rows into the store to accumulate history.
   let source = "vendor";
   let bySymbol: Map<string, IndiaDisclosure[]>;
   let rawCount: number;
-  let attempts = 1;
   let status: number | null = 200;
+  let wonWith: string | undefined;
+  let tried: { q: string; status: number | null; rows: number }[] = [];
 
-  const vendor = await fetchVendorInsiderMarketWide(days);
+  const vendor = await fetchVendorInsiderMarketWide(7);
   if (vendor && vendor.bySymbol.size > 0) {
     bySymbol = vendor.bySymbol;
     rawCount = vendor.rows;
   } else {
     source = "nse-market-wide";
-    const nse = await fetchNSEInsiderMarketWide(days, 8);
+    const nse = await fetchNSEInsiderMarketWide(3);
     bySymbol = nse.bySymbol;
     rawCount = nse.rawCount;
-    attempts = nse.attempts;
     status = nse.status;
+    wonWith = nse.wonWith;
+    tried = nse.tried;
   }
 
   let symbolsWritten = 0;
   for (const [symbol, fresh] of bySymbol) {
-    const sorted = [...fresh].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
-    if (await setStoredInsider(symbol, sorted)) symbolsWritten++;
+    await mergeStoredInsider(symbol, fresh);
+    symbolsWritten++;
   }
 
   const lastRun = new Date().toISOString();
@@ -70,14 +70,15 @@ export async function GET(req: Request) {
   return NextResponse.json({
     ok: true,
     source,
-    attempts,
     upstreamStatus: status,
+    wonWith,
+    tried, // per-variant {window, status, rows} so we can see what NSE returns
     symbolsWritten,
     rowsParsed: rawCount,
     lastRun,
     note:
       symbolsWritten === 0
-        ? "No rows ingested — if source is nse-market-wide, the cookie handshake failed all attempts; check SCRAPER_API_KEY / try again."
+        ? "No rows ingested. status 200 with rows:0 on every variant = NSE's market-wide feed needs different params (see `tried`). status 401/null = cookie handshake failed."
         : undefined,
   });
 }
