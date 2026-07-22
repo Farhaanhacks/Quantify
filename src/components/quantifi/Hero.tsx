@@ -5,7 +5,8 @@ export default function Hero() {
     <section className="relative overflow-hidden">
       <div className="mx-auto max-w-4xl px-4 pb-14 pt-20 text-center sm:px-6 lg:pb-20 lg:pt-28">
         <h1 className="font-display text-5xl font-semibold leading-[1.03] tracking-tight text-white sm:text-6xl lg:text-7xl">
-          Markets move.{" "}
+          Markets move.
+          <br />
           <span className="text-gradient-gold">Know why.</span>
         </h1>
 
