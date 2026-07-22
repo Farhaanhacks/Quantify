@@ -313,6 +313,18 @@ body::after {
   border-radius: 4px;
 }
 
+/* Text fields rely on their own border/background for focus — the offset outline
+   box looked heavy and boxy (esp. the nav search bar). Suppress it on inputs only;
+   links and buttons keep the accessible outline. */
+input:focus,
+input:focus-visible,
+textarea:focus,
+textarea:focus-visible,
+select:focus,
+select:focus-visible {
+  outline: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

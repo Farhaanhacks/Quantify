@@ -31,7 +31,9 @@ function SearchBox({ onGo, className = "" }: { onGo?: () => void; className?: st
     onGo?.();
   };
   return (
-    <div className={`flex items-center rounded-full border border-white/10 bg-white/[0.04] px-2.5 ${className}`}>
+    <div
+      className={`flex items-center rounded-full border border-white/10 bg-white/[0.04] px-2.5 transition-colors focus-within:border-brand/60 focus-within:bg-white/[0.07] ${className}`}
+    >
       <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 flex-none text-slate-500" fill="none" stroke="currentColor" strokeWidth="2">
         <circle cx="11" cy="11" r="7" />
         <path d="m21 21-4.3-4.3" strokeLinecap="round" />

@@ -3,6 +3,7 @@ import { Inter, Sora, JetBrains_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import Navbar from "@/components/quantifi/Navbar";
+import MarketPulse from "@/components/quantifi/MarketPulse";
 import Footer from "@/components/quantifi/Footer";
 import LimitedOfferPopup from "@/components/quantifi/LimitedOfferPopup";
 import JsonLd from "@/components/JsonLd";
@@ -75,6 +76,8 @@ export default function RootLayout({
       </head>
       <body className="font-sans antialiased">
         <JsonLd data={[organizationJsonLd(), websiteJsonLd(), softwareApplicationJsonLd()]} />
+        {/* Market pulse ticker sits at the very top, right above the nav bar. */}
+        <MarketPulse />
         <Navbar />
         <main>{children}</main>
         <Footer />
