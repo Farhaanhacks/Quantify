@@ -12,6 +12,28 @@ interface Point {
   value: number;
 }
 
+// Yahoo's long-range history occasionally has a single bad tick — e.g. Tata Steel
+// showing a lone ₹645 spike in 2006 that blows the y-axis to 800 and flattens the
+// real prices to a near-zero line. Drop points that spike far from BOTH neighbours
+// and revert immediately: a genuine move (or a split step) keeps at least one
+// neighbour close, so this removes only true single-point anomalies, never trends.
+function dropSpikes(pts: Point[]): Point[] {
+  if (pts.length < 3) return pts;
+  const out: Point[] = [];
+  for (let i = 0; i < pts.length; i++) {
+    const v = pts[i].value;
+    const prev = pts[i - 1]?.value;
+    const next = pts[i + 1]?.value;
+    if (prev != null && next != null && prev > 0 && next > 0) {
+      const rPrev = v / prev;
+      const rNext = v / next;
+      if ((rPrev > 4 && rNext > 4) || (rPrev < 0.25 && rNext < 0.25)) continue;
+    }
+    out.push(pts[i]);
+  }
+  return out;
+}
+
 async function yahooSeries(symbol: string, range: string) {
   // Intraday for 1D, weekly for the very long ranges, daily otherwise.
   const interval =
@@ -33,15 +55,16 @@ async function yahooSeries(symbol: string, range: string) {
 
   const ts: number[] = result.timestamp ?? [];
   const closes: (number | null)[] = result.indicators?.quote?.[0]?.close ?? [];
-  const points: Point[] = [];
+  const raw: Point[] = [];
   for (let i = 0; i < ts.length; i++) {
     const c = closes[i];
-    if (c == null) continue;
-    points.push({
+    if (c == null || !isFinite(c) || c <= 0) continue;
+    raw.push({
       time: new Date(ts[i] * 1000).toISOString().slice(0, 10),
       value: Number(c.toFixed(2)),
     });
   }
+  const points = dropSpikes(raw);
   if (points.length === 0) throw new Error("Yahoo: empty series");
 
   const m = result.meta ?? {};

@@ -42,6 +42,11 @@ export default function PriceChart({
   // which turns the whole-period return into a bogus "today" figure.
   useEffect(() => {
     let cancelled = false;
+    // Clear the previous symbol's price immediately so a slow/failed quote never
+    // leaves the OLD stock's number showing on the new symbol (the "Tata Motors
+    // shows Tata Steel's ₹186.53" bug).
+    setMeta(null);
+    setLive(false);
     (async () => {
       try {
         const r = await fetch(`/api/quote/${encodeURIComponent(symbol)}`);
