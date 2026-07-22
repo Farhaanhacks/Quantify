@@ -3,6 +3,7 @@ import { getIndiaInsiderWithDebug } from "@/lib/insiderIndia";
 import { getNSEInsiderWithDebug } from "@/lib/insiderIndiaNSE";
 import { getStoredInsider } from "@/lib/insiderStore";
 import { jsonCached } from "@/lib/httpCache";
+import { aliasSymbol } from "@/lib/symbolAlias";
 
 export const dynamic = "force-dynamic";
 // The Indian path proxies BSE through ScraperAPI (residential proxies, slow) and
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export async function GET(req: Request, { params }: { params: { ticker: string } }) {
-  const ticker = params.ticker;
+  const ticker = aliasSymbol(params.ticker);
   const wantDebug = new URL(req.url).searchParams.get("debug") === "1";
 
   // Indian listings (.NS / .BO). Serving order:

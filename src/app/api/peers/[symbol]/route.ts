@@ -1,5 +1,6 @@
 import { yahooQuoteSummary } from "@/lib/yahooCrumb";
 import { jsonCached } from "@/lib/httpCache";
+import { aliasSymbol } from "@/lib/symbolAlias";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,73 @@ const PEER_OVERRIDES: Record<string, string[]> = {
   "PAYTM.NS": ["POLICYBZR.NS", "NYKAA.NS", "ETERNAL.NS", "MEESHO.NS"],
   "POLICYBZR.NS": ["PAYTM.NS", "NYKAA.NS", "ETERNAL.NS"],
   "NAUKRI.NS": ["ETERNAL.NS", "PAYTM.NS", "NYKAA.NS"], // Info Edge
+
+  // Autos — commercial + passenger + 2-wheelers. Tata Motors is now the CV entity
+  // TMCV.NS post-demerger (both keys mapped so old links still resolve).
+  "TMCV.NS": ["ASHOKLEY.NS", "M&M.NS", "EICHERMOT.NS", "MARUTI.NS"],
+  "TATAMOTORS.NS": ["ASHOKLEY.NS", "M&M.NS", "EICHERMOT.NS", "MARUTI.NS"],
+  "MARUTI.NS": ["M&M.NS", "TMCV.NS", "EICHERMOT.NS", "ASHOKLEY.NS"],
+  "M&M.NS": ["MARUTI.NS", "TMCV.NS", "EICHERMOT.NS", "ASHOKLEY.NS"],
+  "ASHOKLEY.NS": ["TMCV.NS", "EICHERMOT.NS", "M&M.NS", "MARUTI.NS"],
+  "EICHERMOT.NS": ["ASHOKLEY.NS", "TVSMOTOR.NS", "BAJAJ-AUTO.NS", "HEROMOTOCO.NS"],
+  "BAJAJ-AUTO.NS": ["HEROMOTOCO.NS", "TVSMOTOR.NS", "EICHERMOT.NS"],
+  "HEROMOTOCO.NS": ["BAJAJ-AUTO.NS", "TVSMOTOR.NS", "EICHERMOT.NS"],
+  "TVSMOTOR.NS": ["BAJAJ-AUTO.NS", "HEROMOTOCO.NS", "EICHERMOT.NS"],
+
+  // Metals & mining
+  "TATASTEEL.NS": ["JSWSTEEL.NS", "JINDALSTEL.NS", "SAIL.NS", "HINDALCO.NS"],
+  "JSWSTEEL.NS": ["TATASTEEL.NS", "JINDALSTEL.NS", "SAIL.NS"],
+  "JINDALSTEL.NS": ["TATASTEEL.NS", "JSWSTEEL.NS", "SAIL.NS"],
+  "SAIL.NS": ["TATASTEEL.NS", "JSWSTEEL.NS", "JINDALSTEL.NS"],
+  "HINDALCO.NS": ["VEDL.NS", "NATIONALUM.NS", "HINDZINC.NS"],
+  "VEDL.NS": ["HINDALCO.NS", "NATIONALUM.NS", "HINDZINC.NS"],
+  "NMDC.NS": ["SAIL.NS", "VEDL.NS", "HINDZINC.NS", "MOIL.NS"],
+  "COALINDIA.NS": ["NMDC.NS", "SAIL.NS", "VEDL.NS"],
+
+  // Banks & financials
+  "HDFCBANK.NS": ["ICICIBANK.NS", "KOTAKBANK.NS", "AXISBANK.NS", "SBIN.NS"],
+  "ICICIBANK.NS": ["HDFCBANK.NS", "AXISBANK.NS", "KOTAKBANK.NS", "SBIN.NS"],
+  "AXISBANK.NS": ["ICICIBANK.NS", "HDFCBANK.NS", "KOTAKBANK.NS", "SBIN.NS"],
+  "KOTAKBANK.NS": ["HDFCBANK.NS", "ICICIBANK.NS", "AXISBANK.NS"],
+  "SBIN.NS": ["BANKBARODA.NS", "PNB.NS", "CANBK.NS", "ICICIBANK.NS"],
+  "BAJFINANCE.NS": ["BAJAJFINSV.NS", "CHOLAFIN.NS", "SBICARD.NS", "SHRIRAMFIN.NS"],
+
+  // IT services
+  "TCS.NS": ["INFY.NS", "WIPRO.NS", "HCLTECH.NS", "TECHM.NS"],
+  "INFY.NS": ["TCS.NS", "WIPRO.NS", "HCLTECH.NS", "TECHM.NS"],
+  "WIPRO.NS": ["INFY.NS", "TCS.NS", "HCLTECH.NS", "TECHM.NS"],
+  "HCLTECH.NS": ["TCS.NS", "INFY.NS", "WIPRO.NS", "TECHM.NS"],
+  "TECHM.NS": ["INFY.NS", "WIPRO.NS", "HCLTECH.NS", "LTIM.NS"],
+  "LTIM.NS": ["TCS.NS", "INFY.NS", "TECHM.NS", "MPHASIS.NS"],
+
+  // Energy / oil & gas
+  "RELIANCE.NS": ["ONGC.NS", "BPCL.NS", "IOC.NS", "HINDPETRO.NS"],
+  "ONGC.NS": ["OIL.NS", "RELIANCE.NS", "BPCL.NS"],
+  "BPCL.NS": ["IOC.NS", "HINDPETRO.NS", "ONGC.NS"],
+  "IOC.NS": ["BPCL.NS", "HINDPETRO.NS", "ONGC.NS"],
+
+  // FMCG
+  "HINDUNILVR.NS": ["ITC.NS", "NESTLEIND.NS", "BRITANNIA.NS", "DABUR.NS"],
+  "ITC.NS": ["HINDUNILVR.NS", "NESTLEIND.NS", "BRITANNIA.NS", "GODREJCP.NS"],
+  "NESTLEIND.NS": ["HINDUNILVR.NS", "BRITANNIA.NS", "ITC.NS"],
+  "BRITANNIA.NS": ["NESTLEIND.NS", "HINDUNILVR.NS", "ITC.NS"],
+  "DABUR.NS": ["MARICO.NS", "GODREJCP.NS", "HINDUNILVR.NS", "COLPAL.NS"],
+
+  // Pharma
+  "SUNPHARMA.NS": ["DRREDDY.NS", "CIPLA.NS", "DIVISLAB.NS", "LUPIN.NS"],
+  "DRREDDY.NS": ["SUNPHARMA.NS", "CIPLA.NS", "LUPIN.NS", "AUROPHARMA.NS"],
+  "CIPLA.NS": ["SUNPHARMA.NS", "DRREDDY.NS", "LUPIN.NS"],
+
+  // Cement, paints, telecom
+  "ULTRACEMCO.NS": ["SHREECEM.NS", "AMBUJACEM.NS", "ACC.NS", "DALBHARAT.NS"],
+  "SHREECEM.NS": ["ULTRACEMCO.NS", "AMBUJACEM.NS", "ACC.NS"],
+  "ASIANPAINT.NS": ["BERGEPAINT.NS", "KANSAINER.NS", "AKZOINDIA.NS"],
+  "BERGEPAINT.NS": ["ASIANPAINT.NS", "KANSAINER.NS", "AKZOINDIA.NS"],
+  "BHARTIARTL.NS": ["IDEA.NS", "TATACOMM.NS", "INDUSTOWER.NS"],
+
+  // Hospitality — so ITC Hotels gets hotels, not autos
+  "ITCHOTELS.NS": ["INDHOTEL.NS", "EIHOTEL.NS", "CHALET.NS", "LEMONTREE.NS"],
+  "INDHOTEL.NS": ["ITCHOTELS.NS", "EIHOTEL.NS", "CHALET.NS", "LEMONTREE.NS"],
 };
 
 function overrideFor(symbol: string): string[] | null {
@@ -56,7 +124,7 @@ export async function GET(
   _req: Request,
   { params }: { params: { symbol: string } }
 ) {
-  const symbol = params.symbol.toUpperCase();
+  const symbol = aliasSymbol(params.symbol.toUpperCase());
 
   // 0) Curated override wins — hand-picked real competitors for names where
   //    Yahoo's peer feed is unreliable (e.g. Meesho).
@@ -96,17 +164,16 @@ export async function GET(
   const baseIndustry = base?.industry?.toLowerCase();
   const baseSector = base?.sector?.toLowerCase();
 
-  // 3) Filter to true peers. Funds/indexes (no base industry/sector) keep the
-  //    raw list; companies must match industry, else sector.
+  // 3) Filter to true peers. A company MUST match on INDUSTRY — we deliberately do
+  //    NOT fall back to sector, because sectors are far too broad (e.g. "Consumer
+  //    Cyclical" lumps car makers with hotels, which is how Tata Motors was getting
+  //    ITC Hotels). Showing fewer correct peers — or an honest empty list — beats
+  //    showing a wrong one. Funds/indexes (no base industry) keep the raw list.
   let chosen: PeerInfo[];
-  if (!baseIndustry && !baseSector) {
-    chosen = valid; // base isn't a classifiable company (ETF/index) → keep raw
+  if (!baseIndustry) {
+    chosen = baseSector ? [] : valid; // classifiable company w/o industry → none; ETF/index → raw
   } else {
-    chosen = valid.filter((p) => baseIndustry && p.industry?.toLowerCase() === baseIndustry);
-    if (chosen.length < 2 && baseSector) {
-      const bySector = valid.filter((p) => p.sector?.toLowerCase() === baseSector);
-      if (bySector.length > chosen.length) chosen = bySector;
-    }
+    chosen = valid.filter((p) => p.industry?.toLowerCase() === baseIndustry);
   }
 
   const peers = chosen.slice(0, 4).map((p) => p.symbol);

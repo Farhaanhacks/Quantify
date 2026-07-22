@@ -1,6 +1,7 @@
 import { getYahooScore } from "@/lib/yahooFundamentals";
 import { knownFund } from "@/data/knownFunds";
 import { jsonCached } from "@/lib/httpCache";
+import { aliasSymbol } from "@/lib/symbolAlias";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +9,7 @@ export async function GET(
   _req: Request,
   { params }: { params: { symbol: string } }
 ) {
-  const symbol = params.symbol.toUpperCase();
+  const symbol = aliasSymbol(params.symbol.toUpperCase());
 
   // Live fundamentals only — no demo/fallback scores. If we can't compute a
   // real score we say so, with an honest reason, rather than substituting

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getStooqSeries, type StooqPoint } from "@/lib/stooq";
 import { cacheHeaders } from "@/lib/httpCache";
+import { aliasSymbol } from "@/lib/symbolAlias";
 
 // Personal-use price history. Pulls daily closes from Yahoo Finance's (unofficial)
 // chart endpoint, falling back to Stooq. Returns real data only — when neither
@@ -123,7 +124,7 @@ export async function GET(
   req: Request,
   { params }: { params: { symbol: string } }
 ) {
-  const symbol = params.symbol;
+  const symbol = aliasSymbol(params.symbol);
   const allowed = ["1d", "3mo", "6mo", "ytd", "1y", "5y", "max", "1mo"];
   const reqRange = new URL(req.url).searchParams.get("range") ?? "1y";
   const range = allowed.includes(reqRange) ? reqRange : "1y";

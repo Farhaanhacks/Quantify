@@ -160,14 +160,14 @@ async function attemptOnce(
 ): Promise<{ out: IndiaDisclosure[]; status: number | null; rawCount: number; snippet?: string }> {
   const session = Math.floor(Math.random() * 900000) + 100000;
 
-  // 1) Warm up WITH BROWSER RENDER so NSE's JS sets the cookies its API needs.
-  //    Slower, so allow a longer timeout. This is the fix for the 200-empty bug.
-  await nseFetch(
-    "https://www.nseindia.com/companies-listing/corporate-filings-insider-trading",
-    session,
-    usingProxy() ? 40000 : 8000,
-    true
-  ).catch(() => undefined);
+  // 1) Warm up on the NSE HOMEPAGE with browser render — this is the exact
+  //    handshake the working NSE libraries (NseIndiaApi, stock-nse-india) use:
+  //    the homepage is where NSE's base cookies (nsit, nseappid) are set, and the
+  //    JS render establishes them. Those cookies then authorise every /api call in
+  //    the same session — the fix for the silent 200-with-empty-array.
+  await nseFetch("https://www.nseindia.com/", session, usingProxy() ? 40000 : 8000, true).catch(
+    () => undefined
+  );
 
   // 2) The structured PIT API (endpoint is "corporates-pit"), DD-MM-YYYY range.
   const toD = new Date();
@@ -220,15 +220,12 @@ export async function fetchNSEInsiderMarketWide(
 
   for (let s = 0; s < maxSessions; s++) {
     const session = Math.floor(Math.random() * 900000) + 100000;
-    // Warm up WITH BROWSER RENDER so NSE's JS establishes the cookies its API
-    // needs (the fix for the 200-empty). Off the user path, so the extra time is
-    // fine.
-    await nseFetch(
-      "https://www.nseindia.com/companies-listing/corporate-filings-insider-trading",
-      session,
-      usingProxy() ? 40000 : 8000,
-      true
-    ).catch(() => undefined);
+    // Warm up on the NSE HOMEPAGE with browser render (the handshake the working
+    // NSE libraries use — base cookies live there). Off the user path, so the
+    // extra render time is fine.
+    await nseFetch("https://www.nseindia.com/", session, usingProxy() ? 40000 : 8000, true).catch(
+      () => undefined
+    );
 
     let sawAuthFail = false;
     for (const v of variants) {

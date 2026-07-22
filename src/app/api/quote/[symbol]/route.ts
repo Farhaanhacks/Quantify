@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getStooqSeries } from "@/lib/stooq";
 import { yahooQuotes } from "@/lib/yahooCrumb";
 import { cacheHeaders } from "@/lib/httpCache";
+import { aliasSymbol } from "@/lib/symbolAlias";
 
 // Live price — cache briefly (1 min) so watchlists/portfolios don't re-invoke
 // the function on every render, while staying fresh enough for a day-change.
@@ -19,7 +20,7 @@ export async function GET(
   _req: Request,
   { params }: { params: { symbol: string } }
 ) {
-  const symbol = params.symbol.toUpperCase();
+  const symbol = aliasSymbol(params.symbol.toUpperCase());
 
   // 1) Authoritative quote — Yahoo's OWN regularMarketChangePercent and previous
   // close, the exact day-change a broker shows. We use this first so "today's
