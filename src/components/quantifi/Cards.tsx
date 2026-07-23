@@ -234,6 +234,11 @@ export function Donut({
 }) {
   const radius = (size - thickness) / 2;
   const circumference = 2 * Math.PI * radius;
+  // Guard against overlapping arcs: if the segments sum past 100% (bad ownership
+  // data — e.g. institutions + insiders + float coming to 108%), scale them down
+  // so the ring never over-fills. When they sum ≤ 100 we keep the partial ring.
+  const total = segments.reduce((s, x) => s + (x.pct > 0 ? x.pct : 0), 0);
+  const denom = Math.max(100, total);
   let offset = 0;
   return (
     <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} role="img" aria-label="Allocation donut">
@@ -247,7 +252,7 @@ export function Donut({
           strokeWidth={thickness}
         />
         {segments.map((seg) => {
-          const len = (seg.pct / 100) * circumference;
+          const len = (Math.max(0, seg.pct) / denom) * circumference;
           const dash = `${len} ${circumference - len}`;
           const el = (
             <circle

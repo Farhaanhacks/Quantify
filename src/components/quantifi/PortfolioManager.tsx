@@ -53,6 +53,37 @@ function computeRows(p: UserPortfolio, quotes: Record<string, Quote>) {
   return { rows, totalValue, totalCost, totalPl, totalPlPct, mixedCurrency };
 }
 
+// Download the active portfolio as a CSV (opens straight in Excel/Sheets).
+function exportPortfolioCsv(name: string, rows: ReturnType<typeof computeRows>["rows"]) {
+  const headers = [
+    "Ticker", "Name", "Shares", "Avg cost", "Price", "Currency",
+    "Market value", "Cost basis", "Gain/Loss", "Gain/Loss %",
+  ];
+  const esc = (v: string | number) => {
+    const s = String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = [headers.join(",")];
+  for (const r of rows) {
+    lines.push(
+      [r.ticker, r.name, r.shares, r.avgCost, r.price.toFixed(2), r.currency,
+        r.value.toFixed(2), r.cost.toFixed(2), r.pl.toFixed(2), r.plPct.toFixed(2)]
+        .map(esc)
+        .join(",")
+    );
+  }
+  // Leading BOM so Excel reads UTF-8 (₹, é, …) correctly.
+  const blob = new Blob(["﻿" + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${name.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "portfolio"}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export default function PortfolioManager() {
   const {
     portfolios,
@@ -283,17 +314,33 @@ export default function PortfolioManager() {
 
           {/* Summary tiles */}
           {summary ? (
-            <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <StatTile label="Market value" value={`$${fmtPrice(summary.totalValue)}`} accent="gold" />
-              <StatTile label="Total cost" value={`$${fmtPrice(summary.totalCost)}`} />
-              <StatTile
-                label="Total gain / loss"
-                value={`${summary.totalPl >= 0 ? "+" : "-"}$${fmtPrice(Math.abs(summary.totalPl))}`}
-                accent={summary.totalPl >= 0 ? "up" : "down"}
-                sub={fmtPct(summary.totalPlPct)}
-              />
-              <StatTile label="Holdings" value={String(current.holdings.length)} />
-            </div>
+            <>
+              <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <StatTile label="Market value" value={`$${fmtPrice(summary.totalValue)}`} accent="gold" />
+                <StatTile label="Total cost" value={`$${fmtPrice(summary.totalCost)}`} />
+                <StatTile
+                  label="Total gain / loss"
+                  value={`${summary.totalPl >= 0 ? "+" : "-"}$${fmtPrice(Math.abs(summary.totalPl))}`}
+                  accent={summary.totalPl >= 0 ? "up" : "down"}
+                  sub={fmtPct(summary.totalPlPct)}
+                />
+                <StatTile label="Holdings" value={String(current.holdings.length)} />
+              </div>
+              {current.holdings.length ? (
+                <div className="mt-3 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => exportPortfolioCsv(current.name, summary.rows)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-slate-300 transition hover:border-gold/40 hover:text-white"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 3v12m0 0 4-4m-4 4-4-4M4 21h16" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    Export to Excel
+                  </button>
+                </div>
+              ) : null}
+            </>
           ) : null}
           {summary?.mixedCurrency ? (
             <p className="mt-2 text-xs text-slate-500">

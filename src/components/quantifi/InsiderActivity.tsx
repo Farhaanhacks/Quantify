@@ -170,6 +170,19 @@ export default function InsiderActivity({
     return limit ? out.slice(0, limit) : out;
   }, [source, filter, limit]);
 
+  // Buys vs sells summary for the Indian disclosures (the headline carries the
+  // transaction type, e.g. "… · Buy · …" / "… · Sell · …").
+  const inBuySell = useMemo(() => {
+    let buys = 0;
+    let sells = 0;
+    for (const d of disclosures) {
+      const h = (d.headline || "").toLowerCase();
+      if (/\b(buy|acqui|purchase)/.test(h)) buys++;
+      else if (/\b(sell|sale|dispos|pledge|invocation)/.test(h)) sells++;
+    }
+    return { buys, sells };
+  }, [disclosures]);
+
   // When embedded on a stock page (a fixed `ticker`), don't render an empty
   // Insider Activity section at all once the fetch has resolved with nothing —
   // a blank "no disclosures" card just looks broken. The standalone page (no
@@ -265,6 +278,18 @@ export default function InsiderActivity({
             ))
           : null}
       </div>
+
+      {isIndia && liveIN ? (
+        <div className="mt-4 flex items-center gap-2 text-xs">
+          <span className="rounded-full border border-up/30 bg-up/10 px-3 py-1 font-medium text-up">
+            {inBuySell.buys} {inBuySell.buys === 1 ? "buy" : "buys"}
+          </span>
+          <span className="rounded-full border border-down/30 bg-down/10 px-3 py-1 font-medium text-down">
+            {inBuySell.sells} {inBuySell.sells === 1 ? "sell" : "sells"}
+          </span>
+          <span className="text-slate-500">in recent filings</span>
+        </div>
+      ) : null}
 
       {isIndia ? (
         <GlassCard className="mt-6 overflow-hidden">

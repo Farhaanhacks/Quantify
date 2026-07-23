@@ -3,15 +3,13 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { GlassCard, SectionHeading, Tag } from "@/components/quantifi/Cards";
-import { popularTickers } from "@/data/popularTickers";
 
-type Tab = "compare" | "cagr" | "dividend" | "lookup";
+type Tab = "compare" | "xirr" | "dividend";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "compare", label: "Compare" },
-  { key: "cagr", label: "CAGR Calculator" },
+  { key: "xirr", label: "XIRR Calculator" },
   { key: "dividend", label: "Dividend Calculator" },
-  { key: "lookup", label: "Symbol Lookup" },
 ];
 
 const AXES: { key: string; label: string }[] = [
@@ -319,49 +317,146 @@ function Compare() {
   );
 }
 
-// ── CAGR ─────────────────────────────────────────────────────────────────────
-function Cagr() {
-  const [begin, setBegin] = useState("1000");
-  const [end, setEnd] = useState("2500");
-  const [years, setYears] = useState("5");
+// ── XIRR ──────────────────────────────────────────────────────────────────────
+// Money-weighted annualised return across irregular cash flows. Solve for the
+// rate r where the net present value of all flows (invested = negative, returned
+// = positive) is zero. Bisection is used when there's a sign change (robust);
+// Newton as a fallback.
+function xirrOf(flows: { amount: number; date: Date }[]): number | null {
+  const valid = flows.filter((f) => isFinite(f.amount) && f.date instanceof Date && !isNaN(f.date.getTime()));
+  if (valid.length < 2) return null;
+  if (!valid.some((f) => f.amount > 0) || !valid.some((f) => f.amount < 0)) return null;
+  const t0 = Math.min(...valid.map((f) => f.date.getTime()));
+  const yrs = (t: number) => (t - t0) / (365 * 24 * 3600 * 1000);
+  const npv = (r: number) => valid.reduce((s, f) => s + f.amount / Math.pow(1 + r, yrs(f.date.getTime())), 0);
+
+  const lo = -0.9999;
+  const hi = 100;
+  const flo = npv(lo);
+  const fhi = npv(hi);
+  if (flo * fhi <= 0) {
+    let a = lo;
+    let b = hi;
+    let fa = flo;
+    for (let i = 0; i < 200; i++) {
+      const mid = (a + b) / 2;
+      const fmid = npv(mid);
+      if (Math.abs(fmid) < 1e-8 || (b - a) / 2 < 1e-10) return mid;
+      if (fa * fmid < 0) b = mid;
+      else {
+        a = mid;
+        fa = fmid;
+      }
+    }
+    return (a + b) / 2;
+  }
+  // Newton fallback.
+  let r = 0.1;
+  for (let i = 0; i < 100; i++) {
+    const f = npv(r);
+    const d = (npv(r + 1e-6) - f) / 1e-6;
+    if (!isFinite(d) || Math.abs(d) < 1e-12) break;
+    const rn = r - f / d;
+    if (!isFinite(rn)) break;
+    if (Math.abs(rn - r) < 1e-9) return rn > -0.9999 ? rn : null;
+    r = rn;
+  }
+  return isFinite(r) && r > -0.9999 && Math.abs(npv(r)) < 1 ? r : null;
+}
+
+const todayISO = () => new Date().toISOString().slice(0, 10);
+const yearsAgoISO = (n: number) => new Date(Date.now() - n * 365 * 864e5).toISOString().slice(0, 10);
+
+function Xirr() {
+  const [rows, setRows] = useState<{ amount: string; date: string }[]>([
+    { amount: "-10000", date: yearsAgoISO(2) },
+    { amount: "-5000", date: yearsAgoISO(1) },
+    { amount: "18000", date: todayISO() },
+  ]);
 
   const result = useMemo(() => {
-    const b = parseFloat(begin), e = parseFloat(end), y = parseFloat(years);
-    if (!(b > 0) || !(e > 0) || !(y > 0)) return null;
-    const cagr = (Math.pow(e / b, 1 / y) - 1) * 100;
-    const total = (e / b - 1) * 100;
-    return { cagr, total };
-  }, [begin, end, years]);
+    const flows = rows.map((r) => ({ amount: parseFloat(r.amount), date: new Date(r.date) }));
+    const rate = xirrOf(flows);
+    if (rate == null) return null;
+    const invested = flows.filter((f) => f.amount < 0).reduce((s, f) => s - f.amount, 0);
+    const returned = flows.filter((f) => f.amount > 0).reduce((s, f) => s + f.amount, 0);
+    return { rate: rate * 100, invested, returned, net: returned - invested };
+  }, [rows]);
 
-  const field = (label: string, val: string, set: (s: string) => void) => (
-    <label className="block">
-      <span className="text-xs text-slate-400">{label}</span>
-      <input value={val} onChange={(e) => set(e.target.value)} inputMode="decimal"
-        className="mt-1 w-full rounded-lg border border-white/10 bg-ink-800 px-3 py-2 text-sm text-white outline-none focus:border-gold/40" />
-    </label>
-  );
+  const setRow = (i: number, patch: Partial<{ amount: string; date: string }>) =>
+    setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
 
   return (
     <div>
-      <p className="text-sm text-slate-400">Compound annual growth rate — the smoothed yearly return that takes a starting value to an ending value.</p>
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {field("Beginning value", begin, setBegin)}
-        {field("Ending value", end, setEnd)}
-        {field("Number of years", years, setYears)}
+      <p className="text-sm text-slate-400">
+        XIRR — the annualised return of your actual cash flows, whenever they happened. Enter each
+        contribution as a <span className="text-down">negative</span> amount and each withdrawal /
+        current value as a <span className="text-up">positive</span> amount, with its date.
+      </p>
+
+      <div className="mt-4 space-y-2">
+        {rows.map((r, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <input
+              value={r.amount}
+              onChange={(e) => setRow(i, { amount: e.target.value })}
+              inputMode="decimal"
+              placeholder="Amount (– invest / + return)"
+              className="w-40 rounded-lg border border-white/10 bg-ink-800 px-3 py-2 text-sm text-white outline-none focus:border-gold/40"
+            />
+            <input
+              type="date"
+              value={r.date}
+              onChange={(e) => setRow(i, { date: e.target.value })}
+              className="rounded-lg border border-white/10 bg-ink-800 px-3 py-2 text-sm text-white outline-none focus:border-gold/40"
+            />
+            {rows.length > 2 ? (
+              <button
+                type="button"
+                onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}
+                className="rounded-lg border border-white/10 px-2.5 py-2 text-xs text-slate-400 hover:text-white"
+                aria-label="Remove row"
+              >
+                ✕
+              </button>
+            ) : null}
+          </div>
+        ))}
       </div>
+
+      <button
+        type="button"
+        onClick={() => setRows((rs) => [...rs, { amount: "", date: todayISO() }])}
+        className="mt-3 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-slate-300 hover:text-white"
+      >
+        + Add cash flow
+      </button>
+
       {result ? (
         <div className="mt-5 flex flex-wrap gap-3">
           <GlassCard className="px-5 py-4">
-            <div className="text-xs text-slate-400">CAGR</div>
-            <div className="mt-1 font-display text-2xl font-semibold text-gold">{result.cagr.toFixed(2)}%</div>
+            <div className="text-xs text-slate-400">XIRR (annualised)</div>
+            <div className={`mt-1 font-display text-2xl font-semibold ${result.rate >= 0 ? "text-up" : "text-down"}`}>
+              {result.rate >= 0 ? "+" : ""}
+              {result.rate.toFixed(2)}%
+            </div>
           </GlassCard>
           <GlassCard className="px-5 py-4">
-            <div className="text-xs text-slate-400">Total return</div>
-            <div className="mt-1 font-display text-2xl font-semibold text-white">{result.total.toFixed(2)}%</div>
+            <div className="text-xs text-slate-400">Invested</div>
+            <div className="mt-1 font-display text-2xl font-semibold text-white">{result.invested.toLocaleString()}</div>
+          </GlassCard>
+          <GlassCard className="px-5 py-4">
+            <div className="text-xs text-slate-400">Net gain</div>
+            <div className={`mt-1 font-display text-2xl font-semibold ${result.net >= 0 ? "text-up" : "text-down"}`}>
+              {result.net >= 0 ? "+" : ""}
+              {result.net.toLocaleString()}
+            </div>
           </GlassCard>
         </div>
       ) : (
-        <p className="mt-5 text-sm text-slate-500">Enter positive numbers for all three fields.</p>
+        <p className="mt-5 text-sm text-slate-500">
+          Add at least one negative (invested) and one positive (returned) cash flow with valid dates.
+        </p>
       )}
     </div>
   );
@@ -457,46 +552,6 @@ function Dividend() {
   );
 }
 
-// ── Symbol lookup ─────────────────────────────────────────────────────────────
-function Lookup() {
-  const [q, setQ] = useState("");
-  const matches = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    if (!needle) return [];
-    return popularTickers
-      .filter((p) => p.s.toLowerCase().includes(needle) || p.n.toLowerCase().includes(needle))
-      .slice(0, 14);
-  }, [q]);
-  const upper = q.trim().toUpperCase();
-
-  return (
-    <div>
-      <p className="text-sm text-slate-400">Search a ticker or company name, then open it for the full analysis.</p>
-      <input
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder="Search e.g. Apple, NVDA, Reliance…"
-        className="mt-4 w-full max-w-md rounded-lg border border-white/10 bg-ink-800 px-3 py-2.5 text-sm text-white outline-none focus:border-gold/40"
-      />
-      <div className="mt-4 flex flex-col gap-1.5">
-        {matches.map((p) => (
-          <Link key={p.s} href={`/stock-analysis?symbol=${p.s}`}
-            className="flex items-center justify-between rounded-lg border border-white/[0.06] bg-white/[0.02] px-4 py-2.5 transition hover:border-gold/40">
-            <span className="text-sm text-slate-200">{p.n}</span>
-            <span className="font-mono text-sm text-slate-400">{p.s}</span>
-          </Link>
-        ))}
-        {q.trim() && matches.length === 0 ? (
-          <Link href={`/stock-analysis?symbol=${upper}`}
-            className="rounded-lg border border-gold/30 bg-gold/[0.06] px-4 py-2.5 text-sm text-gold transition hover:bg-gold/10">
-            Analyze “{upper}” →
-          </Link>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
 export default function ToolsSuite() {
   const [tab, setTab] = useState<Tab>("compare");
 
@@ -517,9 +572,8 @@ export default function ToolsSuite() {
 
       <GlassCard className="mt-5 p-6 sm:p-8">
         {tab === "compare" ? <Compare /> : null}
-        {tab === "cagr" ? <Cagr /> : null}
+        {tab === "xirr" ? <Xirr /> : null}
         {tab === "dividend" ? <Dividend /> : null}
-        {tab === "lookup" ? <Lookup /> : null}
       </GlassCard>
 
       <div className="mt-6 flex flex-wrap items-center gap-3">

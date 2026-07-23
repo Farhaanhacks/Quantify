@@ -2,6 +2,7 @@ import PortfolioManager from "@/components/quantifi/PortfolioManager";
 import PortfolioSnowflake from "@/components/quantifi/PortfolioSnowflake";
 import PortfolioNews from "@/components/quantifi/PortfolioNews";
 import InsiderActivity from "@/components/quantifi/InsiderActivity";
+import Watchlist from "@/components/quantifi/Watchlist";
 import { Eyebrow } from "@/components/quantifi/Cards";
 
 export const metadata = {
@@ -26,6 +27,7 @@ export default function PortfolioPage() {
       </section>
 
       <PortfolioManager />
+      <Watchlist />
       <PortfolioSnowflake />
       <PortfolioNews />
       <InsiderActivity showFilter={false} limit={5} />
