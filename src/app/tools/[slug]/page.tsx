@@ -3,13 +3,14 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import JsonLd from "@/components/JsonLd";
 import { buildMetadata, faqJsonLd, breadcrumbJsonLd, softwareApplicationJsonLd } from "@/lib/seo";
+import { HowItWorksTabs, FaqAccordion } from "@/components/quantifi/ToolGuide";
 
 interface Tool {
   title: string;
   h1: string;
   description: string;
   intro: string;
-  how: string[];
+  how: { label: string; body: string }[];
   cta: { label: string; href: string };
   faqs: { q: string; a: string }[];
 }
@@ -23,9 +24,9 @@ const TOOLS: Record<string, Tool> = {
     intro:
       "A discounted cash flow (DCF) estimates what a company is worth today based on the cash it is expected to generate in the future, discounted back to the present. Quantifi runs a two-stage DCF on every stock with sufficient fundamentals and shows it next to the analyst price target.",
     how: [
-      "Open any stock and Quantifi computes a cash-flow-based fair value automatically.",
-      "Compare the model's value against the current price and the analyst mean target.",
-      "Use the bull/base/bear range to see how sensitive the value is to growth assumptions.",
+      { label: "Open a stock", body: "Open any stock and Quantifi computes a cash-flow-based fair value automatically — no inputs to fill in." },
+      { label: "Compare vs price", body: "Compare the model's value against the current price and the analyst mean target, side by side." },
+      { label: "Stress the range", body: "Use the bull/base/bear range to see how sensitive the value is to your growth assumptions." },
     ],
     cta: { label: "Run a DCF on any stock →", href: "/stock-analysis" },
     faqs: [
@@ -41,9 +42,9 @@ const TOOLS: Record<string, Tool> = {
     intro:
       "Quantifi's portfolio analyzer takes the holdings you enter and computes single-name concentration, sector exposure and regional split using live market prices — so you can see where the real risk in your book sits. Your holdings stay in your browser/account; Quantifi never connects to your broker.",
     how: [
-      "Add your holdings (ticker, quantity, average cost) — nothing is shared with a broker.",
-      "Quantifi prices them live and computes value, gain/loss and weights.",
-      "See concentration risk, sector mix and regional split, computed only from your real holdings.",
+      { label: "Add holdings", body: "Add your holdings (ticker, quantity, average cost) — nothing is shared with a broker, and it all stays in your browser." },
+      { label: "Live pricing", body: "Quantifi prices them live and computes value, gain/loss and portfolio weights automatically." },
+      { label: "See the risk", body: "See concentration risk, sector mix and regional split, computed only from your real holdings." },
     ],
     cta: { label: "Open the Portfolio Risk Analyzer →", href: "/portfolio" },
     faqs: [
@@ -59,9 +60,9 @@ const TOOLS: Record<string, Tool> = {
     intro:
       "Quantifi's screener scores a universe of real, liquid names live from current fundamentals and ranks them by valuation gap, financial-health axes, sector and region — a discovery starting point for your own research.",
     how: [
-      "Pick a preset (e.g. undervalued on cash flows, rock-solid balance sheets) or set your own filters.",
-      "Every row is scored live from current fundamentals — no static demo data.",
-      "Open any name for the full analysis, valuation and risks.",
+      { label: "Pick a preset", body: "Pick a preset (e.g. undervalued on cash flows, rock-solid balance sheets) or set your own filters." },
+      { label: "Live scoring", body: "Every row is scored live from current fundamentals when you load the screen — no static demo data." },
+      { label: "Open any name", body: "Open any name for the full analysis, valuation and risks behind its score." },
     ],
     cta: { label: "Open the Stock Screener →", href: "/screener" },
     faqs: [
@@ -77,9 +78,9 @@ const TOOLS: Record<string, Tool> = {
     intro:
       "The price-to-earnings (P/E) ratio shows how much investors pay per unit of earnings. Quantifi shows each stock's trailing and forward P/E alongside peers and the sector, so a multiple has context — a high P/E can be justified by growth, or a warning sign.",
     how: [
-      "Open any stock to see its trailing and forward P/E.",
-      "Compare it against peers and the sector on the same screen.",
-      "Pair the multiple with the growth and cash-flow view to judge whether it's justified.",
+      { label: "See the P/E", body: "Open any stock to see its trailing and forward P/E, plus how it has moved against its own history." },
+      { label: "Compare peers", body: "Compare it against peers and the sector on the same screen, so the multiple has context." },
+      { label: "Judge the multiple", body: "Pair the multiple with the growth and cash-flow view to judge whether it's actually justified." },
     ],
     cta: { label: "Compare valuations on any stock →", href: "/stock-analysis" },
     faqs: [
@@ -126,14 +127,7 @@ export default function ToolPage({ params }: { params: { slug: string } }) {
       <p className="mt-3 text-base leading-relaxed text-slate-300">{tool.intro}</p>
 
       <h2 className="mt-8 font-display text-xl font-semibold text-white">How it works</h2>
-      <ol className="mt-3 space-y-2">
-        {tool.how.map((h, i) => (
-          <li key={h} className="flex gap-3 text-sm leading-relaxed text-slate-300">
-            <span className="flex h-5 w-5 flex-none items-center justify-center rounded-full bg-gold/15 font-mono text-[0.62rem] text-gold">{i + 1}</span>
-            <span>{h}</span>
-          </li>
-        ))}
-      </ol>
+      <HowItWorksTabs steps={tool.how} />
 
       <div className="mt-6">
         <Link href={tool.cta.href} className="inline-flex rounded-full bg-gradient-to-r from-gold-400 to-gold-600 px-5 py-2.5 text-sm font-semibold text-ink transition hover:opacity-90">
@@ -142,14 +136,7 @@ export default function ToolPage({ params }: { params: { slug: string } }) {
       </div>
 
       <h2 className="mt-10 font-display text-xl font-semibold text-white">FAQ</h2>
-      <div className="mt-3 space-y-4">
-        {tool.faqs.map((f) => (
-          <div key={f.q}>
-            <h3 className="text-sm font-semibold text-white">{f.q}</h3>
-            <p className="mt-1 text-sm leading-relaxed text-slate-400">{f.a}</p>
-          </div>
-        ))}
-      </div>
+      <FaqAccordion faqs={tool.faqs} />
 
       <h2 className="mt-10 font-display text-lg font-semibold text-white">More tools</h2>
       <div className="mt-3 flex flex-wrap gap-2 text-sm">

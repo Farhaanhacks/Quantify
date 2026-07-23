@@ -29,7 +29,10 @@ export default async function MarketPulse() {
   return (
     <section className="border-y border-white/[0.06] bg-ink-900/50">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-4 py-3">
+        {/* The scrolling quotes sit in their own inset band with a subtle
+            gradient, so the ticker reads as a distinct focus strip rather than
+            floating loose text. */}
+        <div className="my-2.5 flex items-center gap-3 rounded-xl border border-white/[0.06] bg-gradient-to-r from-white/[0.04] to-transparent px-3 py-2.5">
           <span className="flex shrink-0 items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-gold">
             <span
               className={`h-1.5 w-1.5 rounded-full ${

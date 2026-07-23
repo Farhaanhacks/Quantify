@@ -5,8 +5,11 @@ import { fmtPct, type Direction } from "@/data/demo";
 // ── Type / label primitives ──────────────────────────────────────────────────
 
 export function Eyebrow({ children }: { children: ReactNode }) {
+  // A distinct pill so every section is clearly badged — this is the visual
+  // marker that tells you which section you've landed on (e.g. after a footer
+  // jump) and separates one block of content from the next as you scroll.
   return (
-    <span className="inline-flex items-center gap-2 text-[0.7rem] font-medium uppercase tracking-[0.22em] text-gold/90">
+    <span className="inline-flex items-center gap-2 rounded-full border border-gold/25 bg-gold/[0.07] px-2.5 py-1 text-[0.66rem] font-semibold uppercase tracking-[0.2em] text-gold">
       <span className="h-1 w-1 rounded-full bg-gold" />
       {children}
     </span>
@@ -27,13 +30,13 @@ export function SectionHeading({
   cta?: string;
 }) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div className="flex scroll-mt-24 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div className="max-w-2xl">
         {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
-        <h2 className="mt-3 font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+        <h2 className="mt-3.5 font-display text-[1.65rem] font-bold leading-tight tracking-tight text-white sm:text-[2rem]">
           {title}
         </h2>
-        {subtitle ? <p className="mt-2 text-sm leading-relaxed text-slate-400">{subtitle}</p> : null}
+        {subtitle ? <p className="mt-2.5 text-[0.95rem] leading-relaxed text-slate-400">{subtitle}</p> : null}
       </div>
       {href && cta ? (
         <Link
