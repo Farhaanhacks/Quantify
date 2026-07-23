@@ -84,6 +84,24 @@ export function usePortfolios() {
     [setValue]
   );
 
+  // Edit an existing holding in place — used to sell/trim shares or correct the
+  // average cost without deleting and re-adding the position.
+  const updateHolding = useCallback(
+    (pid: string, hid: string, patch: Partial<Pick<UserHolding, "shares" | "avgCost">>) => {
+      setValue((prev) =>
+        prev.map((p) =>
+          p.id === pid
+            ? {
+                ...p,
+                holdings: p.holdings.map((h) => (h.id === hid ? { ...h, ...patch } : h)),
+              }
+            : p
+        )
+      );
+    },
+    [setValue]
+  );
+
   return {
     portfolios,
     ready,
@@ -93,5 +111,6 @@ export function usePortfolios() {
     deletePortfolio,
     addHolding,
     removeHolding,
+    updateHolding,
   };
 }

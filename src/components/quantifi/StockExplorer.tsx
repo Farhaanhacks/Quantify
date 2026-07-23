@@ -12,6 +12,7 @@ import CompanyDetails from "@/components/quantifi/CompanyDetails";
 import EtfSnapshot from "@/components/quantifi/EtfSnapshot";
 import Competitors from "@/components/quantifi/Competitors";
 import PeerComparison from "@/components/quantifi/PeerComparison";
+import PeRatioChart from "@/components/quantifi/PeRatioChart";
 import CompanyNewsSection from "@/components/quantifi/CompanyNewsSection";
 import MyNotes from "@/components/quantifi/MyNotes";
 import InsiderActivity from "@/components/quantifi/InsiderActivity";
@@ -353,6 +354,7 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
                   rating / company facts so the business context comes first. */}
               <CompanyDetails symbol={ticker} />
               <CompanyVitals symbol={ticker} />
+              <PeRatioChart symbol={ticker} name={score.name} />
               <ShareholdingStats symbol={ticker} />
               <Competitors symbol={ticker} name={score.name} kind="stocks" />
               <PeerComparison symbol={ticker} name={score.name} />

@@ -93,12 +93,40 @@ export default function PortfolioManager() {
     deletePortfolio,
     addHolding,
     removeHolding,
+    updateHolding,
   } = usePortfolios();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [renaming, setRenaming] = useState(false);
+
+  // Inline row editing (sell/trim shares or correct avg cost).
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editShares, setEditShares] = useState("");
+  const [editAvgCost, setEditAvgCost] = useState("");
+
+  const startEdit = (hid: string, sh: number, ac: number) => {
+    setEditId(hid);
+    setEditShares(String(sh));
+    setEditAvgCost(String(ac));
+  };
+  const cancelEdit = () => setEditId(null);
+  const saveEdit = (pid: string, hid: string) => {
+    const sh = Number(editShares);
+    const ac = Number(editAvgCost);
+    // Zero (or fewer) shares means the position is fully sold → remove it.
+    if (!Number.isFinite(sh) || sh <= 0) {
+      removeHolding(pid, hid);
+      setEditId(null);
+      return;
+    }
+    updateHolding(pid, hid, {
+      shares: sh,
+      ...(Number.isFinite(ac) && ac > 0 ? { avgCost: ac } : {}),
+    });
+    setEditId(null);
+  };
 
   // add-holding form
   const [ticker, setTicker] = useState("");
@@ -426,7 +454,9 @@ export default function PortfolioManager() {
               <span />
             </div>
             <ul className="divide-y divide-white/[0.05]">
-              {summary?.rows.map((r) => (
+              {summary?.rows.map((r) => {
+                const editing = editId === r.id;
+                return (
                 <li
                   key={r.id}
                   className="grid grid-cols-2 gap-3 px-5 py-4 lg:grid-cols-[1.4fr_0.7fr_0.8fr_0.8fr_1fr_0.9fr_auto] lg:items-center"
@@ -435,25 +465,92 @@ export default function PortfolioManager() {
                     <TickerChip ticker={r.ticker} />
                     <span className="hidden text-sm text-slate-300 sm:inline">{r.name}</span>
                   </div>
-                  <div className="text-right font-mono text-sm tnum text-slate-300">{r.shares}</div>
-                  <div className="text-right font-mono text-sm tnum text-slate-300">{cur(r.currency)}{fmtPrice(r.avgCost)}</div>
+                  {editing ? (
+                    <div className="flex justify-end lg:pl-1">
+                      <input
+                        type="number"
+                        autoFocus
+                        value={editShares}
+                        onChange={(e) => setEditShares(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveEdit(current.id, r.id);
+                          if (e.key === "Escape") cancelEdit();
+                        }}
+                        aria-label={`Shares of ${r.ticker}`}
+                        className="w-20 rounded-md border border-gold/40 bg-ink-800 px-2 py-1 text-right font-mono text-sm text-white outline-none"
+                      />
+                    </div>
+                  ) : (
+                    <div className="text-right font-mono text-sm tnum text-slate-300">{r.shares}</div>
+                  )}
+                  {editing ? (
+                    <div className="flex justify-end">
+                      <input
+                        type="number"
+                        value={editAvgCost}
+                        onChange={(e) => setEditAvgCost(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveEdit(current.id, r.id);
+                          if (e.key === "Escape") cancelEdit();
+                        }}
+                        aria-label={`Average cost of ${r.ticker}`}
+                        className="w-20 rounded-md border border-gold/40 bg-ink-800 px-2 py-1 text-right font-mono text-sm text-white outline-none"
+                      />
+                    </div>
+                  ) : (
+                    <div className="text-right font-mono text-sm tnum text-slate-300">{cur(r.currency)}{fmtPrice(r.avgCost)}</div>
+                  )}
                   <div className="text-right font-mono text-sm tnum text-slate-300">{cur(r.currency)}{fmtPrice(r.price)}</div>
                   <div className="text-right font-mono text-sm tnum text-white">{cur(r.currency)}{fmtPrice(r.value)}</div>
                   <div className="flex justify-end">
                     <ChangePill value={r.plPct} size="xs" />
                   </div>
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => removeHolding(current.id, r.id)}
-                      aria-label={`Remove ${r.ticker}`}
-                      className="rounded-md px-2 py-1 text-slate-500 transition hover:bg-white/[0.06] hover:text-down"
-                    >
-                      ✕
-                    </button>
+                  <div className="flex justify-end gap-1">
+                    {editing ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => saveEdit(current.id, r.id)}
+                          className="rounded-md px-2 py-1 text-xs font-medium text-up transition hover:bg-white/[0.06]"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelEdit}
+                          className="rounded-md px-2 py-1 text-xs text-slate-400 transition hover:bg-white/[0.06] hover:text-white"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => startEdit(r.id, r.shares, r.avgCost)}
+                          aria-label={`Edit ${r.ticker}`}
+                          title="Edit / sell shares"
+                          className="rounded-md px-2 py-1 text-slate-500 transition hover:bg-white/[0.06] hover:text-gold"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeHolding(current.id, r.id)}
+                          aria-label={`Remove ${r.ticker}`}
+                          title="Remove holding"
+                          className="rounded-md px-2 py-1 text-slate-500 transition hover:bg-white/[0.06] hover:text-down"
+                        >
+                          ✕
+                        </button>
+                      </>
+                    )}
                   </div>
                 </li>
-              ))}
+                );
+              })}
             </ul>
             {current.holdings.length === 0 ? (
               <div className="px-5 py-12 text-center text-sm text-slate-500">
