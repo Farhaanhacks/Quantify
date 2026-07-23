@@ -200,18 +200,18 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
   const commit = async () => {
     const raw = input.trim();
     if (!raw) return;
+    // Resolve FIRST so a free-text name (e.g. "Sandisk") never reaches the chart
+    // as a broken raw symbol. /api/resolve maps names → tickers (SANDISK → SNDK)
+    // via the curated map before falling back to Yahoo search.
     let t = raw.toUpperCase();
-    setTicker(t); // optimistic
     try {
       const r = await fetch(`/api/resolve?q=${encodeURIComponent(raw)}`);
       const d = await r.json();
-      if (d.symbol && String(d.symbol).toUpperCase() !== t) {
-        t = String(d.symbol).toUpperCase();
-        setInput(t);
-      }
+      if (d.symbol) t = String(d.symbol).toUpperCase();
     } catch {
-      /* keep optimistic value */
+      /* fall back to the raw upper-cased input */
     }
+    setInput(t);
     go(t);
   };
 
