@@ -29,3 +29,4 @@ next-env.d.ts
 
 # lockfile (not tracked in this repo)
 package-lock.json
+quantifi-latest.zip

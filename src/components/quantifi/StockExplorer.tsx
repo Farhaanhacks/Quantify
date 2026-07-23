@@ -11,6 +11,7 @@ import ShareholdingStats from "@/components/quantifi/ShareholdingStats";
 import CompanyDetails from "@/components/quantifi/CompanyDetails";
 import EtfSnapshot from "@/components/quantifi/EtfSnapshot";
 import Competitors from "@/components/quantifi/Competitors";
+import PeerComparison from "@/components/quantifi/PeerComparison";
 import CompanyNewsSection from "@/components/quantifi/CompanyNewsSection";
 import MyNotes from "@/components/quantifi/MyNotes";
 import InsiderActivity from "@/components/quantifi/InsiderActivity";
@@ -354,6 +355,7 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
               <CompanyVitals symbol={ticker} />
               <ShareholdingStats symbol={ticker} />
               <Competitors symbol={ticker} name={score.name} kind="stocks" />
+              <PeerComparison symbol={ticker} name={score.name} />
             </>
           ) : etf ? (
             <>
