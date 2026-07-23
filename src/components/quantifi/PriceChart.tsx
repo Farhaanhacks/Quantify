@@ -115,6 +115,15 @@ export default function PriceChart({
           bottomColor: "rgba(79, 147, 247,0.02)",
           lineWidth: 2,
           priceLineVisible: false,
+          // A price can never be negative, but lightweight-charts' auto-scale pads
+          // the range and — on a wide Max view spanning ₹5 → ₹4000 — drops the
+          // axis floor below zero (the "-400" artefact). Clamp the visible minimum
+          // to 0 so the axis always reads as real prices.
+          autoscaleInfoProvider: (original: () => unknown) => {
+            const res = original() as { priceRange?: { minValue: number; maxValue: number } } | null;
+            if (res?.priceRange && res.priceRange.minValue < 0) res.priceRange.minValue = 0;
+            return res;
+          },
         });
         series.setData(data.points ?? []);
         chart.timeScale().fitContent();

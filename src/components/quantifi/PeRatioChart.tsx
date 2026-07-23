@@ -65,23 +65,27 @@ export default function PeRatioChart({ symbol, name }: { symbol: string; name?: 
   const peSeries = series.filter((s) => s.pe != null && s.pe > 0) as { t: string; price: number; pe: number }[];
   if (peSeries.length < 8) return null;
 
-  const W = 860, H = 340, padX = 12, padTop = 16, padBot = 28;
+  const W = 860, H = 340, padL = 46, padR = 42, padTop = 16, padBot = 28;
   const n = series.length;
-  const X = (i: number) => padX + (i / (n - 1)) * (W - 2 * padX);
+  const plotW = W - padL - padR;
+  const plotH = H - padTop - padBot;
+  const X = (i: number) => padL + (i / (n - 1)) * plotW;
 
   // Left axis: price
   const pMin = Math.min(...prices), pMax = Math.max(...prices);
   const pSpan = pMax - pMin || 1;
-  const Yp = (v: number) => padTop + (1 - (v - pMin) / pSpan) * (H - padTop - padBot);
+  const Yp = (v: number) => padTop + (1 - (v - pMin) / pSpan) * plotH;
 
   // Right axis: P/E — clamp the top to the 95th percentile so one blow-out
-  // quarter (near-zero EPS) doesn't flatten the whole line.
+  // quarter (near-zero EPS) doesn't flatten the whole line, and always include
+  // the median so its reference line stays on-screen.
   const peOnly = peSeries.map((s) => s.pe).sort((a, b) => a - b);
-  const peLo = Math.min(0, peOnly[0]);
+  const median = data.pe?.median ?? peOnly[Math.floor(peOnly.length / 2)];
   const peHiRaw = peOnly[Math.floor(peOnly.length * 0.95)] ?? peOnly[peOnly.length - 1];
-  const peHi = Math.max(peHiRaw, (data.pe?.median ?? 10) * 1.2);
+  const peLo = Math.max(0, Math.min(peOnly[0], median * 0.8));
+  const peHi = Math.max(peHiRaw, median * 1.2);
   const peSpan = peHi - peLo || 1;
-  const Ype = (v: number) => padTop + (1 - (Math.min(v, peHi) - peLo) / peSpan) * (H - padTop - padBot);
+  const Ype = (v: number) => padTop + (1 - (Math.min(Math.max(v, peLo), peHi) - peLo) / peSpan) * plotH;
 
   const priceLine = series.map((s, i) => `${X(i)},${Yp(s.price)}`).join(" ");
   // The P/E line follows the same x-index as its point in the full series.
@@ -89,18 +93,24 @@ export default function PeRatioChart({ symbol, name }: { symbol: string; name?: 
   const peLine = peSeries.map((s) => `${X(idxOf.get(s.t) ?? 0)},${Ype(s.pe)}`).join(" ");
 
   // Median P/E reference line (right axis).
-  const medY = data.pe ? Ype(data.pe.median) : null;
+  const medY = data.pe ? Ype(median) : null;
+
+  // Axis tick rows (4 gridlines): left labels read price, right labels read P/E.
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => ({
+    y: padTop + f * plotH,
+    price: pMax - f * pSpan,
+    pe: peHi - f * peSpan,
+  }));
 
   const currentPE = data.currentPE ?? null;
-  const median = data.pe?.median ?? null;
-  const richVsHistory = currentPE != null && median != null ? currentPE > median : null;
+  const richVsHistory = currentPE != null ? currentPE > median : null;
 
   return (
     <section className="mx-auto max-w-7xl px-4 pb-4 sm:px-6 lg:px-8">
       <SectionHeading
         eyebrow="Valuation over time"
         title={`${name ?? symbol} — P/E vs price`}
-        subtitle="How the price (blue) and the trailing P/E (amber) have moved over ~5 years, so you can see whether today's valuation is high or low against the company's own history. P/E is approximated from quarterly EPS — research context, not advice."
+        subtitle="How the price (blue) and the trailing P/E (amber) have moved over ~5 years, so you can see whether today's valuation is high or low against the company's own history. P/E is built from reported EPS and anchored to the current trailing P/E — research context, not advice."
       />
 
       <GlassCard className="mt-6 p-5 sm:p-6">
@@ -137,22 +147,34 @@ export default function PeRatioChart({ symbol, name }: { symbol: string; name?: 
 
         <div className="overflow-x-auto">
           <svg viewBox={`0 0 ${W} ${H}`} className="w-full min-w-[560px]" style={{ height: 340 }}>
+            {/* Horizontal gridlines with dual axis labels (price left, P/E right) */}
+            {ticks.map((t, i) => (
+              <g key={i}>
+                <line x1={padL} x2={W - padR} y1={t.y} y2={t.y} stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+                <text x={padL - 6} y={t.y + 3} textAnchor="end" className="fill-slate-500" style={{ fontSize: 10 }}>
+                  {cur(data.currency)}{t.price >= 1000 ? Math.round(t.price).toLocaleString() : t.price.toFixed(0)}
+                </text>
+                <text x={W - padR + 6} y={t.y + 3} className="fill-amber-500/70" style={{ fontSize: 10 }}>
+                  {t.pe.toFixed(0)}×
+                </text>
+              </g>
+            ))}
             {/* Median P/E reference */}
             {medY != null ? (
               <>
-                <line x1={padX} x2={W - padX} y1={medY} y2={medY} stroke="rgba(245,158,11,0.28)" strokeWidth="1" strokeDasharray="5 5" />
-                <text x={W - padX} y={medY - 4} textAnchor="end" className="fill-amber-500/70" style={{ fontSize: 10 }}>
-                  median {data.pe?.median.toFixed(0)}×
+                <line x1={padL} x2={W - padR} y1={medY} y2={medY} stroke="rgba(245,158,11,0.55)" strokeWidth="1.5" strokeDasharray="6 4" />
+                <text x={padL + 4} y={medY - 4} className="fill-amber-400" style={{ fontSize: 10 }}>
+                  median {median.toFixed(0)}×
                 </text>
               </>
             ) : null}
             {/* Price line */}
             <polyline fill="none" stroke="#4F93F7" strokeWidth="2" vectorEffect="non-scaling-stroke" points={priceLine} />
             {/* P/E line */}
-            <polyline fill="none" stroke="#F59E0B" strokeWidth="2" vectorEffect="non-scaling-stroke" points={peLine} />
+            <polyline fill="none" stroke="#F59E0B" strokeWidth="2.25" vectorEffect="non-scaling-stroke" points={peLine} />
             {/* x-axis endpoints */}
-            <text x={padX} y={H - 8} className="fill-slate-500" style={{ fontSize: 10 }}>{series[0].t}</text>
-            <text x={W - padX} y={H - 8} textAnchor="end" className="fill-slate-500" style={{ fontSize: 10 }}>
+            <text x={padL} y={H - 8} className="fill-slate-500" style={{ fontSize: 10 }}>{series[0].t}</text>
+            <text x={W - padR} y={H - 8} textAnchor="end" className="fill-slate-500" style={{ fontSize: 10 }}>
               {series[series.length - 1].t}
             </text>
           </svg>
