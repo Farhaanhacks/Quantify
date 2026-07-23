@@ -16,6 +16,60 @@ const str = (x: unknown): string | undefined =>
 // by the exact symbol; the generic Yahoo path still handles everything else.
 // Extend this map as needed — it's the correctness lever for headline names.
 const PEER_OVERRIDES: Record<string, string[]> = {
+  // ── US mega / large caps ────────────────────────────────────────────────
+  // Yahoo's industry filter drops these (Apple's "Consumer Electronics" peers
+  // are almost none), so we hand-pick the names investors actually compare.
+  AAPL: ["MSFT", "GOOGL", "AMZN", "META"],
+  MSFT: ["AAPL", "GOOGL", "AMZN", "ORCL"],
+  GOOGL: ["META", "MSFT", "AMZN", "AAPL"],
+  GOOG: ["META", "MSFT", "AMZN", "AAPL"],
+  AMZN: ["MSFT", "GOOGL", "WMT", "AAPL"],
+  META: ["GOOGL", "SNAP", "PINS", "AMZN"],
+  NVDA: ["AMD", "AVGO", "INTC", "TSM"],
+  AMD: ["NVDA", "INTC", "AVGO", "QCOM"],
+  INTC: ["AMD", "NVDA", "TSM", "QCOM"],
+  TSM: ["NVDA", "INTC", "AMD", "AVGO"],
+  QCOM: ["AVGO", "NVDA", "TXN", "AMD"],
+  AVGO: ["QCOM", "NVDA", "TXN", "AMD"],
+  MU: ["WDC", "STX", "SNDK", "INTC"],
+  TSLA: ["F", "GM", "RIVN", "NIO"],
+  F: ["GM", "TSLA", "STLA", "TM"],
+  GM: ["F", "TSLA", "STLA", "TM"],
+  NFLX: ["DIS", "WBD", "PARA", "CMCSA"],
+  DIS: ["NFLX", "WBD", "CMCSA", "PARA"],
+  JPM: ["BAC", "WFC", "C", "GS"],
+  BAC: ["JPM", "WFC", "C", "USB"],
+  WFC: ["JPM", "BAC", "C", "USB"],
+  GS: ["MS", "JPM", "BAC", "C"],
+  MS: ["GS", "JPM", "BAC", "C"],
+  V: ["MA", "AXP", "PYPL", "DFS"],
+  MA: ["V", "AXP", "PYPL", "DFS"],
+  PYPL: ["SQ", "V", "MA", "COIN"],
+  KO: ["PEP", "KDP", "MNST", "CCEP"],
+  PEP: ["KO", "MDLZ", "KDP", "MNST"],
+  WMT: ["TGT", "COST", "AMZN", "KR"],
+  COST: ["WMT", "TGT", "KR", "BJ"],
+  TGT: ["WMT", "COST", "KR", "DG"],
+  PG: ["KMB", "CL", "UL", "CHD"],
+  JNJ: ["PFE", "MRK", "ABBV", "LLY"],
+  PFE: ["MRK", "JNJ", "ABBV", "BMY"],
+  MRK: ["PFE", "JNJ", "ABBV", "BMY"],
+  LLY: ["NVO", "MRK", "PFE", "ABBV"],
+  UNH: ["ELV", "CI", "HUM", "CVS"],
+  XOM: ["CVX", "COP", "SLB", "BP"],
+  CVX: ["XOM", "COP", "SLB", "EOG"],
+  BA: ["LMT", "RTX", "GD", "NOC"],
+  LMT: ["RTX", "NOC", "GD", "BA"],
+  CRM: ["MSFT", "ORCL", "ADBE", "NOW"],
+  ADBE: ["CRM", "MSFT", "ORCL", "NOW"],
+  ORCL: ["MSFT", "CRM", "SAP", "IBM"],
+  IBM: ["ORCL", "ACN", "SAP", "HPE"],
+  UBER: ["LYFT", "DASH", "ABNB", "GRAB"],
+  ABNB: ["BKNG", "EXPE", "MAR", "UBER"],
+  COIN: ["HOOD", "PYPL", "SQ", "MSTR"],
+  SNDK: ["WDC", "STX", "MU", "NTAP"],
+  WDC: ["STX", "SNDK", "MU", "NTAP"],
+
   // Indian new-age consumer-internet / e-commerce / marketplaces
   "MEESHO.NS": ["ETERNAL.NS", "NYKAA.NS", "SWIGGY.NS", "PAYTM.NS"],
   "SWIGGY.NS": ["ETERNAL.NS", "NYKAA.NS", "MEESHO.NS", "PAYTM.NS"],
@@ -92,6 +146,43 @@ const PEER_OVERRIDES: Record<string, string[]> = {
   // Hospitality — so ITC Hotels gets hotels, not autos
   "ITCHOTELS.NS": ["INDHOTEL.NS", "EIHOTEL.NS", "CHALET.NS", "LEMONTREE.NS"],
   "INDHOTEL.NS": ["ITCHOTELS.NS", "EIHOTEL.NS", "CHALET.NS", "LEMONTREE.NS"],
+
+  // ── Adani group ─────────────────────────────────────────────────────────
+  // Yahoo returns almost nothing for these, so hand-pick by what each entity
+  // actually does (the group spans ports, power, gas, transmission, cement…).
+  "ADANIENT.NS": ["ADANIPORTS.NS", "ADANIPOWER.NS", "ADANIGREEN.NS", "RELIANCE.NS"],
+  "ADANIPORTS.NS": ["JSWINFRA.NS", "ADANIENT.NS", "GMRAIRPORT.NS", "RELIANCE.NS"],
+  "ADANIPOWER.NS": ["NTPC.NS", "TATAPOWER.NS", "JSWENERGY.NS", "NHPC.NS"],
+  "ADANIGREEN.NS": ["TATAPOWER.NS", "JSWENERGY.NS", "NTPC.NS", "ADANIPOWER.NS"],
+  "ADANIENSOL.NS": ["POWERGRID.NS", "TATAPOWER.NS", "NTPC.NS", "JSWENERGY.NS"],
+  "ATGL.NS": ["IGL.NS", "MGL.NS", "GUJGASLTD.NS", "GAIL.NS"],
+  "AWL.NS": ["MARICO.NS", "TATACONSUM.NS", "PATANJALI.NS", "NESTLEIND.NS"],
+  "AMBUJACEM.NS": ["ULTRACEMCO.NS", "ACC.NS", "SHREECEM.NS", "DALBHARAT.NS"],
+  "ACC.NS": ["ULTRACEMCO.NS", "AMBUJACEM.NS", "SHREECEM.NS", "DALBHARAT.NS"],
+
+  // ── Power & utilities ───────────────────────────────────────────────────
+  "NTPC.NS": ["POWERGRID.NS", "TATAPOWER.NS", "ADANIPOWER.NS", "NHPC.NS"],
+  "POWERGRID.NS": ["NTPC.NS", "ADANIENSOL.NS", "TATAPOWER.NS", "NHPC.NS"],
+  "TATAPOWER.NS": ["NTPC.NS", "ADANIPOWER.NS", "JSWENERGY.NS", "POWERGRID.NS"],
+  "JSWENERGY.NS": ["TATAPOWER.NS", "ADANIPOWER.NS", "NTPC.NS", "NHPC.NS"],
+  "NHPC.NS": ["NTPC.NS", "SJVN.NS", "POWERGRID.NS", "TATAPOWER.NS"],
+  "GAIL.NS": ["IGL.NS", "MGL.NS", "GUJGASLTD.NS", "PETRONET.NS"],
+  "IGL.NS": ["MGL.NS", "GUJGASLTD.NS", "ATGL.NS", "GAIL.NS"],
+
+  // ── Engineering / capital goods / defence ──────────────────────────────
+  "LT.NS": ["SIEMENS.NS", "ABB.NS", "BHEL.NS", "BEL.NS"],
+  "SIEMENS.NS": ["ABB.NS", "LT.NS", "BHEL.NS", "CGPOWER.NS"],
+  "ABB.NS": ["SIEMENS.NS", "CGPOWER.NS", "LT.NS", "BHEL.NS"],
+  "BEL.NS": ["HAL.NS", "BDL.NS", "MAZDOCK.NS", "COCHINSHIP.NS"],
+  "HAL.NS": ["BEL.NS", "BDL.NS", "MAZDOCK.NS", "COCHINSHIP.NS"],
+
+  // ── Consumer / retail / jewellery ──────────────────────────────────────
+  "TITAN.NS": ["KALYANKJIL.NS", "SENCO.NS", "PCJEWELLER.NS", "RAJESHEXPO.NS"],
+  "DMART.NS": ["TRENT.NS", "VMART.NS", "ABFRL.NS", "NYKAA.NS"],
+  "TRENT.NS": ["DMART.NS", "ABFRL.NS", "VMART.NS", "NYKAA.NS"],
+  "TATACONSUM.NS": ["NESTLEIND.NS", "BRITANNIA.NS", "HINDUNILVR.NS", "MARICO.NS"],
+  "MARICO.NS": ["DABUR.NS", "GODREJCP.NS", "TATACONSUM.NS", "COLPAL.NS"],
+  "VBL.NS": ["HINDUNILVR.NS", "NESTLEIND.NS", "TATACONSUM.NS", "BRITANNIA.NS"], // Varun Beverages
 };
 
 function overrideFor(symbol: string): string[] | null {
@@ -164,16 +255,26 @@ export async function GET(
   const baseIndustry = base?.industry?.toLowerCase();
   const baseSector = base?.sector?.toLowerCase();
 
-  // 3) Filter to true peers. A company MUST match on INDUSTRY — we deliberately do
-  //    NOT fall back to sector, because sectors are far too broad (e.g. "Consumer
-  //    Cyclical" lumps car makers with hotels, which is how Tata Motors was getting
-  //    ITC Hotels). Showing fewer correct peers — or an honest empty list — beats
-  //    showing a wrong one. Funds/indexes (no base industry) keep the raw list.
+  // 3) Filter to true peers. Prefer an exact INDUSTRY match — the tightest,
+  //    most-correct set. But if that yields fewer than two names (common: Yahoo's
+  //    recommendations for a company are often in adjacent industries, e.g. Apple's
+  //    are Software/Internet, not "Consumer Electronics"), fall back to same-SECTOR
+  //    so the user still sees comparables instead of an empty box. The handful of
+  //    sectors where that's misleading (autos vs hotels) are already handled by the
+  //    curated overrides above, which win before we ever get here.
   let chosen: PeerInfo[];
   if (!baseIndustry) {
     chosen = baseSector ? [] : valid; // classifiable company w/o industry → none; ETF/index → raw
   } else {
-    chosen = valid.filter((p) => p.industry?.toLowerCase() === baseIndustry);
+    const sameIndustry = valid.filter((p) => p.industry?.toLowerCase() === baseIndustry);
+    if (sameIndustry.length >= 2) {
+      chosen = sameIndustry;
+    } else {
+      const sameSector = baseSector
+        ? valid.filter((p) => p.sector?.toLowerCase() === baseSector)
+        : [];
+      chosen = sameSector.length >= sameIndustry.length ? sameSector : sameIndustry;
+    }
   }
 
   const peers = chosen.slice(0, 4).map((p) => p.symbol);
