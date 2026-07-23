@@ -159,11 +159,13 @@ export default function PeRatioChart({ symbol, name }: { symbol: string; name?: 
                 </text>
               </g>
             ))}
-            {/* Median P/E reference */}
+            {/* Median P/E reference — label sits in a chip lifted above the line
+                so neither the dashed line nor the price line overwrites it. */}
             {medY != null ? (
               <>
                 <line x1={padL} x2={W - padR} y1={medY} y2={medY} stroke="rgba(245,158,11,0.55)" strokeWidth="1.5" strokeDasharray="6 4" />
-                <text x={padL + 4} y={medY - 4} className="fill-amber-400" style={{ fontSize: 10 }}>
+                <rect x={padL + 3} y={medY - 17} width={74} height={14} rx={3} fill="rgba(9,13,20,0.92)" stroke="rgba(245,158,11,0.35)" strokeWidth="0.75" />
+                <text x={padL + 8} y={medY - 7} className="fill-amber-400" style={{ fontSize: 10, fontWeight: 600 }}>
                   median {median.toFixed(0)}×
                 </text>
               </>

@@ -455,7 +455,7 @@ export default function Screener({ heading = true }: { heading?: boolean }) {
                       <div className="mx-auto h-[180px] w-[180px]">
                         <ScoreRadar
                           values={SCORE_AXES.map((a) => r.scores[a.key])}
-                          labels={SCORE_AXES.map((a) => a.label)}
+                          labels={SCORE_AXES.map((a) => a.short)}
                           size={170}
                         />
                       </div>
