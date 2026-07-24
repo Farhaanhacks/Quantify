@@ -5,10 +5,9 @@ import { GlassCard } from "@/components/quantifi/Cards";
 import SupportResistanceChart from "@/components/quantifi/SupportResistanceChart";
 import type { CompanyData } from "@/lib/yahooCompany";
 import { toneOf } from "@/lib/newsImpact";
-import { fmtCompactCur, isIndianCurrency } from "@/data/demo";
+import { fmtCompactCur, isIndianCurrency, currencySymbol } from "@/data/demo";
 
-const cur = (c?: string, ticker?: string) =>
-  c === "INR" || (ticker && /\.(NS|BO)$/i.test(ticker)) ? "₹" : c === "GBp" ? "p" : "$";
+const cur = (c?: string, ticker?: string) => currencySymbol(c, ticker);
 
 function fmtDate(d?: string): string {
   if (!d) return "—";

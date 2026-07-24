@@ -9,7 +9,7 @@ import {
   ChangePill,
   BarMeter,
 } from "@/components/quantifi/Cards";
-import { fmtPrice, fmtPct } from "@/data/demo";
+import { fmtPrice, fmtPct, currencySymbol, currencyForTicker } from "@/data/demo";
 import { popularTickers } from "@/data/popularTickers";
 import {
   usePortfolios,
@@ -23,7 +23,7 @@ interface Quote {
   currency?: string;
 }
 
-const cur = (c?: string) => (c === "INR" ? "₹" : "$");
+const cur = (c?: string) => currencySymbol(c);
 
 function computeRows(p: UserPortfolio, quotes: Record<string, Quote>) {
   const rows = p.holdings.map((h) => {
@@ -33,7 +33,7 @@ function computeRows(p: UserPortfolio, quotes: Record<string, Quote>) {
     const cost = h.shares * h.avgCost;
     const pl = value - cost;
     const plPct = cost > 0 ? (pl / cost) * 100 : 0;
-    const currency = q?.currency ?? (h.ticker.endsWith(".NS") ? "INR" : "USD");
+    const currency = q?.currency ?? currencyForTicker(h.ticker) ?? "USD";
     return {
       ...h,
       price: px,

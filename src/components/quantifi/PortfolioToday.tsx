@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { GlassCard, SectionHeading, TickerChip, ChangePill } from "@/components/quantifi/Cards";
 import { usePortfolios, resolveName } from "@/lib/usePortfolios";
+import { currencySymbol } from "@/data/demo";
 
 interface Q {
   price: number;
@@ -22,7 +23,7 @@ interface Line {
   dayPct: number;
 }
 
-const curSym = (c: string) => (c === "INR" ? "₹" : c === "EUR" ? "€" : c === "GBP" ? "£" : "$");
+const curSym = (c: string) => currencySymbol(c);
 
 function money(amt: number, cur: string): string {
   const sign = amt > 0 ? "+" : amt < 0 ? "−" : "";

@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { GlassCard, SectionHeading } from "@/components/quantifi/Cards";
 import type { CompanyData, FinRow } from "@/lib/yahooCompany";
-import { fmtCompactCur, isIndianCurrency } from "@/data/demo";
+import { fmtCompactCur, isIndianCurrency, currencySymbol } from "@/data/demo";
 
 // Currency-aware compact formatting: Indian stocks read in lakh / crore, the
 // rest in K / M / B / T. See fmtCompactCur in demo.ts.
@@ -12,8 +12,7 @@ const pct = (n?: number): string => (n == null || !isFinite(n) ? "n/a" : `${(n *
 const ratio = (n?: number): string => (n == null || !isFinite(n) ? "n/a" : n.toFixed(2));
 const money = (n: number | undefined, cur = "USD"): string => {
   if (n == null || !isFinite(n)) return "n/a";
-  const s = cur === "INR" ? "₹" : cur === "USD" ? "$" : "";
-  return `${s}${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+  return `${currencySymbol(cur)}${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 };
 const de = (n?: number): string => (n == null || !isFinite(n) ? "n/a" : (n / 100).toFixed(2));
 

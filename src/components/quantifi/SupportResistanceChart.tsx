@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { currencySymbol } from "@/data/demo";
 
-const cur = (c?: string, t?: string) =>
-  c === "INR" || (t && /\.(NS|BO)$/i.test(t)) ? "₹" : c === "GBp" ? "p" : "$";
+const cur = (c?: string, t?: string) => currencySymbol(c, t);
 
 function percentile(sorted: number[], p: number): number {
   if (!sorted.length) return 0;

@@ -9,7 +9,7 @@ import {
   ChangePill,
   Sparkline,
 } from "@/components/quantifi/Cards";
-import { fmtPrice, fmtPct, dirOf } from "@/data/demo";
+import { fmtPrice, fmtPct, dirOf, currencySymbol } from "@/data/demo";
 import { usePortfolios, resolveName } from "@/lib/usePortfolios";
 
 interface Row {
@@ -25,7 +25,7 @@ interface Row {
   spark: number[] | null;
 }
 
-const curSym = (c: string) => (c === "INR" ? "₹" : "$");
+const curSym = (c: string) => currencySymbol(c);
 
 export default function PortfolioStocks({
   limit,

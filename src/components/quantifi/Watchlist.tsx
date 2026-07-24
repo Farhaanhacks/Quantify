@@ -9,7 +9,7 @@ import {
   Sparkline,
   ScoreRadar,
 } from "@/components/quantifi/Cards";
-import { fmtPrice, SCORE_AXES } from "@/data/demo";
+import { fmtPrice, SCORE_AXES, currencySymbol } from "@/data/demo";
 import type { ScoreAxisKey } from "@/data/demo";
 import { useWatchlist } from "@/lib/useWatchlist";
 import { isAiBubbleStock } from "@/data/aiBubble";
@@ -19,10 +19,7 @@ import { FREE_LIMITS } from "@/data/plans";
 const EMPTY_LABELS = ["", "", "", "", ""];
 
 function ccy(currency: string | undefined, ticker: string): string {
-  if (currency === "INR" || /\.(NS|BO)$/i.test(ticker)) return "₹";
-  if (currency === "GBP") return "£";
-  if (currency === "EUR") return "€";
-  return "$";
+  return currencySymbol(currency, ticker);
 }
 
 function signed(x: number): string {

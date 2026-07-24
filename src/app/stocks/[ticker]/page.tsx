@@ -6,6 +6,7 @@ import StockExplorer from "@/components/quantifi/StockExplorer";
 import JsonLd from "@/components/JsonLd";
 import { buildMetadata, faqJsonLd, breadcrumbJsonLd } from "@/lib/seo";
 import { getYahooCompany } from "@/lib/yahooCompany";
+import { currencySymbol } from "@/data/demo";
 
 // Incremental Static Regeneration: each ticker page is rendered on first request
 // and cached for an hour, so Google gets a fast, static-quality page that still
@@ -44,7 +45,7 @@ export default async function StockSeoPage({ params }: { params: { ticker: strin
   const company = await getYahooCompany(ticker).catch(() => null);
   const name = company?.name;
   const sector = company?.sector;
-  const c = company?.currency === "INR" || /\.(NS|BO)$/i.test(ticker) ? "₹" : "$";
+  const c = currencySymbol(company?.currency, ticker);
 
   const faqs = [
     {

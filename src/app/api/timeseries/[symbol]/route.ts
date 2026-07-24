@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getStooqSeries, type StooqPoint } from "@/lib/stooq";
 import { cacheHeaders } from "@/lib/httpCache";
 import { aliasSymbol } from "@/lib/symbolAlias";
+import { currencyForTicker } from "@/data/demo";
 
 // Personal-use price history. Pulls daily closes from Yahoo Finance's (unofficial)
 // chart endpoint, falling back to Stooq. Returns real data only — when neither
@@ -84,7 +85,7 @@ async function yahooSeries(symbol: string, range: string) {
       price: Number(price.toFixed(2)),
       change: Number((price - prev).toFixed(2)),
       changePct: prev ? Number((((price - prev) / prev) * 100).toFixed(2)) : 0,
-      currency: m.currency ?? (symbol.toUpperCase().endsWith(".NS") ? "INR" : "USD"),
+      currency: m.currency ?? (currencyForTicker(symbol) ?? "USD"),
     },
     live: true,
   };
@@ -113,7 +114,7 @@ function fromStooq(symbol: string, points: StooqPoint[], range: string) {
       price: last,
       change: Number((last - prev).toFixed(2)),
       changePct: prev ? Number((((last - prev) / prev) * 100).toFixed(2)) : 0,
-      currency: symbol.toUpperCase().endsWith(".NS") ? "INR" : "USD",
+      currency: currencyForTicker(symbol) ?? "USD",
     },
     live: true,
     source: "stooq",
@@ -158,7 +159,7 @@ export async function GET(
         price: 0,
         change: 0,
         changePct: 0,
-        currency: symbol.toUpperCase().endsWith(".NS") ? "INR" : "USD",
+        currency: currencyForTicker(symbol) ?? "USD",
       },
       live: false,
       available: false,

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createChart, ColorType } from "lightweight-charts";
 import { GlassCard, ChangePill, TickerChip } from "@/components/quantifi/Cards";
-import { fmtPrice } from "@/data/demo";
+import { fmtPrice, currencySymbol } from "@/data/demo";
 
 interface Meta {
   price?: number;
@@ -147,7 +147,7 @@ export default function PriceChart({
     };
   }, [symbol, height, range]);
 
-  const symbolCurrency = meta?.currency === "INR" ? "₹" : "$";
+  const symbolCurrency = currencySymbol(meta?.currency, symbol);
 
   return (
     <GlassCard className="p-4 sm:p-5">

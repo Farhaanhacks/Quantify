@@ -9,6 +9,7 @@ import {
   axisLabel,
   overallScore,
   fmtPrice,
+  currencySymbol,
   type ScoreAxisKey,
   type CompanyAnalytics,
 } from "@/data/demo";
@@ -51,7 +52,7 @@ export default function CompanySnapshot({
   const resolvedName = name ?? ticker;
   if (!a || resolvedPrice == null) return null;
 
-  const cur = /\.(NS|BO)$/i.test(ticker) ? "₹" : "$";
+  const cur = currencySymbol(undefined, ticker);
 
   const total = overallScore(a); // 0–30
   const radarValues = SCORE_AXES.map((axis) => a.scores[axis.key].score);

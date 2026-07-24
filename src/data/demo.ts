@@ -101,6 +101,62 @@ export const fmtCompact = (n: number) => {
 export const isIndianCurrency = (currency?: string, ticker?: string): boolean =>
   currency === "INR" || (!!ticker && /\.(NS|BO)$/i.test(ticker));
 
+// Yahoo exchange suffix → trading currency, so a non-US listing shows the right
+// symbol even when the live currency field is momentarily missing. Symbols only,
+// no FX conversion — we just want, e.g., Samsung (005930.KS) to read in ₩ KRW.
+const SUFFIX_CCY: Record<string, string> = {
+  NS: "INR", BO: "INR", // India — NSE / BSE
+  KS: "KRW", KQ: "KRW", // South Korea — KOSPI / KOSDAQ
+  T: "JPY", // Japan — Tokyo
+  HK: "HKD", // Hong Kong
+  L: "GBP", // London (often quoted in pence — Yahoo returns "GBp")
+  SS: "CNY", SZ: "CNY", // China — Shanghai / Shenzhen
+  TW: "TWD", TWO: "TWD", // Taiwan
+  AX: "AUD", // Australia
+  NZ: "NZD", // New Zealand
+  SI: "SGD", // Singapore
+  KL: "MYR", // Malaysia
+  BK: "THB", // Thailand
+  JK: "IDR", // Indonesia
+  TO: "CAD", V: "CAD", NE: "CAD", // Canada — Toronto / TSXV / NEO
+  DE: "EUR", F: "EUR", PA: "EUR", AS: "EUR", MI: "EUR", MC: "EUR", BR: "EUR", LS: "EUR", VI: "EUR", HE: "EUR", IR: "EUR", // Euro exchanges
+  ST: "SEK", // Sweden
+  OL: "NOK", // Norway
+  CO: "DKK", // Denmark
+  SW: "CHF", // Switzerland
+  SA: "BRL", // Brazil
+  MX: "MXN", // Mexico
+  JO: "ZAR", // South Africa
+  TA: "ILS", // Israel
+  SR: "SAR", // Saudi Arabia
+  IS: "TRY", // Turkey
+};
+
+// Infer a currency code from a ticker's exchange suffix (e.g. ".KS" → "KRW").
+export const currencyForTicker = (ticker?: string): string | undefined => {
+  if (!ticker) return undefined;
+  const m = /\.([A-Za-z]+)$/.exec(ticker.trim());
+  return m ? SUFFIX_CCY[m[1].toUpperCase()] : undefined;
+};
+
+// Currency code → display symbol. Covers the majors plus every exchange in
+// SUFFIX_CCY. GBp is London pence (a real Yahoo currency code).
+const CCY_SYMBOL: Record<string, string> = {
+  USD: "$", CAD: "C$", AUD: "A$", NZD: "NZ$", HKD: "HK$", SGD: "S$",
+  INR: "₹", KRW: "₩", JPY: "¥", CNY: "¥", TWD: "NT$",
+  GBP: "£", GBp: "p", EUR: "€", CHF: "CHF ", SEK: "kr ", NOK: "kr ", DKK: "kr ",
+  BRL: "R$", MXN: "MX$", ZAR: "R", ILS: "₪", SAR: "﷼ ", TRY: "₺",
+  THB: "฿", IDR: "Rp ", MYR: "RM ",
+};
+
+// The right currency symbol for a value: prefer the live currency code, fall
+// back to the exchange suffix, then USD. Rendering stays light — symbols only.
+export const currencySymbol = (currency?: string, ticker?: string): string => {
+  if (currency && CCY_SYMBOL[currency]) return CCY_SYMBOL[currency];
+  const code = currency || currencyForTicker(ticker) || "USD";
+  return CCY_SYMBOL[code] ?? CCY_SYMBOL[code.toUpperCase()] ?? "$";
+};
+
 // Compact number formatting, currency-aware. For Indian (INR) contexts we use
 // the lakh / crore system the way Indian investors actually read financials
 // (L = lakh = 1e5, Cr = crore = 1e7, lakh Cr = 1e12) instead of M / B. Every

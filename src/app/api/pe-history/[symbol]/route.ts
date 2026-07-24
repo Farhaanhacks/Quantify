@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cacheHeaders } from "@/lib/httpCache";
 import { aliasSymbol } from "@/lib/symbolAlias";
 import { yahooQuoteSummary } from "@/lib/yahooCrumb";
+import { currencyForTicker } from "@/data/demo";
 
 // Approximate historical P/E for a company, so users can see whether a stock is
 // expensive or cheap RELATIVE TO ITS OWN HISTORY — not just today's snapshot.
@@ -141,7 +142,7 @@ export async function GET(
     authoritativePE(symbol),
   ]);
   const prices = priceRes.points;
-  const currency = priceRes.currency ?? (symbol.endsWith(".NS") ? "INR" : "USD");
+  const currency = priceRes.currency ?? (currencyForTicker(symbol) ?? "USD");
 
   if (prices.length < 8) {
     return NextResponse.json({ available: false }, { headers: cacheHeaders(600, 1200) });

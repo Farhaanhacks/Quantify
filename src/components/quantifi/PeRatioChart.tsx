@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { GlassCard, SectionHeading } from "@/components/quantifi/Cards";
+import { currencySymbol } from "@/data/demo";
 
 // P/E-vs-price over time. Two lines on one time axis, dual y-axes: the price
 // (left) and the approximated trailing P/E (right). The point is to show whether
@@ -23,7 +24,7 @@ interface PeData {
   series?: PePoint[];
 }
 
-const cur = (c?: string) => (c === "INR" ? "₹" : c === "USD" ? "$" : "");
+const cur = (c?: string) => currencySymbol(c);
 
 export default function PeRatioChart({ symbol, name }: { symbol: string; name?: string }) {
   const [data, setData] = useState<PeData | null>(null);

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { GlassCard, SectionHeading } from "@/components/quantifi/Cards";
+import { currencySymbol } from "@/data/demo";
 
 // Head-to-head comparison of the current stock against its competitors, done
 // automatically. We pull the peer list from /api/peers, put the current name
@@ -36,8 +37,7 @@ interface CmpRow {
 }
 
 function fmtMoney(n: number, cur = "USD") {
-  const sym = cur === "INR" ? "₹" : cur === "USD" ? "$" : "";
-  return `${sym}${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+  return `${currencySymbol(cur)}${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 }
 
 function cmpCap(n?: number): string {

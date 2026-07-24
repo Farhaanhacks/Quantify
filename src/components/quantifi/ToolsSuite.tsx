@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { GlassCard, SectionHeading, Tag } from "@/components/quantifi/Cards";
+import { currencySymbol } from "@/data/demo";
 
 type Tab = "xirr" | "dividend";
 
@@ -12,8 +13,7 @@ const TABS: { key: Tab; label: string }[] = [
 ];
 
 function fmtMoney(n: number, cur = "USD") {
-  const sym = cur === "INR" ? "₹" : cur === "USD" ? "$" : "";
-  return `${sym}${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+  return `${currencySymbol(cur)}${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 }
 
 // The Compare feature moved into the Stock Analysis page, where it now runs

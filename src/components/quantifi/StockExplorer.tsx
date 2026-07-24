@@ -37,11 +37,15 @@ function toTvSymbol(raw: string): string {
   return t;
 }
 
-// Indian symbols routinely aren't served by TradingView's free widget, so default
-// them to the Yahoo-powered chart that does cover them.
+// Any non-US listing carries an exchange suffix (.NS/.BO India, .KS/.KQ Korea,
+// .T Japan, .HK Hong Kong, .L London, .SS/.SZ China, …). TradingView's free
+// widget routinely doesn't serve these without an exchange-specific prefix, so
+// it throws "this symbol doesn't exist" — default them all to the Yahoo-powered
+// Quantifi chart, which covers them. US tickers have no such suffix (Yahoo uses
+// a hyphen, e.g. BRK-B), so they stay on TradingView. The user can still toggle.
 function defaultEngine(t: string): Engine {
   const u = t.toUpperCase();
-  if (u.endsWith(".NS") || u.endsWith(".BO")) return "quantifi";
+  if (/\.[A-Z]{1,4}$/.test(u)) return "quantifi";
   // Non-exchange-traded funds (e.g. ARKVX) aren't on TradingView's free widget.
   if (knownFund(u)?.preferQuantifiChart) return "quantifi";
   return "tv";

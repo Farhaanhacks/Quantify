@@ -9,6 +9,7 @@ import {
   Tag,
 } from "@/components/quantifi/Cards";
 import type { EtfData } from "@/lib/yahooEtf";
+import { currencySymbol } from "@/data/demo";
 
 function axisColor(score: number): string {
   if (score >= 5) return "#34D399";
@@ -16,8 +17,7 @@ function axisColor(score: number): string {
   return "#FB7185";
 }
 
-const cur = (c?: string) =>
-  c === "INR" ? "₹" : c === "GBP" ? "£" : c === "EUR" ? "€" : "$";
+const cur = (c?: string) => currencySymbol(c);
 
 const pct = (x: number | undefined, dp = 1): string =>
   x == null ? "—" : `${(x * 100).toFixed(dp)}%`;
