@@ -228,18 +228,30 @@ export async function getYahooStatements(
       for (const k in keys) values[k] = src[keys[k]];
       return { date, values };
     };
+    const balance = dates.map((d) => pick(d, {
+      totalAssets: "annualTotalAssets", totalLiabilities: "annualTotalLiabilitiesNetMinorityInterest",
+      totalEquity: "annualStockholdersEquity", cash: "annualCashAndCashEquivalents",
+      longTermDebt: "annualLongTermDebt",
+      currentAssets: "annualCurrentAssets", currentLiabilities: "annualCurrentLiabilities",
+      inventory: "annualInventory",
+    }));
+    // Yahoo often omits the direct "total liabilities" line (it did for Alphabet),
+    // so derive it from the accounting identity Assets = Liabilities + Equity when
+    // the field is missing but assets and equity are present. A huge company can
+    // never legitimately show "n/a" here.
+    for (const row of balance) {
+      if (row.values.totalLiabilities == null) {
+        const a = row.values.totalAssets;
+        const e = row.values.totalEquity;
+        if (a != null && e != null) row.values.totalLiabilities = a - e;
+      }
+    }
     return {
       income: dates.map((d) => pick(d, {
         revenue: "annualTotalRevenue", grossProfit: "annualGrossProfit",
         operatingIncome: "annualOperatingIncome", netIncome: "annualNetIncome",
       })),
-      balance: dates.map((d) => pick(d, {
-        totalAssets: "annualTotalAssets", totalLiabilities: "annualTotalLiabilitiesNetMinorityInterest",
-        totalEquity: "annualStockholdersEquity", cash: "annualCashAndCashEquivalents",
-        longTermDebt: "annualLongTermDebt",
-        currentAssets: "annualCurrentAssets", currentLiabilities: "annualCurrentLiabilities",
-        inventory: "annualInventory",
-      })),
+      balance,
       cashflow: dates.map((d) => pick(d, {
         operatingCashFlow: "annualOperatingCashFlow", capex: "annualCapitalExpenditure",
         freeCashFlow: "annualFreeCashFlow",
