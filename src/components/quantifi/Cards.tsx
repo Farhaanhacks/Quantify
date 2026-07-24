@@ -5,12 +5,10 @@ import { fmtPct, type Direction } from "@/data/demo";
 // ── Type / label primitives ──────────────────────────────────────────────────
 
 export function Eyebrow({ children }: { children: ReactNode }) {
-  // A distinct pill so every section is clearly badged — this is the visual
-  // marker that tells you which section you've landed on (e.g. after a footer
-  // jump) and separates one block of content from the next as you scroll.
+  // Plain uppercase label — no pill/capsule. Section differentiation comes from
+  // the heading weight and spacing below, not a badge.
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-gold/25 bg-gold/[0.07] px-2.5 py-1 text-[0.66rem] font-semibold uppercase tracking-[0.2em] text-gold">
-      <span className="h-1 w-1 rounded-full bg-gold" />
+    <span className="text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-gold/90">
       {children}
     </span>
   );
