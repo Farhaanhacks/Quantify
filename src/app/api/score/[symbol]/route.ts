@@ -17,9 +17,9 @@ export async function GET(
   try {
     const y = await getYahooScore(symbol);
     if (y) {
-      // Cache at the edge for 90s — long enough to absorb the scanner's fan-out
-      // and quick reloads, short enough that the current price stays close to the
-      // live market during trading hours.
+      // Cache at the edge for 60s — long enough to absorb the scanner's fan-out
+      // and quick reloads, short enough that the price and market cap stay close
+      // to the live market during trading hours.
       return jsonCached(
         {
           available: true,
@@ -38,8 +38,8 @@ export async function GET(
           priceToSales: y.priceToSales,
           trailingPE: y.trailingPE,
         },
-        90,
-        300
+        60,
+        180
       );
     }
 

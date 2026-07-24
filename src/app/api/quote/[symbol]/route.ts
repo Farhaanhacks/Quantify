@@ -45,6 +45,10 @@ export async function GET(
         changePct,
         currency: q.currency || (symbol.endsWith(".NS") ? "INR" : "USD"),
         name: q.name || symbol,
+        // Live market cap from the same quote feed (tracks the current price).
+        marketCap:
+          q.marketCap ??
+          (q.sharesOutstanding && q.sharesOutstanding > 0 ? q.price * q.sharesOutstanding : undefined),
       }, { headers: QUOTE_CACHE });
     }
   } catch (err) {

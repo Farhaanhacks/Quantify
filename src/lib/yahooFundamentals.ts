@@ -484,9 +484,16 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   // price against an independent live quote for the SAME requested symbol; if
   // they disagree by more than ~2x, the fundamentals are for a different company
   // — refuse to publish rather than show a flatly wrong price.
+  // We reuse the same live quote for the market cap (below), since the v7 quote's
+  // marketCap tracks the current price intraday — fresher than the fundamentals
+  // snapshot.
+  let liveMarketCap: number | undefined;
+  let liveShares: number | undefined;
   try {
     const q = (await yahooQuotes([symbol])).get(symbol.toUpperCase());
     const qp = q?.price;
+    liveMarketCap = q?.marketCap;
+    liveShares = q?.sharesOutstanding;
     if (qp != null && qp > 0) {
       const ratio = qp / price;
       if (ratio > 2 || ratio < 0.5) {
@@ -497,6 +504,16 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   } catch {
     /* only suppress on a confident contradiction; ignore quote errors */
   }
+
+  // Live market cap, freshest first: the v7 quote's marketCap → live price ×
+  // current shares outstanding → the (laggy) fundamentals snapshot. This keeps
+  // the size shown on peer cards, the screener and snapshots current with the
+  // market instead of frozen at an older fundamentals refresh.
+  const liveMarketCapDerived =
+    price != null && price > 0 && (liveShares ?? sharesOutstanding) != null && (liveShares ?? sharesOutstanding)! > 0
+      ? price * (liveShares ?? sharesOutstanding)!
+      : undefined;
+  const marketCapLive = liveMarketCap ?? liveMarketCapDerived ?? marketCap;
 
   const scores: Record<ScoreAxisKey, ScoreAxis> = {
     value: axis([
@@ -650,7 +667,7 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
     targetLow,
     recommendation,
     numAnalysts,
-    marketCap,
+    marketCap: marketCapLive,
     revenueGrowth: revGrowth,
     earningsGrowth: earnGrowth,
     priceToSales,

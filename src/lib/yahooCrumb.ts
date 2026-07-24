@@ -140,6 +140,11 @@ export interface YahooQuote {
   currency?: string;
   marketState?: string;
   name?: string;
+  // Live market cap + share count from the v7 quote feed. These track the
+  // current price intraday, unlike the summaryDetail.marketCap fundamentals
+  // snapshot (which lags), so they're the freshest source for a company's size.
+  marketCap?: number;
+  sharesOutstanding?: number;
 }
 
 // Batched authoritative quotes from Yahoo's v7 quote endpoint. We read Yahoo's
@@ -197,6 +202,8 @@ export async function yahooQuotes(
               (typeof q.longName === "string" && q.longName) ||
               (typeof q.displayName === "string" && q.displayName) ||
               undefined,
+            marketCap: n(q.marketCap),
+            sharesOutstanding: n(q.sharesOutstanding),
           });
         }
         if (out.size) return out;
