@@ -57,6 +57,7 @@ interface ScoreResponse {
   analytics?: CompanyAnalytics;
   price?: number;
   name?: string;
+  currency?: string;
   reason?: string;
   message?: string;
 }
@@ -352,6 +353,7 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
                 data={score.analytics}
                 price={score.price}
                 name={score.name}
+                currency={score.currency}
                 live={Boolean(score.live)}
               />
               {/* Company overview + financials sits right above the analyst

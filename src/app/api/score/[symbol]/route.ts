@@ -37,6 +37,7 @@ export async function GET(
           earningsGrowth: y.earningsGrowth,
           priceToSales: y.priceToSales,
           trailingPE: y.trailingPE,
+          currency: y.currency,
         },
         60,
         180

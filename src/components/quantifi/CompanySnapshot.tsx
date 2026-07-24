@@ -37,6 +37,7 @@ export default function CompanySnapshot({
   data,
   price,
   name,
+  currency,
   live = false,
 }: {
   ticker: string;
@@ -44,6 +45,7 @@ export default function CompanySnapshot({
   data?: CompanyAnalytics;
   price?: number;
   name?: string;
+  currency?: string;
   live?: boolean;
 }) {
   // Live data only — passed in from the score API. No demo fallback.
@@ -52,7 +54,10 @@ export default function CompanySnapshot({
   const resolvedName = name ?? ticker;
   if (!a || resolvedPrice == null) return null;
 
-  const cur = currencySymbol(undefined, ticker);
+  // Prefer the real currency from the live data (so a name Yahoo resolved
+  // without an exchange suffix, e.g. "VEEFIN" → INR, still shows ₹), falling
+  // back to the ticker suffix.
+  const cur = currencySymbol(currency, ticker);
 
   const total = overallScore(a); // 0–30
   const radarValues = SCORE_AXES.map((axis) => a.scores[axis.key].score);

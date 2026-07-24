@@ -76,6 +76,10 @@ export default function ShareholdingStats({ symbol }: { symbol: string }) {
     { name: "Insiders", pct: Math.round(insidPct * 100) / 100, color: "#4F93F7" },
     { name: "Public float", pct: Math.round(floatPct * 100) / 100, color: "#4FD1C5" },
   ].filter((s) => s.pct > 0);
+  // The donut centre should headline the DOMINANT holder, not always
+  // "institutions" — otherwise a near-empty institutional stake (e.g. 1%) shows
+  // in the centre of an almost-full ring and reads as broken.
+  const ownTop = [...ownSegs].sort((a, b) => b.pct - a.pct)[0];
 
   const maxShares = hasHist ? Math.max(...hist!.map((q) => q.sharesHeld)) || 1 : 1;
 
@@ -116,7 +120,7 @@ export default function ShareholdingStats({ symbol }: { symbol: string }) {
               ) : null}
             </div>
             <div className="mt-3 flex flex-col items-center gap-5 sm:flex-row">
-              <Donut segments={ownSegs} size={150} centerValue={`${ownSegs[0]?.pct.toFixed(0) ?? 0}%`} centerLabel="institutions" />
+              <Donut segments={ownSegs} size={150} centerValue={`${ownTop?.pct.toFixed(0) ?? 0}%`} centerLabel={ownTop?.name.toLowerCase() ?? "split"} />
               <ul className="flex-1 space-y-1.5">
                 {ownSegs.map((s) => (
                   <li key={s.name} className="flex items-center justify-between gap-2 text-xs">

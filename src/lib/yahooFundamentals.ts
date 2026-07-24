@@ -27,6 +27,7 @@ export interface LiveScore {
   earningsGrowth?: number;
   priceToSales?: number;
   trailingPE?: number;
+  currency?: string;
 }
 
 // Yahoo wraps numbers as { raw: number, fmt: string }; read the raw value.
@@ -672,5 +673,6 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
     earningsGrowth: earnGrowth,
     priceToSales,
     trailingPE: pe,
+    currency: priceCurrency,
   };
 }
