@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Lora } from "next/font/google";
+import { Lora, Source_Serif_4 } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import Navbar from "@/components/quantifi/Navbar";
@@ -9,16 +9,22 @@ import LimitedOfferPopup from "@/components/quantifi/LimitedOfferPopup";
 import JsonLd from "@/components/JsonLd";
 import { SITE, organizationJsonLd, websiteJsonLd, softwareApplicationJsonLd } from "@/lib/seo";
 
-// One typeface across the whole site — Lora (Google Fonts). We expose it under
-// all three CSS variables (--font-sans / --font-display / --font-mono) so every
-// existing font-sans / font-display / font-mono utility resolves to Lora, with a
-// single font load. Number columns keep their tabular alignment via the `tnum`
-// class (Lora ships tabular figures).
+// Lora everywhere for body + numbers (--font-lora → font-sans / font-mono).
 const lora = Lora({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   style: ["normal", "italic"],
   variable: "--font-lora",
+  display: "swap",
+});
+
+// Headings/titles only (font-display) use Source Serif 4 — a similar serif to
+// Lora but with tighter, normal word spacing, so large bold titles don't read
+// spaced-out the way Lora's do.
+const heading = Source_Serif_4({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-display",
   display: "swap",
 });
 
@@ -56,7 +62,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`dark ${lora.variable}`}>
+    <html lang="en" className={`dark ${lora.variable} ${heading.variable}`}>
       <head>
         {/* Light mode is the default for first-time visitors; we only stay in
             dark mode when the user has explicitly chosen it. Applied before
