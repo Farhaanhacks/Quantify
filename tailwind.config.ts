@@ -41,9 +41,11 @@ const config: Config = {
         down: "#FB7185",
       },
       fontFamily: {
-        display: ["var(--font-display)", "system-ui", "sans-serif"],
-        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
-        mono: ["var(--font-mono)", "ui-monospace", "monospace"],
+        // Lora everywhere. All three families resolve to the single Lora load;
+        // mono keeps a monospace fallback only if Lora fails to load.
+        display: ["var(--font-lora)", "Georgia", "serif"],
+        sans: ["var(--font-lora)", "Georgia", "serif"],
+        mono: ["var(--font-lora)", "ui-monospace", "monospace"],
       },
       borderRadius: {
         "2xl": "1.125rem",

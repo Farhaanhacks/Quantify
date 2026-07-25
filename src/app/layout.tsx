@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Sora, JetBrains_Mono } from "next/font/google";
+import { Lora } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import Navbar from "@/components/quantifi/Navbar";
@@ -9,22 +9,16 @@ import LimitedOfferPopup from "@/components/quantifi/LimitedOfferPopup";
 import JsonLd from "@/components/JsonLd";
 import { SITE, organizationJsonLd, websiteJsonLd, softwareApplicationJsonLd } from "@/lib/seo";
 
-const sans = Inter({
+// One typeface across the whole site — Lora (Google Fonts). We expose it under
+// all three CSS variables (--font-sans / --font-display / --font-mono) so every
+// existing font-sans / font-display / font-mono utility resolves to Lora, with a
+// single font load. Number columns keep their tabular alignment via the `tnum`
+// class (Lora ships tabular figures).
+const lora = Lora({
   subsets: ["latin"],
-  variable: "--font-sans",
-  display: "swap",
-});
-
-const display = Sora({
-  subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
-  variable: "--font-display",
-  display: "swap",
-});
-
-const mono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-mono",
+  weight: ["400", "500", "600", "700"],
+  style: ["normal", "italic"],
+  variable: "--font-lora",
   display: "swap",
 });
 
@@ -62,7 +56,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`dark ${sans.variable} ${display.variable} ${mono.variable}`}>
+    <html lang="en" className={`dark ${lora.variable}`}>
       <head>
         {/* Light mode is the default for first-time visitors; we only stay in
             dark mode when the user has explicitly chosen it. Applied before
