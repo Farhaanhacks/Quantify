@@ -469,10 +469,10 @@ export default function CompanySnapshot({
         </>
       )}
 
-      {/* Why you might invest / why you might not */}
+      {/* Pros / cons */}
       <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
         <GlassCard className="p-5 sm:p-6">
-          <h4 className="font-display text-base font-semibold text-up">Why you might invest</h4>
+          <h4 className="font-display text-base font-semibold text-up">Pros</h4>
           <p className="mt-1 text-[0.7rem] text-slate-500">The case for — from the fundamentals.</p>
           <ul className="mt-3 space-y-2.5">
             {a.rewards.map((r, i) => (
@@ -484,7 +484,7 @@ export default function CompanySnapshot({
           </ul>
         </GlassCard>
         <GlassCard className="p-5 sm:p-6">
-          <h4 className="font-display text-base font-semibold text-down">Why you might not</h4>
+          <h4 className="font-display text-base font-semibold text-down">Cons</h4>
           <p className="mt-1 text-[0.7rem] text-slate-500">The case against — what to weigh first.</p>
           <ul className="mt-3 space-y-2.5">
             {a.riskFlags.map((r, i) => (

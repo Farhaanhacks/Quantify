@@ -115,7 +115,6 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
       <section className="mx-auto max-w-7xl px-4 pb-4 sm:px-6 lg:px-8">
         <SectionHeading
           eyebrow="Overview"
-          title={`${data.name} at a glance`}
           subtitle={sectorLine ? `${sectorLine}. The business, and the headline numbers that frame it.` : "The business, and the headline numbers that frame it."}
         />
         <GlassCard className="mt-6 p-6 sm:p-8">

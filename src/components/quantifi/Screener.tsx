@@ -216,7 +216,6 @@ export default function Screener({ heading = true }: { heading?: boolean }) {
       {heading ? (
         <SectionHeading
           eyebrow="Screener"
-          title="Filter the universe"
           subtitle="Narrow names by region, sector, the Quantifi snowflake and valuation. Every score is computed live from current fundamentals — a discovery starting point, not a recommendation list."
         />
       ) : null}

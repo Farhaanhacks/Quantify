@@ -81,7 +81,6 @@ export default function NewsImpact({
         {heading ? (
           <SectionHeading
             eyebrow="News Impact"
-            title="One headline → the market impact map"
             href="/news"
             cta="All news"
           />
@@ -98,7 +97,6 @@ export default function NewsImpact({
       {heading ? (
         <SectionHeading
           eyebrow="News Impact"
-          title="One headline → the market impact map"
           subtitle="Live market news, not a summary. Each story is traced into what changed, why it matters, the chain of names affected, linked research themes and what to watch — so you can tell signal from noise."
           href="/news"
           cta="All news"

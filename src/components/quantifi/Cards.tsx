@@ -22,7 +22,7 @@ export function SectionHeading({
   cta,
 }: {
   eyebrow?: string;
-  title: string;
+  title?: string;
   subtitle?: string;
   href?: string;
   cta?: string;
@@ -31,10 +31,16 @@ export function SectionHeading({
     <div className="flex scroll-mt-24 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div className="max-w-2xl">
         {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
-        <h2 className="mt-3.5 font-display text-[1.65rem] font-bold leading-tight tracking-tight text-white sm:text-[2rem]">
-          {title}
-        </h2>
-        {subtitle ? <p className="mt-2.5 text-[0.95rem] leading-relaxed text-slate-400">{subtitle}</p> : null}
+        {title ? (
+          <h2 className={`${eyebrow ? "mt-2 " : ""}font-display text-[1.6rem] font-bold leading-[1.15] tracking-tight text-white sm:text-[1.85rem]`}>
+            {title}
+          </h2>
+        ) : null}
+        {subtitle ? (
+          <p className={`${title || eyebrow ? "mt-2 " : ""}text-[0.95rem] leading-relaxed text-slate-400`}>
+            {subtitle}
+          </p>
+        ) : null}
       </div>
       {href && cta ? (
         <Link

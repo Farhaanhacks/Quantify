@@ -196,7 +196,7 @@ export default function InsiderActivity({
       {heading ? (
         <SectionHeading
           eyebrow="Insider Activity"
-          title={activeTicker ? `Insider trades · ${activeTicker}` : "Who is buying and selling"}
+          title={activeTicker ? `Insider trades · ${activeTicker}` : "Insider trades"}
           subtitle={
             isIndia
               ? `Insider / SAST disclosures filed with ${exchange} — promoters, directors and designated persons under SEBI (PIT) Regulation 7. Official filings shown as disclosed; never a signal on its own. Beta.`

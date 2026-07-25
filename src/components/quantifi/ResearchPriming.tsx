@@ -22,10 +22,7 @@ export default function ResearchPriming() {
         <p className="text-[0.7rem] uppercase tracking-[0.18em] text-gold">
           Quantifi is not stock tips. It&apos;s research maps.
         </p>
-        <h2 className="mt-3 max-w-2xl font-display text-2xl font-semibold leading-tight text-white sm:text-3xl">
-          Stop asking only “what should I buy?”
-        </h2>
-        <p className="mt-2 max-w-2xl text-sm text-slate-400">Start asking the questions research actually answers:</p>
+        <p className="mt-3 max-w-2xl text-sm text-slate-400">Start asking the questions research actually answers:</p>
 
         <div className="mt-5 flex flex-wrap gap-2">
           {QUESTIONS.map((q) => (

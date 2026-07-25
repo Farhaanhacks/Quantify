@@ -349,7 +349,6 @@ export default function Watchlist({ heading = true }: { heading?: boolean }) {
       {heading ? (
         <SectionHeading
           eyebrow="Watchlist"
-          title="Everything you're tracking"
           subtitle="Add the stocks you care about. Everything here is yours — edit it any time."
         />
       ) : null}

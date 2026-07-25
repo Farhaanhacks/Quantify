@@ -25,9 +25,6 @@ export default function StockAnalysisPage({
     <>
       <section className="mx-auto max-w-7xl px-4 pt-12 sm:px-6 lg:px-8">
         <Eyebrow>Stock Analysis</Eyebrow>
-        <h1 className="mt-3 max-w-2xl font-display text-3xl font-semibold leading-tight text-white sm:text-4xl">
-          Good company, or good investment?
-        </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-400">
           Quantifi separates the two. Search any symbol for a live chart, key
           statistics and — where we have fundamentals — a scorecard that pressures

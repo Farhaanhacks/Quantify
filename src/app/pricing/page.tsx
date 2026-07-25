@@ -15,10 +15,10 @@ export default function PricingPage() {
     <section className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
       <div className="text-center">
         <Eyebrow>Quantifi Pro</Eyebrow>
-        <h1 className="mt-3 font-display text-3xl font-semibold text-white sm:text-4xl">
+        <h1 className="mt-2 font-display text-3xl font-semibold text-white sm:text-4xl">
           Built for better market thinking.
         </h1>
-        <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-slate-400">
+        <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-slate-400">
           {FREE_LAUNCH_OFFER
             ? "For a limited time, Quantifi Pro is free (standard price ₹500/month) — instant access, no card required. "
             : `Just ${QUANTIFI_PRO.price}/month (standard price ₹500) — cancel anytime. `}
