@@ -288,9 +288,17 @@ export async function getYahooStatements(
     const a = build(annualByDate, "annual", annualDates);
     const q = build(quarterlyByDate, "quarterly", quarterlyDates);
 
+    // For quarterly, keep only periods that actually carry data for THAT
+    // statement. Yahoo's free feed frequently returns quarterly income for a
+    // company but no quarterly balance sheet / cash flow (common for Indian
+    // listings) — without this filter those tables render a column of "n/a" for
+    // every period income happens to have. Annual is left untouched.
+    const hasData = (r: FinRow) => Object.values(r.values).some((v) => v != null);
     return {
       income: a.income, balance: a.balance, cashflow: a.cashflow,
-      quarterlyIncome: q.income, quarterlyBalance: q.balance, quarterlyCashflow: q.cashflow,
+      quarterlyIncome: q.income.filter(hasData),
+      quarterlyBalance: q.balance.filter(hasData),
+      quarterlyCashflow: q.cashflow.filter(hasData),
     };
   } catch {
     return empty;

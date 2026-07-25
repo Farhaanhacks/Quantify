@@ -34,8 +34,8 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function StatementTable({ rows, labels, indian }: { rows?: FinRow[]; labels: { key: string; label: string }[]; indian?: boolean }) {
-  if (!rows || rows.length === 0) return <p className="text-sm text-slate-500">Not available for this symbol.</p>;
+function StatementTable({ rows, labels, indian, emptyLabel = "Not available for this symbol." }: { rows?: FinRow[]; labels: { key: string; label: string }[]; indian?: boolean; emptyLabel?: string }) {
+  if (!rows || rows.length === 0) return <p className="text-sm text-slate-500">{emptyLabel}</p>;
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[420px] border-collapse text-sm">
@@ -134,6 +134,16 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
   const inYear = (rows: FinRow[]) => rows.filter((r) => r.date?.startsWith(`${activeYear}-`));
   const rowsFor = (annual?: FinRow[], quarterly?: FinRow[]) =>
     effectivePeriod === "quarterly" ? inYear(quarterly ?? []) : annual;
+  // Distinguish "this company has no quarterly X at all" (Yahoo only reports it
+  // annually — common for Indian balance sheets / cash flows) from "no quarters
+  // in the selected year", so the empty state is informative rather than a
+  // wall of n/a.
+  const qEmptyLabel = (fullQuarterly: FinRow[]) =>
+    effectivePeriod !== "quarterly"
+      ? "Not available for this symbol."
+      : fullQuarterly.length === 0
+        ? "Not reported quarterly for this company — try the Annual view."
+        : `No quarterly periods reported for ${activeYear}.`;
 
   // Three first-class stacked sections — Overview, then Financials, then
   // Statistics — instead of tabs, so each reads as its own part of the page.
@@ -234,7 +244,7 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
           <div className="space-y-8">
             <div>
               <h4 className="mb-2 font-display text-sm font-semibold text-white">Income Statement</h4>
-              <StatementTable indian={indian} rows={rowsFor(data.incomeStatements, q.income)} labels={[
+              <StatementTable indian={indian} emptyLabel={qEmptyLabel(q.income)} rows={rowsFor(data.incomeStatements, q.income)} labels={[
                 { key: "revenue", label: "Revenue" },
                 { key: "grossProfit", label: "Gross Profit" },
                 { key: "operatingIncome", label: "Operating Income" },
@@ -243,7 +253,7 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
             </div>
             <div>
               <h4 className="mb-2 font-display text-sm font-semibold text-white">Balance Sheet</h4>
-              <StatementTable indian={indian} rows={rowsFor(data.balanceSheets, q.balance)} labels={[
+              <StatementTable indian={indian} emptyLabel={qEmptyLabel(q.balance)} rows={rowsFor(data.balanceSheets, q.balance)} labels={[
                 { key: "totalAssets", label: "Total Assets" },
                 { key: "totalLiabilities", label: "Total Liabilities" },
                 { key: "totalEquity", label: "Total Equity" },
@@ -253,7 +263,7 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
             </div>
             <div>
               <h4 className="mb-2 font-display text-sm font-semibold text-white">Cash Flow Statement</h4>
-              <StatementTable indian={indian} rows={rowsFor(data.cashflowStatements, q.cashflow)} labels={[
+              <StatementTable indian={indian} emptyLabel={qEmptyLabel(q.cashflow)} rows={rowsFor(data.cashflowStatements, q.cashflow)} labels={[
                 { key: "operatingCashFlow", label: "Operating Cash Flow" },
                 { key: "capex", label: "Capital Expenditures" },
                 { key: "freeCashFlow", label: "Free Cash Flow" },
