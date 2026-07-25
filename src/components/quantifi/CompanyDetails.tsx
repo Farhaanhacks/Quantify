@@ -125,9 +125,6 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
             </h3>
             {sectorLine ? <span className="text-xs text-slate-500">{sectorLine}</span> : null}
           </div>
-          {data.resolvedFrom ? (
-            <p className="mt-1 text-xs text-slate-500">Resolved “{data.resolvedFrom}” → {data.symbol}</p>
-          ) : null}
           {data.description ? (
             <p className="mt-4 text-sm leading-relaxed text-slate-300">{data.description}</p>
           ) : <p className="mt-4 text-sm text-slate-500">No description available.</p>}
