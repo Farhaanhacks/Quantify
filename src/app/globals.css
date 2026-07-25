@@ -199,7 +199,17 @@ body {
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  font-feature-settings: "ss01", "cv01", "tnum";
+  /* Tabular figures for aligned number columns; kerning on. (The old ss01/cv01
+     were Inter-specific stylistic sets and do nothing for Lora.) */
+  font-feature-settings: "tnum";
+  font-kerning: normal;
+}
+
+/* Lora renders a generous word space, which looks spaced-out on large bold
+   display headings (multi-word titles). Tighten word spacing on display text so
+   headings read as one tight line; body copy keeps normal spacing. */
+.font-display {
+  word-spacing: -0.09em;
 }
 
 /* Ambient backdrop: soft gold + teal aurora over deep ink, plus faint grid */
