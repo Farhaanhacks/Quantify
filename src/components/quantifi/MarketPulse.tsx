@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { fmtPct, fmtPrice } from "@/data/demo";
 import { getPulse, type PulseEntry } from "@/lib/marketPulse";
 
@@ -33,23 +34,6 @@ export default async function MarketPulse() {
             gradient, so the ticker reads as a distinct focus strip rather than
             floating loose text. */}
         <div className="my-2.5 flex items-center gap-3 rounded-xl border border-white/[0.06] bg-gradient-to-r from-white/[0.04] to-transparent px-3 py-2.5">
-          <span className="flex shrink-0 items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-gold">
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${
-                live ? "animate-pulseDot bg-up" : "bg-slate-500"
-              }`}
-            />
-            Market Pulse
-            <span
-              className={`rounded-full border px-1.5 py-0.5 text-[0.55rem] tracking-[0.12em] ${
-                live
-                  ? "border-up/30 bg-up/10 text-up"
-                  : "border-white/10 bg-white/[0.03] text-slate-500"
-              }`}
-            >
-              {live ? "LIVE" : "DELAYED"}
-            </span>
-          </span>
           <div className="mask-fade-x relative flex-1 overflow-hidden">
             <PulseRow items={pulse} />
           </div>
@@ -62,14 +46,15 @@ export default async function MarketPulse() {
           {movers.map((q) => {
             const up = q.changePct >= 0;
             return (
-              <span
+              <Link
                 key={q.ticker}
-                className={`chip font-mono tnum ${up ? "text-up" : "text-down"}`}
-                title={q.price ? `$${fmtPrice(q.price)}` : q.ticker}
+                href={`/stock-analysis?symbol=${encodeURIComponent(q.ticker)}`}
+                className={`chip font-mono tnum transition-colors hover:border-white/25 hover:bg-white/[0.08] ${up ? "text-up" : "text-down"}`}
+                title={q.price ? `View ${q.ticker} analysis · $${fmtPrice(q.price)}` : `View ${q.ticker} analysis`}
               >
                 {q.ticker}
                 <span>{fmtPct(q.changePct)}</span>
-              </span>
+              </Link>
             );
           })}
         </div>
