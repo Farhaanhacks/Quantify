@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Lora, Source_Serif_4 } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
@@ -61,6 +62,9 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Per-request CSP nonce set by middleware — used to authorise our own inline
+  // theme script under the strict (no 'unsafe-inline') script-src.
+  const nonce = headers().get("x-nonce") ?? undefined;
   return (
     <html lang="en" className={`dark ${lora.variable} ${heading.variable}`}>
       <head>
@@ -68,6 +72,7 @@ export default function RootLayout({
             dark mode when the user has explicitly chosen it. Applied before
             paint to avoid a flash. The choice is remembered in localStorage. */}
         <script
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html:
               "try{if(localStorage.getItem('theme')!=='dark'){document.documentElement.classList.add('light')}}catch(e){document.documentElement.classList.add('light')}",

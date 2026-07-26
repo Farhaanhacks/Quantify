@@ -34,8 +34,8 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function StatementTable({ rows, labels, indian, emptyLabel = "Not available for this symbol." }: { rows?: FinRow[]; labels: { key: string; label: string }[]; indian?: boolean; emptyLabel?: string }) {
-  if (!rows || rows.length === 0) return <p className="text-sm text-slate-500">{emptyLabel}</p>;
+function StatementTable({ rows, labels, indian }: { rows?: FinRow[]; labels: { key: string; label: string }[]; indian?: boolean }) {
+  if (!rows || rows.length === 0) return <p className="text-sm text-slate-500">Not available for this symbol.</p>;
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[420px] border-collapse text-sm">
@@ -65,9 +65,6 @@ function StatementTable({ rows, labels, indian, emptyLabel = "Not available for 
 export default function CompanyDetails({ symbol }: { symbol: string }) {
   const [data, setData] = useState<CompanyData | null>(null);
   const [loading, setLoading] = useState(true);
-  // Financials view: annual vs quarterly, and (for quarterly) which year.
-  const [period, setPeriod] = useState<"annual" | "quarterly">("annual");
-  const [year, setYear] = useState<string>("");
 
   useEffect(() => {
     let cancelled = false;
@@ -109,41 +106,6 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
   // the flag through each call site.
   const compact = (n?: number) => fmtCompactCur(n, indian, "n/a");
   const sectorLine = data.sector ? `${data.sector}${data.industry ? ` · ${data.industry}` : ""}` : "";
-
-  // ── Financials period controls ─────────────────────────────────────────────
-  // Quarterly statements carry ~5 years of quarters; group them by the calendar
-  // year in each period's date so the user can pick a year and see its quarters.
-  const q = {
-    income: data.incomeStatementsQuarterly ?? [],
-    balance: data.balanceSheetsQuarterly ?? [],
-    cashflow: data.cashflowStatementsQuarterly ?? [],
-  };
-  const quarterlyYears = Array.from(
-    new Set(
-      [...q.income, ...q.balance, ...q.cashflow]
-        .map((r) => r.date?.slice(0, 4))
-        .filter((y): y is string => Boolean(y))
-    )
-  ).sort().reverse();
-  const hasQuarterly = quarterlyYears.length > 0;
-  // Fall back gracefully if the remembered year isn't in this symbol's set.
-  const activeYear = year && quarterlyYears.includes(year) ? year : quarterlyYears[0];
-  // Collapse to annual if the user picked quarterly but this symbol has none.
-  const effectivePeriod: "annual" | "quarterly" =
-    period === "quarterly" && hasQuarterly ? "quarterly" : "annual";
-  const inYear = (rows: FinRow[]) => rows.filter((r) => r.date?.startsWith(`${activeYear}-`));
-  const rowsFor = (annual?: FinRow[], quarterly?: FinRow[]) =>
-    effectivePeriod === "quarterly" ? inYear(quarterly ?? []) : annual;
-  // Distinguish "this company has no quarterly X at all" (Yahoo only reports it
-  // annually — common for Indian balance sheets / cash flows) from "no quarters
-  // in the selected year", so the empty state is informative rather than a
-  // wall of n/a.
-  const qEmptyLabel = (fullQuarterly: FinRow[]) =>
-    effectivePeriod !== "quarterly"
-      ? "Not available for this symbol."
-      : fullQuarterly.length === 0
-        ? "Not reported quarterly for this company — try the Annual view."
-        : `No quarterly periods reported for ${activeYear}.`;
 
   // Three first-class stacked sections — Overview, then Financials, then
   // Statistics — instead of tabs, so each reads as its own part of the page.
@@ -193,58 +155,13 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
         <SectionHeading
           eyebrow="Financials"
           title="Financial statements"
-          subtitle={
-            effectivePeriod === "quarterly"
-              ? `Income statement, balance sheet and cash flow — quarterly periods for ${activeYear}.`
-              : "Income statement, balance sheet and cash flow — the last few reported annual periods."
-          }
+          subtitle="Income statement, balance sheet and cash flow — the last few reported annual periods."
         />
         <GlassCard className="mt-6 p-6 sm:p-8">
-          {/* Annual / Quarterly toggle, plus a year picker when quarterly. */}
-          <div className="mb-6 flex flex-wrap items-center gap-3">
-            <div className="inline-flex rounded-lg border border-white/10 bg-white/[0.02] p-0.5">
-              <button
-                type="button"
-                onClick={() => setPeriod("annual")}
-                className={`rounded-md px-3 py-1 text-xs font-medium transition ${
-                  effectivePeriod === "annual" ? "bg-white/10 text-white" : "text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                Annual
-              </button>
-              <button
-                type="button"
-                onClick={() => setPeriod("quarterly")}
-                disabled={!hasQuarterly}
-                title={hasQuarterly ? undefined : "Quarterly data isn't available for this symbol"}
-                className={`rounded-md px-3 py-1 text-xs font-medium transition ${
-                  effectivePeriod === "quarterly" ? "bg-white/10 text-white" : "text-slate-400 hover:text-slate-200"
-                } ${!hasQuarterly ? "cursor-not-allowed opacity-40" : ""}`}
-              >
-                Quarterly
-              </button>
-            </div>
-            {effectivePeriod === "quarterly" && hasQuarterly ? (
-              <label className="flex items-center gap-2 text-xs text-slate-400">
-                Year
-                <select
-                  value={activeYear}
-                  onChange={(e) => setYear(e.target.value)}
-                  className="rounded-md border border-white/10 bg-ink-900 px-2 py-1 text-xs text-slate-200 focus:border-gold/40 focus:outline-none"
-                >
-                  {quarterlyYears.map((y) => (
-                    <option key={y} value={y}>
-                      {y}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-          </div>
           <div className="space-y-8">
             <div>
               <h4 className="mb-2 font-display text-sm font-semibold text-white">Income Statement</h4>
-              <StatementTable indian={indian} emptyLabel={qEmptyLabel(q.income)} rows={rowsFor(data.incomeStatements, q.income)} labels={[
+              <StatementTable indian={indian} rows={data.incomeStatements} labels={[
                 { key: "revenue", label: "Revenue" },
                 { key: "grossProfit", label: "Gross Profit" },
                 { key: "operatingIncome", label: "Operating Income" },
@@ -253,7 +170,7 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
             </div>
             <div>
               <h4 className="mb-2 font-display text-sm font-semibold text-white">Balance Sheet</h4>
-              <StatementTable indian={indian} emptyLabel={qEmptyLabel(q.balance)} rows={rowsFor(data.balanceSheets, q.balance)} labels={[
+              <StatementTable indian={indian} rows={data.balanceSheets} labels={[
                 { key: "totalAssets", label: "Total Assets" },
                 { key: "totalLiabilities", label: "Total Liabilities" },
                 { key: "totalEquity", label: "Total Equity" },
@@ -263,14 +180,14 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
             </div>
             <div>
               <h4 className="mb-2 font-display text-sm font-semibold text-white">Cash Flow Statement</h4>
-              <StatementTable indian={indian} emptyLabel={qEmptyLabel(q.cashflow)} rows={rowsFor(data.cashflowStatements, q.cashflow)} labels={[
+              <StatementTable indian={indian} rows={data.cashflowStatements} labels={[
                 { key: "operatingCashFlow", label: "Operating Cash Flow" },
                 { key: "capex", label: "Capital Expenditures" },
                 { key: "freeCashFlow", label: "Free Cash Flow" },
               ]} />
             </div>
             <p className="text-xs leading-relaxed text-slate-500">
-              Source: Yahoo Finance · {effectivePeriod === "quarterly" ? `quarterly periods for ${activeYear}` : "most recent reported annual periods"}, in {cur === "INR" ? "Indian rupees (lakh / crore)" : "the listed currency"}.
+              Source: Yahoo Finance · most recent reported annual periods, in {cur === "INR" ? "Indian rupees (lakh / crore)" : "the listed currency"}.
               Figures may be reported on a standalone or consolidated basis and can differ slightly from a
               company&apos;s official filings or be revised later — always verify against the latest annual
               report or exchange (e.g. NSE/BSE, SEC) filing before relying on them.

@@ -23,7 +23,7 @@ function isEmbeddedWebview(ua: string): boolean {
   ) || /; wv\)/i.test(ua); // generic Android WebView
 }
 
-function webviewPage(origin: string): string {
+function webviewPage(origin: string, nonce: string): string {
   const url = origin.replace(/^https?:\/\//, "");
   return `<!doctype html><html lang="en"><head>
 <meta charset="utf-8"/>
@@ -49,7 +49,7 @@ function webviewPage(origin: string): string {
   <p>For your security, Google sign-in doesn't work inside in-app browsers (like LinkedIn, Instagram or Facebook). Open Quantifi in <strong>Chrome</strong> or <strong>Safari</strong> and you'll be able to sign in and browse normally.</p>
   <div class="card">
     <div style="font-size:0.7rem;letter-spacing:0.14em;text-transform:uppercase;color:#6B7280">Your link</div>
-    <div class="url"><span>${url}</span><button onclick="copy()">Copy</button></div>
+    <div class="url"><span>${url}</span><button id="copyBtn" type="button">Copy</button></div>
     <div class="ok" id="ok"></div>
   </div>
   <div class="card">
@@ -65,13 +65,13 @@ function webviewPage(origin: string): string {
   </p>
   <p style="margin-top:16px"><a href="${origin}/" style="color:#9CA3AF">← Back to Quantifi home</a></p>
 </div>
-<script>
-  function copy(){
+<script nonce="${nonce}">
+  document.getElementById('copyBtn').addEventListener('click', function(){
     var t='${origin}';
     (navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(t):Promise.reject())
       .then(function(){document.getElementById('ok').textContent='Link copied — now open it in Chrome or Safari.';})
       .catch(function(){document.getElementById('ok').textContent='Copy the link above and open it in Chrome or Safari.';});
-  }
+  });
 </script>
 </body></html>`;
 }
@@ -88,9 +88,25 @@ export async function GET(req: Request) {
   const ua = req.headers.get("user-agent") ?? "";
   const force = new URL(req.url).searchParams.get("force") === "1";
   if (!force && isEmbeddedWebview(ua)) {
-    return new NextResponse(webviewPage(origin), {
+    // This route is served outside the page middleware, so it carries its own
+    // strict CSP: the only script allowed is the nonce'd copy-button handler.
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    const nonce = btoa(String.fromCharCode(...bytes));
+    return new NextResponse(webviewPage(origin, nonce), {
       status: 200,
-      headers: { "content-type": "text/html; charset=utf-8" },
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        "content-security-policy": [
+          "default-src 'self'",
+          "base-uri 'self'",
+          "object-src 'none'",
+          "frame-ancestors 'self'",
+          `script-src 'nonce-${nonce}'`,
+          "style-src 'unsafe-inline'",
+          "img-src 'self' data:",
+        ].join("; "),
+      },
     });
   }
 

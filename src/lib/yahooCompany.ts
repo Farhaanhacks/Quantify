@@ -121,11 +121,6 @@ export interface CompanyData {
   incomeStatements?: FinRow[];
   balanceSheets?: FinRow[];
   cashflowStatements?: FinRow[];
-  // quarterly statements (most recent quarter first; ~5 years of history so the
-  // UI can offer a year picker)
-  incomeStatementsQuarterly?: FinRow[];
-  balanceSheetsQuarterly?: FinRow[];
-  cashflowStatementsQuarterly?: FinRow[];
   // news
   news?: CompanyNews[];
   resolvedFrom?: string;
@@ -183,29 +178,19 @@ async function fetchNews(symbol: string): Promise<CompanyNews[]> {
 
 // Yahoo deprecated the quoteSummary statement modules (they return dates but
 // null values). The fundamentals-timeseries service is what actually serves
-// financial statements now — and it serves BOTH annual and quarterly series,
-// which we request together in one call and split apart by the type prefix.
+// financial statements now.
 export async function getYahooStatements(
   symbol: string
-): Promise<{
-  income: FinRow[]; balance: FinRow[]; cashflow: FinRow[];
-  quarterlyIncome: FinRow[]; quarterlyBalance: FinRow[]; quarterlyCashflow: FinRow[];
-}> {
-  const empty = {
-    income: [], balance: [], cashflow: [],
-    quarterlyIncome: [], quarterlyBalance: [], quarterlyCashflow: [],
-  };
+): Promise<{ income: FinRow[]; balance: FinRow[]; cashflow: FinRow[] }> {
+  const empty = { income: [], balance: [], cashflow: [] };
   try {
-    // Bare metric names — we prefix each with "annual" and "quarterly" below so
-    // the two cadences share one definition and can't drift apart.
-    const metrics = [
-      "TotalRevenue", "GrossProfit", "OperatingIncome", "NetIncome",
-      "TotalAssets", "TotalLiabilitiesNetMinorityInterest", "StockholdersEquity",
-      "CashAndCashEquivalents", "LongTermDebt",
-      "CurrentAssets", "CurrentLiabilities", "Inventory",
-      "OperatingCashFlow", "CapitalExpenditure", "FreeCashFlow",
+    const types = [
+      "annualTotalRevenue", "annualGrossProfit", "annualOperatingIncome", "annualNetIncome",
+      "annualTotalAssets", "annualTotalLiabilitiesNetMinorityInterest", "annualStockholdersEquity",
+      "annualCashAndCashEquivalents", "annualLongTermDebt",
+      "annualCurrentAssets", "annualCurrentLiabilities", "annualInventory",
+      "annualOperatingCashFlow", "annualCapitalExpenditure", "annualFreeCashFlow",
     ];
-    const types = metrics.flatMap((m) => [`annual${m}`, `quarterly${m}`]);
     const now = Math.floor(Date.now() / 1000);
     const p1 = now - 6 * 365 * 24 * 3600;
     const url = `https://query2.finance.yahoo.com/ws/fundamentals-timeseries/v1/finance/timeseries/${encodeURIComponent(
@@ -220,85 +205,57 @@ export async function getYahooStatements(
     const json = (await res.json()) as { timeseries?: { result?: Record<string, unknown>[] } };
     const results = json?.timeseries?.result ?? [];
 
-    // Route each data point into the annual or quarterly bucket by its prefix.
-    const annualByDate = new Map<string, Record<string, number>>();
-    const quarterlyByDate = new Map<string, Record<string, number>>();
+    const byDate = new Map<string, Record<string, number>>();
     for (const r of results) {
       const meta = r.meta as { type?: string[] } | undefined;
       const type = meta?.type?.[0];
       if (!type) continue;
       const arr = r[type] as Array<Record<string, unknown>> | undefined;
       if (!Array.isArray(arr)) continue;
-      const target = type.startsWith("quarterly") ? quarterlyByDate : annualByDate;
       for (const pt of arr) {
         if (!pt) continue;
         const date = str(pt.asOfDate);
         const val = num(pt.reportedValue);
         if (!date || val == null) continue;
-        if (!target.has(date)) target.set(date, {});
-        target.get(date)![type] = val;
+        if (!byDate.has(date)) byDate.set(date, {});
+        byDate.get(date)![type] = val;
       }
     }
-
-    // Build the three statements for one cadence over the given dates.
-    const build = (
-      byDate: Map<string, Record<string, number>>,
-      prefix: "annual" | "quarterly",
-      dates: string[]
-    ) => {
-      const pick = (date: string, keys: Record<string, string>): FinRow => {
-        const src = byDate.get(date) ?? {};
-        const values: Record<string, number | undefined> = {};
-        for (const k in keys) values[k] = src[`${prefix}${keys[k]}`];
-        return { date, values };
-      };
-      const balance = dates.map((d) => pick(d, {
-        totalAssets: "TotalAssets", totalLiabilities: "TotalLiabilitiesNetMinorityInterest",
-        totalEquity: "StockholdersEquity", cash: "CashAndCashEquivalents",
-        longTermDebt: "LongTermDebt",
-        currentAssets: "CurrentAssets", currentLiabilities: "CurrentLiabilities",
-        inventory: "Inventory",
-      }));
-      // Yahoo often omits the direct "total liabilities" line (it did for
-      // Alphabet), so derive it from Assets = Liabilities + Equity when the field
-      // is missing but assets and equity are present.
-      for (const row of balance) {
-        if (row.values.totalLiabilities == null) {
-          const a = row.values.totalAssets;
-          const e = row.values.totalEquity;
-          if (a != null && e != null) row.values.totalLiabilities = a - e;
-        }
-      }
-      const income = dates.map((d) => pick(d, {
-        revenue: "TotalRevenue", grossProfit: "GrossProfit",
-        operatingIncome: "OperatingIncome", netIncome: "NetIncome",
-      }));
-      const cashflow = dates.map((d) => pick(d, {
-        operatingCashFlow: "OperatingCashFlow", capex: "CapitalExpenditure",
-        freeCashFlow: "FreeCashFlow",
-      }));
-      return { income, balance, cashflow };
+    const dates = Array.from(byDate.keys()).sort().reverse().slice(0, 4);
+    const pick = (date: string, keys: Record<string, string>): FinRow => {
+      const src = byDate.get(date) ?? {};
+      const values: Record<string, number | undefined> = {};
+      for (const k in keys) values[k] = src[keys[k]];
+      return { date, values };
     };
-
-    // Annual: last 4 fiscal years (unchanged). Quarterly: up to ~5 years of
-    // quarters so the year picker has real choices.
-    const annualDates = Array.from(annualByDate.keys()).sort().reverse().slice(0, 4);
-    const quarterlyDates = Array.from(quarterlyByDate.keys()).sort().reverse().slice(0, 20);
-
-    const a = build(annualByDate, "annual", annualDates);
-    const q = build(quarterlyByDate, "quarterly", quarterlyDates);
-
-    // For quarterly, keep only periods that actually carry data for THAT
-    // statement. Yahoo's free feed frequently returns quarterly income for a
-    // company but no quarterly balance sheet / cash flow (common for Indian
-    // listings) — without this filter those tables render a column of "n/a" for
-    // every period income happens to have. Annual is left untouched.
-    const hasData = (r: FinRow) => Object.values(r.values).some((v) => v != null);
+    const balance = dates.map((d) => pick(d, {
+      totalAssets: "annualTotalAssets", totalLiabilities: "annualTotalLiabilitiesNetMinorityInterest",
+      totalEquity: "annualStockholdersEquity", cash: "annualCashAndCashEquivalents",
+      longTermDebt: "annualLongTermDebt",
+      currentAssets: "annualCurrentAssets", currentLiabilities: "annualCurrentLiabilities",
+      inventory: "annualInventory",
+    }));
+    // Yahoo often omits the direct "total liabilities" line (it did for Alphabet),
+    // so derive it from the accounting identity Assets = Liabilities + Equity when
+    // the field is missing but assets and equity are present. A huge company can
+    // never legitimately show "n/a" here.
+    for (const row of balance) {
+      if (row.values.totalLiabilities == null) {
+        const a = row.values.totalAssets;
+        const e = row.values.totalEquity;
+        if (a != null && e != null) row.values.totalLiabilities = a - e;
+      }
+    }
     return {
-      income: a.income, balance: a.balance, cashflow: a.cashflow,
-      quarterlyIncome: q.income.filter(hasData),
-      quarterlyBalance: q.balance.filter(hasData),
-      quarterlyCashflow: q.cashflow.filter(hasData),
+      income: dates.map((d) => pick(d, {
+        revenue: "annualTotalRevenue", grossProfit: "annualGrossProfit",
+        operatingIncome: "annualOperatingIncome", netIncome: "annualNetIncome",
+      })),
+      balance,
+      cashflow: dates.map((d) => pick(d, {
+        operatingCashFlow: "annualOperatingCashFlow", capex: "annualCapitalExpenditure",
+        freeCashFlow: "annualFreeCashFlow",
+      })),
     };
   } catch {
     return empty;
@@ -498,9 +455,6 @@ export async function getYahooCompany(input: string): Promise<CompanyData | null
     incomeStatements: stmts.income,
     balanceSheets: stmts.balance,
     cashflowStatements: stmts.cashflow,
-    incomeStatementsQuarterly: stmts.quarterlyIncome,
-    balanceSheetsQuarterly: stmts.quarterlyBalance,
-    cashflowStatementsQuarterly: stmts.quarterlyCashflow,
     news: await fetchNews(symbol),
   };
 
