@@ -46,6 +46,10 @@ interface ApiDisclosure {
   category: string;
   date: string;
   url?: string;
+  person?: string;
+  action?: string;
+  sharesText?: string;
+  valueText?: string;
 }
 
 type Filter = "All" | "Buys" | "Sells" | "Planned";
@@ -54,6 +58,14 @@ function fmtDate(d: string): string {
   const t = Date.parse(d);
   if (isNaN(t)) return d;
   return new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+// Green for buy-like actions, red for sell-like, neutral otherwise.
+function insiderTone(action?: string): "up" | "down" | "flat" {
+  const a = (action || "").toLowerCase();
+  if (/\b(buy|acqui|purchase|allot)/.test(a)) return "up";
+  if (/\b(sell|sale|dispos|pledge|invocation)/.test(a)) return "down";
+  return "flat";
 }
 
 function tradeToRow(t: ApiTrade): Row {
@@ -239,45 +251,24 @@ export default function InsiderActivity({
         </div>
       ) : null}
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <span
-          className={`rounded-full border px-2 py-0.5 text-[0.6rem] uppercase tracking-[0.12em] ${
-            (isIndia ? liveIN : live)
-              ? "border-up/30 bg-up/10 text-up"
-              : "border-white/10 bg-white/[0.03] text-slate-500"
-          }`}
-        >
-          {loading
-            ? "Loading…"
-            : isIndia
-            ? liveIN
-              ? `Live · ${exchange} · Beta`
-              : error
-              ? "Unavailable"
-              : "No disclosures"
-            : live
-            ? "Live · SEC EDGAR"
-            : error
-            ? "Unavailable"
-            : "No filings"}
-        </span>
-        {showFilter && !isIndia
-          ? filters.map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setFilter(t)}
-                className={`rounded-full border px-3 py-1.5 text-xs transition ${
-                  filter === t
-                    ? "border-gold/50 bg-gold/15 text-gold"
-                    : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
-                }`}
-              >
-                {t === "Planned" ? "Planned (10b5-1)" : t}
-              </button>
-            ))
-          : null}
-      </div>
+      {showFilter && !isIndia ? (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {filters.map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setFilter(t)}
+              className={`rounded-full border px-3 py-1.5 text-xs transition ${
+                filter === t
+                  ? "border-gold/50 bg-gold/15 text-gold"
+                  : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
+              }`}
+            >
+              {t === "Planned" ? "Planned (10b5-1)" : t}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {isIndia && liveIN ? (
         <div className="mt-4 flex items-center gap-2 text-xs">
@@ -301,20 +292,53 @@ export default function InsiderActivity({
             {(limit ? disclosures.slice(0, limit) : disclosures).map((d) => (
               <li
                 key={d.id}
-                className="grid grid-cols-1 gap-1.5 px-5 py-4 lg:grid-cols-[2.6fr_1fr] lg:items-center"
+                className="grid grid-cols-1 gap-1 px-5 py-4 lg:grid-cols-[2.6fr_1fr] lg:items-start"
               >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <TickerChip ticker={d.ticker} />
-                    <span className="text-[0.58rem] uppercase tracking-[0.12em] text-teal">{d.category}</span>
+                <div className="min-w-0">
+                  {/* Line 1: who + what (a coloured Buy/Sell pill) */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {!ticker ? <TickerChip ticker={d.ticker} /> : null}
+                    <span className="font-display text-sm font-semibold text-white">
+                      {d.person ?? d.headline}
+                    </span>
+                    {d.action ? (
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-[0.6rem] font-medium uppercase tracking-wide ${
+                          insiderTone(d.action) === "up"
+                            ? "border-up/30 bg-up/10 text-up"
+                            : insiderTone(d.action) === "down"
+                            ? "border-down/30 bg-down/10 text-down"
+                            : "border-white/10 bg-white/[0.04] text-slate-300"
+                        }`}
+                      >
+                        {d.action}
+                      </span>
+                    ) : null}
                   </div>
-                  <div className="mt-1 text-sm leading-relaxed text-slate-200">{d.headline}</div>
+                  {/* Line 2: role · shares · value — muted, scannable */}
+                  {d.person ? (
+                    <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-slate-400">
+                      {d.category ? <span>{d.category}</span> : null}
+                      {d.sharesText ? (
+                        <>
+                          <span className="text-slate-600">·</span>
+                          <span className="text-slate-300">{d.sharesText}</span>
+                        </>
+                      ) : null}
+                      {d.valueText ? (
+                        <>
+                          <span className="text-slate-600">·</span>
+                          <span className="text-slate-300">{d.valueText}</span>
+                        </>
+                      ) : null}
+                    </div>
+                  ) : null}
                   {d.url ? (
                     <a
                       href={d.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-1 inline-block text-[0.7rem] text-gold hover:underline"
+                      className="mt-1.5 inline-block text-[0.7rem] text-gold hover:underline"
                     >
                       View official filing →
                     </a>

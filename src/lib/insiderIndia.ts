@@ -20,6 +20,12 @@ export interface IndiaDisclosure {
   category: string;
   date: string; // YYYY-MM-DD
   url?: string; // official BSE filing PDF
+  // Structured breakdown so the UI can lay the row out cleanly instead of one
+  // long "·"-joined string. Optional — `headline` remains the fallback.
+  person?: string; // who filed (name)
+  action?: string; // "Buy" / "Sell" / mode of transaction
+  sharesText?: string; // e.g. "1,000 Equity Shares"
+  valueText?: string; // e.g. "₹7,67,700" or "No cash consideration"
 }
 
 export interface IndiaDebug {

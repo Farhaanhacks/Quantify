@@ -172,6 +172,10 @@ function pitRowToDisclosure(
     category: cat || "Insider Trading (PIT Reg 7)",
     date,
     url,
+    person: acq || undefined,
+    action: tx || undefined,
+    sharesText: secAcq ? `${secAcq} ${secType}` : undefined,
+    valueText: valPart || undefined,
   };
   return { symbol: sym, disc };
 }
