@@ -64,6 +64,13 @@ function buildCsp(nonce: string): string {
     "object-src 'none'",
     "frame-ancestors 'self'",
     "form-action 'self' https://checkout.razorpay.com https://api.razorpay.com https://accounts.google.com",
+    // Google's recommended strict CSP shape:
+    //   'nonce-…' 'strict-dynamic'  → the actual enforcement on modern browsers
+    //   'unsafe-inline'             → IGNORED whenever a nonce is present, so it's
+    //                                 inert here; kept only so ancient (pre-nonce)
+    //                                 browsers still degrade gracefully.
+    //   https://… hosts             → fallback for browsers without strict-dynamic
+    // On every current browser only the nonce + strict-dynamic apply.
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-inline' https://s3.tradingview.com https://checkout.razorpay.com https://va.vercel-scripts.com`,
     "style-src 'self' 'unsafe-inline' https://s3.tradingview.com",
     "img-src 'self' data: blob: https://lh3.googleusercontent.com https://lh4.googleusercontent.com https://lh5.googleusercontent.com https://lh6.googleusercontent.com https://cdn.razorpay.com",

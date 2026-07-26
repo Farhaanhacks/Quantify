@@ -136,7 +136,18 @@ function pitRowToDisclosure(
   );
   // Human headline that carries the real numbers, e.g.
   // "Nandan M. Nilekani · Promoter · Buy · 6,400 Equity Shares · ₹…".
-  const parts = [acq, cat, tx, secAcq ? `${secAcq} ${secType}` : "", secVal ? `₹${secVal}` : ""].filter(Boolean);
+  // The value is only shown when it's a genuine, positive consideration. Many PIT
+  // filings report ₹0 — inter-se transfers / gifts within the promoter group,
+  // ESOP allotments, pledges, etc. carry no cash consideration — and rendering a
+  // bare "₹0" reads like a bug, so we drop it and label the transfer instead.
+  const secValNum = Number(String(secVal).replace(/[^0-9.]/g, ""));
+  const hasValue = Number.isFinite(secValNum) && secValNum > 0;
+  const valPart = hasValue
+    ? `₹${secValNum.toLocaleString("en-IN")}`
+    : secAcq
+    ? "no cash consideration"
+    : "";
+  const parts = [acq, cat, tx, secAcq ? `${secAcq} ${secType}` : "", valPart].filter(Boolean);
   // Prefer a human-readable PDF over the raw XBRL (which renders as an unstyled
   // XML wall). NSE ships a PDF attachment for most filings; fall back to XBRL only
   // when there isn't one, and to a BSE-scrip announcements page as a last resort.
