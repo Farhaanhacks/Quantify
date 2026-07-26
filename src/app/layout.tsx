@@ -68,29 +68,6 @@ export default function RootLayout({
   return (
     <html lang="en" className={`dark ${lora.variable} ${heading.variable}`}>
       <head>
-        {/* Trusted Types — enforced via the CSP. DOMPurify loads first
-            (render-blocking, from our own origin), then we install the 'default'
-            policy so any raw string → HTML/script-URL sink is sanitised/allow-
-            listed before any other script (Next's runtime, widgets) runs. This
-            is what makes `require-trusted-types-for 'script'` safe to enforce.
-            Loaded synchronously ON PURPOSE so the policy exists before any other
-            script runs — hence the eslint suppression. */}
-        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
-        <script nonce={nonce} src="/purify.min.js" />
-        <script
-          nonce={nonce}
-          dangerouslySetInnerHTML={{
-            __html:
-              "(function(){try{var t=window.trustedTypes;if(!t||!t.createPolicy||t.defaultPolicy)return;" +
-              "var ok=function(u){try{var x=new URL(u,location.href);if(x.origin===location.origin)return true;" +
-              "return x.protocol==='https:'&&(x.host==='s3.tradingview.com'||x.host==='checkout.razorpay.com'||x.host==='va.vercel-scripts.com');}catch(e){return false;}};" +
-              "t.createPolicy('default',{" +
-              "createHTML:function(s){return window.DOMPurify?window.DOMPurify.sanitize(s):String(s);}," +
-              "createScriptURL:function(s){if(ok(s))return s;throw new TypeError('Trusted Types blocked script URL: '+s);}," +
-              "createScript:function(){throw new TypeError('Trusted Types blocked inline script');}" +
-              "});}catch(e){}})();",
-          }}
-        />
         {/* Light mode is the default for first-time visitors; we only stay in
             dark mode when the user has explicitly chosen it. Applied before
             paint to avoid a flash. The choice is remembered in localStorage. */}

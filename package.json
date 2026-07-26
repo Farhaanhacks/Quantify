@@ -11,7 +11,6 @@
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
     "cheerio": "^1.0.0",
-    "dompurify": "^3.4.12",
     "lightweight-charts": "^4.1.0",
     "next": "14.2.15",
     "react": "18.3.1",
