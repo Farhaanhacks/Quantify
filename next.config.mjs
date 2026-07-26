@@ -6,14 +6,17 @@
 // file carries the static headers that don't need a nonce, so they apply to
 // every route (pages AND API/JSON responses).
 const securityHeaders = [
-  // Trusted Types (DOM-based XSS mitigation) in REPORT-ONLY: enforcing it breaks
-  // Next.js chunk loading and the TradingView/Razorpay loaders (all assign
-  // script.src / innerHTML), so we start by reporting violations without
-  // breaking rendering. Drive it to enforcement once the sinks are wrapped in a
-  // Trusted Types policy.
+  // Trusted Types (DOM-based XSS mitigation) in REPORT-ONLY: it reports what a
+  // future enforcing policy would block, without breaking rendering today. The
+  // allowlist names every policy actually created: Next's own 'nextjs' /
+  // 'nextjs#bundler' (used to wrap its dynamic chunk scripts as TrustedScriptURL
+  // — listing them stops the "policy violates" reports and lets Next mark its
+  // scripts trusted), plus 'default' + 'dompurify' for app sinks. 'allow-
+  // duplicates' because Next may (re)create its policy across navigations.
   {
     key: "Content-Security-Policy-Report-Only",
-    value: "require-trusted-types-for 'script'; trusted-types default dompurify",
+    value:
+      "require-trusted-types-for 'script'; trusted-types 'allow-duplicates' nextjs nextjs#bundler default dompurify",
   },
   // Isolate our top-level browsing context (Spectre + cross-window tampering).
   // 'allow-popups' so Razorpay's checkout popup / Google OAuth window still work.
