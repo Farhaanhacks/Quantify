@@ -333,16 +333,6 @@ export default function InsiderActivity({
                       ) : null}
                     </div>
                   ) : null}
-                  {d.url ? (
-                    <a
-                      href={d.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-1.5 inline-block text-[0.7rem] text-gold hover:underline"
-                    >
-                      View official filing →
-                    </a>
-                  ) : null}
                 </div>
                 <div className="text-right text-xs text-slate-500">{fmtDate(d.date)}</div>
               </li>
