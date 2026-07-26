@@ -1,97 +1,59 @@
 /** @type {import('next').NextConfig} */
 
-// ───────────────────────────────────────────────────────────────────────────
-// Content Security Policy
-// ───────────────────────────────────────────────────────────────────────────
-// Scoped to the exact third parties Quantifi's *browser* loads:
-//   • TradingView embed widgets ....... s3./www.tradingview.com  (script + iframe)
-//   • Razorpay Checkout ............... *.razorpay.com            (script + iframe + xhr)
-//   • Vercel Analytics ................ va.vercel-scripts.com     (script + beacon)
-//   • Your own /api/* routes .......... 'self'
-// Server-side fetches (Yahoo, SEC, NSE, BSE, FMP, etc.) run in API routes on
-// the server and are NOT subject to CSP — they deliberately stay out of it.
+// ── Security headers ─────────────────────────────────────────────────────────
+// Content-Security-Policy + COOP + the standard hardening set. The CSP allowlist
+// covers the only third parties the BROWSER loads — TradingView (charts),
+// Razorpay (checkout) and Vercel Analytics. Everything else (Yahoo, SEC, NSE,
+// BSE, ScraperAPI, Google token exchange…) is fetched server-side from API
+// routes, which CSP does not govern, so those stay off the allowlist.
 //
-// Fonts (Lora + Source Serif 4) are self-hosted at build time by next/font, so
-// 'self' covers them — no fonts.googleapis / fonts.gstatic entries required.
-//
-// NOTE on 'unsafe-inline' in script-src: the app ships small inline scripts
-// (the pre-paint theme toggle in layout.tsx, JSON-LD blocks) plus Next.js's own
-// hydration bootstrap. The clickjacking protection you asked about comes from
-// `frame-ancestors` below and is fully effective regardless of this. If you
-// later want strict inline-XSS protection too, see SECURITY-HEADERS.md for the
-// nonce-based upgrade path.
+// 'unsafe-inline' is required in script-src because the App Router streams inline
+// bootstrap/hydration scripts and we ship a tiny inline theme-flash guard; a
+// nonce-based strict CSP is the next step up (see the note in the reply). We
+// deliberately do NOT include 'unsafe-eval'.
 const csp = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://s3.tradingview.com https://checkout.razorpay.com https://va.vercel-scripts.com",
-  "style-src 'self' 'unsafe-inline'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'self'", // clickjacking: only we may frame our own pages
+  "form-action 'self' https://*.razorpay.com https://accounts.google.com",
+  "script-src 'self' 'unsafe-inline' https://s3.tradingview.com https://s.tradingview.com https://www.tradingview.com https://*.tradingview-widget.com https://checkout.razorpay.com https://*.razorpay.com https://va.vercel-scripts.com",
+  "style-src 'self' 'unsafe-inline' https://*.tradingview.com",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "connect-src 'self' https://va.vercel-scripts.com https://vitals.vercel-insights.com https://*.tradingview.com https://*.razorpay.com https://lumberjack.razorpay.com",
-  "frame-src 'self' https://*.tradingview.com https://*.razorpay.com",
+  "media-src 'self' data:",
   "worker-src 'self' blob:",
-  "frame-ancestors 'self'",   // anti-clickjacking: only your own origin may iframe your pages
-  "base-uri 'self'",
-  "form-action 'self' https://*.razorpay.com",
-  "object-src 'none'",
+  "connect-src 'self' https://*.tradingview.com https://*.tradingview-widget.com https://*.razorpay.com https://lumberjack.razorpay.com https://va.vercel-scripts.com https://vitals.vercel-insights.com",
+  "frame-src 'self' https://*.tradingview.com https://www.tradingview.com https://*.tradingview-widget.com https://*.razorpay.com https://checkout.razorpay.com https://api.razorpay.com",
+  "manifest-src 'self'",
   "upgrade-insecure-requests",
 ].join("; ");
 
-// Flip to `true` once to roll CSP out safely: it emits
-// Content-Security-Policy-Report-Only, which LOGS violations without blocking.
-// Watch the console for a few days, then set back to false to enforce.
-const CSP_REPORT_ONLY = false;
-
 const securityHeaders = [
+  { key: "Content-Security-Policy", value: csp },
+  // Trusted Types (DOM-based XSS mitigation) in REPORT-ONLY: enforcing it breaks
+  // Next.js chunk loading and the TradingView/Razorpay loaders (all assign
+  // script.src / innerHTML), so we start by reporting violations without
+  // breaking rendering. Drive it to enforcement once the sinks are wrapped in a
+  // Trusted Types policy.
   {
-    key: CSP_REPORT_ONLY
-      ? "Content-Security-Policy-Report-Only"
-      : "Content-Security-Policy",
-    value: csp,
+    key: "Content-Security-Policy-Report-Only",
+    value: "require-trusted-types-for 'script'; trusted-types default dompurify",
   },
-  // Cross-Origin-Opener-Policy — isolates your browsing context from windows
-  // you open / that open you. `same-origin-allow-popups` (not the stricter
-  // `same-origin`) keeps Razorpay's payment/3-D-Secure popups working while
-  // still giving you the isolation scanners look for. Google sign-in is a
-  // full-page redirect here, so it's unaffected either way.
+  // Isolate our top-level browsing context (Spectre + cross-window tampering).
+  // 'allow-popups' so Razorpay's checkout popup / Google OAuth window still work.
   { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
-
-  // Legacy clickjacking header — belt-and-suspenders alongside frame-ancestors.
-  { key: "X-Frame-Options", value: "SAMEORIGIN" },
-
-  // Stop MIME-type sniffing (a classic content-confusion/XSS vector).
+  { key: "X-Frame-Options", value: "SAMEORIGIN" }, // belt-and-suspenders with frame-ancestors
   { key: "X-Content-Type-Options", value: "nosniff" },
-
-  // Don't leak full URLs (which can carry tickers/query state) to third parties.
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-
-  // Deny powerful APIs the app never uses.
-  {
-    key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=(), browsing-topics=()",
-  },
-
-  // Force HTTPS for 2 years. Safe on Vercel (HTTPS-only). Drop
-  // `includeSubDomains` if any subdomain is served over plain HTTP; add
-  // `; preload` only once you're certain and want to submit to the preload list.
-  {
-    key: "Strict-Transport-Security",
-    value: "max-age=63072000; includeSubDomains",
-  },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), browsing-topics=()" },
+  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
 ];
-
-// Deliberately NOT set: Cross-Origin-Embedder-Policy: require-corp. It would
-// give full cross-origin isolation but immediately break TradingView, Razorpay
-// and remote images, which don't send the CORP/CORS headers it demands.
 
 const nextConfig = {
   reactStrictMode: true,
   async headers() {
-    return [
-      {
-        source: "/:path*", // every route: pages, API and static assets
-        headers: securityHeaders,
-      },
-    ];
+    return [{ source: "/:path*", headers: securityHeaders }];
   },
 };
 
