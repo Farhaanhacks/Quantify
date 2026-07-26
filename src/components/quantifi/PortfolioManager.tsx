@@ -7,7 +7,7 @@ import {
   StatTile,
   TickerChip,
   ChangePill,
-  BarMeter,
+  Donut,
 } from "@/components/quantifi/Cards";
 import { fmtPrice, fmtPct, currencySymbol, currencyForTicker } from "@/data/demo";
 import { popularTickers } from "@/data/popularTickers";
@@ -559,23 +559,55 @@ export default function PortfolioManager() {
             ) : null}
           </GlassCard>
 
-          {/* Allocation */}
+          {/* Allocation — pie/donut with a legend */}
           {summary && summary.rows.length > 0 ? (
             <GlassCard className="mt-4 p-5 sm:p-6">
               <h4 className="font-display text-base font-semibold text-white">Allocation by holding</h4>
-              <div className="mt-4 space-y-3">
-                {summary.rows
-                  .slice()
-                  .sort((a, b) => b.value - a.value)
-                  .map((r) => (
-                    <BarMeter
-                      key={r.id}
-                      label={r.ticker}
-                      value={summary.totalValue > 0 ? Math.round((r.value / summary.totalValue) * 100) : 0}
-                      color="#4F93F7"
-                    />
-                  ))}
-              </div>
+              {(() => {
+                const PALETTE = ["#4F93F7", "#4FD1C5", "#818CF8", "#34D399", "#F59E0B", "#F472B6", "#FB7185", "#38BDF8"];
+                const total = summary.totalValue > 0 ? summary.totalValue : 1;
+                const sorted = summary.rows.slice().sort((a, b) => b.value - a.value);
+                // Keep the donut readable: up to 7 named slices, the rest as "Other".
+                const MAX = 7;
+                const head = sorted.slice(0, MAX);
+                const tail = sorted.slice(MAX);
+                const segs = head.map((r, i) => ({
+                  name: r.ticker,
+                  pct: (r.value / total) * 100,
+                  color: PALETTE[i % PALETTE.length],
+                }));
+                if (tail.length) {
+                  segs.push({
+                    name: "Other",
+                    pct: (tail.reduce((s, r) => s + r.value, 0) / total) * 100,
+                    color: "#64748B",
+                  });
+                }
+                return (
+                  <div className="mt-4 flex flex-col items-center gap-6 sm:flex-row sm:items-center">
+                    <div className="flex-none">
+                      <Donut
+                        segments={segs}
+                        size={200}
+                        thickness={24}
+                        centerValue={String(summary.rows.length)}
+                        centerLabel={summary.rows.length === 1 ? "holding" : "holdings"}
+                      />
+                    </div>
+                    <ul className="w-full flex-1 space-y-2">
+                      {segs.map((s) => (
+                        <li key={s.name} className="flex items-center justify-between gap-3 text-sm">
+                          <span className="flex min-w-0 items-center gap-2">
+                            <span className="h-2.5 w-2.5 flex-none rounded-sm" style={{ backgroundColor: s.color }} />
+                            <span className="truncate font-mono text-slate-200">{s.name}</span>
+                          </span>
+                          <span className="flex-none font-mono tnum text-slate-400">{s.pct.toFixed(1)}%</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })()}
             </GlassCard>
           ) : null}
         </>
