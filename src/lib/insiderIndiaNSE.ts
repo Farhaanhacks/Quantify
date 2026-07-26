@@ -16,7 +16,6 @@
 // BSE — never fabricated data.
 
 import type { IndiaDisclosure } from "@/lib/insiderIndia";
-import { BSE_SCRIP } from "@/lib/insiderIndia";
 
 export interface NSEDebug {
   source: "nse";
@@ -148,20 +147,17 @@ function pitRowToDisclosure(
     ? "no cash consideration"
     : "";
   const parts = [acq, cat, tx, secAcq ? `${secAcq} ${secType}` : "", valPart].filter(Boolean);
+  // Only link when we can point straight at the actual filing document.
   // Prefer a human-readable PDF over the raw XBRL (which renders as an unstyled
-  // XML wall). NSE ships a PDF attachment for most filings; fall back to XBRL only
-  // when there isn't one, and to a BSE-scrip announcements page as a last resort.
+  // XML wall). NSE ships a PDF attachment for most filings; fall back to XBRL
+  // only when there isn't one. We deliberately do NOT fall back to a generic
+  // BSE corp-announcements landing page — that doesn't take the user to *this*
+  // filing, so in that case we show no link at all rather than a dead end.
   const pdf = [str(row.attchmntFile), str(row.attachmentFile), str(row.attachment)].find(
     (u) => u && /^https?:\/\/\S+\.pdf(\?|$)/i.test(u)
   );
   const xbrl = str(row.xbrl);
-  const scrip = BSE_SCRIP[sym];
-  const url =
-    pdf ||
-    (/^https?:\/\//.test(xbrl) ? xbrl : undefined) ||
-    (scrip
-      ? `https://www.bseindia.com/stock-share-price/x/x/${scrip}/corp-announcements/`
-      : undefined);
+  const url = pdf || (/^https?:\/\//.test(xbrl) ? xbrl : undefined);
   // Stable id from content so re-ingesting the same filing dedupes cleanly.
   const id = `nse-${sym}-${date}-${acq.slice(0, 10)}-${secAcq}-${tx}`.replace(/\s+/g, "");
   const disc: IndiaDisclosure = {
