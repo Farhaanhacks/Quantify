@@ -73,6 +73,12 @@ function buildCsp(nonce: string): string {
     "connect-src 'self' https://s3.tradingview.com https://www.tradingview.com https://checkout.razorpay.com https://api.razorpay.com https://lumberjack.razorpay.com https://va.vercel-scripts.com https://vitals.vercel-insights.com",
     "frame-src 'self' https://www.tradingview-widget.com https://s.tradingview.com https://www.tradingview.com https://checkout.razorpay.com https://api.razorpay.com",
     "manifest-src 'self'",
+    // Enforced Trusted Types (DOM-based XSS): script sinks must receive a typed
+    // value from an allowlisted policy — our 'default' (DOMPurify-backed),
+    // 'dompurify' (its own internal), and Next's 'nextjs'/'nextjs#bundler' chunk
+    // loader. 'allow-duplicates' since Next may re-create its policy.
+    "require-trusted-types-for 'script'",
+    "trusted-types 'allow-duplicates' default dompurify nextjs nextjs#bundler",
     "upgrade-insecure-requests",
   ].join("; ");
 }

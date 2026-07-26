@@ -38,17 +38,23 @@ export default function TradingViewWidget({
   useEffect(() => {
     const container = ref.current;
     if (!container) return;
-    container.innerHTML = ""; // reset (also handles dev strict-mode double run)
+    container.replaceChildren(); // reset (also handles dev strict-mode double run)
 
     const widget = document.createElement("div");
     widget.className = "tradingview-widget-container__widget";
     container.appendChild(widget);
 
-    // Required attribution — leave this in.
+    // Required attribution — leave this in. Built with the DOM API (no innerHTML)
+    // so it doesn't hit the Trusted Types sink.
     const attr = document.createElement("div");
     attr.className = "tradingview-widget-copyright";
-    attr.innerHTML =
-      '<a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank" style="color:#64748b;font-size:11px;text-decoration:none">Charts by TradingView</a>';
+    const attrLink = document.createElement("a");
+    attrLink.href = "https://www.tradingview.com/";
+    attrLink.rel = "noopener nofollow";
+    attrLink.target = "_blank";
+    attrLink.style.cssText = "color:#64748b;font-size:11px;text-decoration:none";
+    attrLink.textContent = "Charts by TradingView";
+    attr.appendChild(attrLink);
     container.appendChild(attr);
 
     // Explicit pixel height in the config (more reliable than autosize).
@@ -89,14 +95,18 @@ export default function TradingViewWidget({
     }
 
     const script = document.createElement("script");
+    // script.src goes through the Trusted Types 'default' policy's
+    // createScriptURL, which allowlists s3.tradingview.com.
     script.src = SRC[kind];
     script.type = "text/javascript";
     script.async = true;
-    script.innerHTML = JSON.stringify(config);
+    // Config passed as a text node (not innerHTML) so it isn't a TT sink; the
+    // embed still reads it from the script's text content.
+    script.appendChild(document.createTextNode(JSON.stringify(config)));
     container.appendChild(script);
 
     return () => {
-      container.innerHTML = "";
+      container.replaceChildren();
     };
   }, [symbol, kind, height, range, allowSymbolChange]);
 

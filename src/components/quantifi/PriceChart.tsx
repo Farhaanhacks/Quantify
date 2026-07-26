@@ -90,7 +90,7 @@ export default function PriceChart({
         // Chart LINE only — the price badge is driven by /api/quote above.
         const el = elRef.current;
         if (!el) return;
-        el.innerHTML = "";
+        el.replaceChildren(); // clear without an innerHTML (Trusted Types) sink
 
         // Canvas text can't read CSS variables, so resolve the site font (Lora)
         // from the computed style and pass the literal family to the chart.
