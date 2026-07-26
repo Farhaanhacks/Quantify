@@ -7,7 +7,6 @@ import {
   StatTile,
   TickerChip,
   ChangePill,
-  Donut,
 } from "@/components/quantifi/Cards";
 import { fmtPrice, fmtPct, currencySymbol, currencyForTicker } from "@/data/demo";
 import { popularTickers } from "@/data/popularTickers";
@@ -82,6 +81,96 @@ function exportPortfolioCsv(name: string, rows: ReturnType<typeof computeRows>["
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+// Interactive allocation donut: hovering a slice (or its legend row) shows that
+// holding's ticker + % in the centre; with nothing hovered it shows the holdings
+// count. Built here (not the shared static Donut) because it needs hover state.
+function AllocationDonut({
+  segments,
+  count,
+}: {
+  segments: { name: string; pct: number; color: string }[];
+  count: number;
+}) {
+  const [hover, setHover] = useState<number | null>(null);
+  const size = 200;
+  const thickness = 24;
+  const radius = (size - thickness) / 2;
+  const circ = 2 * Math.PI * radius;
+  const total = segments.reduce((s, x) => s + Math.max(0, x.pct), 0);
+  const denom = Math.max(100, total); // guard: never over-fill the ring
+  const active = hover != null ? segments[hover] : null;
+  const centerTop = active ? active.name : String(count);
+  const centerBottom = active ? `${active.pct.toFixed(1)}%` : count === 1 ? "holding" : "holdings";
+  let offset = 0;
+
+  return (
+    <div className="mt-4 flex flex-col items-center gap-6 sm:flex-row sm:items-center">
+      <div className="flex-none" style={{ width: size, height: size }}>
+        <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} role="img" aria-label="Allocation donut">
+          <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
+            <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={thickness} />
+            {segments.map((seg, i) => {
+              const len = (Math.max(0, seg.pct) / denom) * circ;
+              const dash = `${len} ${circ - len}`;
+              const el = (
+                <circle
+                  key={seg.name}
+                  cx={size / 2}
+                  cy={size / 2}
+                  r={radius}
+                  fill="none"
+                  stroke={seg.color}
+                  strokeWidth={thickness}
+                  strokeDasharray={dash}
+                  strokeDashoffset={-offset}
+                  strokeLinecap="butt"
+                  opacity={hover == null || hover === i ? 1 : 0.3}
+                  onMouseEnter={() => setHover(i)}
+                  onMouseLeave={() => setHover(null)}
+                  style={{ cursor: "pointer", transition: "opacity 0.15s" }}
+                />
+              );
+              offset += len;
+              return el;
+            })}
+          </g>
+          <text
+            x="50%"
+            y={size * 0.46}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            className="fill-white font-display font-semibold"
+            style={{ fontSize: active ? (active.name.length > 5 ? 17 : 22) : 28 }}
+          >
+            {centerTop}
+          </text>
+          <text x="50%" y={size * 0.6} textAnchor="middle" dominantBaseline="middle" className="fill-slate-400" style={{ fontSize: 12 }}>
+            {centerBottom}
+          </text>
+        </svg>
+      </div>
+      <ul className="w-full flex-1 space-y-1">
+        {segments.map((s, i) => (
+          <li
+            key={s.name}
+            onMouseEnter={() => setHover(i)}
+            onMouseLeave={() => setHover(null)}
+            className={`flex cursor-default items-center justify-between gap-3 rounded-md px-2 py-1 text-sm transition ${
+              hover === i ? "bg-white/[0.05]" : ""
+            }`}
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="h-2.5 w-2.5 flex-none rounded-sm" style={{ backgroundColor: s.color }} />
+              <span className="truncate font-mono text-slate-200">{s.name}</span>
+            </span>
+            <span className="flex-none font-mono tnum text-slate-400">{s.pct.toFixed(1)}%</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 export default function PortfolioManager() {
@@ -583,30 +672,7 @@ export default function PortfolioManager() {
                     color: "#64748B",
                   });
                 }
-                return (
-                  <div className="mt-4 flex flex-col items-center gap-6 sm:flex-row sm:items-center">
-                    <div className="flex-none">
-                      <Donut
-                        segments={segs}
-                        size={200}
-                        thickness={24}
-                        centerValue={String(summary.rows.length)}
-                        centerLabel={summary.rows.length === 1 ? "holding" : "holdings"}
-                      />
-                    </div>
-                    <ul className="w-full flex-1 space-y-2">
-                      {segs.map((s) => (
-                        <li key={s.name} className="flex items-center justify-between gap-3 text-sm">
-                          <span className="flex min-w-0 items-center gap-2">
-                            <span className="h-2.5 w-2.5 flex-none rounded-sm" style={{ backgroundColor: s.color }} />
-                            <span className="truncate font-mono text-slate-200">{s.name}</span>
-                          </span>
-                          <span className="flex-none font-mono tnum text-slate-400">{s.pct.toFixed(1)}%</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                );
+                return <AllocationDonut segments={segs} count={summary.rows.length} />;
               })()}
             </GlassCard>
           ) : null}
