@@ -531,6 +531,38 @@ export default function PortfolioManager() {
             )}
           </GlassCard>
 
+          {/* Allocation — pie/donut with a legend */}
+          {summary && summary.rows.length > 0 ? (
+            <GlassCard className="mt-4 p-5 sm:p-6">
+              <h4 className="font-display text-base font-semibold text-white">Allocation by holding</h4>
+              {(() => {
+                // Ordered for maximum hue separation between consecutive slices
+                // (blue → amber → green → pink → violet → cyan → yellow → rose),
+                // so adjacent holdings never read as the same colour.
+                const PALETTE = ["#4F93F7", "#F59E0B", "#34D399", "#F472B6", "#A78BFA", "#22D3EE", "#FACC15", "#FB7185"];
+                const total = summary.totalValue > 0 ? summary.totalValue : 1;
+                const sorted = summary.rows.slice().sort((a, b) => b.value - a.value);
+                // Keep the donut readable: up to 7 named slices, the rest as "Other".
+                const MAX = 7;
+                const head = sorted.slice(0, MAX);
+                const tail = sorted.slice(MAX);
+                const segs = head.map((r, i) => ({
+                  name: r.ticker,
+                  pct: (r.value / total) * 100,
+                  color: PALETTE[i % PALETTE.length],
+                }));
+                if (tail.length) {
+                  segs.push({
+                    name: "Other",
+                    pct: (tail.reduce((s, r) => s + r.value, 0) / total) * 100,
+                    color: "#64748B",
+                  });
+                }
+                return <AllocationDonut segments={segs} count={summary.rows.length} />;
+              })()}
+            </GlassCard>
+          ) : null}
+
           {/* Holdings table */}
           <GlassCard className="mt-4 overflow-hidden">
             <div className="hidden grid-cols-[1.4fr_0.7fr_0.8fr_0.8fr_1fr_0.9fr_auto] gap-3 border-b border-white/[0.06] px-5 py-3 text-[0.62rem] uppercase tracking-[0.16em] text-slate-500 lg:grid">
@@ -647,38 +679,6 @@ export default function PortfolioManager() {
               </div>
             ) : null}
           </GlassCard>
-
-          {/* Allocation — pie/donut with a legend */}
-          {summary && summary.rows.length > 0 ? (
-            <GlassCard className="mt-4 p-5 sm:p-6">
-              <h4 className="font-display text-base font-semibold text-white">Allocation by holding</h4>
-              {(() => {
-                // Ordered for maximum hue separation between consecutive slices
-                // (blue → amber → green → pink → violet → cyan → yellow → rose),
-                // so adjacent holdings never read as the same colour.
-                const PALETTE = ["#4F93F7", "#F59E0B", "#34D399", "#F472B6", "#A78BFA", "#22D3EE", "#FACC15", "#FB7185"];
-                const total = summary.totalValue > 0 ? summary.totalValue : 1;
-                const sorted = summary.rows.slice().sort((a, b) => b.value - a.value);
-                // Keep the donut readable: up to 7 named slices, the rest as "Other".
-                const MAX = 7;
-                const head = sorted.slice(0, MAX);
-                const tail = sorted.slice(MAX);
-                const segs = head.map((r, i) => ({
-                  name: r.ticker,
-                  pct: (r.value / total) * 100,
-                  color: PALETTE[i % PALETTE.length],
-                }));
-                if (tail.length) {
-                  segs.push({
-                    name: "Other",
-                    pct: (tail.reduce((s, r) => s + r.value, 0) / total) * 100,
-                    color: "#64748B",
-                  });
-                }
-                return <AllocationDonut segments={segs} count={summary.rows.length} />;
-              })()}
-            </GlassCard>
-          ) : null}
         </>
       ) : (
         <GlassCard className="mt-6 p-10 text-center">

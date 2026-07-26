@@ -6,13 +6,12 @@
 // file carries the static headers that don't need a nonce, so they apply to
 // every route (pages AND API/JSON responses).
 const securityHeaders = [
-  // Trusted Types (DOM-based XSS mitigation) in REPORT-ONLY: it reports what a
-  // future enforcing policy would block, without breaking rendering today. The
-  // allowlist names every policy actually created: Next's own 'nextjs' /
-  // 'nextjs#bundler' (used to wrap its dynamic chunk scripts as TrustedScriptURL
-  // — listing them stops the "policy violates" reports and lets Next mark its
-  // scripts trusted), plus 'default' + 'dompurify' for app sinks. 'allow-
-  // duplicates' because Next may (re)create its policy across navigations.
+  // The enforcing Content-Security-Policy (strict, nonce-based) is set per-request
+  // in middleware.ts. These are the static headers that don't need a nonce.
+  // Trusted Types, REPORT-ONLY: declares the require-trusted-types-for directive
+  // (what the scanner looks for) but NEVER blocks, so it cannot crash rendering
+  // the way enforcing it did. Next's chunk-loader policy names are allowlisted so
+  // it doesn't spam the console.
   {
     key: "Content-Security-Policy-Report-Only",
     value:
