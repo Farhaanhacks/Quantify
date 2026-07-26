@@ -64,7 +64,7 @@ function buildCsp(nonce: string): string {
     "object-src 'none'",
     "frame-ancestors 'self'",
     "form-action 'self' https://checkout.razorpay.com https://api.razorpay.com https://accounts.google.com",
-    `script-src 'self' 'nonce-${nonce}' https://s3.tradingview.com https://checkout.razorpay.com https://va.vercel-scripts.com`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-inline' https://s3.tradingview.com https://checkout.razorpay.com https://va.vercel-scripts.com`,
     "style-src 'self' 'unsafe-inline' https://s3.tradingview.com",
     "img-src 'self' data: blob: https://lh3.googleusercontent.com https://lh4.googleusercontent.com https://lh5.googleusercontent.com https://lh6.googleusercontent.com https://cdn.razorpay.com",
     "font-src 'self' data:",
