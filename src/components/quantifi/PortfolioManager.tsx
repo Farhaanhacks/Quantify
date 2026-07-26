@@ -653,7 +653,10 @@ export default function PortfolioManager() {
             <GlassCard className="mt-4 p-5 sm:p-6">
               <h4 className="font-display text-base font-semibold text-white">Allocation by holding</h4>
               {(() => {
-                const PALETTE = ["#4F93F7", "#4FD1C5", "#818CF8", "#34D399", "#F59E0B", "#F472B6", "#FB7185", "#38BDF8"];
+                // Ordered for maximum hue separation between consecutive slices
+                // (blue → amber → green → pink → violet → cyan → yellow → rose),
+                // so adjacent holdings never read as the same colour.
+                const PALETTE = ["#4F93F7", "#F59E0B", "#34D399", "#F472B6", "#A78BFA", "#22D3EE", "#FACC15", "#FB7185"];
                 const total = summary.totalValue > 0 ? summary.totalValue : 1;
                 const sorted = summary.rows.slice().sort((a, b) => b.value - a.value);
                 // Keep the donut readable: up to 7 named slices, the rest as "Other".
