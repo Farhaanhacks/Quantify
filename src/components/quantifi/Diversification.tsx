@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import {
   GlassCard,
   SectionHeading,
-  Donut,
   BarMeter,
   Tag,
 } from "@/components/quantifi/Cards";
@@ -79,6 +78,98 @@ function computeBook(items: ResolvedItem[]) {
     },
   ];
   return { weights, sectorSegs, regionSegs, notes };
+}
+
+// Donut + legend with synced hover: hovering a slice (or its legend row) dims the
+// other arcs and shows that slice's % + name in the centre; idle shows a headline
+// (e.g. the top sector). Kept in a vertical stack (ring above legend) to match the
+// concentration cards' existing layout.
+function InteractiveDonut({
+  segments,
+  idleValue,
+  idleLabel,
+  size = 168,
+  thickness = 18,
+}: {
+  segments: Seg[];
+  idleValue: string;
+  idleLabel: string;
+  size?: number;
+  thickness?: number;
+}) {
+  const [hover, setHover] = useState<number | null>(null);
+  const radius = (size - thickness) / 2;
+  const circ = 2 * Math.PI * radius;
+  const total = segments.reduce((s, x) => s + (x.pct > 0 ? x.pct : 0), 0);
+  const denom = Math.max(100, total); // never over-fill the ring
+  const active = hover != null ? segments[hover] : null;
+  const bigText = active ? `${active.pct}%` : idleValue;
+  const smallText = active
+    ? active.name.length > 16
+      ? `${active.name.slice(0, 15)}…`
+      : active.name
+    : idleLabel;
+  let offset = 0;
+
+  return (
+    <div>
+      <div className="flex items-center justify-center">
+        <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} role="img" aria-label="Concentration donut">
+          <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
+            <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={thickness} />
+            {segments.map((seg, i) => {
+              const len = (Math.max(0, seg.pct) / denom) * circ;
+              const dash = `${len} ${circ - len}`;
+              const el = (
+                <circle
+                  key={seg.name}
+                  cx={size / 2}
+                  cy={size / 2}
+                  r={radius}
+                  fill="none"
+                  stroke={seg.color}
+                  strokeWidth={thickness}
+                  strokeDasharray={dash}
+                  strokeDashoffset={-offset}
+                  strokeLinecap="butt"
+                  opacity={hover == null || hover === i ? 1 : 0.3}
+                  onMouseEnter={() => setHover(i)}
+                  onMouseLeave={() => setHover(null)}
+                  style={{ cursor: "pointer", transition: "opacity 0.15s" }}
+                />
+              );
+              offset += len;
+              return el;
+            })}
+          </g>
+          <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" className="fill-white font-display font-semibold" style={{ fontSize: 26 }}>
+            {bigText}
+          </text>
+          <text x="50%" y="61%" textAnchor="middle" dominantBaseline="middle" className="fill-slate-400" style={{ fontSize: 11 }}>
+            {smallText}
+          </text>
+        </svg>
+      </div>
+      <ul className="mt-4 space-y-1">
+        {segments.map((s, i) => (
+          <li
+            key={s.name}
+            onMouseEnter={() => setHover(i)}
+            onMouseLeave={() => setHover(null)}
+            className={`flex cursor-default items-center justify-between gap-2 rounded-md px-2 py-1 text-xs transition ${
+              hover === i ? "bg-white/[0.05]" : ""
+            }`}
+          >
+            <span className="flex min-w-0 items-center gap-2 text-slate-300">
+              <span className="h-2 w-2 flex-none rounded-sm" style={{ backgroundColor: s.color }} />
+              <span className="truncate">{s.name}</span>
+            </span>
+            <span className="flex-none font-mono tnum text-slate-400">{s.pct}%</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 export default function Diversification({ heading = true }: { heading?: boolean }) {
@@ -179,38 +270,16 @@ export default function Diversification({ heading = true }: { heading?: boolean 
 
         <GlassCard className="p-5">
           <h3 className="font-display text-base font-semibold text-white">By sector</h3>
-          <div className="mt-3 flex items-center justify-center">
-            <Donut segments={sectorSegs} centerValue={`${sectorSegs[0]?.pct ?? 0}%`} centerLabel="top sector" />
+          <div className="mt-3">
+            <InteractiveDonut segments={sectorSegs} idleValue={`${sectorSegs[0]?.pct ?? 0}%`} idleLabel="top sector" />
           </div>
-          <ul className="mt-4 space-y-1.5">
-            {sectorSegs.map((s) => (
-              <li key={s.name} className="flex items-center justify-between text-xs">
-                <span className="flex items-center gap-2 text-slate-300">
-                  <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: s.color }} />
-                  {s.name}
-                </span>
-                <span className="font-mono tnum text-slate-400">{s.pct}%</span>
-              </li>
-            ))}
-          </ul>
         </GlassCard>
 
         <GlassCard className="p-5">
           <h3 className="font-display text-base font-semibold text-white">Holdings by region</h3>
-          <div className="mt-3 flex items-center justify-center">
-            <Donut segments={regionSegs} centerValue={`${regionSegs[0]?.pct ?? 0}%`} centerLabel="top region" />
+          <div className="mt-3">
+            <InteractiveDonut segments={regionSegs} idleValue={`${regionSegs[0]?.pct ?? 0}%`} idleLabel="top region" />
           </div>
-          <ul className="mt-4 space-y-1.5">
-            {regionSegs.map((s) => (
-              <li key={s.name} className="flex items-center justify-between text-xs">
-                <span className="flex items-center gap-2 text-slate-300">
-                  <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: s.color }} />
-                  {s.name}
-                </span>
-                <span className="font-mono tnum text-slate-400">{s.pct}%</span>
-              </li>
-            ))}
-          </ul>
         </GlassCard>
       </div>
 
