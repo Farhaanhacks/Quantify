@@ -371,6 +371,26 @@ export function ImpactChain({
 
 // ── Score radar (pentagon) — inline SVG, no chart library ────────────────────
 
+// Split a multi-word axis label ("Balance Sheet Strength") into (up to) two
+// balanced lines so it stacks under its spoke instead of overflowing the SVG
+// and getting clipped ("alance Sheet Strength"). Single words stay on one line.
+function wrapAxisLabel(label: string): string[] {
+  const words = label.split(" ");
+  if (words.length <= 1) return [label];
+  let splitAt = 1;
+  let bestWidth = Infinity;
+  for (let i = 1; i < words.length; i++) {
+    const a = words.slice(0, i).join(" ").length;
+    const b = words.slice(i).join(" ").length;
+    const widest = Math.max(a, b);
+    if (widest < bestWidth) {
+      bestWidth = widest;
+      splitAt = i;
+    }
+  }
+  return [words.slice(0, splitAt).join(" "), words.slice(splitAt).join(" ")];
+}
+
 export function ScoreRadar({
   values,
   labels,
@@ -400,7 +420,7 @@ export function ScoreRadar({
     .join(" ");
 
   return (
-    <svg viewBox={`-52 -8 ${size + 104} ${size + 16}`} width="100%" height="100%" role="img" aria-label="Quantifi Score radar">
+    <svg viewBox={`-62 -20 ${size + 124} ${size + 44}`} width="100%" height="100%" role="img" aria-label="Quantifi Score radar">
       <defs>
         <linearGradient id="radarFill" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="#4F93F7" stopOpacity="0.45" />
@@ -427,18 +447,25 @@ export function ScoreRadar({
       })}
       {labels.map((label, i) => {
         const [x, y] = point(i, r + 16);
+        const lines = wrapAxisLabel(label);
+        const lineH = 10;
+        const dy0 = -((lines.length - 1) * lineH) / 2; // vertically centre the stack
         return (
           <text
             key={label}
             x={x}
             y={y}
-            fill="rgba(226,232,240,0.75)"
-            fontSize="9"
+            fill="rgba(226,232,240,0.85)"
+            fontSize="10"
             fontWeight="600"
             textAnchor={x < cx - 4 ? "end" : x > cx + 4 ? "start" : "middle"}
             dominantBaseline="middle"
           >
-            {label}
+            {lines.map((ln, li) => (
+              <tspan key={li} x={x} dy={li === 0 ? dy0 : lineH}>
+                {ln}
+              </tspan>
+            ))}
           </text>
         );
       })}

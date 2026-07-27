@@ -122,14 +122,14 @@ export default function PortfolioSnowflake({ heading = true }: { heading?: boole
         </GlassCard>
       ) : (
         <GlassCard className="mt-6 p-5 sm:p-6">
-          <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
+          <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
             {/* aggregate snowflake */}
             <div>
-              <div className="mx-auto h-[200px] w-[200px]">
+              <div className="mx-auto h-[300px] w-[300px]">
                 <ScoreRadar
                   values={SCORE_AXES.map((a) => agg[a.key])}
                   labels={SCORE_AXES.map((a) => a.label)}
-                  size={190}
+                  size={220}
                 />
               </div>
               <div className="mt-2 text-center">

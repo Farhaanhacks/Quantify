@@ -1,4 +1,5 @@
 import PortfolioManager from "@/components/quantifi/PortfolioManager";
+import PortfolioValueChart from "@/components/quantifi/PortfolioValueChart";
 import PortfolioSnowflake from "@/components/quantifi/PortfolioSnowflake";
 import PortfolioNews from "@/components/quantifi/PortfolioNews";
 import InsiderActivity from "@/components/quantifi/InsiderActivity";
@@ -19,6 +20,7 @@ export default function PortfolioPage() {
       </section>
 
       <PortfolioManager />
+      <PortfolioValueChart />
       <Watchlist />
       <PortfolioSnowflake />
       <PortfolioNews />
