@@ -124,7 +124,6 @@ export default function NewsFeed({ items }: { items: NewsArticle[] }) {
       <SectionHeading
         eyebrow="News Impact"
         title="Live market news"
-        subtitle="A continuously updating feed from multiple sources. Each story shows the stocks it touches; tap for the tone and why it matters, then drill into any name."
       />
 
       <div className="mt-6 flex flex-wrap items-center gap-2">

@@ -214,10 +214,7 @@ export default function Screener({ heading = true }: { heading?: boolean }) {
   return (
     <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
       {heading ? (
-        <SectionHeading
-          eyebrow="Screener"
-          subtitle="Narrow names by region, sector, the Quantifi snowflake and valuation. Every score is computed live from current fundamentals — a discovery starting point, not a recommendation list."
-        />
+        <SectionHeading eyebrow="Screener" />
       ) : null}
 
       {/* Live status */}
