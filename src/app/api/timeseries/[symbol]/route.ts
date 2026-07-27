@@ -44,21 +44,19 @@ const MIN_POINTS: Record<string, number> = {
   "1d": 2, "1mo": 8, "3mo": 20, "6mo": 40, ytd: 20, "1y": 80, "5y": 120, max: 20,
 };
 
-async function yahooSeries(symbol: string, range: string) {
-  // Intraday for 1D, weekly for the very long ranges, daily otherwise.
-  const interval =
-    range === "1d" ? "5m" : range === "max" || range === "10y" ? "1wk" : "1d";
-
-  // Yahoo intermittently rate-limits or blocks one host while the other still
-  // serves — try query1 then query2 before giving up (falling back to a Stooq
-  // stub for an Indian symbol is what produced the broken chart).
-  const hosts = ["query1", "query2"];
+// Fetch + parse one symbol's daily closes from Yahoo. Tries query1 then query2
+// (one host is often rate-limited while the other serves). Never throws — returns
+// an empty series on any failure so the caller can try another symbol candidate.
+async function fetchYahooPoints(
+  sym: string,
+  range: string,
+  interval: string
+): Promise<{ points: Point[]; meta: Record<string, unknown> }> {
   let json: unknown = null;
-  let lastErr: unknown = null;
-  for (const host of hosts) {
+  for (const host of ["query1", "query2"]) {
     try {
       const url = `https://${host}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
-        symbol
+        sym
       )}?range=${encodeURIComponent(range)}&interval=${interval}`;
       const res = await fetch(url, {
         headers: {
@@ -72,16 +70,16 @@ async function yahooSeries(symbol: string, range: string) {
       if (!res.ok) throw new Error(`Yahoo ${host} responded ${res.status}`);
       json = await res.json();
       break;
-    } catch (e) {
-      lastErr = e;
+    } catch {
+      /* try next host */
     }
   }
-  if (json == null) throw lastErr ?? new Error("Yahoo: unreachable");
+  if (json == null) return { points: [], meta: {} };
 
   const result = (json as { chart?: { result?: unknown[]; error?: unknown } })?.chart?.result?.[0] as
     | { timestamp?: number[]; indicators?: { quote?: { close?: (number | null)[] }[] }; meta?: Record<string, unknown> }
     | undefined;
-  if (!result || (json as { chart?: { error?: unknown } })?.chart?.error) throw new Error("Yahoo: no data");
+  if (!result || (json as { chart?: { error?: unknown } })?.chart?.error) return { points: [], meta: {} };
 
   const ts: number[] = result.timestamp ?? [];
   const closes: (number | null)[] = result.indicators?.quote?.[0]?.close ?? [];
@@ -94,11 +92,34 @@ async function yahooSeries(symbol: string, range: string) {
       value: Number(c.toFixed(2)),
     });
   }
-  const points = dropSpikes(raw);
-  // Reject a stub series so it never renders as a genuine multi-month chart.
-  if (points.length < (MIN_POINTS[range] ?? 5)) throw new Error("Yahoo: series too short");
+  return { points: dropSpikes(raw), meta: (result.meta ?? {}) as Record<string, unknown> };
+}
 
-  const m = (result.meta ?? {}) as Record<string, unknown>;
+async function yahooSeries(symbol: string, range: string) {
+  // Intraday for 1D, weekly for the very long ranges, daily otherwise.
+  const interval =
+    range === "1d" ? "5m" : range === "max" || range === "10y" ? "1wk" : "1d";
+  const need = MIN_POINTS[range] ?? 5;
+
+  // BSE (.BO) listings frequently have thin or missing Yahoo chart history while
+  // their NSE (.NS) twin is complete (and vice-versa). So if the requested Indian
+  // listing comes back empty/short, retry the SAME company on the other exchange
+  // — same stock, same INR currency — and keep whichever series is richer.
+  const candidates = [symbol];
+  if (/\.BO$/i.test(symbol)) candidates.push(symbol.replace(/\.BO$/i, ".NS"));
+  else if (/\.NS$/i.test(symbol)) candidates.push(symbol.replace(/\.NS$/i, ".BO"));
+
+  let best: { points: Point[]; meta: Record<string, unknown> } | null = null;
+  for (const sym of candidates) {
+    const got = await fetchYahooPoints(sym, range, interval);
+    if (!best || got.points.length > best.points.length) best = got;
+    if (best.points.length >= need) break; // rich enough — stop early
+  }
+  // Reject a stub series so it never renders as a genuine multi-month chart.
+  if (!best || best.points.length < need) throw new Error("Yahoo: series too short");
+
+  const points = best.points;
+  const m = best.meta;
   const num = (v: unknown): number | undefined =>
     typeof v === "number" && isFinite(v) ? v : undefined;
   const price = num(m.regularMarketPrice) ?? points[points.length - 1].value;
