@@ -36,24 +36,52 @@ function dropSpikes(pts: Point[]): Point[] {
   return out;
 }
 
+// The fewest points we'll accept for a given range before treating the response
+// as broken. A real multi-month daily series has dozens-to-hundreds of closes;
+// anything at or below this is a stub (the "same wrong 2-point chart on 6M and
+// 1Y" bug) and should fall through rather than render as if it were genuine.
+const MIN_POINTS: Record<string, number> = {
+  "1d": 2, "1mo": 8, "3mo": 20, "6mo": 40, ytd: 20, "1y": 80, "5y": 120, max: 20,
+};
+
 async function yahooSeries(symbol: string, range: string) {
   // Intraday for 1D, weekly for the very long ranges, daily otherwise.
   const interval =
     range === "1d" ? "5m" : range === "max" || range === "10y" ? "1wk" : "1d";
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
-    symbol
-  )}?range=${encodeURIComponent(range)}&interval=${interval}`;
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
-    },
-    next: { revalidate: 300 },
-  });
-  if (!res.ok) throw new Error(`Yahoo responded ${res.status}`);
-  const json = await res.json();
-  const result = json?.chart?.result?.[0];
-  if (!result || json?.chart?.error) throw new Error("Yahoo: no data");
+
+  // Yahoo intermittently rate-limits or blocks one host while the other still
+  // serves — try query1 then query2 before giving up (falling back to a Stooq
+  // stub for an Indian symbol is what produced the broken chart).
+  const hosts = ["query1", "query2"];
+  let json: unknown = null;
+  let lastErr: unknown = null;
+  for (const host of hosts) {
+    try {
+      const url = `https://${host}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
+        symbol
+      )}?range=${encodeURIComponent(range)}&interval=${interval}`;
+      const res = await fetch(url, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+          Accept: "application/json",
+        },
+        next: { revalidate: 300 },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) throw new Error(`Yahoo ${host} responded ${res.status}`);
+      json = await res.json();
+      break;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  if (json == null) throw lastErr ?? new Error("Yahoo: unreachable");
+
+  const result = (json as { chart?: { result?: unknown[]; error?: unknown } })?.chart?.result?.[0] as
+    | { timestamp?: number[]; indicators?: { quote?: { close?: (number | null)[] }[] }; meta?: Record<string, unknown> }
+    | undefined;
+  if (!result || (json as { chart?: { error?: unknown } })?.chart?.error) throw new Error("Yahoo: no data");
 
   const ts: number[] = result.timestamp ?? [];
   const closes: (number | null)[] = result.indicators?.quote?.[0]?.close ?? [];
@@ -67,17 +95,21 @@ async function yahooSeries(symbol: string, range: string) {
     });
   }
   const points = dropSpikes(raw);
-  if (points.length === 0) throw new Error("Yahoo: empty series");
+  // Reject a stub series so it never renders as a genuine multi-month chart.
+  if (points.length < (MIN_POINTS[range] ?? 5)) throw new Error("Yahoo: series too short");
 
-  const m = result.meta ?? {};
-  const price = m.regularMarketPrice ?? points[points.length - 1].value;
+  const m = (result.meta ?? {}) as Record<string, unknown>;
+  const num = (v: unknown): number | undefined =>
+    typeof v === "number" && isFinite(v) ? v : undefined;
+  const price = num(m.regularMarketPrice) ?? points[points.length - 1].value;
   // Use Yahoo's OWN previous close (yesterday's session) for the day change.
   // chartPreviousClose is the close at the START of the requested range window,
   // so on a 1y/5y range it turns the whole-period return into a bogus "today"
   // figure — the price badge now reads /api/quote instead, but keep this correct
   // for any other consumer of this meta.
   const prev =
-    m.previousClose ?? m.regularMarketPreviousClose ?? m.chartPreviousClose ?? price;
+    num(m.previousClose) ?? num(m.regularMarketPreviousClose) ?? num(m.chartPreviousClose) ?? price;
+  const currency = typeof m.currency === "string" ? m.currency : (currencyForTicker(symbol) ?? "USD");
   return {
     symbol,
     points,
@@ -85,7 +117,7 @@ async function yahooSeries(symbol: string, range: string) {
       price: Number(price.toFixed(2)),
       change: Number((price - prev).toFixed(2)),
       changePct: prev ? Number((((price - prev) / prev) * 100).toFixed(2)) : 0,
-      currency: m.currency ?? (currencyForTicker(symbol) ?? "USD"),
+      currency,
     },
     live: true,
   };

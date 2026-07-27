@@ -92,6 +92,15 @@ export default function PriceChart({
         if (!el) return;
         el.innerHTML = "";
 
+        const points = Array.isArray(data.points) ? data.points : [];
+        // No genuine series for this range (e.g. Yahoo unreachable and no valid
+        // fallback for an Indian symbol). Show an honest message rather than an
+        // empty box or a misleading stub line.
+        if (points.length === 0) {
+          setErr("Live chart data isn’t available for this symbol right now — try the TradingView engine above.");
+          return;
+        }
+
         // Canvas text can't read CSS variables, so resolve the site font (Lora)
         // from the computed style and pass the literal family to the chart.
         const loraFamily =
@@ -130,7 +139,7 @@ export default function PriceChart({
             return res;
           },
         });
-        series.setData(data.points ?? []);
+        series.setData(points);
         chart.timeScale().fitContent();
 
         ro = new ResizeObserver((entries) => {

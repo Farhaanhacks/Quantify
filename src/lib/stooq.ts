@@ -10,15 +10,23 @@ export interface StooqPoint {
   value: number;
 }
 
+// Stooq has NO usable history for Indian exchanges (NSE .ns / BSE .bo). Worse,
+// for some of these it returns a tiny stub of only the last few sessions. Once
+// that stub is sliced per range it renders as an identical, wrong 2-point chart
+// for 6M, 1Y and 5Y alike — far more misleading than showing nothing. Refuse
+// those symbols here so the caller falls through to an honest "no data" instead.
+const STOOQ_UNSUPPORTED = /\.(ns|bo)$/i;
+
 function stooqSymbol(sym: string): string {
   const s = sym.toLowerCase();
-  if (s.includes(".")) return s; // already suffixed (e.g. .us/.uk); .ns is unsupported and will simply miss
+  if (s.includes(".")) return s; // already suffixed (e.g. .us/.uk)
   return `${s}.us`;
 }
 
 export async function getStooqSeries(
   symbol: string
 ): Promise<StooqPoint[] | null> {
+  if (STOOQ_UNSUPPORTED.test(symbol)) return null;
   try {
     const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(
       stooqSymbol(symbol)
