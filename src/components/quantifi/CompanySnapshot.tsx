@@ -352,7 +352,7 @@ export default function CompanySnapshot({
               const supports = d.checks.filter((c) => c.pass);
               const worries = d.checks.filter((c) => !c.pass);
               return (
-                <details key={axis.key} className="group rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3">
+                <details key={axis.key} className="group rounded-lg border border-white/[0.06] bg-white/[0.02] px-4 py-3">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
                     <span className="flex flex-wrap items-center gap-2">
                       <span className="text-sm text-slate-200">{axis.label}</span>

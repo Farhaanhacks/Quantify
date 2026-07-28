@@ -209,7 +209,7 @@ export default function NotificationBell() {
       </button>
 
       {open ? (
-        <div className="fixed inset-x-2 top-[4.25rem] z-50 overflow-hidden rounded-2xl border border-white/10 bg-ink-900 shadow-2xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-[24rem]">
+        <div className="fixed inset-x-2 top-[4.25rem] z-50 overflow-hidden rounded-lg border border-white/10 bg-ink-900 shadow-2xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-[24rem]">
           <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
             <span className="font-display text-sm font-semibold text-white">Notifications</span>
             <button

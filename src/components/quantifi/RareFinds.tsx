@@ -63,7 +63,7 @@ function InsiderBuyLine({ ticker, note }: { ticker: string; note?: string }) {
     n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(0)}K` : `$${n.toFixed(0)}`;
 
   return (
-    <div className="rounded-xl border border-up/25 bg-up/[0.06] p-3.5">
+    <div className="rounded-lg border border-up/25 bg-up/[0.06] p-3.5">
       <div className="flex items-center gap-2">
         <span className="text-sm">🟢</span>
         <span className="text-[0.62rem] uppercase tracking-[0.14em] text-up/90">Insider buying · live SEC Form 4</span>
@@ -128,7 +128,7 @@ function CashFlowValueLine({ ticker }: { ticker: string }) {
   const money = (n: number) => `$${n.toFixed(2)}`;
 
   return (
-    <div className="rounded-xl border border-gold/25 bg-gold/[0.06] p-3.5">
+    <div className="rounded-lg border border-gold/25 bg-gold/[0.06] p-3.5">
       <div className="flex items-center gap-2">
         <span className="text-sm">📈</span>
         <span className="text-[0.62rem] uppercase tracking-[0.14em] text-gold/90">Cash-flow value · live DCF</span>
@@ -247,7 +247,7 @@ function PlanModal({ plan, onClose }: { plan: InvestmentPlan; onClose: () => voi
       aria-modal="true"
     >
       <div
-        className="relative my-6 w-full max-w-3xl rounded-2xl border border-gold/25 bg-[#0b0f1a] p-6 shadow-2xl sm:p-8"
+        className="relative my-6 w-full max-w-3xl rounded-lg border border-gold/25 bg-[#0b0f1a] p-6 shadow-2xl sm:p-8"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -266,17 +266,17 @@ function PlanModal({ plan, onClose }: { plan: InvestmentPlan; onClose: () => voi
 
         <p className="mt-5 text-base leading-relaxed text-slate-200 sm:text-lg">{plan.thesis}</p>
 
-        <div className="mt-6 rounded-xl border border-gold/20 bg-gold/[0.06] px-5 py-4">
+        <div className="mt-6 rounded-lg border border-gold/20 bg-gold/[0.06] px-5 py-4">
           <span className="text-xs uppercase tracking-[0.14em] text-gold/80">If the AI bubble pops</span>
           <p className="mt-2 text-base leading-relaxed text-slate-100">{plan.bubbleAngle}</p>
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-5 py-4">
+          <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] px-5 py-4">
             <span className="text-xs uppercase tracking-[0.12em] text-teal">What to watch</span>
             <p className="mt-1.5 text-sm leading-relaxed text-slate-200 sm:text-base">{plan.watch}</p>
           </div>
-          <div className="rounded-xl border border-down/20 bg-down/[0.05] px-5 py-4">
+          <div className="rounded-lg border border-down/20 bg-down/[0.05] px-5 py-4">
             <span className="text-xs uppercase tracking-[0.12em] text-down/80">Main risk</span>
             <p className="mt-1.5 text-sm leading-relaxed text-slate-300 sm:text-base">{plan.risk}</p>
           </div>

@@ -124,7 +124,7 @@ export default function Competitors({
               <Link
                 key={p.symbol}
                 href={`/stock-analysis?symbol=${encodeURIComponent(p.symbol)}`}
-                className="group flex flex-col items-center rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 text-center transition hover:border-gold/40"
+                className="group flex flex-col items-center rounded-lg border border-white/[0.06] bg-white/[0.02] p-4 text-center transition hover:border-gold/40"
               >
                 <span className="h-24 w-28">
                   {p.values && p.values.length === 5 ? (

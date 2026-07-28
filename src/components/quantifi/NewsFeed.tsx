@@ -183,7 +183,7 @@ export default function NewsFeed({ items }: { items: NewsArticle[] }) {
       {!pro && hiddenCount > 0 ? (
         <Link
           href="/pricing"
-          className="mt-4 flex flex-col items-center gap-2 rounded-2xl border border-gold/25 bg-gold/[0.05] p-6 text-center transition hover:border-gold/40"
+          className="mt-4 flex flex-col items-center gap-2 rounded-lg border border-gold/25 bg-gold/[0.05] p-6 text-center transition hover:border-gold/40"
         >
           <span className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/40 bg-gold/15 text-gold">🔒</span>
           <span className="text-sm font-semibold text-white">
@@ -213,7 +213,7 @@ export default function NewsFeed({ items }: { items: NewsArticle[] }) {
       {selected && detail ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setSelected(null)} />
-          <div className="relative z-10 max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/10 bg-ink-900 p-6 shadow-2xl sm:p-8">
+          <div className="relative z-10 max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-white/10 bg-ink-900 p-6 shadow-2xl sm:p-8">
             <button
               type="button"
               onClick={() => setSelected(null)}
@@ -244,13 +244,13 @@ export default function NewsFeed({ items }: { items: NewsArticle[] }) {
             </div>
 
             {/* 3 · Why it matters */}
-            <div className="mt-4 rounded-xl border border-gold/20 bg-gold/[0.06] p-4">
+            <div className="mt-4 rounded-lg border border-gold/20 bg-gold/[0.06] p-4">
               <div className="text-[0.62rem] uppercase tracking-[0.16em] text-gold/80">Why it matters</div>
               <p className="mt-1.5 text-sm leading-relaxed text-slate-200">{detail.whyItMatters}</p>
             </div>
 
             {/* 4 · Impact map */}
-            <div className="mt-5 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+            <div className="mt-5 rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
               <div className="mb-3 text-[0.62rem] uppercase tracking-[0.16em] text-slate-500">Impact map</div>
               <ol className="space-y-0">
                 {detail.impactMap.map((s, i) => (
@@ -275,7 +275,7 @@ export default function NewsFeed({ items }: { items: NewsArticle[] }) {
               {detail.affected.length ? (
                 <div className="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                   {detail.affected.map((a) => (
-                    <div key={a.ticker} className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3.5">
+                    <div key={a.ticker} className="rounded-lg border border-white/[0.07] bg-white/[0.02] p-3.5">
                       <div className="flex items-center gap-2">
                         <span className="rounded-md border border-white/10 bg-white/[0.04] px-2 py-0.5 font-mono text-sm text-white">{a.ticker}</span>
                         {a.primary ? <Tag tone="gold">Primary</Tag> : <span className="text-[0.65rem] text-slate-500">Read-through</span>}
@@ -341,7 +341,7 @@ export default function NewsFeed({ items }: { items: NewsArticle[] }) {
             </div>
 
             {/* 8 · Signal classification */}
-            <div className="mt-5 grid grid-cols-1 gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 sm:grid-cols-3">
+            <div className="mt-5 grid grid-cols-1 gap-3 rounded-lg border border-white/[0.06] bg-white/[0.02] p-4 sm:grid-cols-3">
               <div>
                 <div className="text-[0.58rem] uppercase tracking-[0.16em] text-slate-500">Signal type</div>
                 <div className="mt-1 text-xs font-medium text-slate-200">{detail.signalType}</div>

@@ -121,7 +121,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
 
           <div className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
             {badges.map((b) => (
-              <div key={b.k} className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-2">
+              <div key={b.k} className="rounded-lg border border-white/[0.08] bg-white/[0.02] px-3 py-2">
                 <div className="text-[0.55rem] uppercase tracking-[0.16em] text-slate-500">{b.k}</div>
                 <div className="mt-0.5 text-[0.8rem] font-medium leading-snug text-slate-200">{b.v}</div>
               </div>
@@ -154,13 +154,13 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
       {/* ── Always-visible thesis + so-what (the 10-second read) ── */}
       <div className="mx-auto max-w-5xl px-4 pt-7 sm:px-6 lg:px-8">
         {playbook.oneLineThesis ? (
-          <div className="rounded-2xl border border-gold/25 bg-gold/[0.06] p-5 sm:p-6">
+          <div className="rounded-lg border border-gold/25 bg-gold/[0.06] p-5 sm:p-6">
             <SectionLabel>Core thesis</SectionLabel>
             <p className="mt-2 text-base font-medium leading-relaxed text-white sm:text-lg">{playbook.oneLineThesis}</p>
           </div>
         ) : null}
         {playbook.soWhat ? (
-          <div className="mt-3 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 sm:p-6">
+          <div className="mt-3 rounded-lg border border-white/[0.08] bg-white/[0.02] p-5 sm:p-6">
             <SectionLabel>So what does this mean for investors?</SectionLabel>
             <p className="mt-2 text-sm leading-relaxed text-slate-300">{playbook.soWhat}</p>
           </div>
@@ -172,7 +172,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
         {tab === "overview" ? (
           <div className="space-y-6">
             {playbook.whatChanged?.length ? (
-              <section className="rounded-2xl border border-teal/20 bg-teal/[0.05] p-5">
+              <section className="rounded-lg border border-teal/20 bg-teal/[0.05] p-5">
                 <SectionLabel>What changed recently</SectionLabel>
                 <ul className="mt-2.5 space-y-1.5">
                   {playbook.whatChanged.map((c) => (
@@ -186,7 +186,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
             ) : null}
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <section className="rounded-2xl border border-up/20 bg-up/5 p-5">
+              <section className="rounded-lg border border-up/20 bg-up/5 p-5">
                 <div className="text-[0.62rem] uppercase tracking-[0.18em] text-up/80">Bull case</div>
                 <p className="mt-2 text-sm leading-relaxed text-slate-300">{playbook.bullCase}</p>
                 {beneficiaries?.length ? (
@@ -199,7 +199,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
                 ) : null}
               </section>
 
-              <section className="rounded-2xl border border-down/20 bg-down/5 p-5">
+              <section className="rounded-lg border border-down/20 bg-down/5 p-5">
                 <div className="text-[0.62rem] uppercase tracking-[0.18em] text-down/80">Bear case</div>
                 <p className="mt-2 text-sm leading-relaxed text-slate-300">{playbook.bearCase}</p>
                 {risks?.length ? (
@@ -225,7 +225,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
 
         {tab === "map" && playbook.exposure?.length ? (
           <div className="space-y-5">
-            <p className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5 text-[0.78rem] leading-relaxed text-slate-400">
+            <p className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3.5 text-[0.78rem] leading-relaxed text-slate-400">
               Thematic exposure, not recommendations or fund holdings. Bullish, bearish, private and proxy
               exposure are shown separately on purpose — a name central to the theme is not automatically a
               long.
@@ -234,7 +234,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
             {/* Beneficiaries vs Bearish — the core split, side by side */}
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               {longG ? (
-                <section className="rounded-2xl border border-up/25 bg-up/[0.06] p-5">
+                <section className="rounded-lg border border-up/25 bg-up/[0.06] p-5">
                   <h3 className="font-display text-lg font-semibold text-up">{longG.title}</h3>
                   <p className="mt-1 text-[0.75rem] leading-relaxed text-slate-400">{longG.note}</p>
                   <div className="mt-3">
@@ -244,7 +244,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
               ) : null}
 
               {shortG ? (
-                <section className="rounded-2xl border border-down/25 bg-down/[0.06] p-5">
+                <section className="rounded-lg border border-down/25 bg-down/[0.06] p-5">
                   <h3 className="font-display text-lg font-semibold text-down">{shortG.title}</h3>
                   <p className="mt-1 text-[0.75rem] leading-relaxed text-slate-400">{shortG.note}</p>
                   <div className="mt-3">
@@ -256,7 +256,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
 
             {/* Private AI lab exposure — visually central */}
             {privateG ? (
-              <section className="rounded-2xl border border-violet-400/30 bg-violet-400/[0.07] p-5 sm:p-6">
+              <section className="rounded-lg border border-violet-400/30 bg-violet-400/[0.07] p-5 sm:p-6">
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="font-display text-lg font-semibold text-violet-200">{privateG.title}</h3>
                   <span className="rounded-full border border-violet-400/40 bg-violet-400/10 px-2 py-0.5 text-[0.58rem] uppercase tracking-wide text-violet-200">
@@ -267,7 +267,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
 
                 {/* Lead callout = first private name (Anthropic) */}
                 {privateG.items[0] ? (
-                  <div className="mt-4 rounded-xl border border-violet-400/25 bg-ink-900/40 p-4">
+                  <div className="mt-4 rounded-lg border border-violet-400/25 bg-ink-900/40 p-4">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-display text-base font-semibold text-white">{privateG.items[0].name}</span>
                       <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[0.58rem] text-amber-300">
@@ -287,7 +287,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
                 {privateG.items.length > 1 ? (
                   <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {privateG.items.slice(1).map((it) => (
-                      <div key={it.name} className="rounded-xl border border-white/[0.06] bg-ink-900/30 p-3.5">
+                      <div key={it.name} className="rounded-lg border border-white/[0.06] bg-ink-900/30 p-3.5">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-sm font-semibold text-white">{it.name}</span>
                           <span className="rounded-full border border-amber-400/25 bg-amber-400/[0.07] px-1.5 py-0.5 text-[0.55rem] text-amber-300/90">Not tradable</span>
@@ -313,7 +313,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
 
             {/* ETF basket — last, clearly indirect */}
             {etfG ? (
-              <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+              <section className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-5">
                 <h3 className="font-display text-base font-semibold text-slate-200">{etfG.title}</h3>
                 <p className="mt-1 text-[0.75rem] leading-relaxed text-slate-500">{etfG.note}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -335,7 +335,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
             <p className="mt-1 text-xs text-slate-500">The signals that decide whether this framework is strengthening or weakening.</p>
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {playbook.thesisTests.map((t) => (
-                <div key={t.test} className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+                <div key={t.test} className="rounded-lg border border-white/[0.07] bg-white/[0.02] p-4">
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-sm font-medium text-white">{t.test}</span>
                     <span className={`flex-none rounded-full border px-2 py-0.5 text-[0.62rem] font-semibold uppercase tracking-wide ${signalTone(t.signal)}`}>
@@ -363,7 +363,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
                 const kindColor = s.kind === "Best case" ? "text-up" : s.kind === "Worst case" ? "text-down" : "text-slate-300";
                 const worst = s.kind === "Worst case";
                 return (
-                  <div key={s.kind} className={`rounded-2xl border p-4 ${tone}`}>
+                  <div key={s.kind} className={`rounded-lg border p-4 ${tone}`}>
                     <span className={`text-[0.72rem] font-semibold uppercase tracking-wide ${kindColor}`}>{s.kind}</span>
                     <p className="mt-2 text-sm leading-relaxed text-slate-200">{s.what}</p>
                     <div className="mt-3 space-y-1.5 border-t border-white/[0.06] pt-3">
@@ -383,7 +383,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
             {/* Bull / bear road kept compact under scenarios */}
             <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
               {([["Bull road", playbook.bullRoad, "up"], ["Bear road", playbook.bearRoad, "down"]] as const).map(([label, steps, tone]) => (
-                <div key={label} className={`rounded-2xl border p-4 ${tone === "up" ? "border-up/20 bg-up/5" : "border-down/20 bg-down/5"}`}>
+                <div key={label} className={`rounded-lg border p-4 ${tone === "up" ? "border-up/20 bg-up/5" : "border-down/20 bg-down/5"}`}>
                   <div className={`text-[0.62rem] uppercase tracking-[0.16em] ${tone === "up" ? "text-up/80" : "text-down/80"}`}>{label}</div>
                   <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
                     {steps.map((s, i) => (
@@ -406,7 +406,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
               <p className="mt-1 text-xs text-slate-500">External and reference sources — what each checks, and the thesis test it informs.</p>
               <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
                 {playbook.sourcePack.map((s) => (
-                  <div key={s.title} className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+                  <div key={s.title} className="rounded-lg border border-white/[0.07] bg-white/[0.02] p-4">
                     <div className="text-sm font-semibold text-white">{s.title}</div>
                     <p className="mt-1 text-[0.74rem] leading-relaxed text-slate-400">
                       <span className="text-slate-500">Checks: </span>{s.checks}
@@ -426,7 +426,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
               <SectionLabel>Related Quantifi Ideas</SectionLabel>
               <div className="mt-3 grid grid-cols-1 gap-2 lg:grid-cols-2">
                 {playbook.linkedIdeas.map((idea) => (
-                  <Link key={idea.ideaId} href={`/ideas?theme=${encodeURIComponent(idea.ideaId)}`} className="group block rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 transition hover:border-gold/40">
+                  <Link key={idea.ideaId} href={`/ideas?theme=${encodeURIComponent(idea.ideaId)}`} className="group block rounded-lg border border-white/[0.06] bg-white/[0.02] p-4 transition hover:border-gold/40">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-sm font-semibold text-white">{idea.title}</span>
                       <span className="flex-none text-[0.7rem] font-medium text-gold/80 transition group-hover:text-gold">Open theme →</span>

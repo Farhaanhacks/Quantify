@@ -138,7 +138,7 @@ export default function ShareholdingStats({ symbol }: { symbol: string }) {
   if (data === undefined) {
     return (
       <section className="mx-auto max-w-7xl px-4 pb-6 sm:px-6 lg:px-8">
-        <div className="h-56 animate-pulse rounded-2xl border border-white/[0.06] bg-white/[0.02]" />
+        <div className="h-56 animate-pulse rounded-lg border border-white/[0.06] bg-white/[0.02]" />
       </section>
     );
   }

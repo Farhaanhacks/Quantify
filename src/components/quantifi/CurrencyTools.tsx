@@ -126,7 +126,7 @@ export default function CurrencyTools() {
             </div>
           </div>
 
-          <div className="mt-5 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+          <div className="mt-5 rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
             {converting ? (
               <p className="text-sm text-slate-500">Fetching rate…</p>
             ) : converted != null && rate != null ? (

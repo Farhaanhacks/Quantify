@@ -104,7 +104,7 @@ export default function CompanyNewsSection({
       {selected ? (
         <div className="fixed inset-0 z-[90] flex items-center justify-center p-4" role="dialog" aria-modal="true">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setSelected(null)} />
-          <div className="relative z-10 max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/10 bg-ink-900 p-6 shadow-2xl sm:p-8">
+          <div className="relative z-10 max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-white/10 bg-ink-900 p-6 shadow-2xl sm:p-8">
             <div className="flex items-center justify-between gap-2">
               <span className="text-xs text-slate-500">
                 <span className="text-teal">{selected.source}</span> · {timeAgo(selected.publishedMs)}

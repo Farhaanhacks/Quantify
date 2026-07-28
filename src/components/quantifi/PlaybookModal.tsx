@@ -18,7 +18,7 @@ function Road({ steps, tone }: { steps: string[]; tone: "up" | "down" }) {
   const arrow = tone === "up" ? "text-up" : "text-down";
   const border = tone === "up" ? "border-up/20 bg-up/5" : "border-down/20 bg-down/5";
   return (
-    <div className={`rounded-xl border p-3 ${border}`}>
+    <div className={`rounded-lg border p-3 ${border}`}>
       <div className={`text-[0.62rem] uppercase tracking-[0.16em] ${tone === "up" ? "text-up/80" : "text-down/80"}`}>
         {tone === "up" ? "Bull road" : "Bear road"}
       </div>
@@ -74,7 +74,7 @@ export default function PlaybookModal({ playbook, onClose }: { playbook: Playboo
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 flex max-h-[90vh] w-full max-w-[880px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-ink-900 shadow-2xl">
+      <div className="relative z-10 flex max-h-[90vh] w-full max-w-[880px] flex-col overflow-hidden rounded-lg border border-white/10 bg-ink-900 shadow-2xl">
         {/* Fixed header */}
         <div className="flex-none border-b border-white/[0.06] px-6 pt-5 sm:px-8">
           <div className="flex items-start justify-between gap-3">
@@ -123,20 +123,20 @@ export default function PlaybookModal({ playbook, onClose }: { playbook: Playboo
         {/* Scroll body */}
         <div ref={bodyRef} className="overflow-y-auto p-6 sm:p-8">
           {/* B — Core question */}
-          <div id="question" className="rounded-xl border border-gold/20 bg-gold/[0.05] p-4 scroll-mt-2">
+          <div id="question" className="rounded-lg border border-gold/20 bg-gold/[0.05] p-4 scroll-mt-2">
             <span className="text-[0.62rem] uppercase tracking-[0.16em] text-gold/80">The core question</span>
             <p className="mt-1 text-base font-medium leading-relaxed text-white">{playbook.coreQuestion}</p>
           </div>
 
           {/* C — Quantifi research read */}
-          <div id="read" className="mt-4 rounded-xl border border-gold/20 bg-gold/[0.06] p-4 scroll-mt-2">
+          <div id="read" className="mt-4 rounded-lg border border-gold/20 bg-gold/[0.06] p-4 scroll-mt-2">
             <SectionLabel>Quantifi research read</SectionLabel>
             <p className="mt-1.5 text-sm leading-relaxed text-slate-200">{playbook.read}</p>
           </div>
 
           {/* What changed recently — a reason to revisit */}
           {playbook.whatChanged?.length ? (
-            <div className="mt-4 rounded-xl border border-teal/20 bg-teal/[0.05] p-4">
+            <div className="mt-4 rounded-lg border border-teal/20 bg-teal/[0.05] p-4">
               <div className="flex items-center justify-between gap-2">
                 <SectionLabel>What changed recently</SectionLabel>
                 {playbook.lastUpdated ? (
@@ -167,7 +167,7 @@ export default function PlaybookModal({ playbook, onClose }: { playbook: Playboo
             <SectionLabel>Executive summary</SectionLabel>
             <div className="mt-2.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
               {playbook.summary.map((c, i) => (
-                <div key={c.title} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
+                <div key={c.title} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3.5">
                   <div className="flex items-center gap-2">
                     <span className="flex h-5 w-5 flex-none items-center justify-center rounded-full bg-gold/15 font-mono text-[0.6rem] text-gold">
                       {i + 1}
@@ -184,13 +184,13 @@ export default function PlaybookModal({ playbook, onClose }: { playbook: Playboo
           <div id="market-map" className="mt-6 scroll-mt-2">
             <SectionLabel>Market map — how the framework connects to Quantifi Ideas</SectionLabel>
             <div className="mt-2.5">
-              <div className="rounded-xl border border-teal/20 bg-teal/[0.06] px-3.5 py-2.5 text-center text-sm font-semibold text-teal">
+              <div className="rounded-lg border border-teal/20 bg-teal/[0.06] px-3.5 py-2.5 text-center text-sm font-semibold text-teal">
                 Situational Awareness
               </div>
               <div className="flex justify-center py-1 text-base leading-none text-teal/50" aria-hidden>↓</div>
               <div className="space-y-2">
                 {playbook.linkedIdeas.map((idea) => (
-                  <div key={idea.ideaId} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
+                  <div key={idea.ideaId} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3.5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-sm font-semibold text-white">{idea.title}</span>
                       <Link
@@ -223,11 +223,11 @@ export default function PlaybookModal({ playbook, onClose }: { playbook: Playboo
 
           {/* F — Bull / bear case */}
           <div id="bull-bear" className="mt-6 grid grid-cols-1 gap-3 scroll-mt-2 sm:grid-cols-2">
-            <div className="rounded-xl border border-up/20 bg-up/5 p-4">
+            <div className="rounded-lg border border-up/20 bg-up/5 p-4">
               <div className="text-[0.62rem] uppercase tracking-[0.16em] text-up/80">Bull case</div>
               <p className="mt-1.5 text-sm leading-relaxed text-slate-300">{playbook.bullCase}</p>
             </div>
-            <div className="rounded-xl border border-down/20 bg-down/5 p-4">
+            <div className="rounded-lg border border-down/20 bg-down/5 p-4">
               <div className="text-[0.62rem] uppercase tracking-[0.16em] text-down/80">Bear case</div>
               <p className="mt-1.5 text-sm leading-relaxed text-slate-300">{playbook.bearCase}</p>
             </div>
@@ -239,7 +239,7 @@ export default function PlaybookModal({ playbook, onClose }: { playbook: Playboo
             <p className="mt-1 text-xs text-slate-500">The signals that decide whether this framework is strengthening or weakening.</p>
             <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
               {playbook.thesisTests.map((t) => (
-                <div key={t.test} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+                <div key={t.test} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-sm font-medium text-white">{t.test}</span>
                     <span className={`flex-none rounded-full border px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide ${signalTone(t.signal)}`}>
@@ -268,7 +268,7 @@ export default function PlaybookModal({ playbook, onClose }: { playbook: Playboo
                 const kindColor = s.kind === "Best case" ? "text-up" : s.kind === "Worst case" ? "text-down" : "text-slate-400";
                 const worst = s.kind === "Worst case";
                 return (
-                  <div key={s.kind} className={`rounded-xl border p-3.5 ${tone}`}>
+                  <div key={s.kind} className={`rounded-lg border p-3.5 ${tone}`}>
                     <span className={`text-[0.7rem] font-semibold uppercase tracking-wide ${kindColor}`}>{s.kind}</span>
                     <p className="mt-1.5 text-sm leading-relaxed text-slate-200">{s.what}</p>
                     <div className="mt-2.5 space-y-1 border-t border-white/[0.06] pt-2.5">
@@ -304,7 +304,7 @@ export default function PlaybookModal({ playbook, onClose }: { playbook: Playboo
             <p className="mt-1 text-xs text-slate-500">External and reference sources — what each one checks, and the thesis test it informs.</p>
             <div className="mt-2.5 space-y-2">
               {playbook.sourcePack.map((s) => (
-                <div key={s.title} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
+                <div key={s.title} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3.5">
                   <div className="text-sm font-semibold text-white">{s.title}</div>
                   <p className="mt-1 text-[0.72rem] leading-relaxed text-slate-400">
                     <span className="text-slate-500">Checks: </span>
@@ -359,7 +359,7 @@ export default function PlaybookModal({ playbook, onClose }: { playbook: Playboo
                 <Link
                   key={idea.ideaId}
                   href={`/ideas?theme=${encodeURIComponent(idea.ideaId)}`}
-                  className="group block rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5 transition hover:border-gold/40"
+                  className="group block rounded-lg border border-white/[0.06] bg-white/[0.02] p-3.5 transition hover:border-gold/40"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-semibold text-white">{idea.title}</span>

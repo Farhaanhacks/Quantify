@@ -56,7 +56,7 @@ export default function LimitedOfferPopup() {
       />
 
       {/* card */}
-      <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-gold/30 bg-ink-900 p-6 shadow-2xl sm:p-8">
+      <div className="relative w-full max-w-md overflow-hidden rounded-lg border border-gold/30 bg-ink-900 p-6 shadow-2xl sm:p-8">
         <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-gold/20 blur-3xl" />
 
         <button

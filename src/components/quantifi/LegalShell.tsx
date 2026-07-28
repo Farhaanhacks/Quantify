@@ -27,7 +27,7 @@ export default function LegalShell({
         {children}
       </div>
 
-      <div className="mt-10 rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 text-xs leading-relaxed text-slate-400">
+      <div className="mt-10 rounded-lg border border-white/[0.08] bg-white/[0.02] p-4 text-xs leading-relaxed text-slate-400">
         <strong className="text-slate-200">Quantifi is for research and education only. Not investment advice.</strong>{" "}
         Nothing on Quantifi is a recommendation to buy, sell or hold any security. We are not a broker,
         exchange, or registered investment adviser, and we are not affiliated with any broker or

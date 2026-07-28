@@ -78,7 +78,7 @@ export default function AuthButton() {
         <span className="hidden max-w-[7rem] truncate sm:inline">{label}</span>
       </button>
       {open ? (
-        <div className="absolute right-0 mt-2 w-48 rounded-xl border border-white/10 bg-ink-900 p-1 shadow-xl">
+        <div className="absolute right-0 mt-2 w-48 rounded-lg border border-white/10 bg-ink-900 p-1 shadow-xl">
           <div className="truncate px-3 py-2 text-xs text-slate-500">{user.email || label}</div>
           <a
             href="/api/auth/logout"

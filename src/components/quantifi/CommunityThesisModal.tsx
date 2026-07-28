@@ -87,7 +87,7 @@ export default function CommunityThesisModal({
     >
       <button aria-label="Close" onClick={onClose} className="fixed inset-0 bg-ink/80 backdrop-blur-sm" />
 
-      <div className="relative my-4 w-full max-w-2xl overflow-hidden rounded-2xl border border-white/10 bg-ink-900 shadow-2xl">
+      <div className="relative my-4 w-full max-w-2xl overflow-hidden rounded-lg border border-white/10 bg-ink-900 shadow-2xl">
         {/* Header */}
         <div className="flex items-start justify-between gap-3 border-b border-white/[0.06] px-5 py-4 sm:px-6">
           <div className="min-w-0">

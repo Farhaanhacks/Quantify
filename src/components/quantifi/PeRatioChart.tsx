@@ -55,7 +55,7 @@ export default function PeRatioChart({ symbol, name }: { symbol: string; name?: 
   if (loading) {
     return (
       <section className="mx-auto max-w-7xl px-4 pb-4 sm:px-6 lg:px-8">
-        <div className="h-40 animate-pulse rounded-2xl border border-white/[0.06] bg-white/[0.02]" />
+        <div className="h-40 animate-pulse rounded-lg border border-white/[0.06] bg-white/[0.02]" />
       </section>
     );
   }

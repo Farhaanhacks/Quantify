@@ -108,7 +108,7 @@ export default function EtfSnapshot({
               return (
                 <div
                   key={a.key}
-                  className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3"
+                  className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-4 py-3"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-sm text-slate-200">{a.label}</span>

@@ -20,7 +20,7 @@ export default function IdeasPage() {
           <Eyebrow>Featured research playbook</Eyebrow>
           <Link
             href={`/research/${pb.id}`}
-            className="group mt-3 block rounded-2xl border border-gold/25 bg-gold/[0.05] p-5 transition hover:border-gold/50 sm:p-6"
+            className="group mt-3 block rounded-lg border border-gold/25 bg-gold/[0.05] p-5 transition hover:border-gold/50 sm:p-6"
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>

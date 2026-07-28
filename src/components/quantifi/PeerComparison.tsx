@@ -202,7 +202,7 @@ export default function PeerComparison({ symbol, name }: { symbol: string; name?
                       ...rows.map((r) => { const v = m.get(r); return typeof v === "number" ? Math.abs(v) : 0; })
                     );
                     return (
-                      <div key={m.key} className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4">
+                      <div key={m.key} className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4">
                         <div className="text-[0.62rem] uppercase tracking-[0.14em] text-slate-500">{m.label}</div>
                         <div className="mt-3 space-y-2">
                           {rows.map((r, i) => {
@@ -301,7 +301,7 @@ export default function PeerComparison({ symbol, name }: { symbol: string; name?
                           <span className="font-mono text-slate-600">no price history: {missing.join(", ")}</span>
                         ) : null}
                       </div>
-                      <div className="mt-3 rounded-xl border border-white/[0.08] bg-white/[0.02] p-3">
+                      <div className="mt-3 rounded-lg border border-white/[0.08] bg-white/[0.02] p-3">
                         <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 320 }} preserveAspectRatio="none">
                           <line x1={pad} x2={W - pad} y1={Y(0)} y2={Y(0)} stroke="rgba(255,255,255,0.14)" strokeWidth="1" strokeDasharray="5 5" />
                           {normed.map((n) => (

@@ -247,7 +247,7 @@ export default function Screener({ heading = true }: { heading?: boolean }) {
               key={p.name}
               type="button"
               onClick={() => applyPreset(p)}
-              className={`flex min-w-[200px] flex-none items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+              className={`flex min-w-[200px] flex-none items-center gap-3 rounded-lg border px-4 py-3 text-left transition ${
                 activePreset === p.name
                   ? "border-gold/50 bg-gold/[0.1]"
                   : "border-white/10 bg-white/[0.03] hover:border-white/20"
@@ -269,7 +269,7 @@ export default function Screener({ heading = true }: { heading?: boolean }) {
           <button
             type="button"
             onClick={resetAll}
-            className="flex-none rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-400 transition hover:text-white"
+            className="flex-none rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-400 transition hover:text-white"
           >
             Reset
           </button>
@@ -446,7 +446,7 @@ export default function Screener({ heading = true }: { heading?: boolean }) {
                 </div>
 
                 {isOpen ? (
-                  <div className="col-span-2 mt-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 lg:col-span-6">
+                  <div className="col-span-2 mt-3 rounded-lg border border-white/[0.06] bg-white/[0.02] p-4 lg:col-span-6">
                     <div className="grid gap-5 sm:grid-cols-[190px_1fr]">
                       <div className="mx-auto h-[180px] w-[180px]">
                         <ScoreRadar

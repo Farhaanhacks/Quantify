@@ -102,7 +102,7 @@ export default function TradingViewWidget({
 
   return (
     <div
-      className="tradingview-widget-container overflow-hidden rounded-2xl border border-white/[0.08]"
+      className="tradingview-widget-container overflow-hidden rounded-lg border border-white/[0.08]"
       ref={ref}
       style={{ minHeight: height }}
     />

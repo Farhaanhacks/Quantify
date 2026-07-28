@@ -146,11 +146,11 @@ export default function IdeaSlugPage({ params }: { params: { slug: string } }) {
 
       {/* Bull / bear */}
       <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="rounded-xl border border-up/20 bg-up/5 p-4">
+        <div className="rounded-lg border border-up/20 bg-up/5 p-4">
           <h2 className="text-[0.62rem] uppercase tracking-[0.16em] text-up/80">Bull case</h2>
           <p className="mt-1.5 text-sm leading-relaxed text-slate-300">{idea.bullCase}</p>
         </div>
-        <div className="rounded-xl border border-down/20 bg-down/5 p-4">
+        <div className="rounded-lg border border-down/20 bg-down/5 p-4">
           <h2 className="text-[0.62rem] uppercase tracking-[0.16em] text-down/80">Bear case &amp; risks</h2>
           <p className="mt-1.5 text-sm leading-relaxed text-slate-300">{idea.bearCase}</p>
         </div>
@@ -172,7 +172,7 @@ export default function IdeaSlugPage({ params }: { params: { slug: string } }) {
       ) : null}
 
       {/* Open the interactive theme */}
-      <div className="mt-8 rounded-xl border border-gold/20 bg-gold/[0.05] p-4">
+      <div className="mt-8 rounded-lg border border-gold/20 bg-gold/[0.05] p-4">
         <Link href={`/ideas?theme=${encodeURIComponent(idea.id)}`} className="text-sm font-medium text-gold hover:underline">
           Open the full interactive research map for {idea.title} →
         </Link>

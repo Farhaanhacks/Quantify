@@ -126,7 +126,7 @@ export default function Community() {
           </div>
           <div>
             {sent ? (
-              <div className="rounded-xl border border-up/30 bg-up/10 px-4 py-6 text-center text-sm text-up">
+              <div className="rounded-lg border border-up/30 bg-up/10 px-4 py-6 text-center text-sm text-up">
                 Thanks — your request is in the queue. We&apos;ll surface new playbooks here as
                 they&apos;re researched.
               </div>

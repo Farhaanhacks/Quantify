@@ -26,7 +26,7 @@ const LEVEL_TONE: Record<Level, "up" | "gold" | "down"> = { High: "up", Medium: 
 
 function AffectedCard({ a }: { a: AffectedName }) {
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3.5">
+    <div className="rounded-lg border border-white/[0.07] bg-white/[0.02] p-3.5">
       <div className="flex items-center gap-2">
         <span className="rounded-md border border-white/10 bg-white/[0.04] px-2 py-0.5 font-mono text-sm text-white">{a.ticker}</span>
         {a.primary ? <Tag tone="gold">Primary</Tag> : <span className="text-[0.65rem] text-slate-500">Read-through</span>}
@@ -114,7 +114,7 @@ export default function NewsImpact({
                 key={n.link}
                 type="button"
                 onClick={() => setSelectedLink(n.link)}
-                className={`w-full rounded-2xl border p-4 text-left transition ${
+                className={`w-full rounded-lg border p-4 text-left transition ${
                   isActive
                     ? "border-gold/40 bg-gold/[0.06]"
                     : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
@@ -166,13 +166,13 @@ export default function NewsImpact({
             </div>
 
             {/* Why it matters */}
-            <div className="mt-4 rounded-xl border border-gold/20 bg-gold/[0.06] p-4">
+            <div className="mt-4 rounded-lg border border-gold/20 bg-gold/[0.06] p-4">
               <div className="text-[0.62rem] uppercase tracking-[0.16em] text-gold/80">Why it matters</div>
               <p className="mt-1.5 text-sm leading-relaxed text-slate-200">{detail.whyItMatters}</p>
             </div>
 
             {/* Impact map */}
-            <div className="mt-5 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+            <div className="mt-5 rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
               <div className="mb-3 text-[0.62rem] uppercase tracking-[0.16em] text-slate-500">Impact map</div>
               <ol className="space-y-0">
                 {detail.impactMap.map((s, i) => (
@@ -235,7 +235,7 @@ export default function NewsImpact({
             </div>
 
             {/* Signal classification */}
-            <div className="mt-5 grid grid-cols-1 gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 sm:grid-cols-3">
+            <div className="mt-5 grid grid-cols-1 gap-3 rounded-lg border border-white/[0.06] bg-white/[0.02] p-4 sm:grid-cols-3">
               <div>
                 <div className="text-[0.58rem] uppercase tracking-[0.16em] text-slate-500">Signal type</div>
                 <div className="mt-1 text-xs font-medium text-slate-200">{detail.signalType}</div>

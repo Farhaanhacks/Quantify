@@ -72,7 +72,7 @@ export function GlassCard({
 }) {
   return (
     <div
-      className={`glass rounded-2xl ${hover ? "glass-hover" : ""} ${className}`}
+      className={`glass rounded-lg ${hover ? "glass-hover" : ""} ${className}`}
       onClick={onClick}
     >
       {children}
@@ -163,7 +163,7 @@ export function StatTile({
     down: "text-down",
   };
   return (
-    <div className="glass rounded-2xl p-4">
+    <div className="glass rounded-lg p-4">
       <div className="text-[0.7rem] uppercase tracking-[0.16em] text-slate-500">{label}</div>
       <div className={`mt-2 font-display text-2xl font-semibold tnum ${accents[accent]}`}>{value}</div>
       {sub ? <div className="mt-1 text-xs text-slate-400">{sub}</div> : null}
@@ -351,7 +351,7 @@ export function ImpactChain({
     <div className="flex flex-wrap items-stretch gap-2">
       {steps.map((s, i) => (
         <div key={s.label} className="flex items-stretch gap-2">
-          <div className="glass flex min-w-[7.5rem] flex-col justify-center rounded-xl px-3 py-2">
+          <div className="glass flex min-w-[7.5rem] flex-col justify-center rounded-lg px-3 py-2">
             <div className="text-[0.62rem] uppercase tracking-[0.16em] text-slate-500">{s.label}</div>
             <div className={`mt-0.5 font-mono text-sm font-medium tnum ${toneText[s.tone ?? "neutral"]}`}>
               {s.value}

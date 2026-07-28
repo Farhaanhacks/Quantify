@@ -33,7 +33,7 @@ export default async function MarketPulse() {
         {/* The scrolling quotes sit in their own inset band with a subtle
             gradient, so the ticker reads as a distinct focus strip rather than
             floating loose text. */}
-        <div className="my-2.5 flex items-center gap-3 rounded-xl border border-white/[0.06] bg-gradient-to-r from-white/[0.04] to-transparent px-3 py-2.5">
+        <div className="my-2.5 flex items-center gap-3 rounded-lg border border-white/[0.06] bg-gradient-to-r from-white/[0.04] to-transparent px-3 py-2.5">
           <div className="mask-fade-x relative flex-1 overflow-hidden">
             <PulseRow items={pulse} />
           </div>

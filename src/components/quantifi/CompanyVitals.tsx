@@ -55,7 +55,7 @@ const RATING: Record<string, { score: number; label: string; color: string }> = 
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
+    <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3.5">
       <div className="text-[0.58rem] uppercase tracking-[0.14em] text-slate-500">{label}</div>
       <div className="mt-1 font-mono text-base font-semibold tnum text-white">{value}</div>
       {sub ? <div className="mt-0.5 text-[0.68rem] text-slate-500">{sub}</div> : null}
@@ -88,7 +88,7 @@ export default function CompanyVitals({ symbol }: { symbol: string }) {
       <section className="mx-auto max-w-7xl px-4 pb-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="h-44 animate-pulse rounded-2xl border border-white/[0.06] bg-white/[0.02]" />
+            <div key={i} className="h-44 animate-pulse rounded-lg border border-white/[0.06] bg-white/[0.02]" />
           ))}
         </div>
       </section>

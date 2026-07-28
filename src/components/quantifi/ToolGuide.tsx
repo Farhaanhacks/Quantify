@@ -33,7 +33,7 @@ export function HowItWorksTabs({ steps }: { steps: { label: string; body: string
       </div>
 
       {/* Panel */}
-      <div className="mt-4 rounded-xl border border-white/[0.08] bg-white/[0.02] p-5">
+      <div className="mt-4 rounded-lg border border-white/[0.08] bg-white/[0.02] p-5">
         <p className="text-sm leading-relaxed text-slate-200">{current.body}</p>
       </div>
     </div>
@@ -48,7 +48,7 @@ export function FaqAccordion({ faqs }: { faqs: { q: string; a: string }[] }) {
       {faqs.map((f, i) => {
         const isOpen = open === i;
         return (
-          <div key={f.q} className="overflow-hidden rounded-xl border border-white/[0.08] bg-white/[0.02]">
+          <div key={f.q} className="overflow-hidden rounded-lg border border-white/[0.08] bg-white/[0.02]">
             <button
               type="button"
               aria-expanded={isOpen}

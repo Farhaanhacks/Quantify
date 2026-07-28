@@ -48,7 +48,7 @@ function AnalystRange({ row }: { row: Row }) {
     hasRange && (row.numAnalysts ?? 0) > 1 && spread > Math.max(0.01, row.price * 0.01);
 
   return (
-    <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4">
+    <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4">
       <div className="flex items-center justify-between text-[0.62rem] uppercase tracking-[0.14em] text-slate-500">
         <span>Analyst {realRange ? "price-target range" : "price target"}</span>
         <span className="text-slate-600">

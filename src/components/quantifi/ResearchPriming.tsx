@@ -18,7 +18,7 @@ const FLOW: { label: string; href: string; desc: string }[] = [
 export default function ResearchPriming() {
   return (
     <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-      <div className="rounded-3xl border border-white/[0.08] bg-white/[0.02] p-6 sm:p-9">
+      <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-6 sm:p-9">
         <p className="text-[0.7rem] uppercase tracking-[0.18em] text-gold">
           Quantifi is not stock tips. It&apos;s research maps.
         </p>
@@ -40,7 +40,7 @@ export default function ResearchPriming() {
             <Link
               key={f.label}
               href={f.href}
-              className="group relative rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 transition hover:border-gold/40"
+              className="group relative rounded-lg border border-white/[0.08] bg-white/[0.02] p-4 transition hover:border-gold/40"
             >
               <div className="flex items-center gap-2">
                 <span className="grid h-6 w-6 place-items-center rounded-full border border-gold/30 bg-gold/10 text-[0.65rem] font-semibold text-gold">

@@ -119,7 +119,7 @@ export default function TradingIdeas({
       ) : null}
 
       {showFilter ? (
-        <div className="mt-6 rounded-2xl border border-gold/15 bg-gold/[0.04] p-4 sm:p-5">
+        <div className="mt-6 rounded-lg border border-gold/15 bg-gold/[0.04] p-4 sm:p-5">
           <span className="inline-flex items-center rounded-full border border-gold/40 bg-gold/10 px-2 py-0.5 text-[0.6rem] uppercase tracking-[0.14em] text-gold">
             Curated research · editorial
           </span>
@@ -252,7 +252,7 @@ function Road({ steps, tone }: { steps: string[]; tone: "up" | "down" }) {
   const color = tone === "up" ? "text-up" : "text-down";
   const border = tone === "up" ? "border-up/20 bg-up/5" : "border-down/20 bg-down/5";
   return (
-    <div className={`rounded-xl border p-3 ${border}`}>
+    <div className={`rounded-lg border p-3 ${border}`}>
       <div className={`text-[0.62rem] uppercase tracking-[0.16em] ${tone === "up" ? "text-up/80" : "text-down/80"}`}>
         {tone === "up" ? "Bull road" : "Bear road"}
       </div>
@@ -318,7 +318,7 @@ function IdeaModal({ idea, pro, onClose }: { idea: TradingIdea; pro: boolean; on
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 flex max-h-[90vh] w-full max-w-[880px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-ink-900 shadow-2xl">
+      <div className="relative z-10 flex max-h-[90vh] w-full max-w-[880px] flex-col overflow-hidden rounded-lg border border-white/10 bg-ink-900 shadow-2xl">
         {/* Fixed header — title, sticky section nav, always-visible close */}
         <div className="flex-none border-b border-white/[0.06] px-6 pt-5 sm:px-8">
           <div className="flex items-start justify-between gap-3">
@@ -367,7 +367,7 @@ function IdeaModal({ idea, pro, onClose }: { idea: TradingIdea; pro: boolean; on
           <div id="overview" />
 
           {idea.question ? (
-            <div className="mt-1 rounded-xl border border-gold/20 bg-gold/[0.05] p-3.5">
+            <div className="mt-1 rounded-lg border border-gold/20 bg-gold/[0.05] p-3.5">
               <span className="text-[0.62rem] uppercase tracking-[0.16em] text-gold/80">The investment question</span>
               <p className="mt-1 text-base font-medium leading-relaxed text-white">{idea.question}</p>
             </div>
@@ -386,7 +386,7 @@ function IdeaModal({ idea, pro, onClose }: { idea: TradingIdea; pro: boolean; on
           </div>
 
           {/* Quantifi read — the quick conclusion, up top */}
-          <div id="read" className="mt-4 rounded-xl border border-gold/20 bg-gold/[0.06] p-4">
+          <div id="read" className="mt-4 rounded-lg border border-gold/20 bg-gold/[0.06] p-4">
             <SectionLabel>Quantifi research read</SectionLabel>
             <p className="mt-1.5 text-sm leading-relaxed text-slate-200">{idea.verdict}</p>
           </div>
@@ -418,7 +418,7 @@ function IdeaModal({ idea, pro, onClose }: { idea: TradingIdea; pro: boolean; on
               <div className="mt-2.5">
                 {idea.themeMap.map((link, i) => (
                   <div key={link.layer}>
-                    <div className="rounded-xl border border-teal/15 bg-teal/[0.04] px-3.5 py-3">
+                    <div className="rounded-lg border border-teal/15 bg-teal/[0.04] px-3.5 py-3">
                       <div className="flex items-center gap-2">
                         <span className="flex h-5 w-5 flex-none items-center justify-center rounded-full bg-teal/15 font-mono text-[0.6rem] text-teal">
                           {i + 1}
@@ -447,7 +447,7 @@ function IdeaModal({ idea, pro, onClose }: { idea: TradingIdea; pro: boolean; on
             <div className="mt-6">
               <SectionLabel>Split-cycle view</SectionLabel>
               <p className="mt-1 text-xs text-slate-500">Not all of this theme moves together — each segment has its own driver and risk.</p>
-              <div className="mt-2.5 overflow-hidden rounded-xl border border-white/[0.06]">
+              <div className="mt-2.5 overflow-hidden rounded-lg border border-white/[0.06]">
                 <div className="hidden grid-cols-[1fr_1.3fr_1.1fr] gap-3 border-b border-white/[0.06] bg-white/[0.02] px-3.5 py-2 text-[0.6rem] uppercase tracking-[0.12em] text-slate-500 sm:grid">
                   <span>Segment</span>
                   <span>Driver</span>
@@ -479,7 +479,7 @@ function IdeaModal({ idea, pro, onClose }: { idea: TradingIdea; pro: boolean; on
                     : "border-white/[0.08] bg-white/[0.02]";
                 const kindColor = s.kind === "Best case" ? "text-up" : s.kind === "Worst case" ? "text-down" : "text-slate-400";
                 return (
-                  <div key={s.kind} className={`rounded-xl border p-3.5 ${tone}`}>
+                  <div key={s.kind} className={`rounded-lg border p-3.5 ${tone}`}>
                     <span className={`text-[0.7rem] font-semibold uppercase tracking-wide ${kindColor}`}>{s.kind}</span>
                     <p className="mt-1.5 text-sm leading-relaxed text-slate-200">{s.what}</p>
                     <div className="mt-2.5 space-y-1 border-t border-white/[0.06] pt-2.5">
@@ -551,7 +551,7 @@ function IdeaModal({ idea, pro, onClose }: { idea: TradingIdea; pro: boolean; on
                         key={`${group.label}-${n.symbol}`}
                         href={`/stock-analysis?symbol=${encodeURIComponent(n.symbol)}`}
                         onClick={onClose}
-                        className="group flex flex-col rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 transition hover:border-gold/40"
+                        className="group flex flex-col rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 transition hover:border-gold/40"
                       >
                         <div className="flex items-center gap-1.5">
                           <span className="font-mono text-sm text-white">{n.symbol}</span>
@@ -588,7 +588,7 @@ function IdeaModal({ idea, pro, onClose }: { idea: TradingIdea; pro: boolean; on
               </p>
               <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {idea.thesisTests.map((t) => (
-                  <div key={t.test} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+                  <div key={t.test} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
                     <div className="flex items-start justify-between gap-2">
                       <span className="text-sm font-medium text-white">{t.test}</span>
                       <span className={`flex-none rounded-full border px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide ${signalTone(t.signal)}`}>
@@ -621,7 +621,7 @@ function IdeaModal({ idea, pro, onClose }: { idea: TradingIdea; pro: boolean; on
           {idea.proves?.length || idea.breaks?.length ? (
             <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {idea.proves?.length ? (
-                <div className="rounded-xl border border-up/20 bg-up/5 p-4">
+                <div className="rounded-lg border border-up/20 bg-up/5 p-4">
                   <div className="text-[0.62rem] uppercase tracking-[0.16em] text-up/80">What would prove the theme right</div>
                   <ul className="mt-2 space-y-1.5">
                     {idea.proves.map((p) => (
@@ -634,7 +634,7 @@ function IdeaModal({ idea, pro, onClose }: { idea: TradingIdea; pro: boolean; on
                 </div>
               ) : null}
               {idea.breaks?.length ? (
-                <div className="rounded-xl border border-down/20 bg-down/5 p-4">
+                <div className="rounded-lg border border-down/20 bg-down/5 p-4">
                   <div className="text-[0.62rem] uppercase tracking-[0.16em] text-down/80">What would break the theme</div>
                   <ul className="mt-2 space-y-1.5">
                     {idea.breaks.map((b) => (
@@ -656,7 +656,7 @@ function IdeaModal({ idea, pro, onClose }: { idea: TradingIdea; pro: boolean; on
               <Link
                 href="/pricing"
                 onClick={onClose}
-                className="mt-2.5 flex flex-col items-center gap-2 rounded-xl border border-gold/25 bg-gold/[0.05] p-5 text-center transition hover:border-gold/40"
+                className="mt-2.5 flex flex-col items-center gap-2 rounded-lg border border-gold/25 bg-gold/[0.05] p-5 text-center transition hover:border-gold/40"
               >
                 <span className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/40 bg-gold/15 text-gold">🔒</span>
                 <span className="text-sm font-semibold text-white">Full source pack is part of Quantifi Pro</span>
@@ -674,7 +674,7 @@ function IdeaModal({ idea, pro, onClose }: { idea: TradingIdea; pro: boolean; on
               <SectionLabel>Source pack</SectionLabel>
               <div className="mt-2.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {idea.sourcePack.map((s) => (
-                  <div key={s.type} className="flex flex-col rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+                  <div key={s.type} className="flex flex-col rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
                     <div className="text-sm font-medium text-white">{s.type}</div>
                     <p className="mt-1 text-[0.72rem] leading-relaxed text-slate-400">
                       <span className="text-slate-500">Checks: </span>

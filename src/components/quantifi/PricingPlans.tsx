@@ -255,7 +255,7 @@ export default function PricingPlans() {
       </GlassCard>
 
       {error ? (
-        <p className="md:col-span-2 rounded-xl border border-down/30 bg-down/10 px-4 py-3 text-sm text-down">
+        <p className="md:col-span-2 rounded-lg border border-down/30 bg-down/10 px-4 py-3 text-sm text-down">
           {error}
         </p>
       ) : null}
