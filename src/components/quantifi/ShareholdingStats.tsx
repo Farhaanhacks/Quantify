@@ -145,8 +145,15 @@ export default function ShareholdingStats({ symbol }: { symbol: string }) {
 
   const holders = data?.topInstitutionalHolders ?? [];
   const own = data?.ownership;
-  const hasHolders = holders.length > 0;
-  const hasOwn = own && (own.institutionsPct != null || own.insidersPct != null);
+  // For foreign ADRs / HK listings (e.g. Tencent) Yahoo only has a few tiny US
+  // 13F filers that each hold ~0% of the giant parent — every row rounds to
+  // 0.00% and "Other" fills the whole ring, which is meaningless. Only surface
+  // these cards when the figures are actually representative: a named top holder
+  // of ≥ 0.5%, and institutional + insider ownership of ≥ 1% combined.
+  const topHolderPct = holders.reduce((m, h) => Math.max(m, h.pctHeld ?? 0), 0);
+  const hasHolders = holders.length > 0 && topHolderPct >= 0.005;
+  const ownFrac = (own?.institutionsPct ?? 0) + (own?.insidersPct ?? 0);
+  const hasOwn = own != null && ownFrac >= 0.01;
   const hasHist = hist && hist.length > 0;
   if (!hasHolders && !hasOwn && !hasHist) return null;
 
