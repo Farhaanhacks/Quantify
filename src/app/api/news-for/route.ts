@@ -26,9 +26,11 @@ async function resolveName(symbol: string): Promise<string | null> {
       chart?: { result?: { meta?: Record<string, unknown> }[] };
     };
     const meta = json?.chart?.result?.[0]?.meta;
+    // Prefer longName — Yahoo's shortName for Indian names is often truncated
+    // ("TATA CONSULTANCY SERV LT"), which as a search phrase matches nothing real.
     const name =
-      (typeof meta?.shortName === "string" && meta.shortName) ||
       (typeof meta?.longName === "string" && meta.longName) ||
+      (typeof meta?.shortName === "string" && meta.shortName) ||
       null;
     return name;
   } catch {
@@ -52,10 +54,22 @@ export async function GET(req: Request) {
     .replace(/\s+/g, " ")
     .trim();
 
-  const query = cleaned ? `"${cleaned}" stock` : `${ticker} stock`;
+  // Indian tickers (.NS/.BO): the NSE symbol root ("TCS", "RELIANCE") is exactly
+  // what the Indian press uses in headlines, and it's reliable even when Yahoo's
+  // name is truncated. Lead with it plus the cleaned name as loose terms (no hard
+  // quotes) and search the India edition. US/global names from Yahoo are clean, so
+  // there we keep the precise quoted-name query.
+  const isIndia = /\.(NS|BO)$/i.test(ticker);
+  const base = ticker.replace(/\.(NS|BO)$/i, "");
+  const region: "US" | "India" | "Global" = isIndia ? "India" : "Global";
+  const query = isIndia
+    ? `${base} ${cleaned}`.trim() || base
+    : cleaned
+    ? `"${cleaned}" stock`
+    : `${ticker} stock`;
 
   try {
-    const articles = await getCompanyNews(query);
+    const articles = await getCompanyNews(query, region);
     return NextResponse.json({ ok: true, ticker, name: name || ticker, articles });
   } catch {
     return NextResponse.json({ ok: false, ticker, articles: [] });

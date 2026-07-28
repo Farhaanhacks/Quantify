@@ -140,14 +140,27 @@ async function fetchFeed(feed: Feed): Promise<NewsArticle[]> {
 }
 
 // News about a single company, via a focused Google News search. Reuses the
-// same RSS parser as the market feed.
-export async function getCompanyNews(query: string): Promise<NewsArticle[]> {
-  const url = `https://news.google.com/rss/search?q=${encodeURIComponent(
-    query
-  )}&hl=en-US&gl=US&ceid=US:en`;
-  const arts = await fetchFeed({ url, source: "Google News", region: "Global" });
+// same RSS parser as the market feed. The `region` picks the Google News edition
+// so an Indian stock surfaces Indian publishers (Moneycontrol, Economic Times,
+// Business Standard) rather than US-only results.
+export async function getCompanyNews(
+  query: string,
+  region: NewsArticle["region"] = "Global"
+): Promise<NewsArticle[]> {
+  const edition =
+    region === "India" ? "hl=en-IN&gl=IN&ceid=IN:en" : "hl=en-US&gl=US&ceid=US:en";
+  const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&${edition}`;
+  const arts = await fetchFeed({ url, source: "Google News", region });
+
+  // "Recent" means recent: drop stale aggregator stubs (e.g. Upstox "option
+  // chain" / "share price" pages that carry publish dates from years ago and
+  // otherwise dominate a thin result set). Items with no real date parse as
+  // "now" upstream, so they're kept.
+  const cutoff = Date.now() - 400 * 24 * 60 * 60 * 1000;
+  const recent = arts.filter((a) => a.publishedMs >= cutoff);
+
   const seen = new Map<string, NewsArticle>();
-  for (const a of arts) {
+  for (const a of recent) {
     const key = a.title.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 60);
     const existing = seen.get(key);
     if (!existing || a.publishedMs > existing.publishedMs) seen.set(key, a);
