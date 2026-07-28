@@ -101,6 +101,13 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
 
   const cur = data.currency ?? "USD";
   const indian = isIndianCurrency(data.currency, symbol);
+  // Financial statements are reported in the company's OWN currency, which can
+  // differ from the quote/price currency — e.g. SK Hynix trades as a USD ADR but
+  // files in KRW. Label the statements with their real currency so a "97T" figure
+  // is never mistaken for dollars.
+  const stmtCur = data.financialCurrency ?? cur;
+  const stmtIndian = isIndianCurrency(stmtCur, symbol);
+  const curMismatch = data.financialCurrency != null && data.financialCurrency !== cur;
   // Shadow the module-level helper so every compact(...) in this component's
   // render is currency-aware (lakh/crore for Indian stocks) without threading
   // the flag through each call site.
@@ -147,6 +154,12 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
             <Row label="Price Target" value={money(data.targetMean, cur)} />
             <Row label="Earnings Date" value={data.earningsDate ?? "n/a"} />
           </div>
+          {curMismatch ? (
+            <p className="mt-4 text-xs text-slate-500">
+              Prices, market cap and targets are in {cur}; company figures like revenue and net income are
+              reported in {stmtCur}.
+            </p>
+          ) : null}
         </GlassCard>
       </section>
 
@@ -158,10 +171,21 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
           subtitle="Income statement, balance sheet and cash flow — the last few reported annual periods."
         />
         <GlassCard className="mt-6 p-6 sm:p-8">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
+            <span className="rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-1 font-mono text-xs text-slate-300">
+              Figures in {stmtCur}
+              {currencySymbol(stmtCur).trim() ? ` (${currencySymbol(stmtCur).trim()})` : ""}
+            </span>
+            {curMismatch ? (
+              <span className="text-xs text-gold">
+                These statements are reported in {stmtCur}; the prices in Overview are in {cur}.
+              </span>
+            ) : null}
+          </div>
           <div className="space-y-8">
             <div>
               <h4 className="mb-2 font-display text-sm font-semibold text-white">Income Statement</h4>
-              <StatementTable indian={indian} rows={data.incomeStatements} labels={[
+              <StatementTable indian={stmtIndian} rows={data.incomeStatements} labels={[
                 { key: "revenue", label: "Revenue" },
                 { key: "grossProfit", label: "Gross Profit" },
                 { key: "operatingIncome", label: "Operating Income" },
@@ -170,7 +194,7 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
             </div>
             <div>
               <h4 className="mb-2 font-display text-sm font-semibold text-white">Balance Sheet</h4>
-              <StatementTable indian={indian} rows={data.balanceSheets} labels={[
+              <StatementTable indian={stmtIndian} rows={data.balanceSheets} labels={[
                 { key: "totalAssets", label: "Total Assets" },
                 { key: "totalLiabilities", label: "Total Liabilities" },
                 { key: "totalEquity", label: "Total Equity" },
@@ -180,14 +204,14 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
             </div>
             <div>
               <h4 className="mb-2 font-display text-sm font-semibold text-white">Cash Flow Statement</h4>
-              <StatementTable indian={indian} rows={data.cashflowStatements} labels={[
+              <StatementTable indian={stmtIndian} rows={data.cashflowStatements} labels={[
                 { key: "operatingCashFlow", label: "Operating Cash Flow" },
                 { key: "capex", label: "Capital Expenditures" },
                 { key: "freeCashFlow", label: "Free Cash Flow" },
               ]} />
             </div>
             <p className="text-xs leading-relaxed text-slate-500">
-              Source: Yahoo Finance · most recent reported annual periods, in {cur === "INR" ? "Indian rupees (lakh / crore)" : "the listed currency"}.
+              Source: Yahoo Finance · most recent reported annual periods, in {stmtCur === "INR" ? "Indian rupees (lakh / crore)" : stmtCur}.
               Figures may be reported on a standalone or consolidated basis and can differ slightly from a
               company&apos;s official filings or be revised later — always verify against the latest annual
               report or exchange (e.g. NSE/BSE, SEC) filing before relying on them.

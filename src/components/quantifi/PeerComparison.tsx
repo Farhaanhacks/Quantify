@@ -270,7 +270,16 @@ export default function PeerComparison({ symbol, name }: { symbol: string; name?
                       return { symbol: r.symbol, color: CMP_COLORS[idx % CMP_COLORS.length], pts, final: pts[pts.length - 1].y };
                     })
                     .filter((n): n is { symbol: string; color: string; pts: { x: number; y: number }[]; final: number } => n != null);
-                  if (!normed.length) return <p className="text-sm text-slate-500">Price history isn&apos;t available for these symbols.</p>;
+                  // Symbols we couldn't chart (no live price history for the ticker —
+                  // common for some Korean/OTC listings). Call them out explicitly so
+                  // "4 peers but 2 lines" never reads as a broken chart.
+                  const missing = rows.filter((r) => (r.series?.length ?? 0) < 2).map((r) => r.symbol);
+                  if (!normed.length)
+                    return (
+                      <p className="text-sm text-slate-500">
+                        Price history isn&apos;t available for {missing.length ? missing.join(", ") : "these symbols"}.
+                      </p>
+                    );
                   let lo = 0, hi = 0;
                   normed.forEach((n) => n.pts.forEach((p) => { lo = Math.min(lo, p.y); hi = Math.max(hi, p.y); }));
                   const span = hi - lo || 1;
@@ -280,7 +289,7 @@ export default function PeerComparison({ symbol, name }: { symbol: string; name?
                   const dated = rows.find((r) => (r.series?.length ?? 0) > 1)?.series;
                   return (
                     <>
-                      <div className="flex flex-wrap gap-4 text-xs">
+                      <div className="flex flex-wrap items-center gap-4 text-xs">
                         {normed.map((n) => (
                           <span key={n.symbol} className="flex items-center gap-1.5">
                             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: n.color }} />
@@ -288,6 +297,9 @@ export default function PeerComparison({ symbol, name }: { symbol: string; name?
                             <span className="font-mono font-semibold" style={{ color: n.color }}>{n.final >= 0 ? "+" : ""}{n.final.toFixed(1)}%</span>
                           </span>
                         ))}
+                        {missing.length ? (
+                          <span className="font-mono text-slate-600">no price history: {missing.join(", ")}</span>
+                        ) : null}
                       </div>
                       <div className="mt-3 rounded-xl border border-white/[0.08] bg-white/[0.02] p-3">
                         <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 320 }} preserveAspectRatio="none">

@@ -61,13 +61,36 @@ export default function PortfolioValueChart() {
               const r = await fetch(`/api/timeseries/${encodeURIComponent(h.ticker)}?range=${range}`);
               const d = await r.json();
               const pts: Pt[] = Array.isArray(d.points) ? d.points : [];
-              return { shares: h.shares, pts };
+              const currency = (typeof d?.meta?.currency === "string" && d.meta.currency) ||
+                currencyForTicker(h.ticker) || "USD";
+              return { shares: h.shares, avgCost: h.avgCost, pts, currency };
             } catch {
-              return { shares: h.shares, pts: [] as Pt[] };
+              return { shares: h.shares, avgCost: h.avgCost, pts: [] as Pt[], currency: currencyForTicker(h.ticker) || "USD" };
             }
           })
         );
         if (cancelled) return;
+
+        // Convert every holding into ONE base currency (USD) before summing — a
+        // ₹ position and a $ position can't be added raw. We use the current spot
+        // rate across the whole window: an approximation (it ignores FX drift over
+        // time), but a correct order-of-magnitude total instead of a nonsensical one.
+        const BASE = "USD";
+        const rates: Record<string, number> = { [BASE]: 1 };
+        await Promise.all(
+          Array.from(new Set(per.map((s) => s.currency))).map(async (cur) => {
+            if (cur === BASE) return;
+            try {
+              const r = await fetch(`/api/fx?from=${encodeURIComponent(cur)}&to=${BASE}`);
+              const d = await r.json();
+              rates[cur] = d?.valid && typeof d.rate === "number" ? d.rate : 1;
+            } catch {
+              rates[cur] = 1;
+            }
+          })
+        );
+        if (cancelled) return;
+        const fx = (cur: string) => rates[cur] ?? 1;
 
         // Union of every trading date any holding reported.
         const dateSet = new Set<string>();
@@ -79,11 +102,12 @@ export default function PortfolioValueChart() {
           return;
         }
 
-        // Sum shares × close per date, forward-filling each name's last close so
-        // a name only starts contributing once it has a price (no phantom zeros).
+        // Sum shares × close × FX per date, forward-filling each name's last close
+        // so a name only starts contributing once it has a price (no phantom zeros).
         const totals = new Array(dates.length).fill(0);
         for (const s of per) {
           const map = new Map(s.pts.map((p) => [p.time, p.value]));
+          const rate = fx(s.currency);
           let last = 0;
           let seen = false;
           dates.forEach((dt, idx) => {
@@ -92,7 +116,7 @@ export default function PortfolioValueChart() {
               last = v;
               seen = true;
             }
-            if (seen) totals[idx] += last * s.shares;
+            if (seen) totals[idx] += last * s.shares * rate;
           });
         }
 
@@ -105,7 +129,8 @@ export default function PortfolioValueChart() {
           return;
         }
 
-        const totalCost = holdings.reduce((acc, h) => acc + h.shares * h.avgCost, 0);
+        // Cost basis in the same base currency.
+        const totalCost = per.reduce((acc, s) => acc + s.shares * s.avgCost * fx(s.currency), 0);
         const costPoints: Pt[] = valuePoints.map((p) => ({
           time: p.time,
           value: Number(totalCost.toFixed(2)),
@@ -235,7 +260,7 @@ export default function PortfolioValueChart() {
         {err ? <p className="mt-2 text-xs text-slate-500">{err}</p> : null}
         {mixedCurrency && !err ? (
           <p className="mt-2 text-[0.7rem] text-slate-500">
-            This portfolio mixes currencies — values are summed in each stock&apos;s native currency, with no FX conversion.
+            This portfolio mixes currencies — all values are converted to USD at current exchange rates (historical FX drift isn&apos;t modelled).
           </p>
         ) : null}
       </GlassCard>

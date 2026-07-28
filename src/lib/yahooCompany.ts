@@ -46,7 +46,8 @@ export interface CompanyData {
   industry?: string;
   website?: string;
   employees?: number;
-  currency?: string;
+  currency?: string; // price / quote currency (e.g. USD for an ADR)
+  financialCurrency?: string; // currency the financial statements are reported in
   // price / overview
   price?: number;
   open?: number;
@@ -392,6 +393,7 @@ export async function getYahooCompany(input: string): Promise<CompanyData | null
     website: str(ap.website),
     employees: num(ap.fullTimeEmployees),
     currency: str(pr.currency) ?? str(sd.currency),
+    financialCurrency: str(fd.financialCurrency),
     // Prefer the live quote (regularMarketPrice) over financialData.currentPrice,
     // which is a fundamentals-module snapshot that lags during market hours and
     // made this header disagree with the live chart/quote by a rupee or two.
