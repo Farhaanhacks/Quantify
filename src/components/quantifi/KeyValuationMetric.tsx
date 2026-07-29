@@ -149,11 +149,46 @@ export default function KeyValuationMetric({ symbol, name }: { symbol: string; n
     },
   };
 
-  const others = [
-    { label: "EV / EBITDA", value: data.evToEbitda, unit: "x" },
-    { label: "EV / Revenue", value: data.evToRevenue, unit: "x" },
-    { label: "PEG ratio", value: data.pegRatio, unit: "" },
-    { label: "Price / Free cash flow", value: mc && data.freeCashflow && data.freeCashflow > 0 ? mc / data.freeCashflow : undefined, unit: "x" },
+  // Free cash flow: prefer Yahoo's TTM field, but fall back to the latest reported
+  // cash-flow statement — the same figure the Financials section shows. Without
+  // this the tile read "—" while Free Cash Flow was plainly visible below it.
+  const fcf =
+    data.freeCashflow ??
+    data.cashflowStatements?.[0]?.values.freeCashFlow ??
+    (data.cashflowStatements?.[0]?.values.operatingCashFlow != null &&
+    data.cashflowStatements?.[0]?.values.capex != null
+      ? data.cashflowStatements[0].values.operatingCashFlow! + data.cashflowStatements[0].values.capex!
+      : undefined);
+
+  // PEG: use Yahoo's, else derive it from trailing P/E ÷ earnings growth (%).
+  const peg =
+    data.pegRatio ??
+    (data.trailingPE != null && data.earningsGrowth != null && data.earningsGrowth > 0
+      ? data.trailingPE / (data.earningsGrowth * 100)
+      : undefined);
+
+  // Each tile can explain WHY it has no number — a bare dash is what made the
+  // Price/FCF tile look broken next to a visible (negative) free-cash-flow figure.
+  const others: { label: string; value?: number; unit: string; note?: string }[] = [
+    { label: "EV / EBITDA", value: data.evToEbitda, unit: "x", note: data.evToEbitda == null ? "EBITDA not reported" : undefined },
+    { label: "EV / Revenue", value: data.evToRevenue, unit: "x", note: data.evToRevenue == null ? "revenue not reported" : undefined },
+    {
+      label: "PEG ratio",
+      value: peg,
+      unit: "",
+      note: peg == null ? (data.earningsGrowth != null && data.earningsGrowth <= 0 ? "earnings not growing" : "growth estimate unavailable") : undefined,
+    },
+    {
+      label: "Price / Free cash flow",
+      value: mc != null && fcf != null && fcf > 0 ? mc / fcf : undefined,
+      unit: "x",
+      note:
+        fcf == null
+          ? "free cash flow not reported"
+          : fcf <= 0
+          ? `negative free cash flow (${money(fcf)}) — the multiple isn't meaningful`
+          : undefined,
+    },
   ];
 
   const v = tab === "other" ? null : views[tab];
@@ -192,6 +227,9 @@ export default function KeyValuationMetric({ symbol, name }: { symbol: string; n
                 <div className="mt-2 font-display text-2xl font-semibold text-white">
                   {o.value != null && isFinite(o.value) ? `${o.value.toFixed(1)}${o.unit}` : "—"}
                 </div>
+                {o.note ? (
+                  <div className="mt-1 text-[0.68rem] leading-snug text-slate-500">{o.note}</div>
+                ) : null}
               </div>
             ))}
           </div>
