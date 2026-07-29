@@ -98,7 +98,8 @@ const PEER_OVERRIDES: Record<string, string[]> = {
   "JINDALSTEL.NS": ["TATASTEEL.NS", "JSWSTEEL.NS", "SAIL.NS"],
   "SAIL.NS": ["TATASTEEL.NS", "JSWSTEEL.NS", "JINDALSTEL.NS"],
   "HINDALCO.NS": ["VEDL.NS", "NATIONALUM.NS", "HINDZINC.NS"],
-  "VEDL.NS": ["HINDALCO.NS", "NATIONALUM.NS", "HINDZINC.NS"],
+  // Not HINDZINC — Hindustan Zinc is Vedanta's own ~65%-owned subsidiary.
+  "VEDL.NS": ["HINDALCO.NS", "NATIONALUM.NS", "NMDC.NS", "JINDALSTEL.NS"],
   "NMDC.NS": ["SAIL.NS", "VEDL.NS", "HINDZINC.NS", "MOIL.NS"],
   "COALINDIA.NS": ["NMDC.NS", "SAIL.NS", "VEDL.NS"],
 
@@ -108,7 +109,8 @@ const PEER_OVERRIDES: Record<string, string[]> = {
   "AXISBANK.NS": ["ICICIBANK.NS", "HDFCBANK.NS", "KOTAKBANK.NS", "SBIN.NS"],
   "KOTAKBANK.NS": ["HDFCBANK.NS", "ICICIBANK.NS", "AXISBANK.NS"],
   "SBIN.NS": ["BANKBARODA.NS", "PNB.NS", "CANBK.NS", "ICICIBANK.NS"],
-  "BAJFINANCE.NS": ["BAJAJFINSV.NS", "CHOLAFIN.NS", "SBICARD.NS", "SHRIRAMFIN.NS"],
+  // Not BAJAJFINSV — Bajaj Finserv is Bajaj Finance's own parent holdco.
+  "BAJFINANCE.NS": ["CHOLAFIN.NS", "SHRIRAMFIN.NS", "SBICARD.NS", "MUTHOOTFIN.NS"],
 
   // IT services
   "TCS.NS": ["INFY.NS", "WIPRO.NS", "HCLTECH.NS", "TECHM.NS"],
@@ -141,19 +143,23 @@ const PEER_OVERRIDES: Record<string, string[]> = {
   "SHREECEM.NS": ["ULTRACEMCO.NS", "AMBUJACEM.NS", "ACC.NS"],
   "ASIANPAINT.NS": ["BERGEPAINT.NS", "KANSAINER.NS", "AKZOINDIA.NS"],
   "BERGEPAINT.NS": ["ASIANPAINT.NS", "KANSAINER.NS", "AKZOINDIA.NS"],
-  "BHARTIARTL.NS": ["IDEA.NS", "TATACOMM.NS", "INDUSTOWER.NS"],
+  // Vodafone Idea and Jio (Reliance) are the real rivals; Indus Towers is a
+  // part-owned Airtel associate (passive tower infra), so keep it out of the top 3.
+  "BHARTIARTL.NS": ["IDEA.NS", "RELIANCE.NS", "TATACOMM.NS", "INDUSTOWER.NS"],
 
   // Hospitality — so ITC Hotels gets hotels, not autos
   "ITCHOTELS.NS": ["INDHOTEL.NS", "EIHOTEL.NS", "CHALET.NS", "LEMONTREE.NS"],
   "INDHOTEL.NS": ["ITCHOTELS.NS", "EIHOTEL.NS", "CHALET.NS", "LEMONTREE.NS"],
 
   // ── Adani group ─────────────────────────────────────────────────────────
-  // Yahoo returns almost nothing for these, so hand-pick by what each entity
-  // actually does (the group spans ports, power, gas, transmission, cement…).
-  "ADANIENT.NS": ["ADANIPORTS.NS", "ADANIPOWER.NS", "ADANIGREEN.NS", "RELIANCE.NS"],
-  "ADANIPORTS.NS": ["JSWINFRA.NS", "ADANIENT.NS", "GMRAIRPORT.NS", "RELIANCE.NS"],
+  // Peers must be EXTERNAL competitors, never same-group sister companies —
+  // ADANIENT vs ADANIPORTS/ADANIPOWER is comparing the group to itself (they all
+  // co-move on Adani sentiment), which tells the user nothing. Hand-picked by what
+  // each entity actually does against non-Adani names.
+  "ADANIENT.NS": ["RELIANCE.NS", "LT.NS", "ITC.NS", "GRASIM.NS"], // diversified conglomerates
+  "ADANIPORTS.NS": ["JSWINFRA.NS", "CONCOR.NS", "GMRAIRPORT.NS", "GPPL.NS"], // ports / logistics / infra
   "ADANIPOWER.NS": ["NTPC.NS", "TATAPOWER.NS", "JSWENERGY.NS", "NHPC.NS"],
-  "ADANIGREEN.NS": ["TATAPOWER.NS", "JSWENERGY.NS", "NTPC.NS", "ADANIPOWER.NS"],
+  "ADANIGREEN.NS": ["TATAPOWER.NS", "JSWENERGY.NS", "NHPC.NS", "SUZLON.NS"], // power / renewables
   "ADANIENSOL.NS": ["POWERGRID.NS", "TATAPOWER.NS", "NTPC.NS", "JSWENERGY.NS"],
   "ATGL.NS": ["IGL.NS", "MGL.NS", "GUJGASLTD.NS", "GAIL.NS"],
   "AWL.NS": ["MARICO.NS", "TATACONSUM.NS", "PATANJALI.NS", "NESTLEIND.NS"],
