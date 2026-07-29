@@ -18,6 +18,58 @@ function compactCur(n: number | undefined, sym: string): string {
   return `${s}${sym}${Math.round(a)}`;
 }
 
+// A balance beam that physically tilts toward whichever side is heavier — the
+// fastest way to read "is this company carrying more debt than equity?". Far more
+// legible at a glance than a bare 0.53 ratio.
+function Seesaw({
+  debt,
+  equity,
+  sym,
+  fmt,
+}: {
+  debt: number;
+  equity: number;
+  sym: string;
+  fmt: (n: number | undefined, s: string) => string;
+}) {
+  const total = debt + equity || 1;
+  // Positive angle tilts the RIGHT (equity) side down, so the heavier side sinks.
+  const angle = Math.max(-16, Math.min(16, ((equity - debt) / total) * 22));
+  const ratio = equity > 0 ? debt / equity : undefined;
+  const verdict =
+    ratio == null ? "—" : ratio <= 0.5 ? "Healthy" : ratio <= 1 ? "Manageable" : "Stretched";
+  const tone = ratio == null ? "text-slate-400" : ratio <= 0.5 ? "text-up" : ratio <= 1 ? "text-gold" : "text-down";
+
+  return (
+    <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-5">
+      <div className="text-[0.62rem] uppercase tracking-[0.14em] text-slate-500">
+        Debt vs equity balance
+      </div>
+      <svg viewBox="0 0 320 140" className="mx-auto mt-2 w-full" style={{ maxWidth: 340 }} role="img" aria-label="Debt versus equity balance">
+        <g transform={`rotate(${angle} 160 86)`}>
+          {/* beam */}
+          <rect x="30" y="82" width="260" height="7" rx="3.5" fill="rgba(255,255,255,0.28)" />
+          {/* debt block (left) */}
+          <rect x="46" y="46" width="86" height="36" rx="6" fill="#FB7185" fillOpacity="0.22" stroke="#FB7185" strokeWidth="1.5" />
+          <text x="89" y="62" textAnchor="middle" className="fill-down" style={{ fontSize: 10, fontWeight: 600 }}>Debt</text>
+          <text x="89" y="75" textAnchor="middle" className="fill-white font-mono" style={{ fontSize: 11 }}>{fmt(debt, sym)}</text>
+          {/* equity block (right) */}
+          <rect x="188" y="46" width="86" height="36" rx="6" fill="#34D399" fillOpacity="0.22" stroke="#34D399" strokeWidth="1.5" />
+          <text x="231" y="62" textAnchor="middle" className="fill-up" style={{ fontSize: 10, fontWeight: 600 }}>Equity</text>
+          <text x="231" y="75" textAnchor="middle" className="fill-white font-mono" style={{ fontSize: 11 }}>{fmt(equity, sym)}</text>
+        </g>
+        {/* pivot */}
+        <polygon points="160,88 142,124 178,124" fill="#D4AF37" />
+        <rect x="126" y="124" width="68" height="5" rx="2.5" fill="rgba(212,175,55,0.45)" />
+      </svg>
+      <p className={`mt-1 text-center text-sm font-medium ${tone}`}>
+        {verdict}
+        {ratio != null ? <span className="text-slate-500"> · {ratio.toFixed(2)} debt-to-equity</span> : null}
+      </p>
+    </div>
+  );
+}
+
 function Insight({ title, detail, tone }: { title: string; detail: string; tone: Tone }) {
   const dot =
     tone === "good" ? "bg-up" : tone === "warn" ? "bg-gold" : "bg-down";
@@ -188,6 +240,17 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
             ))}
           </div>
         </div>
+
+        {/* Balance beam — debt vs equity at a glance */}
+        {(() => {
+          const dNow = debt ?? last.debt;
+          const eNow = last.equity;
+          return dNow != null && dNow > 0 && eNow != null && eNow > 0 ? (
+            <div className="mt-4">
+              <Seesaw debt={dNow} equity={eNow} sym={sym} fmt={compactCur} />
+            </div>
+          ) : null;
+        })()}
 
         {/* Insights */}
         {insights.length ? (
