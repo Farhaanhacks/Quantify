@@ -18,6 +18,7 @@ import MyNotes from "@/components/quantifi/MyNotes";
 import InsiderActivity from "@/components/quantifi/InsiderActivity";
 import StockActions from "@/components/quantifi/StockActions";
 import DebtEquityHistory from "@/components/quantifi/DebtEquityHistory";
+import StockSectionNav, { type NavSection } from "@/components/quantifi/StockSectionNav";
 import { GlassCard, Eyebrow } from "@/components/quantifi/Cards";
 import type { CompanyAnalytics } from "@/data/demo";
 import type { EtfData } from "@/lib/yahooEtf";
@@ -28,6 +29,25 @@ import { FREE_LIMIT } from "@/lib/freeLimit";
 import { knownFund } from "@/data/knownFunds";
 
 const QUICK = ["NVDA", "AAPL", "MSFT", "TSLA", "AMZN", "GOOGL", "INFY.NS", "RELIANCE.NS"];
+
+// The full set of anchors the section rail can link to. StockSectionNav shows only
+// the ones that actually rendered (data-driven sections return null), so the same
+// list works for a full stock, an ETF X-ray, or a sparse name.
+const NAV_SECTIONS: NavSection[] = [
+  { id: "sec-chart", label: "Chart" },
+  { id: "sec-score", label: "Snowflake score" },
+  { id: "sec-etf", label: "Fund X-ray" },
+  { id: "sec-overview", label: "Overview & financials" },
+  { id: "sec-health", label: "Financial health" },
+  { id: "sec-stats", label: "Key statistics" },
+  { id: "sec-valuation", label: "Valuation" },
+  { id: "sec-ownership", label: "Ownership" },
+  { id: "sec-competitors", label: "Competitors" },
+  { id: "sec-peers", label: "Peers" },
+  { id: "sec-news", label: "News" },
+  { id: "sec-insider", label: "Insider trades" },
+  { id: "sec-notes", label: "My notes" },
+];
 
 type Engine = "tv" | "quantifi";
 
@@ -298,109 +318,139 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
       </section>
 
       {stage === "analysis" ? (
-        <>
-          {/* Live chart with engine toggle — only for a revealed name or Pro. */}
-          <section className="mx-auto max-w-7xl px-4 pb-2 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-4xl">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <StockActions ticker={ticker} price={score?.price} />
-                <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] p-0.5 text-xs">
-                  {segBtn("tv", "TradingView")}
-                  {segBtn("quantifi", "Quantifi")}
+        <div className="mx-auto max-w-7xl lg:grid lg:grid-cols-[196px_minmax(0,1fr)]">
+          {/* Sticky section rail (desktop) */}
+          <div className="lg:pl-4">
+            <StockSectionNav sections={NAV_SECTIONS} />
+          </div>
+
+          {/* Main content column */}
+          <div className="min-w-0">
+            {/* Live chart with engine toggle — only for a revealed name or Pro. */}
+            <section id="sec-chart" className="scroll-mt-24 px-4 pb-2 pt-8 sm:px-6 lg:px-8">
+              <div className="mx-auto max-w-4xl">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <StockActions ticker={ticker} price={score?.price} />
+                  <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] p-0.5 text-xs">
+                    {segBtn("tv", "TradingView")}
+                    {segBtn("quantifi", "Quantifi")}
+                  </div>
                 </div>
+
+                {engine === "tv" ? (
+                  <>
+                    <TradingViewWidget
+                      symbol={tvSym}
+                      kind="advanced-chart"
+                      height={540}
+                      range="12M"
+                      allowSymbolChange
+                    />
+                    <p className="mt-2 text-xs text-slate-500">
+                      Seeing “only available on TradingView”? Tap{" "}
+                      <span className="text-gold">Quantifi</span> above for the Yahoo-powered chart.
+                    </p>
+                  </>
+                ) : (
+                  <PriceChart symbol={ticker} height={500} />
+                )}
               </div>
+            </section>
 
-              {engine === "tv" ? (
-                <>
-                  <TradingViewWidget
-                    symbol={tvSym}
-                    kind="advanced-chart"
-                    height={540}
-                    range="12M"
-                    allowSymbolChange
+            {/* Free-plan meter hint (only once they've unlocked this name). */}
+            {!pro && meterReady ? (
+              <section className="px-4 sm:px-6 lg:px-8">
+                <p className="text-center text-xs text-slate-500">
+                  Free plan · {Math.min(usedCount, FREE_LIMIT)} of {FREE_LIMIT} free analyses used.{" "}
+                  <Link href="/pricing" className="text-gold hover:underline">
+                    Go Pro for unlimited →
+                  </Link>
+                </p>
+              </section>
+            ) : null}
+
+            {/* Quantifi Score (stocks) → ETF X-ray (funds) → graceful fallback */}
+            {score?.available && score.analytics ? (
+              <>
+                <div id="sec-score" className="scroll-mt-24">
+                  <CompanySnapshot
+                    ticker={ticker}
+                    data={score.analytics}
+                    price={score.price}
+                    name={score.name}
+                    currency={score.currency}
+                    live={Boolean(score.live)}
                   />
-                  <p className="mt-2 text-xs text-slate-500">
-                    Seeing “only available on TradingView”? Tap{" "}
-                    <span className="text-gold">Quantifi</span> above for the Yahoo-powered chart.
-                  </p>
-                </>
-              ) : (
-                <PriceChart symbol={ticker} height={500} />
-              )}
+                </div>
+                <div id="sec-overview" className="scroll-mt-24">
+                  <CompanyDetails symbol={ticker} />
+                </div>
+                <div id="sec-health" className="scroll-mt-24">
+                  <DebtEquityHistory symbol={ticker} name={score.name} />
+                </div>
+                <div id="sec-stats" className="scroll-mt-24">
+                  <CompanyVitals symbol={ticker} />
+                </div>
+                <div id="sec-valuation" className="scroll-mt-24">
+                  <PeRatioChart symbol={ticker} name={score.name} />
+                </div>
+                <div id="sec-ownership" className="scroll-mt-24">
+                  <ShareholdingStats symbol={ticker} />
+                </div>
+                <div id="sec-competitors" className="scroll-mt-24">
+                  <Competitors symbol={ticker} name={score.name} kind="stocks" />
+                </div>
+                <div id="sec-peers" className="scroll-mt-24">
+                  <PeerComparison symbol={ticker} name={score.name} />
+                </div>
+              </>
+            ) : etf ? (
+              <>
+                <div id="sec-etf" className="scroll-mt-24">
+                  <EtfSnapshot etf={etf} />
+                </div>
+                <div id="sec-competitors" className="scroll-mt-24">
+                  <Competitors symbol={ticker} name={etf.name} kind="funds" />
+                </div>
+              </>
+            ) : (
+              <section className="px-4 pb-12 sm:px-6 lg:px-8">
+                <GlassCard className="p-6">
+                  <h3 className="font-display text-base font-semibold text-white">
+                    {scoreLoading
+                      ? `Loading analysis for ${ticker}…`
+                      : `Analysis not available for ${ticker}`}
+                  </h3>
+                  {!scoreLoading ? (
+                    <p className="mt-2 text-sm leading-relaxed text-slate-400">
+                      {score?.message ??
+                        "Live data is unavailable for this name right now. This is normal for ETFs and funds, indices, crypto, currencies and very new listings — or the market-data source may be briefly rate-limiting. The chart above still works."}
+                    </p>
+                  ) : null}
+                </GlassCard>
+              </section>
+            )}
+
+            {/* News gets its own section (separate from the company tabs). */}
+            {hasAnalysis ? (
+              <div id="sec-news" className="scroll-mt-24">
+                <CompanyNewsSection symbol={ticker} name={score?.name ?? etf?.name} />
+              </div>
+            ) : null}
+
+            {/* Personal notes for this ticker. */}
+            <div id="sec-notes" className="scroll-mt-24">
+              <MyNotes ticker={ticker} />
             </div>
-          </section>
 
-          {/* Free-plan meter hint (only once they've unlocked this name). */}
-          {!pro && meterReady ? (
-            <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-              <p className="text-center text-xs text-slate-500">
-                Free plan · {Math.min(usedCount, FREE_LIMIT)} of {FREE_LIMIT} free analyses used.{" "}
-                <Link href="/pricing" className="text-gold hover:underline">
-                  Go Pro for unlimited →
-                </Link>
-              </p>
-            </section>
-          ) : null}
-
-          {/* Quantifi Score (stocks) → ETF X-ray (funds) → graceful fallback */}
-          {score?.available && score.analytics ? (
-            <>
-              <CompanySnapshot
-                ticker={ticker}
-                data={score.analytics}
-                price={score.price}
-                name={score.name}
-                currency={score.currency}
-                live={Boolean(score.live)}
-              />
-              {/* Company overview + financials sits right above the analyst
-                  rating / company facts so the business context comes first. */}
-              <CompanyDetails symbol={ticker} />
-              <DebtEquityHistory symbol={ticker} name={score.name} />
-              <CompanyVitals symbol={ticker} />
-              <PeRatioChart symbol={ticker} name={score.name} />
-              <ShareholdingStats symbol={ticker} />
-              <Competitors symbol={ticker} name={score.name} kind="stocks" />
-              <PeerComparison symbol={ticker} name={score.name} />
-            </>
-          ) : etf ? (
-            <>
-              <EtfSnapshot etf={etf} />
-              <Competitors symbol={ticker} name={etf.name} kind="funds" />
-            </>
-          ) : (
-            <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
-              <GlassCard className="p-6">
-                <h3 className="font-display text-base font-semibold text-white">
-                  {scoreLoading
-                    ? `Loading analysis for ${ticker}…`
-                    : `Analysis not available for ${ticker}`}
-                </h3>
-                {!scoreLoading ? (
-                  <p className="mt-2 text-sm leading-relaxed text-slate-400">
-                    {score?.message ??
-                      "Live data is unavailable for this name right now. This is normal for ETFs and funds, indices, crypto, currencies and very new listings — or the market-data source may be briefly rate-limiting. The chart above still works."}
-                  </p>
-                ) : null}
-              </GlassCard>
-            </section>
-          )}
-
-          {/* News gets its own section (separate from the company tabs). */}
-          {hasAnalysis ? (
-            <CompanyNewsSection symbol={ticker} name={score?.name ?? etf?.name} />
-          ) : null}
-
-          {/* Personal notes for this ticker. */}
-          <MyNotes ticker={ticker} />
-
-          {/* Company filings + insiders: stocks only (funds and no-data symbols
-              don't have them, and this keeps insider data out of the free
-              "not available" view). */}
-          {hasAnalysis && !etf ? (
-            <InsiderActivity ticker={ticker} heading showFilter />
-          ) : null}
-        </>
+            {/* Company filings + insiders: stocks only. */}
+            {hasAnalysis && !etf ? (
+              <div id="sec-insider" className="scroll-mt-24">
+                <InsiderActivity ticker={ticker} heading showFilter />
+              </div>
+            ) : null}
+          </div>
+        </div>
       ) : stage === "loading" ? (
         <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
           <GlassCard className="p-6">
