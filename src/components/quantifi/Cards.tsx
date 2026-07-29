@@ -396,11 +396,16 @@ export function ScoreRadar({
   labels,
   size = 220,
   max = 6,
+  color,
 }: {
   values: number[]; // length 5, each 0..max
   labels: string[]; // length 5
   size?: number;
   max?: number;
+  /** Accent for the filled shape. Defaults to a score-derived colour: a strong
+   *  company reads green, a middling one amber, a weak one red — so the snowflake
+   *  communicates quality at a glance instead of always looking the same. */
+  color?: string;
 }) {
   const cx = size / 2;
   const cy = size / 2;
@@ -419,13 +424,19 @@ export function ScoreRadar({
     .map((v, i) => point(i, (Math.max(0, Math.min(max, v)) / max) * r).join(","))
     .join(" ");
 
+  // Colour the blob by average score unless the caller overrides it.
+  const avg = values.length ? values.reduce((s, v) => s + v, 0) / values.length / max : 0;
+  const accent = color ?? (avg >= 0.66 ? "#34D399" : avg >= 0.4 ? "#F59E0B" : "#FB7185");
+  // Unique gradient id per accent so two radars on one page can't collide.
+  const gid = `radarFill-${accent.replace("#", "")}`;
+
   return (
     <svg viewBox={`-62 -20 ${size + 124} ${size + 44}`} width="100%" height="100%" role="img" aria-label="Quantifi Score radar">
       <defs>
-        <linearGradient id="radarFill" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#4F93F7" stopOpacity="0.45" />
-          <stop offset="100%" stopColor="#4FD1C5" stopOpacity="0.30" />
-        </linearGradient>
+        <radialGradient id={gid} cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor={accent} stopOpacity="0.85" />
+          <stop offset="100%" stopColor={accent} stopOpacity="0.5" />
+        </radialGradient>
       </defs>
       {[0.25, 0.5, 0.75, 1].map((f) => (
         <polygon
@@ -440,10 +451,10 @@ export function ScoreRadar({
         const [x, y] = point(i, r);
         return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />;
       })}
-      <polygon points={shape} fill="url(#radarFill)" stroke="#4F93F7" strokeWidth="1.5" />
+      <polygon points={shape} fill={`url(#${gid})`} stroke={accent} strokeWidth="2" strokeLinejoin="round" />
       {values.map((v, i) => {
         const [x, y] = point(i, (Math.max(0, Math.min(max, v)) / max) * r);
-        return <circle key={i} cx={x} cy={y} r="2.5" fill="#7FB2FB" />;
+        return <circle key={i} cx={x} cy={y} r="3" fill="#fff" stroke={accent} strokeWidth="1.5" />;
       })}
       {labels.map((label, i) => {
         const [x, y] = point(i, r + 16);

@@ -474,10 +474,17 @@ export default function CompanySnapshot({
         <GlassCard className="p-5 sm:p-6">
           <h4 className="font-display text-base font-semibold text-up">Pros</h4>
           <p className="mt-1 text-[0.7rem] text-slate-500">The case for — from the fundamentals.</p>
-          <ul className="mt-3 space-y-2.5">
+          <ul className="mt-3 space-y-2">
             {a.rewards.map((r, i) => (
-              <li key={i} className="flex gap-2.5 text-sm text-slate-300">
-                <span className="mt-0.5 text-up">+</span>
+              <li
+                key={i}
+                className="flex items-start gap-3 rounded-lg border border-up/15 bg-up/[0.06] px-3 py-2.5 text-sm text-slate-200"
+              >
+                <span className="mt-px flex h-5 w-5 flex-none items-center justify-center rounded-full bg-up/20 text-up">
+                  <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor">
+                    <path d="M12 2l2.9 6.3 6.9.7-5.1 4.7 1.4 6.8L12 17.8 5.9 20.5l1.4-6.8L2.2 9l6.9-.7Z" />
+                  </svg>
+                </span>
                 <span className="leading-relaxed">{r}</span>
               </li>
             ))}
@@ -486,10 +493,18 @@ export default function CompanySnapshot({
         <GlassCard className="p-5 sm:p-6">
           <h4 className="font-display text-base font-semibold text-down">Cons</h4>
           <p className="mt-1 text-[0.7rem] text-slate-500">The case against — what to weigh first.</p>
-          <ul className="mt-3 space-y-2.5">
+          <ul className="mt-3 space-y-2">
             {a.riskFlags.map((r, i) => (
-              <li key={i} className="flex gap-2.5 text-sm text-slate-300">
-                <span className="mt-0.5 text-down">!</span>
+              <li
+                key={i}
+                className="flex items-start gap-3 rounded-lg border border-down/15 bg-down/[0.06] px-3 py-2.5 text-sm text-slate-200"
+              >
+                <span className="mt-px flex h-5 w-5 flex-none items-center justify-center rounded-full bg-down/20 text-down">
+                  <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3">
+                    <path d="M12 8v5" strokeLinecap="round" />
+                    <circle cx="12" cy="17" r="0.5" fill="currentColor" />
+                  </svg>
+                </span>
                 <span className="leading-relaxed">{r}</span>
               </li>
             ))}

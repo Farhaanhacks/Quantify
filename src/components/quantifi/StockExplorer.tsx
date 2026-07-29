@@ -16,11 +16,11 @@ import PeRatioChart from "@/components/quantifi/PeRatioChart";
 import CompanyNewsSection from "@/components/quantifi/CompanyNewsSection";
 import MyNotes from "@/components/quantifi/MyNotes";
 import InsiderActivity from "@/components/quantifi/InsiderActivity";
-import StockActions from "@/components/quantifi/StockActions";
+import StockHero from "@/components/quantifi/StockHero";
 import DebtEquityHistory from "@/components/quantifi/DebtEquityHistory";
 import StockSectionNav, { type NavSection } from "@/components/quantifi/StockSectionNav";
 import { GlassCard, Eyebrow } from "@/components/quantifi/Cards";
-import type { CompanyAnalytics } from "@/data/demo";
+import { SCORE_AXES, type CompanyAnalytics } from "@/data/demo";
 import type { EtfData } from "@/lib/yahooEtf";
 import { popularTickers } from "@/data/popularTickers";
 import { useProStatus } from "@/lib/useProStatus";
@@ -326,11 +326,24 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
 
           {/* Main content column */}
           <div className="min-w-0">
+            {/* Identity band — who this company is, what it costs, and the actions. */}
+            <StockHero
+              ticker={ticker}
+              name={score?.name ?? etf?.name}
+              price={score?.price}
+              currency={score?.currency}
+              score={
+                score?.analytics
+                  ? SCORE_AXES.reduce((sum, ax) => sum + (score.analytics!.scores[ax.key].score ?? 0), 0)
+                  : undefined
+              }
+              fairValue={score?.analytics?.fairValue?.estimate}
+            />
+
             {/* Live chart with engine toggle — only for a revealed name or Pro. */}
-            <section id="sec-chart" className="scroll-mt-24 px-4 pb-2 pt-8 sm:px-6 lg:px-8">
+            <section id="sec-chart" className="scroll-mt-24 px-4 pb-2 pt-6 sm:px-6 lg:px-8">
               <div className="mx-auto max-w-4xl">
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <StockActions ticker={ticker} price={score?.price} />
+                <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
                   <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] p-0.5 text-xs">
                     {segBtn("tv", "TradingView")}
                     {segBtn("quantifi", "Quantifi")}
