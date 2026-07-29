@@ -77,7 +77,12 @@ function dcfPerShare(
   // WACC can drift too low for a low-beta defensive name (inflating value) or
   // spike during a volatile quarter (crushing it); clamping keeps the estimate
   // stable and comparable across names.
-  const rate = Math.min(0.11, Math.max(0.07, discount));
+  // Clamp to a sane 6–16% band: the low end for a defensive developed-market name,
+  // the high end for a higher-risk emerging market (India, LatAm) whose local
+  // risk-free rate alone can be ~7%. The old US-only 7–11% band understated the
+  // discount for those markets and inflated their valuations (a too-small
+  // rate − terminalGrowth spread blows up the terminal value).
+  const rate = Math.min(0.16, Math.max(0.06, discount));
   // Initial growth: allow fast growers up to 20% (the fade keeps this from
   // exploding), floor at 3% so a sleepy name still gets a fair terminal. Capped
   // conservatively so an optimistic growth read can't inflate the estimate.
@@ -95,6 +100,22 @@ function dcfPerShare(
   pv += terminal / Math.pow(1 + rate, years);
   const perShare = pv / shares;
   return isFinite(perShare) && perShare > 0 ? perShare : undefined;
+}
+
+// Cost of equity (the DCF discount rate) by the listing's home market. It's driven
+// mostly by the local risk-free rate + an equity risk premium, so it varies a lot
+// by country: a flat US 9% applied to Indian or Brazilian cash flows badly
+// understates the discount and inflates the value. Keyed by the reporting/quote
+// currency; unknown markets get a conservative emerging-market default.
+function costOfEquity(currency: string | undefined): number {
+  const c = (currency ?? "USD").toUpperCase();
+  const map: Record<string, number> = {
+    USD: 0.09, CAD: 0.09, GBP: 0.09, EUR: 0.085, CHF: 0.07, JPY: 0.07,
+    AUD: 0.095, SGD: 0.085, HKD: 0.09, TWD: 0.095, KRW: 0.10, CNY: 0.10,
+    INR: 0.125, IDR: 0.14, THB: 0.10, PHP: 0.12, MYR: 0.10,
+    BRL: 0.15, MXN: 0.135, ZAR: 0.15, TRY: 0.22, AED: 0.10, SAR: 0.10,
+  };
+  return map[c] ?? 0.115; // unknown → conservative EM default
 }
 
 // Compound annual growth rate between the oldest and newest values in a series
@@ -601,7 +622,26 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   // note covers that rare case.
   const dcfComputable =
     baseCashflow != null && baseCashflow > 0 && sharesOutstanding != null && sharesOutstanding > 0;
-  const cfRaw = dcfComputable ? dcfPerShare(baseCashflow, sharesOutstanding, cashflowGrowth) : undefined;
+  // Deep-cyclical commodity producers (metals, mining, oil & gas) do NOT compound
+  // their cash flows — those swing with commodity prices. Extrapolating a
+  // historical growth rate off a cyclical peak is exactly what inflates a name
+  // like Vedanta to a fantasy "239% below fair value". For these we value the
+  // through-cycle median cash flow with ~no real growth (terminal-rate only) and a
+  // higher, cyclical cost of capital — a normalised mid-cycle read, not a peak
+  // extrapolation.
+  const sectorLc = (str(ap.sector) ?? "").toLowerCase();
+  const isCyclicalCommodity =
+    sectorLc.includes("basic materials") || sectorLc.includes("energy");
+  // Discount at the listing's home-market cost of equity (Indian cash flows can't
+  // be discounted at a US 9%). Cyclical commodity producers get a further risk
+  // premium AND ~no real growth, so the estimate is a normalised mid-cycle read
+  // rather than an extrapolation of a peak year.
+  const discountRate = costOfEquity(financialCurrency ?? priceCurrency);
+  const cfRaw = dcfComputable
+    ? isCyclicalCommodity
+      ? dcfPerShare(baseCashflow, sharesOutstanding, 0.025, discountRate + 0.02)
+      : dcfPerShare(baseCashflow, sharesOutstanding, cashflowGrowth, discountRate)
+    : undefined;
   // Sanity band only — reject clearly-broken data (e.g. a unit mismatch that
   // slips past the currency check), NOT to second-guess a legitimate low/high
   // estimate. Kept wide so a genuine value is essentially always shown.
@@ -649,7 +689,9 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
       cfPerShare != null
         ? {
             estimate: cfPerShare,
-            note: baseIsOcf
+            note: isCyclicalCommodity
+              ? "A discounted-cash-flow estimate for a CYCLICAL commodity producer. Because these cash flows swing with commodity prices rather than compound, we value the through-cycle median cash flow with essentially no real growth and a higher, cyclical cost of capital — a normalised mid-cycle read, not an extrapolation of a peak year. Model-based, not advice."
+              : baseIsOcf
               ? "A discounted-cash-flow estimate built from the company's trailing OPERATING cash flow (through-cycle median), grown at its own historical rate fading to a sustainable pace and discounted back. Operating cash flow is used here because this is a capital-heavy business whose free cash flow (after heavy reinvestment) is lumpy or negative — so it reads before that reinvestment. Model-based, not advice."
               : "A discounted-cash-flow estimate built from the company's REAL trailing free cash flow (through-cycle median), grown at its own historical rate fading to a sustainable pace and discounted back. Model-based, not advice.",
           }
