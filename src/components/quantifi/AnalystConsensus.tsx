@@ -170,32 +170,35 @@ export default function AnalystConsensus({ symbol, name }: { symbol: string; nam
                 </span>
               </div>
 
-              {/* low ─ mean ─ high, with today's price marked */}
-              <div className="relative mt-6 h-2 rounded-full bg-gradient-to-r from-down/40 via-gold/40 to-up/40">
+              {/* low ─ mean ─ high, with each marker labelled in place so there's
+                  no guessing which dot is the target and which is today's price. */}
+              <div className="relative mt-10 h-2 rounded-full bg-gradient-to-r from-down/40 via-gold/40 to-up/40">
                 {price != null ? (
-                  <span
-                    className="absolute -top-1 h-4 w-0.5 -translate-x-1/2 rounded bg-white"
-                    style={{ left: `${pctOf(price)}%` }}
-                    title="Current price"
-                  />
+                  <span className="absolute -translate-x-1/2" style={{ left: `${pctOf(price)}%` }}>
+                    <span className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded border border-white/20 bg-ink-800 px-1.5 py-0.5 font-mono text-[0.65rem] text-white">
+                      {sym}{fmtPrice(price)}
+                    </span>
+                    <span className="absolute -top-1 left-1/2 h-4 w-0.5 -translate-x-1/2 rounded bg-white" />
+                  </span>
                 ) : null}
-                <span
-                  className="absolute -top-1.5 h-5 w-5 -translate-x-1/2 rounded-full border-2 border-gold bg-ink"
-                  style={{ left: `${pctOf(targetMean!)}%` }}
-                  title="Mean target"
-                />
+                <span className="absolute -translate-x-1/2" style={{ left: `${pctOf(targetMean!)}%` }}>
+                  <span className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded border border-gold/50 bg-gold/15 px-1.5 py-0.5 font-mono text-[0.65rem] font-semibold text-gold">
+                    {sym}{fmtPrice(targetMean!)}
+                  </span>
+                  <span className="absolute -top-1.5 left-1/2 h-5 w-5 -translate-x-1/2 rounded-full border-2 border-gold bg-gold/30 shadow-[0_0_0_3px_rgba(212,175,55,0.15)]" />
+                </span>
               </div>
-              <div className="mt-2 flex justify-between text-[0.7rem] text-slate-500">
+              <div className="mt-3 flex justify-between text-[0.7rem] text-slate-500">
                 <span className="font-mono">Low {sym}{fmtPrice(lo)}</span>
                 <span className="font-mono">High {sym}{fmtPrice(hi)}</span>
               </div>
 
-              <div className="mt-4 flex flex-wrap gap-4 text-[0.7rem] text-slate-500">
+              <div className="mt-4 flex flex-wrap gap-4 text-[0.7rem] text-slate-400">
                 <span className="flex items-center gap-1.5">
-                  <span className="h-3 w-0.5 bg-white" /> Current {sym}{fmtPrice(price!)}
+                  <span className="h-3 w-0.5 bg-white" /> Current price
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="h-3 w-3 rounded-full border-2 border-gold" /> Mean target
+                  <span className="h-3 w-3 rounded-full border-2 border-gold bg-gold/30" /> Mean target
                 </span>
               </div>
             </div>

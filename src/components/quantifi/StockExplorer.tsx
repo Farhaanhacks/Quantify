@@ -321,7 +321,7 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
       </section>
 
       {stage === "analysis" ? (
-        <div className="mx-auto max-w-7xl lg:grid lg:grid-cols-[196px_minmax(0,1fr)]">
+        <div className="mx-auto max-w-7xl lg:grid lg:grid-cols-[224px_minmax(0,1fr)]">
           {/* Sticky section rail (desktop) */}
           <div className="lg:pl-4">
             <StockSectionNav sections={NAV_SECTIONS} />

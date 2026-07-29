@@ -57,10 +57,10 @@ export default function StockSectionNav({ sections }: { sections: NavSection[] }
 
   return (
     <nav className="sticky top-24 hidden py-8 lg:block">
-      <p className="mb-2 pl-3 text-[0.6rem] font-semibold uppercase tracking-[0.16em] text-slate-500">
+      <p className="mb-3 pl-3 text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
         On this page
       </p>
-      <ul className="border-l border-white/[0.08]">
+      <ul className="space-y-0.5">
         {present.map((s, i) => {
           const on = active === s.id;
           return (
@@ -68,11 +68,20 @@ export default function StockSectionNav({ sections }: { sections: NavSection[] }
               <button
                 type="button"
                 onClick={() => jump(s.id)}
-                className={`-ml-px flex w-full items-center gap-2 border-l-2 py-1.5 pl-3 pr-2 text-left text-[0.82rem] transition ${
-                  on ? "border-gold text-white" : "border-transparent text-slate-400 hover:text-white"
+                className={`relative flex w-full items-center gap-2.5 rounded-md py-2 pl-4 pr-2.5 text-left text-[0.92rem] transition ${
+                  on
+                    ? "bg-white/[0.07] font-semibold text-white"
+                    : "font-medium text-slate-400 hover:bg-white/[0.03] hover:text-white"
                 }`}
               >
-                <span className={`w-3 flex-none text-right font-mono text-[0.65rem] ${on ? "text-gold" : "text-slate-600"}`}>
+                {/* Gold marker bar on the active row */}
+                <span
+                  className={`absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full transition ${
+                    on ? "bg-gold" : "bg-transparent"
+                  }`}
+                  aria-hidden
+                />
+                <span className={`w-4 flex-none text-right font-mono text-[0.72rem] ${on ? "text-gold" : "text-slate-600"}`}>
                   {i + 1}
                 </span>
                 <span className="truncate">{s.label}</span>
