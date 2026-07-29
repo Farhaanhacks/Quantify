@@ -16,7 +16,9 @@ import PeRatioChart from "@/components/quantifi/PeRatioChart";
 import CompanyNewsSection from "@/components/quantifi/CompanyNewsSection";
 import MyNotes from "@/components/quantifi/MyNotes";
 import InsiderActivity from "@/components/quantifi/InsiderActivity";
-import { GlassCard, TickerChip, Eyebrow } from "@/components/quantifi/Cards";
+import StockActions from "@/components/quantifi/StockActions";
+import DebtEquityHistory from "@/components/quantifi/DebtEquityHistory";
+import { GlassCard, Eyebrow } from "@/components/quantifi/Cards";
 import type { CompanyAnalytics } from "@/data/demo";
 import type { EtfData } from "@/lib/yahooEtf";
 import { popularTickers } from "@/data/popularTickers";
@@ -300,13 +302,8 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
           {/* Live chart with engine toggle — only for a revealed name or Pro. */}
           <section className="mx-auto max-w-7xl px-4 pb-2 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-4xl">
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <TickerChip ticker={ticker} active />
-                  <span className="text-xs text-slate-500">
-                    Live chart · {engine === "tv" ? "TradingView" : "Quantifi (Yahoo)"}
-                  </span>
-                </div>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <StockActions ticker={ticker} price={score?.price} />
                 <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] p-0.5 text-xs">
                   {segBtn("tv", "TradingView")}
                   {segBtn("quantifi", "Quantifi")}
@@ -359,6 +356,7 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
               {/* Company overview + financials sits right above the analyst
                   rating / company facts so the business context comes first. */}
               <CompanyDetails symbol={ticker} />
+              <DebtEquityHistory symbol={ticker} name={score.name} />
               <CompanyVitals symbol={ticker} />
               <PeRatioChart symbol={ticker} name={score.name} />
               <ShareholdingStats symbol={ticker} />

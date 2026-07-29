@@ -30,7 +30,6 @@ export default function PriceChart({
   const elRef = useRef<HTMLDivElement>(null);
   const [range, setRange] = useState("1y");
   const [meta, setMeta] = useState<Meta | null>(null);
-  const [live, setLive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
@@ -46,7 +45,6 @@ export default function PriceChart({
     // leaves the OLD stock's number showing on the new symbol (the "Tata Motors
     // shows Tata Steel's ₹186.53" bug).
     setMeta(null);
-    setLive(false);
     (async () => {
       try {
         const r = await fetch(`/api/quote/${encodeURIComponent(symbol)}`);
@@ -59,12 +57,9 @@ export default function PriceChart({
         if (cancelled) return;
         if (q.valid && typeof q.price === "number") {
           setMeta({ price: q.price, changePct: q.changePct, currency: q.currency });
-          setLive(true);
-        } else {
-          setLive(false);
         }
       } catch {
-        if (!cancelled) setLive(false);
+        /* leave the price badge blank */
       }
     })();
     return () => {
@@ -166,18 +161,7 @@ export default function PriceChart({
   return (
     <GlassCard className="p-4 sm:p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <TickerChip ticker={symbol} active />
-          <span
-            className={`rounded-full border px-1.5 py-0.5 text-[0.6rem] tracking-[0.12em] ${
-              live
-                ? "border-up/30 bg-up/10 text-up"
-                : "border-white/10 bg-white/[0.03] text-slate-500"
-            }`}
-          >
-            {live ? "LIVE" : "No data"}
-          </span>
-        </div>
+        <TickerChip ticker={symbol} active />
         {meta?.price ? (
           <div className="flex items-center gap-2">
             <span className="font-mono text-lg font-semibold tnum text-white">

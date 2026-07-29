@@ -87,7 +87,7 @@ function InteractiveDonut({
           </text>
         </svg>
       </div>
-      <ul className="w-full flex-1 space-y-1">
+      <ul className="w-full min-w-0 flex-1 space-y-1">
         {segments.map((s, i) => (
           <li
             key={s.name}
