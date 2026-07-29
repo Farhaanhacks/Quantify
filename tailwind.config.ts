@@ -14,21 +14,22 @@ const config: Config = {
           700: "#111726",
           600: "#1A2234",
         },
-        // Signature accent — cool electric blue on the deep-ink base (replaces the
-        // old golden-brown). Token stays named `gold` so every existing
-        // text-gold / bg-gold / from-gold-400 utility picks up the new hue.
+        // Signature accent — rich metallic gold on the deep-ink base, matching the
+        // Quantifi mark. 400 is a light champagne (gradient top), 600 a deep
+        // antique gold (gradient bottom), so `from-gold-400 to-gold-600` reads as
+        // brushed metal rather than flat colour.
         gold: {
-          DEFAULT: "#4F93F7",
-          400: "#7FB2FB",
-          500: "#4F93F7",
-          600: "#2E6FE0",
+          DEFAULT: "#D4AF37",
+          400: "#E7C873",
+          500: "#D4AF37",
+          600: "#A67F22",
         },
-        // Explicit brand-blue alias for new code that shouldn't say "gold".
+        // Alias for new code that shouldn't literally say "gold".
         brand: {
-          DEFAULT: "#4F93F7",
-          400: "#7FB2FB",
-          500: "#4F93F7",
-          600: "#2E6FE0",
+          DEFAULT: "#D4AF37",
+          400: "#E7C873",
+          500: "#D4AF37",
+          600: "#A67F22",
         },
         // Secondary "data" accent
         teal: {

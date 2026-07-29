@@ -424,9 +424,11 @@ export function ScoreRadar({
     .map((v, i) => point(i, (Math.max(0, Math.min(max, v)) / max) * r).join(","))
     .join(" ");
 
-  // Colour the blob by average score unless the caller overrides it.
+  // Stay in the gold family (brand palette) but vary the tone by average score:
+  // bright champagne for a strong company, deep antique gold for a weak one. Same
+  // rich gold-on-black look, still readable as a quality signal at a glance.
   const avg = values.length ? values.reduce((s, v) => s + v, 0) / values.length / max : 0;
-  const accent = color ?? (avg >= 0.66 ? "#34D399" : avg >= 0.4 ? "#F59E0B" : "#FB7185");
+  const accent = color ?? (avg >= 0.66 ? "#E7C873" : avg >= 0.4 ? "#D4AF37" : "#8A6B2F");
   // Unique gradient id per accent so two radars on one page can't collide.
   const gid = `radarFill-${accent.replace("#", "")}`;
 

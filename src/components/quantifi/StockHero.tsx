@@ -9,9 +9,11 @@ import { fmtPrice, currencySymbol, fmtCompactCur, isIndianCurrency } from "@/dat
 // costs, how it's moved, and the two actions people actually want. Without it the
 // page reads as a stack of anonymous cards — this is what anchors everything below.
 
+// All in the gold family — brushed-metal gradients, so the tile reads as part of
+// the brand rather than a random colour per ticker.
 const MONOGRAM_COLORS = [
-  ["#4F93F7", "#2E6FE0"], ["#34D399", "#059669"], ["#F59E0B", "#D97706"],
-  ["#A78BFA", "#7C3AED"], ["#F472B6", "#DB2777"], ["#22D3EE", "#0891B2"],
+  ["#E7C873", "#A67F22"], ["#D4AF37", "#8A6B1E"], ["#F0D89B", "#B8912C"],
+  ["#C9A227", "#7A5E18"], ["#E3C05C", "#9C7A20"], ["#D9BC63", "#8F701F"],
 ];
 
 function monogramFor(ticker: string) {
@@ -90,7 +92,7 @@ export default function StockHero({
           {/* Identity */}
           <div className="flex min-w-0 items-center gap-4">
             <span
-              className="flex h-14 w-14 flex-none items-center justify-center rounded-lg font-display text-lg font-bold text-white shadow-lg"
+              className="flex h-14 w-14 flex-none items-center justify-center rounded-lg font-display text-lg font-bold text-ink shadow-lg"
               style={{ background: `linear-gradient(135deg, ${mono.from}, ${mono.to})` }}
               aria-hidden
             >

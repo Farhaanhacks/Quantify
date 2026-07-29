@@ -17,6 +17,7 @@ import CompanyNewsSection from "@/components/quantifi/CompanyNewsSection";
 import MyNotes from "@/components/quantifi/MyNotes";
 import InsiderActivity from "@/components/quantifi/InsiderActivity";
 import StockHero from "@/components/quantifi/StockHero";
+import KeyValuationMetric from "@/components/quantifi/KeyValuationMetric";
 import DebtEquityHistory from "@/components/quantifi/DebtEquityHistory";
 import StockSectionNav, { type NavSection } from "@/components/quantifi/StockSectionNav";
 import { GlassCard, Eyebrow } from "@/components/quantifi/Cards";
@@ -405,6 +406,7 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
                   <CompanyVitals symbol={ticker} />
                 </div>
                 <div id="sec-valuation" className="scroll-mt-24">
+                  <KeyValuationMetric symbol={ticker} name={score.name} />
                   <PeRatioChart symbol={ticker} name={score.name} />
                 </div>
                 <div id="sec-ownership" className="scroll-mt-24">
