@@ -83,10 +83,13 @@ function dcfPerShare(
   // discount for those markets and inflated their valuations (a too-small
   // rate − terminalGrowth spread blows up the terminal value).
   const rate = Math.min(0.16, Math.max(0.06, discount));
-  // Initial growth: allow fast growers up to 20% (the fade keeps this from
-  // exploding), floor at 3% so a sleepy name still gets a fair terminal. Capped
-  // conservatively so an optimistic growth read can't inflate the estimate.
-  const g0 = Math.min(0.2, Math.max(0.03, growth ?? 0.05));
+  // Initial growth: floor 3% so a sleepy name still gets a fair terminal, cap 25%
+  // so an optimistic read can't run away. The old 20% ceiling was arbitrarily
+  // punitive for genuine compounders — a retailer like Trent has grown earnings
+  // ~40%+ a year with analyst support, and forcing it to 20% capped the model at
+  // ~25x earnings no matter what the evidence said. 25% plus the two-stage fade and
+  // the terminal rate keeps it bounded without pretending real growth isn't there.
+  const g0 = Math.min(0.25, Math.max(0.03, growth ?? 0.05));
   let cf = fcf;
   let pv = 0;
   // TRUE two-stage schedule.
@@ -523,10 +526,19 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   // Long-term (5-year) consensus growth first, then next-year, then this-year.
   const analystGrowth = growthOf("+5y") ?? growthOf("+1y") ?? growthOf("0y");
   // Consensus EPS for the next full year → forward earnings power.
+  //
+  // Yahoo's earningsTrend module is sparse outside the US — for Indian mid-caps it
+  // frequently comes back empty, which silently dropped the whole forward-looking
+  // path and left those names valued off the trailing trough alone (exactly the
+  // case that made a compounder like Trent read far too cheap). forwardPE is
+  // populated far more widely, so derive forward EPS from it as a last resort.
+  const fwdPe = num(sd.forwardPE) ?? num(ks.forwardPE);
   const fwdEpsEstimate =
     num(
       ((trendFor("+1y")?.earningsEstimate ?? {}) as Record<string, unknown>).avg
-    ) ?? num(ks.forwardEps);
+    ) ??
+    num(ks.forwardEps) ??
+    (fwdPe != null && fwdPe > 0 && price != null && price > 0 ? price / fwdPe : undefined);
 
   // Growth signal, most forward-looking first: analyst consensus growth, then the
   // company's own operating-cash-flow CAGR (steadier than FCF), then FCF CAGR,
@@ -808,6 +820,18 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
       ? cfRaw
       : undefined;
 
+  // Is the market paying a multiple a 10-year DCF simply cannot reach?
+  //
+  // Trent trades near 93x earnings. Even at a 25% growth rate with 100% of profit
+  // converting to cash, this model tops out around 32x — so the gap isn't a
+  // mispricing the model has detected, it's the model's own horizon running out.
+  // The market is capitalising a decade-plus of expansion that a 10-year window
+  // can't hold. Publishing "85% overvalued" there states a verdict the method
+  // can't support, so above this threshold we keep the number as CONTEXT and drop
+  // the over/under claim (same treatment as an off-scale sector benchmark).
+  const cfOutOfRange =
+    cfPerShare != null && pe != null && isFinite(pe) && pe > 45 && cfPerShare < price * 0.5;
+
   // Sector-appropriate valuation: pick the right multiple for the company's
   // sector, apply a typical benchmark to its own figures, and read over/under.
   const eps = num(ks.trailingEps) ?? num(fd.epsTrailingTwelveMonths) ?? (pe != null && pe > 0 ? price / pe : undefined);
@@ -843,7 +867,11 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
       cfPerShare != null
         ? {
             estimate: cfPerShare,
+            outOfRange: cfOutOfRange,
             note:
+              (cfOutOfRange
+                ? "CONTEXT, NOT A VERDICT: this company trades at a multiple a 10-year discounted-cash-flow model cannot span — the market is capitalising a decade or more of expansion that sits beyond this window. The figure below is what the next ten years of cash flow are worth on their own; the gap to the share price is what the market is paying for everything after that. Judge it against the analyst target and the peer multiples, not as an over/under signal. "
+                : "") +
               (isCyclicalCommodity
                 ? "A discounted-cash-flow estimate for a CYCLICAL commodity producer. Because these cash flows swing with commodity prices rather than compound, we value the normalised cash flow with essentially no real growth and a higher, cyclical cost of capital — a mid-cycle read, not an extrapolation of a peak year."
                 : usedForwardBase

@@ -119,8 +119,13 @@ export default function CompanySnapshot({
   // (>30% of the current price), the two methods are telling different stories —
   // usually the market pricing in growth that today's cash flows don't yet
   // support. Flag it so the user weighs both rather than trusting one number.
+  // Not raised when the cash-flow value is flagged out-of-range: for a company
+  // priced beyond a 10-year DCF's horizon the two methods ALWAYS diverge, so the
+  // banner would fire on every hyper-growth name and read as a red flag when it's
+  // really a limitation of the method. That card's own note explains it properly.
   const diverge =
     cf != null &&
+    !cf.outOfRange &&
     a.fairValue?.estimate != null &&
     resolvedPrice > 0 &&
     Math.abs(a.fairValue.estimate - cf.estimate) / resolvedPrice >= 0.3;
@@ -180,15 +185,24 @@ export default function CompanySnapshot({
             </div>
           </div>
           <div>
-            <div className="text-xs text-slate-500">Cash flow value</div>
+            <div className="text-xs text-slate-500">
+              {cf.outOfRange ? "Next 10 years of cash flow" : "Cash flow value"}
+            </div>
             <div className="font-mono text-xl font-semibold tnum text-white">
               {cur}
               {fmtPrice(cf.estimate)}
             </div>
           </div>
-          <Tag tone={cfUnder ? "up" : "down"}>
-            {cfUnder ? "Below" : "Above"} cash-flow value · {Math.abs(cfGap).toFixed(0)}%
-          </Tag>
+          {/* For a company priced beyond a 10-year DCF's reach, an over/under
+              percentage asserts more than the method can support — show the
+              relationship as neutral context instead. */}
+          {cf.outOfRange ? (
+            <Tag tone="neutral">Beyond a 10-year DCF horizon</Tag>
+          ) : (
+            <Tag tone={cfUnder ? "up" : "down"}>
+              {cfUnder ? "Below" : "Above"} cash-flow value · {Math.abs(cfGap).toFixed(0)}%
+            </Tag>
+          )}
         </div>
       </div>
       <div className="mt-5">

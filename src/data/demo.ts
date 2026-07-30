@@ -62,7 +62,10 @@ export interface CompanyAnalytics {
   scores: Record<ScoreAxisKey, ScoreAxis>;
   fairValue: { estimate: number; method: string; note: string };
   // Optional 2-stage discounted-cash-flow intrinsic value per share.
-  cashflowValue?: { estimate: number; note: string };
+  // `outOfRange` marks a company whose market multiple is far beyond anything a
+  // 10-year DCF can span (a hyper-growth compounder). The estimate is still shown,
+  // but as context rather than an over/under verdict — see CompanySnapshot.
+  cashflowValue?: { estimate: number; note: string; outOfRange?: boolean };
   // Optional sector-appropriate valuation (SaaS→EV/Sales, banks→P/B,
   // telecom/infra→EV/EBITDA, real-estate/commodities→NAV, else→P/E).
   sectorValuation?: {
