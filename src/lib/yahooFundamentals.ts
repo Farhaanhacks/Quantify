@@ -317,6 +317,37 @@ function computeSectorValuation(i: SectorValuationInput): SectorValuationResult 
   // tiny near-zero floor rather than the old 0.25× floor that hid those cases and
   // left only the analyst target. The upper cap still guards against artefacts.
   if (estimate < i.price * 0.05 || estimate > i.price * 4) return undefined;
+
+  // Is a market-average multiple actually DESCRIPTIVE of this business?
+  //
+  // When a company trades nowhere near the benchmark — Avenue Supermarts at ~82x
+  // earnings against an ~18x "broad market" yardstick — multiplying its EPS by 18
+  // doesn't produce a fair value, it just restates "this has a high P/E" with false
+  // precision, and then labels a quality compounder "78% overvalued". A durable
+  // compounder can sustain a premium for years; a structurally challenged business
+  // can sit at a discount just as long. So when the company's own multiple is far
+  // outside the benchmark we still SHOW the comparison (it's useful context) but
+  // stop asserting a target: no bar, and the tag states the multiples rather than
+  // delivering an over/under verdict.
+  if (
+    current != null &&
+    isFinite(current) &&
+    current > 0 &&
+    (current > cfg.benchmark * 2.5 || current < cfg.benchmark * 0.4)
+  ) {
+    return {
+      sector: cfg.clusterLabel,
+      method: cfg.method,
+      metricLabel: `${cfg.metricShort} ${mult(current)} vs ~${cfg.benchmark}× typical`,
+      estimate,
+      valueLabel: `Value at ~${cfg.benchmark}× ${cfg.metricShort}`,
+      tag: `${mult(current)} vs ~${cfg.benchmark}× typical`,
+      tagUnder: current < cfg.benchmark,
+      showBar: false,
+      note: `${cfg.clusterLabel} — normally valued on ${cfg.method}. This company trades a long way from the ~${cfg.benchmark}× ${cfg.metricShort} market average, so that average doesn't describe it: a durable compounder can hold a premium for years, and a structurally challenged business a discount. The figure shown is simply what a ~${cfg.benchmark}× multiple would imply — read it as context, NOT a price target, and compare against direct competitors in Peers below.`,
+    };
+  }
+
   const gap = ((estimate - i.price) / i.price) * 100;
   const under = gap >= 0;
   return {

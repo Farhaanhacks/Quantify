@@ -444,7 +444,7 @@ export default function CompanySnapshot({
               of {Math.abs(((a.fairValue.estimate - cf!.estimate) / resolvedPrice) * 100).toFixed(0)}%
               of the share price.{" "}
               {cfRicher
-                ? "The market is pricing in growth beyond what today's cash flows justify — common for AI names whose current free cash flow is held down by heavy investment."
+                ? "The market is pricing in growth beyond what today's cash flows justify — typical of a company reinvesting heavily, or one the market expects to earn well above its current run-rate."
                 : "Analysts are more cautious than today's cash generation implies."}{" "}
               Weigh both — neither is advice.
             </p>
