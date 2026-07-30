@@ -148,7 +148,11 @@ interface Submissions {
 export async function getCompanyInsiderTrades(ticker: string, limit = 15): Promise<InsiderTrade[]> {
   try {
     const t = ticker.toUpperCase();
-    if (/\.(NS|BO|L|TO|HK|AX|DE|PA|SW)$/i.test(t)) return []; // non-US: not in EDGAR
+    // Any exchange-suffixed symbol is a non-US listing and cannot be in EDGAR.
+    // The old list named only a handful of suffixes, so Korean (.KS/.KQ), Taiwanese
+    // (.TW/.TWO), Chinese (.SS/.SZ) and Japanese (.T) tickers fell through and paid
+    // for a pointless CIK lookup on every request. Anything with a suffix is out.
+    if (/\.[A-Z]{1,4}$/i.test(t)) return [];
     const map = await loadCikMap();
     const entry = map[t];
     if (!entry) return [];
