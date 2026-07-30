@@ -89,10 +89,25 @@ function dcfPerShare(
   const g0 = Math.min(0.2, Math.max(0.03, growth ?? 0.05));
   let cf = fcf;
   let pv = 0;
+  // TRUE two-stage schedule.
+  //
+  // This model is described as 2-stage, but it used to fade growth linearly from
+  // YEAR ONE — so a company assessed at 20% growth was already modelled below 18%
+  // in year 2 and averaged barely 11% across the window. That is a 1-stage decay,
+  // not a 2-stage model, and it structurally undervalued every genuine compounder
+  // (a scaling retailer like Trent gets its growth taxed away before it has had a
+  // chance to compound).
+  //
+  // Correct behaviour: HOLD stage-1 growth for the first half of the window, then
+  // fade to the terminal rate across the second half. The terminal rate still
+  // binds at the final year, so nothing runs away — the cap and the fade both
+  // still do their job, they just stop firing prematurely.
+  const stage1 = Math.max(1, Math.floor(years / 2));
   for (let t = 1; t <= years; t++) {
-    // Linearly fade year-1 growth (g0) down to the terminal rate by the final
-    // year, so the explicit window captures high-but-decaying growth.
-    const g = g0 + ((termGrowth - g0) * (t - 1)) / (years - 1);
+    const g =
+      t <= stage1
+        ? g0
+        : g0 + ((termGrowth - g0) * (t - stage1)) / (years - stage1);
     cf *= 1 + g;
     pv += cf / Math.pow(1 + rate, t);
   }
