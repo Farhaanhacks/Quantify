@@ -171,23 +171,43 @@ export default function AnalystConsensus({ symbol, name }: { symbol: string; nam
               </div>
 
               {/* low ─ mean ─ high, with each marker labelled in place so there's
-                  no guessing which dot is the target and which is today's price. */}
-              <div className="relative mt-10 h-2 rounded-full bg-gradient-to-r from-down/40 via-gold/40 to-up/40">
-                {price != null ? (
-                  <span className="absolute -translate-x-1/2" style={{ left: `${pctOf(price)}%` }}>
-                    <span className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded border border-white/20 bg-ink-800 px-1.5 py-0.5 font-mono text-[0.65rem] text-white">
-                      {sym}{fmtPrice(price)}
+                  no guessing which dot is the target and which is today's price.
+                  When the price and the target are close (a small implied upside)
+                  the two chips would sit on top of each other, so we stack them on
+                  separate rows; near either end we anchor the chip inward so it
+                  can't overflow the card. */}
+              {(() => {
+                const pPrice = price != null ? pctOf(price) : null;
+                const pMean = pctOf(targetMean!);
+                const collide = pPrice != null && Math.abs(pPrice - pMean) < 16;
+                // Anchor the label to the marker without spilling past the edges.
+                const anchor = (p: number) =>
+                  p < 12 ? "translate-x-0" : p > 88 ? "-translate-x-full" : "-translate-x-1/2";
+                return (
+                  <div className={`relative h-2 rounded-full bg-gradient-to-r from-down/40 via-gold/40 to-up/40 ${collide ? "mt-16" : "mt-10"}`}>
+                    {pPrice != null ? (
+                      <span className="absolute" style={{ left: `${pPrice}%` }}>
+                        <span
+                          className={`absolute whitespace-nowrap rounded border border-white/20 bg-ink-800 px-1.5 py-0.5 font-mono text-[0.65rem] text-white ${anchor(pPrice)}`}
+                          style={{ top: collide ? "-3.6rem" : "-1.8rem" }}
+                        >
+                          {sym}{fmtPrice(price!)}
+                        </span>
+                        <span className="absolute -top-1 h-4 w-0.5 -translate-x-1/2 rounded bg-white" />
+                      </span>
+                    ) : null}
+                    <span className="absolute" style={{ left: `${pMean}%` }}>
+                      <span
+                        className={`absolute whitespace-nowrap rounded border border-gold/50 bg-gold/15 px-1.5 py-0.5 font-mono text-[0.65rem] font-semibold text-gold ${anchor(pMean)}`}
+                        style={{ top: "-1.8rem" }}
+                      >
+                        {sym}{fmtPrice(targetMean!)}
+                      </span>
+                      <span className="absolute -top-1.5 h-5 w-5 -translate-x-1/2 rounded-full border-2 border-gold bg-gold/30 shadow-[0_0_0_3px_rgba(212,175,55,0.15)]" />
                     </span>
-                    <span className="absolute -top-1 left-1/2 h-4 w-0.5 -translate-x-1/2 rounded bg-white" />
-                  </span>
-                ) : null}
-                <span className="absolute -translate-x-1/2" style={{ left: `${pctOf(targetMean!)}%` }}>
-                  <span className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded border border-gold/50 bg-gold/15 px-1.5 py-0.5 font-mono text-[0.65rem] font-semibold text-gold">
-                    {sym}{fmtPrice(targetMean!)}
-                  </span>
-                  <span className="absolute -top-1.5 left-1/2 h-5 w-5 -translate-x-1/2 rounded-full border-2 border-gold bg-gold/30 shadow-[0_0_0_3px_rgba(212,175,55,0.15)]" />
-                </span>
-              </div>
+                  </div>
+                );
+              })()}
               <div className="mt-3 flex justify-between text-[0.7rem] text-slate-500">
                 <span className="font-mono">Low {sym}{fmtPrice(lo)}</span>
                 <span className="font-mono">High {sym}{fmtPrice(hi)}</span>

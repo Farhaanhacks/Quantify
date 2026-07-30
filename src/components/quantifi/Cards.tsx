@@ -137,7 +137,9 @@ export function Tag({
   };
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[0.7rem] font-medium ${tones[tone]}`}
+      // A pill is a single short label — never let it break mid-word into a
+      // vertical stack of letters when it's squeezed against a narrow edge.
+      className={`inline-flex flex-none items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[0.7rem] font-medium ${tones[tone]}`}
     >
       {children}
     </span>

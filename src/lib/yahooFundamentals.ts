@@ -142,6 +142,23 @@ function median(series: number[]): number | undefined {
   return vals.length % 2 ? vals[mid] : (vals[mid - 1] + vals[mid]) / 2;
 }
 
+// Recency-weighted mean (oldest year weight 1 … newest weight n). A plain median
+// treats a five-year-old figure exactly like last year's, which badly understates a
+// business that has structurally re-rated (a memory super-cycle, a new product
+// ramp) — and overstates one in structural decline. Weighting by recency keeps the
+// whole cycle in view while letting the current regime dominate.
+function recencyWeightedMean(series: number[]): number | undefined {
+  if (!series.length) return undefined;
+  let num = 0;
+  let den = 0;
+  series.forEach((v, i) => {
+    const w = i + 1; // series is oldest → newest
+    num += v * w;
+    den += w;
+  });
+  return den > 0 ? num / den : undefined;
+}
+
 // A steadier growth input for the DCF than any single Yahoo field. Revenue
 // growth is the stable anchor; strong earnings growth lifts it (operating
 // leverage), but a noisy low earnings print can no longer drag the estimate
@@ -321,7 +338,7 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   if (knownFund(symbol)) return null;
 
   const modules =
-    "quoteType,summaryDetail,defaultKeyStatistics,financialData,price,topHoldings,cashflowStatementHistory,assetProfile";
+    "quoteType,summaryDetail,defaultKeyStatistics,financialData,price,topHoldings,cashflowStatementHistory,assetProfile,earningsTrend";
   let result = await yahooQuoteSummary(symbol, modules);
   // Some inputs need normalising (a company name, or a missing exchange suffix);
   // resolve and retry once so valid names don't read as "not available".
@@ -409,6 +426,7 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   // misleadingly high intrinsic value. Real FCF keeps the estimate honest.
   const ocfSeries: number[] = [];
   const fcfSeries: number[] = [];
+  const capexSeries: number[] = []; // magnitude of capital spending (positive)
   for (let i = statements.length - 1; i >= 0; i--) {
     const st = statements[i];
     const ocf = num(st.totalCashFromOperatingActivities);
@@ -416,6 +434,7 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
     if (ocf != null) {
       ocfSeries.push(ocf);
       fcfSeries.push(capex != null ? ocf + capex : ocf);
+      if (capex != null) capexSeries.push(Math.abs(capex));
     }
   }
   // Yahoo's cashflowStatementHistory MODULE is deprecated (dates, null values) for
@@ -434,50 +453,109 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
         if (ocf != null) {
           ocfSeries.push(ocf);
           fcfSeries.push(fcf != null ? fcf : capex != null ? ocf + capex : ocf);
+          if (capex != null) capexSeries.push(Math.abs(capex));
         }
       }
     } catch {
       /* leave empty → DCF simply won't publish, which is the honest fallback */
     }
   }
-  // Growth signal: operating-cash-flow CAGR (steadier than FCF), then FCF CAGR,
+  // ── Forward-looking inputs (analyst consensus) ────────────────────────────
+  // A purely trailing DCF prices the LAST cycle, not the next one. For a cyclical
+  // at a trough — Samsung mid memory-bust, with peak fab capex — the trailing
+  // record says "shrinking, cash-negative" exactly when analysts are modelling the
+  // recovery. That single difference is why a trailing model and a forward one can
+  // disagree by multiples on the same company (and agree closely on a steady
+  // compounder like Alphabet, where trailing ≈ forward).
+  const trend = ((result.earningsTrend ?? {}) as Record<string, unknown>).trend;
+  const trendRows = Array.isArray(trend) ? (trend as Record<string, unknown>[]) : [];
+  const trendFor = (period: string) => trendRows.find((t) => str(t.period) === period);
+  const growthOf = (period: string): number | undefined => {
+    const g = num(trendFor(period)?.growth);
+    return g != null && isFinite(g) ? g : undefined;
+  };
+  // Long-term (5-year) consensus growth first, then next-year, then this-year.
+  const analystGrowth = growthOf("+5y") ?? growthOf("+1y") ?? growthOf("0y");
+  // Consensus EPS for the next full year → forward earnings power.
+  const fwdEpsEstimate =
+    num(
+      ((trendFor("+1y")?.earningsEstimate ?? {}) as Record<string, unknown>).avg
+    ) ?? num(ks.forwardEps);
+
+  // Growth signal, most forward-looking first: analyst consensus growth, then the
+  // company's own operating-cash-flow CAGR (steadier than FCF), then FCF CAGR,
   // then income-statement growth. cagr() returns undefined unless both endpoints
   // are positive, so a loss-making history can't produce a nonsense rate.
   const cashflowGrowth =
-    cagr(ocfSeries) ?? cagr(fcfSeries) ?? forwardGrowth(revGrowth, earnGrowth);
+    analystGrowth ??
+    cagr(ocfSeries) ??
+    cagr(fcfSeries) ??
+    forwardGrowth(revGrowth, earnGrowth);
 
   // TTM free cash flow (Yahoo reports it directly; else the latest statement).
   const fcfTTM =
     num(fd.freeCashflow) ??
     (fcfSeries.length ? fcfSeries[fcfSeries.length - 1] : undefined);
 
-  // Through-cycle base = the MEDIAN of positive real-FCF years. The median (not
-  // the max, not a single year) is robust to BOTH a trough year (which would
-  // otherwise read as structural decline and under-value) AND a one-off peak
-  // (which would over-value). Fall back to the TTM figure when there's no
-  // multi-year history. A base that isn't positive means a trailing DCF is not
-  // meaningful for this company — handled by the eligibility gate below.
-  const medFcf = median(fcfSeries.filter((v) => v > 0));
-  // Operating-cash-flow base, used as a fallback when real free cash flow is
-  // lumpy or negative. A capital-heavy business that reinvests aggressively (e.g.
-  // Reliance) still throws off large OPERATING cash flow even when free cash flow
-  // is temporarily negative, so valuing off OCF lets a genuinely cash-generative
-  // company show a cash-flow value instead of a blank.
-  const medOcf = median(ocfSeries.filter((v) => v > 0));
-  const ocfTTM =
-    num(fd.operatingCashflow) ??
-    (ocfSeries.length ? ocfSeries[ocfSeries.length - 1] : undefined);
+  // Through-cycle base = the median of EVERY reported free-cash-flow year.
+  //
+  // It deliberately does NOT filter to positive years. Doing so silently discarded
+  // the heavy-investment years of capital-intensive cyclicals (Samsung's fab
+  // build-outs, a miner's expansion phase) and took the median of whatever was
+  // left — i.e. only the low-capex years. That cherry-picked a small,
+  // unrepresentative base and valued the whole company off it, which is how a
+  // ₩209,500 share ended up "worth" ₩64,550. The median across all years is the
+  // honest through-cycle figure: robust to a single trough or peak, without
+  // pretending the investment years didn't happen.
+  //
+  // The median alone still has a blind spot: it weights a five-year-old year the
+  // same as last year, so a company mid-inflection (Samsung's HBM/AI-memory ramp)
+  // gets valued off a stale average. So we take the recency-weighted mean too and
+  // use the higher of the two — capped at 2x the median so one exceptional year
+  // can't run away with the valuation.
+  const rawMedFcf = median(fcfSeries);
+  const weightedFcf = recencyWeightedMean(fcfSeries);
+  const medFcf =
+    rawMedFcf != null && weightedFcf != null
+      ? rawMedFcf > 0
+        ? Math.min(Math.max(rawMedFcf, weightedFcf), rawMedFcf * 2)
+        : weightedFcf
+      : rawMedFcf ?? weightedFcf;
+
+  // If free cash flow is negative through the cycle, the company is reinvesting
+  // more than it generates. Normalised owner earnings (through-cycle operating
+  // cash flow LESS through-cycle capex) is the fallback — note it still charges
+  // for capital spending. We no longer fall back to raw operating cash flow: that
+  // ignores capex entirely, and for a business spending tens of trillions on
+  // capacity it overstates distributable cash just as badly in the other
+  // direction.
+  // Same recency-weighted treatment, so the fallback tracks the current regime too.
+  const blend = (series: number[]): number | undefined => {
+    const m = median(series);
+    const w = recencyWeightedMean(series);
+    if (m == null || w == null) return m ?? w;
+    return m > 0 ? Math.min(Math.max(m, w), m * 2) : w;
+  };
+  const medOcf = blend(ocfSeries);
+  const medCapex = blend(capexSeries);
+  const normalisedOwnerEarnings =
+    medOcf != null && medCapex != null ? medOcf - medCapex : undefined;
+
   let baseCashflow: number | undefined;
-  let baseIsOcf = false;
+  let baseIsOcf = false; // true → base is normalised owner earnings, not plain FCF
   if (medFcf != null && medFcf > 0) baseCashflow = medFcf;
-  else if (fcfTTM != null && fcfTTM > 0) baseCashflow = fcfTTM;
-  else if (medOcf != null && medOcf > 0) {
-    baseCashflow = medOcf;
+  else if (normalisedOwnerEarnings != null && normalisedOwnerEarnings > 0) {
+    baseCashflow = normalisedOwnerEarnings;
     baseIsOcf = true;
-  } else if (ocfTTM != null && ocfTTM > 0) {
-    baseCashflow = ocfTTM;
-    baseIsOcf = true;
-  } else baseCashflow = undefined;
+  } else if (fcfTTM != null && fcfTTM > 0) baseCashflow = fcfTTM;
+  else baseCashflow = undefined; // no free cash through the cycle → no DCF
+
+  // Was the cash-flow record volatile enough that a trailing DCF is fragile? Any
+  // loss-making-on-a-cash-basis year in the window means the base is an average of
+  // very different regimes, so we surface that caveat with the estimate instead of
+  // presenting it as a precise figure.
+  const negativeFcfYears = fcfSeries.filter((v) => v <= 0).length;
+  const cashflowVolatile = fcfSeries.length >= 2 && negativeFcfYears > 0;
   // Share count: Yahoo omits sharesOutstanding for some listings (notably several
   // Indian names, which also blanks their Market Cap). Derive it from net income
   // ÷ EPS, or market cap ÷ price, so per-share maths (and the DCF) still work.
@@ -620,6 +698,36 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   // should always surface a cash-flow value. A true cash-burner (no positive
   // operating cash flow at all) still can't produce one, and the honest fallback
   // note covers that rare case.
+  // ── Forward earnings power as an alternative base ─────────────────────────
+  // Trailing cash flow describes the cycle that just happened. When consensus
+  // forward earnings are materially HIGHER than the trailing base — the signature
+  // of a cyclical coming out of a trough — valuing off the trough alone understates
+  // the business. We convert forward earnings to a cash-flow equivalent using the
+  // company's OWN historical cash conversion (free cash flow ÷ net income), so a
+  // capital-hungry business is still charged for its reinvestment rather than
+  // being credited with accounting profit it never keeps. Clamped to 25–100% so a
+  // freak conversion ratio can't distort it, and we only ever take the HIGHER of
+  // trailing and forward, never a lower one — the estimate stays conservative.
+  let forwardBase: number | undefined;
+  let usedForwardBase = false;
+  if (fwdEpsEstimate != null && sharesOutstanding != null && sharesOutstanding > 0) {
+    const forwardNetIncome = fwdEpsEstimate * sharesOutstanding;
+    const trailingNetIncome = num(ks.netIncomeToCommon);
+    const rawConversion =
+      medFcf != null && trailingNetIncome != null && trailingNetIncome > 0
+        ? medFcf / trailingNetIncome
+        : 0.6; // no clean read → a conservative default conversion
+    const conversion = Math.min(1, Math.max(0.25, rawConversion));
+    const candidate = forwardNetIncome * conversion;
+    if (candidate > 0 && (baseCashflow == null || candidate > baseCashflow)) {
+      forwardBase = candidate;
+    }
+  }
+  if (forwardBase != null) {
+    baseCashflow = forwardBase;
+    usedForwardBase = true;
+  }
+
   const dcfComputable =
     baseCashflow != null && baseCashflow > 0 && sharesOutstanding != null && sharesOutstanding > 0;
   // Deep-cyclical commodity producers (metals, mining, oil & gas) do NOT compound
@@ -689,11 +797,18 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
       cfPerShare != null
         ? {
             estimate: cfPerShare,
-            note: isCyclicalCommodity
-              ? "A discounted-cash-flow estimate for a CYCLICAL commodity producer. Because these cash flows swing with commodity prices rather than compound, we value the through-cycle median cash flow with essentially no real growth and a higher, cyclical cost of capital — a normalised mid-cycle read, not an extrapolation of a peak year. Model-based, not advice."
-              : baseIsOcf
-              ? "A discounted-cash-flow estimate built from the company's trailing OPERATING cash flow (through-cycle median), grown at its own historical rate fading to a sustainable pace and discounted back. Operating cash flow is used here because this is a capital-heavy business whose free cash flow (after heavy reinvestment) is lumpy or negative — so it reads before that reinvestment. Model-based, not advice."
-              : "A discounted-cash-flow estimate built from the company's REAL trailing free cash flow (through-cycle median), grown at its own historical rate fading to a sustainable pace and discounted back. Model-based, not advice.",
+            note:
+              (isCyclicalCommodity
+                ? "A discounted-cash-flow estimate for a CYCLICAL commodity producer. Because these cash flows swing with commodity prices rather than compound, we value the normalised cash flow with essentially no real growth and a higher, cyclical cost of capital — a mid-cycle read, not an extrapolation of a peak year."
+                : usedForwardBase
+                ? "A FORWARD-LOOKING discounted-cash-flow estimate. The base is consensus forward earnings converted to cash using the company's own historical cash conversion (so its reinvestment is still charged for), grown at the analysts' consensus rate fading to a sustainable pace and discounted back. Forward earnings are used here because they are higher than the trailing record — the signature of a business coming out of a trough, where valuing off last cycle alone would understate it."
+                : baseIsOcf
+                ? "A discounted-cash-flow estimate built from NORMALISED OWNER EARNINGS — through-cycle operating cash flow less through-cycle capital spending — grown at the consensus (or the company's own historical) rate, fading to a sustainable pace and discounted back. This basis is used because reported free cash flow is negative through the cycle: the company is reinvesting more than it currently generates."
+                : "A discounted-cash-flow estimate built from the company's REAL free cash flow (every reported year counts, weighted toward recent ones, so heavy-investment years are included rather than ignored), grown at the consensus rate fading to a sustainable pace and discounted back.") +
+              (cashflowVolatile
+                ? " Note: free cash flow has been negative in at least one reported year, so the trailing record spans very different phases of the investment cycle — treat this as a wide range, not a precise value, and weigh it against the analyst and sector lenses above."
+                : "") +
+              " Model-based, not advice.",
           }
         : undefined,
     sectorValuation,

@@ -135,7 +135,7 @@ export default function CompanySnapshot({
           </div>
           <p className="mt-1 max-w-md text-xs text-slate-500">{a.fairValue.note}</p>
         </div>
-        <div className="flex items-center gap-6">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
           <div>
             <div className="text-xs text-slate-500">Current</div>
             <div className="font-mono text-xl font-semibold tnum text-white">{cur}{fmtPrice(resolvedPrice)}</div>
@@ -171,7 +171,7 @@ export default function CompanySnapshot({
           </div>
           <p className="mt-1 max-w-md text-xs text-slate-500">{cf.note}</p>
         </div>
-        <div className="flex items-center gap-6">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
           <div>
             <div className="text-xs text-slate-500">Current</div>
             <div className="font-mono text-xl font-semibold tnum text-white">
@@ -272,7 +272,7 @@ export default function CompanySnapshot({
           </div>
           <p className="mt-1 max-w-md text-xs text-slate-500">{sv.note}</p>
         </div>
-        <div className="flex items-center gap-6">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
           <div>
             <div className="text-xs text-slate-500">Current</div>
             <div className="font-mono text-xl font-semibold tnum text-white">{cur}{fmtPrice(resolvedPrice)}</div>
