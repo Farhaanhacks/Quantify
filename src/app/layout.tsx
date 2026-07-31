@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { Lora, Source_Serif_4 } from "next/font/google";
+import { Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import Navbar from "@/components/quantifi/Navbar";
@@ -10,22 +10,19 @@ import LimitedOfferPopup from "@/components/quantifi/LimitedOfferPopup";
 import JsonLd from "@/components/JsonLd";
 import { SITE, organizationJsonLd, websiteJsonLd, softwareApplicationJsonLd } from "@/lib/seo";
 
-// Lora everywhere for body + numbers (--font-lora → font-sans / font-mono).
-const lora = Lora({
+// Inter everywhere — body, headings and numerals. One family for the whole app,
+// so nothing renders in a different typeface. Both CSS variables are bound to it
+// (--font-lora → font-sans/font-mono, --font-display → font-display) rather than
+// renaming every utility across the codebase.
+//
+// `cv05`/`cv08` give the single-storey "a"/"l" alternates that keep Inter legible
+// at small sizes, and `tnum` makes every figure tabular so prices and percentages
+// line up in columns.
+const inter = Inter({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   style: ["normal", "italic"],
-  variable: "--font-lora",
-  display: "swap",
-});
-
-// Headings/titles only (font-display) use Source Serif 4 — a similar serif to
-// Lora but with tighter, normal word spacing, so large bold titles don't read
-// spaced-out the way Lora's do.
-const heading = Source_Serif_4({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--font-display",
+  variable: "--font-inter",
   display: "swap",
 });
 
@@ -66,7 +63,7 @@ export default function RootLayout({
   // theme script under the strict (no 'unsafe-inline') script-src.
   const nonce = headers().get("x-nonce") ?? undefined;
   return (
-    <html lang="en" className={`dark ${lora.variable} ${heading.variable}`}>
+    <html lang="en" className={`dark ${inter.variable}`}>
       <head>
         {/* Light mode is the default for first-time visitors; we only stay in
             dark mode when the user has explicitly chosen it. Applied before

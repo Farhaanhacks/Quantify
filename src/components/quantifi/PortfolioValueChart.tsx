@@ -141,15 +141,15 @@ export default function PortfolioValueChart() {
         el.innerHTML = "";
 
         const loraFamily =
-          getComputedStyle(document.documentElement).getPropertyValue("--font-lora").trim() ||
-          "Georgia, serif";
+          getComputedStyle(document.documentElement).getPropertyValue("--font-inter").trim() ||
+          "ui-sans-serif, system-ui, sans-serif";
         chart = createChart(el, {
           width: el.clientWidth,
           height: 320,
           layout: {
             background: { type: ColorType.Solid, color: "transparent" },
             textColor: "#94a3b8",
-            fontFamily: `${loraFamily}, Georgia, serif`,
+            fontFamily: `${loraFamily}, ui-sans-serif, system-ui, sans-serif`,
           },
           grid: {
             vertLines: { color: "rgba(255,255,255,0.04)" },

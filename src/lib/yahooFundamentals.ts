@@ -544,8 +544,17 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   // company's own operating-cash-flow CAGR (steadier than FCF), then FCF CAGR,
   // then income-statement growth. cagr() returns undefined unless both endpoints
   // are positive, so a loss-making history can't produce a nonsense rate.
+  // Yahoo's long-term consensus is frequently a rounded placeholder — Trent comes
+  // back as exactly 0.20 while the company's own earnings are compounding at 25.8%.
+  // Where the company's OWN recent growth corroborates a higher rate than the
+  // consensus, take the higher of the two; the 25% cap, the two-stage fade and the
+  // terminal rate all still bound the result.
+  const corroboratedGrowth =
+    analystGrowth != null && earnGrowth != null && earnGrowth > analystGrowth
+      ? earnGrowth
+      : analystGrowth;
   const cashflowGrowth =
-    analystGrowth ??
+    corroboratedGrowth ??
     cagr(ocfSeries) ??
     cagr(fcfSeries) ??
     forwardGrowth(revGrowth, earnGrowth);
@@ -775,7 +784,17 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
       medFcf != null && trailingNetIncome != null && trailingNetIncome > 0
         ? medFcf / trailingNetIncome
         : 0.6; // no clean read → a conservative default conversion
-    const conversion = Math.min(1, Math.max(0.25, rawConversion));
+    // A company in a heavy expansion phase converts little of its profit into free
+    // cash — but that shortfall is GROWTH capex, which is discretionary and buys
+    // the very growth this model then projects. Freezing the expansion-phase ratio
+    // as a permanent haircut double-counts it. Trent converts ~36% of profit today
+    // because it is building out Zudio, not because its economics are poor; only
+    // MAINTENANCE capex (roughly depreciation) is a true ongoing charge. So when
+    // the business is demonstrably expanding, floor the conversion nearer a
+    // steady-state level instead of assuming it reinvests at this rate forever.
+    const expanding = revGrowth != null && revGrowth > 0.15;
+    const conversionFloor = expanding ? 0.6 : 0.25;
+    const conversion = Math.min(1, Math.max(conversionFloor, rawConversion));
     const candidate = forwardNetIncome * conversion;
     if (candidate > 0 && (baseCashflow == null || candidate > baseCashflow)) {
       forwardBase = candidate;

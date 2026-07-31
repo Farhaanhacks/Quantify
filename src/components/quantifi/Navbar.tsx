@@ -139,8 +139,8 @@ function SearchBox({ onGo, className = "" }: { onGo?: () => void; className?: st
 
   return (
     <div ref={boxRef} className={`relative ${className}`}>
-      <div className="flex w-full items-center rounded-lg border border-white/10 bg-white/[0.04] px-2.5 transition-colors focus-within:border-brand/60 focus-within:bg-white/[0.07]">
-        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 flex-none text-slate-500" fill="none" stroke="currentColor" strokeWidth="2">
+      <div className="flex w-full items-center rounded-lg border border-white/10 bg-white/[0.04] px-3 transition-colors focus-within:border-brand/60 focus-within:bg-white/[0.07]">
+        <svg viewBox="0 0 24 24" className="h-4 w-4 flex-none text-slate-500" fill="none" stroke="currentColor" strokeWidth="2">
           <circle cx="11" cy="11" r="7" />
           <path d="m21 21-4.3-4.3" strokeLinecap="round" />
         </svg>
@@ -158,7 +158,7 @@ function SearchBox({ onGo, className = "" }: { onGo?: () => void; className?: st
           aria-expanded={open}
           aria-controls="stock-search-listbox"
           autoComplete="off"
-          className="w-full bg-transparent px-2 py-1.5 text-[0.72rem] text-white placeholder:text-slate-500 outline-none"
+          className="w-full bg-transparent px-2 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none"
         />
       </div>
 
@@ -242,10 +242,10 @@ export default function Navbar() {
             <Link
               key={l.href}
               href={l.href}
-              className={`whitespace-nowrap rounded-full px-1.5 py-1.5 text-[0.72rem] transition ${
+              className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-sm font-medium transition ${
                 isActive(l.href)
                   ? "bg-white/10 text-white"
-                  : "text-slate-400 hover:text-white"
+                  : "text-slate-300 hover:text-white"
               }`}
             >
               {l.label}
@@ -254,7 +254,8 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-2">
-          <SearchBox className="hidden w-52 md:flex" />
+          {/* Wide enough that the placeholder isn't clipped at the larger type size. */}
+          <SearchBox className="hidden w-64 md:flex lg:w-72" />
           <ThemeToggle />
           <NotificationBell />
           <AuthButton />

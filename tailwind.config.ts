@@ -42,10 +42,12 @@ const config: Config = {
         down: "#FB7185",
       },
       fontFamily: {
-        // Titles/headings → Source Serif 4; body + numbers → Lora.
-        display: ["var(--font-display)", "Georgia", "serif"],
-        sans: ["var(--font-lora)", "Georgia", "serif"],
-        mono: ["var(--font-lora)", "ui-monospace", "monospace"],
+        // Inter for everything — headings, body and figures. All three keys point
+        // at the same family so any existing font-display / font-sans / font-mono
+        // utility in the codebase renders in Inter without being rewritten.
+        display: ["var(--font-inter)", "ui-sans-serif", "system-ui", "sans-serif"],
+        sans: ["var(--font-inter)", "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ["var(--font-inter)", "ui-sans-serif", "system-ui", "sans-serif"],
       },
       borderRadius: {
         "2xl": "1.125rem",

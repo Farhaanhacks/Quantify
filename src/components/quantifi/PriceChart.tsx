@@ -96,18 +96,18 @@ export default function PriceChart({
           return;
         }
 
-        // Canvas text can't read CSS variables, so resolve the site font (Lora)
+        // Canvas text can't read CSS variables, so resolve the site font (Inter)
         // from the computed style and pass the literal family to the chart.
         const loraFamily =
-          getComputedStyle(document.documentElement).getPropertyValue("--font-lora").trim() ||
-          "Georgia, serif";
+          getComputedStyle(document.documentElement).getPropertyValue("--font-inter").trim() ||
+          "ui-sans-serif, system-ui, sans-serif";
         chart = createChart(el, {
           width: el.clientWidth,
           height,
           layout: {
             background: { type: ColorType.Solid, color: "transparent" },
             textColor: "#94a3b8",
-            fontFamily: `${loraFamily}, Georgia, serif`,
+            fontFamily: `${loraFamily}, ui-sans-serif, system-ui, sans-serif`,
           },
           grid: {
             vertLines: { color: "rgba(255,255,255,0.04)" },
