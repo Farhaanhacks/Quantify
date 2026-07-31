@@ -65,7 +65,13 @@ export interface CompanyAnalytics {
   // `outOfRange` marks a company whose market multiple is far beyond anything a
   // 10-year DCF can span (a hyper-growth compounder). The estimate is still shown,
   // but as context rather than an over/under verdict — see CompanySnapshot.
-  cashflowValue?: { estimate: number; note: string; outOfRange?: boolean };
+  cashflowValue?: {
+    estimate: number;
+    note: string;
+    outOfRange?: boolean;
+    /** The inputs behind the estimate — for diagnosing a surprising number. */
+    debug?: Record<string, unknown>;
+  };
   // Optional sector-appropriate valuation (SaaS→EV/Sales, banks→P/B,
   // telecom/infra→EV/EBITDA, real-estate/commodities→NAV, else→P/E).
   sectorValuation?: {

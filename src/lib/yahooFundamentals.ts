@@ -868,20 +868,44 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
         ? {
             estimate: cfPerShare,
             outOfRange: cfOutOfRange,
+            // The inputs that produced this number, so a surprising estimate can
+            // be diagnosed from the actual figures instead of guesswork. Surfaced
+            // by /api/score/<symbol>?debug=1.
+            debug: {
+              base: baseCashflow,
+              baseKind: isCyclicalCommodity
+                ? "cyclical-normalised"
+                : usedForwardBase
+                ? "forward-earnings"
+                : baseIsOcf
+                ? "owner-earnings"
+                : "trailing-fcf",
+              growthUsed: isCyclicalCommodity ? 0.025 : cashflowGrowth,
+              analystGrowth,
+              forwardEps: fwdEpsEstimate,
+              forwardPE: fwdPe,
+              discountRate,
+              shares: sharesOutstanding,
+              medianFcf: medFcf,
+              trailingNetIncome: num(ks.netIncomeToCommon),
+              fcfYears: fcfSeries.length,
+            },
+            // One short line per case. This note used to concatenate up to three
+            // long paragraphs, which produced an unreadable wall of text that also
+            // contradicted itself (claiming "forward-looking" next to a standing
+            // "built from trailing cash flows" footer). Keep it to a sentence.
             note:
               (cfOutOfRange
-                ? "CONTEXT, NOT A VERDICT: this company trades at a multiple a 10-year discounted-cash-flow model cannot span — the market is capitalising a decade or more of expansion that sits beyond this window. The figure below is what the next ten years of cash flow are worth on their own; the gap to the share price is what the market is paying for everything after that. Judge it against the analyst target and the peer multiples, not as an over/under signal. "
+                ? "Context, not a verdict: priced beyond what a 10-year model can span, so the gap is what the market pays for the years after that. "
                 : "") +
               (isCyclicalCommodity
-                ? "A discounted-cash-flow estimate for a CYCLICAL commodity producer. Because these cash flows swing with commodity prices rather than compound, we value the normalised cash flow with essentially no real growth and a higher, cyclical cost of capital — a mid-cycle read, not an extrapolation of a peak year."
+                ? "Normalised mid-cycle cash flow, valued with no real growth and a cyclical cost of capital."
                 : usedForwardBase
-                ? "A FORWARD-LOOKING discounted-cash-flow estimate. The base is consensus forward earnings converted to cash using the company's own historical cash conversion (so its reinvestment is still charged for), grown at the analysts' consensus rate fading to a sustainable pace and discounted back. Forward earnings are used here because they are higher than the trailing record — the signature of a business coming out of a trough, where valuing off last cycle alone would understate it."
+                ? "Built from consensus forward earnings, converted to cash at the company's own historical rate."
                 : baseIsOcf
-                ? "A discounted-cash-flow estimate built from NORMALISED OWNER EARNINGS — through-cycle operating cash flow less through-cycle capital spending — grown at the consensus (or the company's own historical) rate, fading to a sustainable pace and discounted back. This basis is used because reported free cash flow is negative through the cycle: the company is reinvesting more than it currently generates."
-                : "A discounted-cash-flow estimate built from the company's REAL free cash flow (every reported year counts, weighted toward recent ones, so heavy-investment years are included rather than ignored), grown at the consensus rate fading to a sustainable pace and discounted back.") +
-              (cashflowVolatile
-                ? " Note: free cash flow has been negative in at least one reported year, so the trailing record spans very different phases of the investment cycle — treat this as a wide range, not a precise value, and weigh it against the analyst and sector lenses above."
-                : "") +
+                ? "Built from operating cash flow less capex — reported free cash flow is negative through the cycle."
+                : "Built from the company's own free cash flow, weighted toward recent years.") +
+              (cashflowVolatile ? " Free cash flow has been negative in some years — read it as a range." : "") +
               " Model-based, not advice.",
           }
         : undefined,
