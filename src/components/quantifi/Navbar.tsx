@@ -8,14 +8,14 @@ import ThemeToggle from "@/components/quantifi/ThemeToggle";
 import BrandLogo from "@/components/quantifi/BrandLogo";
 import NotificationBell from "@/components/quantifi/NotificationBell";
 
+// Ideas, Rare Finds and Tools are no longer surfaced in the nav — their content
+// is moving to the community page. The routes still exist, so any saved/shared
+// link keeps working; they're just not advertised here any more.
 const links = [
   { href: "/", label: "Home" },
-  { href: "/news", label: "News Impact" },
-  { href: "/ideas", label: "Ideas" },
-  { href: "/rare-finds", label: "Rare Finds" },
+  { href: "/news", label: "News" },
   { href: "/screener", label: "Screener" },
   { href: "/portfolio", label: "Portfolio" },
-  { href: "/tools", label: "Tools" },
   { href: "/watchlist", label: "Watchlist" },
   { href: "/pricing", label: "Subscribe" },
 ];
@@ -219,8 +219,11 @@ function SearchBox({ onGo, className = "" }: { onGo?: () => void; className?: st
 
 function BrandMark() {
   return (
-    <Link href="/" className="flex items-center" aria-label="Quantifi home">
-      <BrandLogo className="h-12" />
+    // shrink-0 is essential: without it flexbox compresses the logo to a sliver
+    // whenever the nav row runs out of room (which is exactly what happened when
+    // the links and search box grew).
+    <Link href="/" className="flex shrink-0 items-center" aria-label="Quantifi home">
+      <BrandLogo className="h-12 w-auto" />
     </Link>
   );
 }
