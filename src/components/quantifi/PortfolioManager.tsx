@@ -1,16 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
   GlassCard,
   SectionHeading,
   StatTile,
   TickerChip,
-  ChangePill,
+  Sparkline,
   tickerHref,
 } from "@/components/quantifi/Cards";
-import { fmtPrice, fmtPct, currencySymbol, currencyForTicker } from "@/data/demo";
+import { fmtPrice, fmtPct, currencySymbol, currencyForTicker, dirOf } from "@/data/demo";
 import { popularTickers } from "@/data/popularTickers";
 import {
   usePortfolios,
@@ -22,12 +22,43 @@ interface Quote {
   price: number;
   name?: string;
   currency?: string;
+  // Previous close and day change drive the 1D return column.
+  prevClose?: number;
+  changePct?: number;
 }
 
 const cur = (c?: string) => currencySymbol(c);
 
-function computeRows(p: UserPortfolio, quotes: Record<string, Quote>) {
-  const rows = p.holdings.map((h) => {
+// A signed cash figure — the secondary line under the return percentages.
+function signedMoney(amt: number, currency?: string): string {
+  const sign = amt > 0 ? "+" : amt < 0 ? "−" : "";
+  return `${sign}${cur(currency)}${fmtPrice(Math.abs(amt))}`;
+}
+
+// The holdings table only has room for nine columns on a wide screen. Below xl
+// it becomes a labelled card per holding, which is why every cell carries its
+// own header (see Cell) rather than relying on the row of column titles.
+const HOLDINGS_GRID =
+  "xl:grid-cols-[1.5fr_0.85fr_0.9fr_0.95fr_1fr_0.95fr_0.85fr_1fr_auto]";
+const HOLDINGS_GRID_ROW = `xl:grid ${HOLDINGS_GRID}`;
+
+function Cell({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="min-w-0 xl:text-right">
+      <div className="text-[0.55rem] uppercase tracking-[0.14em] text-slate-500 xl:hidden">
+        {label}
+      </div>
+      <div className="mt-0.5 xl:mt-0">{children}</div>
+    </div>
+  );
+}
+
+function computeRows(
+  p: UserPortfolio,
+  quotes: Record<string, Quote>,
+  sparks: Record<string, number[]> = {}
+) {
+  const base = p.holdings.map((h) => {
     const q = quotes[h.ticker];
     const px = q?.price ?? h.price;
     const value = h.shares * px;
@@ -35,6 +66,11 @@ function computeRows(p: UserPortfolio, quotes: Record<string, Quote>) {
     const pl = value - cost;
     const plPct = cost > 0 ? (pl / cost) * 100 : 0;
     const currency = q?.currency ?? currencyForTicker(h.ticker) ?? "USD";
+    // Day move: percentage straight from the quote, the cash figure derived from
+    // the previous close so it always agrees with the shares actually held.
+    const dayPct = q?.changePct ?? null;
+    const prev = q?.prevClose ?? (dayPct != null ? px / (1 + dayPct / 100) : px);
+    const dayChange = q ? h.shares * (px - prev) : null;
     return {
       ...h,
       price: px,
@@ -44,9 +80,17 @@ function computeRows(p: UserPortfolio, quotes: Record<string, Quote>) {
       pl,
       plPct,
       currency,
+      dayPct,
+      dayChange,
+      spark: sparks[h.ticker] ?? null,
     };
   });
-  const totalValue = rows.reduce((s, r) => s + r.value, 0);
+  const totalValue = base.reduce((s, r) => s + r.value, 0);
+  // Weight needs the book total, so it's a second pass.
+  const rows = base.map((r) => ({
+    ...r,
+    weight: totalValue > 0 ? (r.value / totalValue) * 100 : 0,
+  }));
   const totalCost = rows.reduce((s, r) => s + r.cost, 0);
   const totalPl = totalValue - totalCost;
   const totalPlPct = totalCost > 0 ? (totalPl / totalCost) * 100 : 0;
@@ -238,6 +282,7 @@ export default function PortfolioManager() {
 
   // live quotes by ticker
   const [quotes, setQuotes] = useState<Record<string, Quote>>({});
+  const [sparks, setSparks] = useState<Record<string, number[]>>({});
 
   useEffect(() => {
     if (!ready) return;
@@ -266,7 +311,13 @@ export default function PortfolioManager() {
           if (!cancelled && d.valid && typeof d.price === "number") {
             setQuotes((prev) => ({
               ...prev,
-              [t]: { price: d.price, name: d.name, currency: d.currency },
+              [t]: {
+                price: d.price,
+                name: d.name,
+                currency: d.currency,
+                prevClose: typeof d.prevClose === "number" ? d.prevClose : undefined,
+                changePct: typeof d.changePct === "number" ? d.changePct : undefined,
+              },
             }));
           }
         } catch {
@@ -280,9 +331,38 @@ export default function PortfolioManager() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, holdingsKey]);
 
+  // One year of closes per holding, thinned to ~50 points — enough for the
+  // trend shape in the 1Y column without shipping a full price history.
+  useEffect(() => {
+    if (!current) return;
+    const tickers = Array.from(new Set(current.holdings.map((h) => h.ticker)));
+    let cancelled = false;
+    (async () => {
+      for (const t of tickers) {
+        try {
+          const r = await fetch(`/api/timeseries/${encodeURIComponent(t)}?range=1y`);
+          const d = await r.json();
+          if (cancelled || !Array.isArray(d?.points)) continue;
+          const vals = (d.points as { value: number }[])
+            .map((pt) => pt.value)
+            .filter((v) => typeof v === "number" && isFinite(v));
+          if (vals.length < 2) continue;
+          const step = Math.max(1, Math.floor(vals.length / 50));
+          setSparks((prev) => ({ ...prev, [t]: vals.filter((_, i) => i % step === 0).slice(-56) }));
+        } catch {
+          /* chart is optional — the row renders without it */
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, holdingsKey]);
+
   const summary = useMemo(
-    () => (current ? computeRows(current, quotes) : null),
-    [current, quotes]
+    () => (current ? computeRows(current, quotes, sparks) : null),
+    [current, quotes, sparks]
   );
 
   async function handleAdd() {
@@ -577,13 +657,15 @@ export default function PortfolioManager() {
 
           {/* Holdings table */}
           <GlassCard className="mt-4 overflow-hidden">
-            <div className="hidden grid-cols-[1.4fr_0.7fr_0.8fr_0.8fr_1fr_0.9fr_auto] gap-3 border-b border-white/[0.06] px-5 py-3 text-[0.62rem] uppercase tracking-[0.16em] text-slate-500 lg:grid">
-              <span>Holding</span>
-              <span className="text-right">Shares</span>
-              <span className="text-right">Avg cost</span>
-              <span className="text-right">Price</span>
-              <span className="text-right">Value</span>
-              <span className="text-right">Gain / loss</span>
+            <div className={`hidden gap-3 border-b border-white/[0.06] px-5 py-3 text-[0.62rem] uppercase tracking-[0.16em] text-slate-500 xl:grid ${HOLDINGS_GRID}`}>
+              <span>Symbol</span>
+              <span className="text-right">Last price</span>
+              <span className="text-right">1D return</span>
+              <span className="text-right">Total return</span>
+              <span className="text-right">Value / Cost</span>
+              <span className="text-right">Weight / Shares</span>
+              <span className="text-right">Avg. price</span>
+              <span className="text-right">1Y chart</span>
               <span />
             </div>
             <ul className="divide-y divide-white/[0.05]">
@@ -592,58 +674,118 @@ export default function PortfolioManager() {
                 return (
                 <li
                   key={r.id}
-                  className="grid grid-cols-2 gap-3 px-5 py-4 lg:grid-cols-[1.4fr_0.7fr_0.8fr_0.8fr_1fr_0.9fr_auto] lg:items-center"
+                  className={`grid grid-cols-2 gap-x-3 gap-y-3 px-5 py-4 sm:grid-cols-3 xl:items-center ${HOLDINGS_GRID_ROW}`}
                 >
-                  <div className="flex items-center gap-2.5">
+                  <div className="col-span-2 flex min-w-0 items-center gap-2.5 sm:col-span-3 xl:col-span-1">
                     <TickerChip ticker={r.ticker} link />
                     <Link
                       href={tickerHref(r.ticker)}
-                      className="hidden truncate text-sm text-slate-300 transition hover:text-white sm:inline"
+                      className="truncate text-sm text-slate-300 transition hover:text-white"
                     >
                       {r.name}
                     </Link>
                   </div>
-                  {editing ? (
-                    <div className="flex justify-end lg:pl-1">
-                      <input
-                        type="number"
-                        autoFocus
-                        value={editShares}
-                        onChange={(e) => setEditShares(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") saveEdit(current.id, r.id);
-                          if (e.key === "Escape") cancelEdit();
-                        }}
-                        aria-label={`Shares of ${r.ticker}`}
-                        className="w-20 rounded-md border border-gold/40 bg-ink-800 px-2 py-1 text-right font-mono text-sm text-white outline-none"
+
+                  <Cell label="Last price">
+                    <span className="font-mono text-sm tnum text-slate-300">
+                      {cur(r.currency)}{fmtPrice(r.price)}
+                    </span>
+                  </Cell>
+
+                  <Cell label="1D return">
+                    {r.dayPct != null ? (
+                      <>
+                        <span
+                          className={`font-mono text-sm tnum ${r.dayPct >= 0 ? "text-up" : "text-down"}`}
+                        >
+                          {fmtPct(r.dayPct)}
+                        </span>
+                        {r.dayChange != null ? (
+                          <span className="block font-mono text-[0.7rem] tnum text-slate-500">
+                            {signedMoney(r.dayChange, r.currency)}
+                          </span>
+                        ) : null}
+                      </>
+                    ) : (
+                      <span className="text-xs text-slate-600">—</span>
+                    )}
+                  </Cell>
+
+                  <Cell label="Total return">
+                    <span className={`font-mono text-sm tnum ${r.pl >= 0 ? "text-up" : "text-down"}`}>
+                      {fmtPct(r.plPct)}
+                    </span>
+                    <span className="block font-mono text-[0.7rem] tnum text-slate-500">
+                      {signedMoney(r.pl, r.currency)}
+                    </span>
+                  </Cell>
+
+                  <Cell label="Value / Cost">
+                    <span className="font-mono text-sm tnum text-white">
+                      {cur(r.currency)}{fmtPrice(r.value)}
+                    </span>
+                    <span className="block font-mono text-[0.7rem] tnum text-slate-500">
+                      {cur(r.currency)}{fmtPrice(r.cost)}
+                    </span>
+                  </Cell>
+                  <Cell label="Weight / Shares">
+                    <span className="font-mono text-sm tnum text-slate-300">{r.weight.toFixed(1)}%</span>
+                    {editing ? (
+                      <span className="mt-1 flex justify-start xl:justify-end">
+                        <input
+                          type="number"
+                          autoFocus
+                          value={editShares}
+                          onChange={(e) => setEditShares(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") saveEdit(current.id, r.id);
+                            if (e.key === "Escape") cancelEdit();
+                          }}
+                          aria-label={`Shares of ${r.ticker}`}
+                          className="w-20 rounded-md border border-gold/40 bg-ink-800 px-2 py-1 text-right font-mono text-xs text-white outline-none"
+                        />
+                      </span>
+                    ) : (
+                      <span className="block font-mono text-[0.7rem] tnum text-slate-500">
+                        {r.shares} sh
+                      </span>
+                    )}
+                  </Cell>
+
+                  <Cell label="Avg. price">
+                    {editing ? (
+                      <span className="flex justify-start xl:justify-end">
+                        <input
+                          type="number"
+                          value={editAvgCost}
+                          onChange={(e) => setEditAvgCost(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") saveEdit(current.id, r.id);
+                            if (e.key === "Escape") cancelEdit();
+                          }}
+                          aria-label={`Average cost of ${r.ticker}`}
+                          className="w-20 rounded-md border border-gold/40 bg-ink-800 px-2 py-1 text-right font-mono text-xs text-white outline-none"
+                        />
+                      </span>
+                    ) : (
+                      <span className="font-mono text-sm tnum text-slate-300">
+                        {cur(r.currency)}{fmtPrice(r.avgCost)}
+                      </span>
+                    )}
+                  </Cell>
+
+                  <Cell label="1Y chart">
+                    {r.spark && r.spark.length > 1 ? (
+                      <Sparkline
+                        data={r.spark}
+                        dir={dirOf(r.spark[r.spark.length - 1] - r.spark[0])}
+                        className="h-8 w-full min-w-[5rem]"
                       />
-                    </div>
-                  ) : (
-                    <div className="text-right font-mono text-sm tnum text-slate-300">{r.shares}</div>
-                  )}
-                  {editing ? (
-                    <div className="flex justify-end">
-                      <input
-                        type="number"
-                        value={editAvgCost}
-                        onChange={(e) => setEditAvgCost(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") saveEdit(current.id, r.id);
-                          if (e.key === "Escape") cancelEdit();
-                        }}
-                        aria-label={`Average cost of ${r.ticker}`}
-                        className="w-20 rounded-md border border-gold/40 bg-ink-800 px-2 py-1 text-right font-mono text-sm text-white outline-none"
-                      />
-                    </div>
-                  ) : (
-                    <div className="text-right font-mono text-sm tnum text-slate-300">{cur(r.currency)}{fmtPrice(r.avgCost)}</div>
-                  )}
-                  <div className="text-right font-mono text-sm tnum text-slate-300">{cur(r.currency)}{fmtPrice(r.price)}</div>
-                  <div className="text-right font-mono text-sm tnum text-white">{cur(r.currency)}{fmtPrice(r.value)}</div>
-                  <div className="flex justify-end">
-                    <ChangePill value={r.plPct} size="xs" />
-                  </div>
-                  <div className="flex justify-end gap-1">
+                    ) : (
+                      <span className="text-xs text-slate-600">—</span>
+                    )}
+                  </Cell>
+                  <div className="col-span-2 flex justify-end gap-1 sm:col-span-3 xl:col-span-1">
                     {editing ? (
                       <>
                         <button
