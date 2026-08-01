@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { GlassCard, SectionHeading, TickerChip, Tag } from "@/components/quantifi/Cards";
+import { GlassCard, SectionHeading, TickerChip, Tag, Skeleton } from "@/components/quantifi/Cards";
 import { fmtCompact } from "@/data/demo";
 
 interface ApiTrade {
@@ -83,6 +83,32 @@ function tradeToRow(t: ApiTrade): Row {
     sharesText: t.shares ? t.shares.toLocaleString() : "—",
     dateText: fmtDate(t.date),
   };
+}
+
+// Placeholder rows shown while the live filing feed is in flight. `cols` are the
+// grid tracks of the table this stands in for, so the section keeps its shape
+// instead of collapsing to a single "Loading…" line on first paint.
+function FilingSkeletonRows({ rows, cols }: { rows: number; cols: string[] }) {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, r) => (
+        <li key={`sk-${r}`} className="grid items-center gap-3 px-5 py-4" style={{ gridTemplateColumns: cols.join(" ") }}>
+          {cols.map((_c, i) =>
+            i === 0 ? (
+              <span key={i} className="flex items-center gap-2.5">
+                <Skeleton className="h-5 w-16 rounded-full" />
+                <Skeleton className="hidden h-3 w-28 sm:block" />
+              </span>
+            ) : (
+              <span key={i} className="flex justify-end">
+                <Skeleton className="h-3.5 w-16" />
+              </span>
+            )
+          )}
+        </li>
+      ))}
+    </>
+  );
 }
 
 export default function InsiderActivity({
@@ -289,6 +315,9 @@ export default function InsiderActivity({
             <span className="text-right">When</span>
           </div>
           <ul className="divide-y divide-white/[0.05]">
+            {loading && disclosures.length === 0 ? (
+              <FilingSkeletonRows rows={limit ?? 5} cols={["2.6fr", "1fr"]} />
+            ) : null}
             {(limit ? disclosures.slice(0, limit) : disclosures).map((d) => (
               <li
                 key={d.id}
@@ -345,9 +374,6 @@ export default function InsiderActivity({
                 : `No recent insider / SAST disclosures found for ${activeTicker}. This covers NSE/BSE-filed SEBI PIT disclosures; some names or periods simply have none.`}
             </div>
           ) : null}
-          {loading && disclosures.length === 0 ? (
-            <div className="px-5 py-10 text-center text-sm text-slate-500">Loading disclosures…</div>
-          ) : null}
         </GlassCard>
       ) : (
       <GlassCard className="mt-6 overflow-hidden">
@@ -360,6 +386,9 @@ export default function InsiderActivity({
         </div>
 
         <ul className="divide-y divide-white/[0.05]">
+          {loading && filtered.length === 0 ? (
+            <FilingSkeletonRows rows={limit ?? 5} cols={["1.3fr", "1.1fr", "1fr", "0.8fr", "0.8fr"]} />
+          ) : null}
           {filtered.map((r) => (
             <li
               key={r.id}
@@ -405,9 +434,6 @@ export default function InsiderActivity({
           </div>
         ) : null}
 
-        {loading && filtered.length === 0 ? (
-          <div className="px-5 py-10 text-center text-sm text-slate-500">Loading insider filings…</div>
-        ) : null}
       </GlassCard>
       )}
     </section>

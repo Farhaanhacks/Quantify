@@ -1,15 +1,17 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   GlassCard,
   SectionHeading,
   BarMeter,
   Tag,
+  Skeleton,
+  SamplePreview,
 } from "@/components/quantifi/Cards";
 import { usePortfolios } from "@/lib/usePortfolios";
 import { sectorForTicker, regionForTicker } from "@/data/sectors";
+import { SAMPLE_HOLDINGS, SAMPLE_USDINR } from "@/data/samplePortfolio";
 
 type Level = "Moderate" | "Elevated" | "High";
 const levelTone: Record<Level, "up" | "gold" | "down"> = {
@@ -172,6 +174,110 @@ function InteractiveDonut({
   );
 }
 
+type Book = ReturnType<typeof computeBook>;
+
+// The full risk read-out. Extracted so the sample preview renders exactly what a
+// real portfolio renders, rather than a hand-built marketing mock.
+function RiskBody({ book }: { book: Book }) {
+  const { sectorSegs, regionSegs, notes, weights } = book;
+  return (
+    <>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <GlassCard className="p-5">
+          <h3 className="font-display text-base font-semibold text-white">Concentration risk</h3>
+          <ul className="mt-4 space-y-4">
+            {notes.map((c) => (
+              <li key={c.label}>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-200">{c.label}</span>
+                  <Tag tone={levelTone[c.level]}>{c.level}</Tag>
+                </div>
+                <p className="mt-1 text-xs leading-relaxed text-slate-400">{c.detail}</p>
+              </li>
+            ))}
+          </ul>
+        </GlassCard>
+
+        <GlassCard className="p-5">
+          <h3 className="font-display text-base font-semibold text-white">By sector</h3>
+          <div className="mt-3">
+            <InteractiveDonut segments={sectorSegs} idleValue={`${sectorSegs[0]?.pct ?? 0}%`} idleLabel="top sector" />
+          </div>
+        </GlassCard>
+
+        <GlassCard className="p-5">
+          <h3 className="font-display text-base font-semibold text-white">Holdings by region</h3>
+          <div className="mt-3">
+            <InteractiveDonut segments={regionSegs} idleValue={`${regionSegs[0]?.pct ?? 0}%`} idleLabel="top region" />
+          </div>
+        </GlassCard>
+      </div>
+
+      <GlassCard className="mt-4 p-5 sm:p-6">
+        <div className="flex items-center justify-between">
+          <h3 className="font-display text-base font-semibold text-white">Diversification across holdings</h3>
+          <span className="text-xs text-slate-500">{weights.length} positions</span>
+        </div>
+        <div className="mt-5 grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
+          {weights.map((h, i) => (
+            <BarMeter key={h.ticker} label={h.ticker} value={h.pct} color={PALETTE[i % PALETTE.length]} />
+          ))}
+        </div>
+      </GlassCard>
+    </>
+  );
+}
+
+// Three cards with a ring-shaped placeholder each — the same silhouette the real
+// donuts occupy, so nothing jumps when the numbers land.
+function RiskSkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <GlassCard className="p-5">
+        <Skeleton className="h-4 w-40" />
+        <ul className="mt-5 space-y-5">
+          {[0, 1, 2].map((i) => (
+            <li key={i}>
+              <div className="flex items-center justify-between gap-3">
+                <Skeleton className="h-3.5 w-40" />
+                <Skeleton className="h-5 w-16 rounded-full" />
+              </div>
+              <Skeleton className="mt-2 h-2.5 w-full" />
+            </li>
+          ))}
+        </ul>
+      </GlassCard>
+      {[0, 1].map((i) => (
+        <GlassCard key={i} className="p-5">
+          <Skeleton className="h-4 w-28" />
+          <div className="mt-5 flex justify-center">
+            <Skeleton className="h-[168px] w-[168px] rounded-full" />
+          </div>
+          <div className="mt-5 space-y-2">
+            {[0, 1, 2].map((j) => (
+              <div key={j} className="flex items-center justify-between gap-3 px-2">
+                <Skeleton className="h-3 w-28" />
+                <Skeleton className="h-3 w-8" />
+              </div>
+            ))}
+          </div>
+        </GlassCard>
+      ))}
+    </div>
+  );
+}
+
+const SAMPLE_BOOK = computeBook(
+  SAMPLE_HOLDINGS.map((h) => ({
+    ticker: h.ticker,
+    // Sample INR positions are converted at the sample FX rate so one currency
+    // doesn't dominate the weights purely through its unit size.
+    value: h.shares * h.price * (h.currency === "INR" ? 1 / SAMPLE_USDINR : 1),
+    sector: h.sector,
+    region: h.region,
+  }))
+);
+
 export default function Diversification({ heading = true }: { heading?: boolean }) {
   const { portfolios, ready } = usePortfolios();
   const saved = ready ? portfolios[0]?.holdings ?? [] : [];
@@ -221,11 +327,6 @@ export default function Diversification({ heading = true }: { heading?: boolean 
 
   const book = isReal ? computeBook(resolved) : null;
 
-  const sectorSegs: Seg[] = book ? book.sectorSegs : [];
-  const regionSegs: Seg[] = book ? book.regionSegs : [];
-  const notes: Note[] = book ? book.notes : [];
-  const weights = book ? book.weights : [];
-
   return (
     <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
       {heading ? (
@@ -236,65 +337,25 @@ export default function Diversification({ heading = true }: { heading?: boolean 
         />
       ) : null}
 
-      {!isReal ? (
-        <GlassCard className="mt-6 p-10 text-center">
-          <p className="text-sm text-slate-300">Add your first holding to start portfolio analysis.</p>
-          <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-slate-500">
-            Your sector mix, regional split and concentration risk are computed from the holdings you
-            add — nothing is shown until you build a portfolio.
-          </p>
-          <Link
-            href="/portfolio"
-            className="mt-5 inline-flex rounded-full bg-gradient-to-r from-gold-400 to-gold-600 px-5 py-2.5 text-sm font-semibold text-ink transition hover:opacity-90"
-          >
-            Build your portfolio →
-          </Link>
-        </GlassCard>
+      {!ready ? (
+        <div className="mt-6">
+          <RiskSkeleton />
+        </div>
+      ) : !book ? (
+        // Nothing saved yet: run the same analysis over an example book so the
+        // section shows what it does instead of an empty card.
+        <SamplePreview
+          className="mt-6"
+          note="Example book. Add your holdings and this risk lens is computed from your real sector, region and position weights."
+          cta="Build your portfolio →"
+          href="/portfolio"
+        >
+          <RiskBody book={SAMPLE_BOOK} />
+        </SamplePreview>
       ) : (
-      <>
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <GlassCard className="p-5">
-          <h3 className="font-display text-base font-semibold text-white">Concentration risk</h3>
-          <ul className="mt-4 space-y-4">
-            {notes.map((c) => (
-              <li key={c.label}>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-200">{c.label}</span>
-                  <Tag tone={levelTone[c.level]}>{c.level}</Tag>
-                </div>
-                <p className="mt-1 text-xs leading-relaxed text-slate-400">{c.detail}</p>
-              </li>
-            ))}
-          </ul>
-        </GlassCard>
-
-        <GlassCard className="p-5">
-          <h3 className="font-display text-base font-semibold text-white">By sector</h3>
-          <div className="mt-3">
-            <InteractiveDonut segments={sectorSegs} idleValue={`${sectorSegs[0]?.pct ?? 0}%`} idleLabel="top sector" />
-          </div>
-        </GlassCard>
-
-        <GlassCard className="p-5">
-          <h3 className="font-display text-base font-semibold text-white">Holdings by region</h3>
-          <div className="mt-3">
-            <InteractiveDonut segments={regionSegs} idleValue={`${regionSegs[0]?.pct ?? 0}%`} idleLabel="top region" />
-          </div>
-        </GlassCard>
-      </div>
-
-      <GlassCard className="mt-4 p-5 sm:p-6">
-        <div className="flex items-center justify-between">
-          <h3 className="font-display text-base font-semibold text-white">Diversification across holdings</h3>
-          <span className="text-xs text-slate-500">{weights.length} positions</span>
+        <div className="mt-6">
+          <RiskBody book={book} />
         </div>
-        <div className="mt-5 grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
-          {weights.map((h, i) => (
-            <BarMeter key={h.ticker} label={h.ticker} value={h.pct} color={PALETTE[i % PALETTE.length]} />
-          ))}
-        </div>
-      </GlassCard>
-      </>
       )}
     </section>
   );

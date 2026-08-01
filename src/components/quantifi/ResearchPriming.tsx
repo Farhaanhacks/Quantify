@@ -8,10 +8,11 @@ const QUESTIONS = [
   "What would break it?",
 ];
 
+// Ideas and Research Playbooks are no longer surfaced anywhere in the product —
+// they were dropped from the nav when that content moved to the community page,
+// so they don't belong in the flow either. News Impact leads.
 const FLOW: { label: string; href: string; desc: string }[] = [
   { label: "News Impact", href: "/news", desc: "A headline → the names it moves" },
-  { label: "Ideas", href: "/ideas", desc: "The research map behind a theme" },
-  { label: "Research Playbooks", href: "/ideas", desc: "Major frameworks, decoded" },
   { label: "Portfolio", href: "/portfolio", desc: "How it lands on what you own" },
 ];
 
@@ -19,10 +20,14 @@ export default function ResearchPriming() {
   return (
     <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
       <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-6 sm:p-9">
+        {/* The hero already says "research maps, not stock tips" — this section
+            shows what that means in practice rather than repeating the claim. */}
         <p className="text-[0.7rem] uppercase tracking-[0.18em] text-gold">
-          Quantifi is not stock tips. It&apos;s research maps.
+          What a research map answers
         </p>
-        <p className="mt-3 max-w-2xl text-sm text-slate-400">Start asking the questions research actually answers:</p>
+        <p className="mt-3 max-w-2xl text-sm text-slate-400">
+          Every map on Quantifi is built around the same five questions:
+        </p>
 
         <div className="mt-5 flex flex-wrap gap-2">
           {QUESTIONS.map((q) => (
@@ -35,7 +40,7 @@ export default function ResearchPriming() {
           ))}
         </div>
 
-        <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {FLOW.map((f, i) => (
             <Link
               key={f.label}

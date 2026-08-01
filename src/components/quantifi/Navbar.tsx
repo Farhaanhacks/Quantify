@@ -11,13 +11,17 @@ import NotificationBell from "@/components/quantifi/NotificationBell";
 // Ideas, Rare Finds and Tools are no longer surfaced in the nav — their content
 // is moving to the community page. The routes still exist, so any saved/shared
 // link keeps working; they're just not advertised here any more.
+//
+// Subscribe keeps the shape of every other nav item; only its colour differs.
+// `accent` marks it so it reads as the paid destination without turning into a
+// differently-shaped control.
 const links = [
   { href: "/", label: "Home" },
   { href: "/news", label: "News" },
   { href: "/screener", label: "Screener" },
   { href: "/portfolio", label: "Portfolio" },
   { href: "/watchlist", label: "Watchlist" },
-  { href: "/pricing", label: "Subscribe" },
+  { href: "/pricing", label: "Subscribe", accent: true },
 ];
 
 // One search result / recently-viewed entry.
@@ -248,7 +252,9 @@ export default function Navbar() {
               // Hovering paints the same soft square as the active page, so the
               // whole row reads as a set of chips rather than bare text.
               className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-sm font-medium transition ${
-                isActive(l.href)
+                l.accent
+                  ? `text-gold hover:bg-white/10 ${isActive(l.href) ? "bg-white/10" : ""}`
+                  : isActive(l.href)
                   ? "bg-white/10 text-white"
                   : "text-slate-300 hover:bg-white/10 hover:text-white"
               }`}
@@ -290,7 +296,9 @@ export default function Navbar() {
                 href={l.href}
                 onClick={() => setOpen(false)}
                 className={`rounded-lg px-3 py-2 text-sm transition ${
-                  isActive(l.href)
+                  l.accent
+                    ? `text-gold hover:bg-white/10 ${isActive(l.href) ? "bg-white/10" : ""}`
+                    : isActive(l.href)
                     ? "bg-white/10 text-white"
                     : "text-slate-300 hover:bg-white/10 hover:text-white"
                 }`}

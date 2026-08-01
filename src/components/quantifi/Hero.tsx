@@ -4,17 +4,19 @@ export default function Hero() {
   return (
     <section className="relative overflow-hidden">
       <div className="mx-auto max-w-4xl px-4 pb-14 pt-20 text-center sm:px-6 lg:pb-20 lg:pt-28">
-        <h1 className="font-display text-5xl font-semibold leading-[1.03] tracking-tight text-white sm:text-6xl lg:text-7xl">
-          Markets move.
-          <br />
-          <span className="text-gradient-gold">Know why.</span>
-        </h1>
-
-        <p className="mx-auto mt-6 max-w-2xl font-display text-xl font-medium leading-snug text-slate-200 sm:text-2xl">
-          See what&apos;s shifting, why it&apos;s breaking, and how.
+        {/* Lead with the thing no quote screen does: the map from a headline to
+            the names it moves. "Markets move, know why" is what every terminal
+            claims — this says what Quantifi actually builds. */}
+        <p className="text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-gold/90">
+          Research maps, not stock tips
         </p>
 
-        <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+        <h1 className="mt-5 font-display text-[2.5rem] font-semibold leading-[1.06] tracking-tight text-white sm:text-[3.1rem] lg:text-[3.6rem]">
+          Every headline,{" "}
+          <span className="text-gradient-gold">mapped to the stocks it moves.</span>
+        </h1>
+
+        <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
           <Link
             href="/stock-analysis"
             className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-gold-400 to-gold-600 px-6 py-3 text-sm font-semibold text-ink transition hover:opacity-90"
@@ -26,7 +28,7 @@ export default function Hero() {
             href="/news"
             className="inline-flex items-center gap-2 rounded-full border border-white/15 px-6 py-3 text-sm font-medium text-white transition hover:border-gold/40"
           >
-            View News Impact
+            See a headline mapped
           </Link>
         </div>
 

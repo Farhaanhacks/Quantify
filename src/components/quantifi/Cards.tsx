@@ -80,6 +80,124 @@ export function GlassCard({
   );
 }
 
+// ── Loading placeholders ─────────────────────────────────────────────────────
+
+// A single shimmering bar. Sized by the caller so a skeleton can mirror the
+// shape of whatever it stands in for (a price, a ticker chip, a table cell).
+export function Skeleton({ className = "" }: { className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={`relative block overflow-hidden rounded bg-white/[0.06] ${className}`}
+    >
+      <span className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/[0.09] to-transparent" />
+    </span>
+  );
+}
+
+// A skeleton table: the same header + divided rows every data card uses, so the
+// first paint has the real layout rather than a lone "Loading…" line. `cols` are
+// the grid track widths; the first column is treated as the label (chip + name)
+// and the rest as right-aligned figures, matching every data card on the site.
+export function SkeletonTable({
+  rows = 5,
+  cols = ["1.4fr", "0.8fr", "1fr"],
+  headers,
+  className = "",
+}: {
+  rows?: number;
+  cols?: string[];
+  headers?: string[];
+  className?: string;
+}) {
+  const gridTemplateColumns = cols.join(" ");
+  return (
+    <div className={`glass rounded-lg overflow-hidden ${className}`} aria-busy="true">
+      {headers ? (
+        <div
+          className="hidden gap-3 border-b border-white/[0.06] px-5 py-3 text-[0.62rem] uppercase tracking-[0.16em] text-slate-500 sm:grid"
+          style={{ gridTemplateColumns }}
+        >
+          {headers.map((h, i) => (
+            <span key={h} className={i === 0 ? "" : "text-right"}>
+              {h}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      <ul className="divide-y divide-white/[0.05]">
+        {Array.from({ length: rows }).map((_, r) => (
+          <li key={r} className="grid items-center gap-3 px-5 py-4" style={{ gridTemplateColumns }}>
+            {cols.map((_c, i) =>
+              i === 0 ? (
+                <span key={i} className="flex items-center gap-2.5">
+                  <Skeleton className="h-5 w-14 rounded-full" />
+                  <Skeleton className="hidden h-3 w-24 sm:block" />
+                </span>
+              ) : (
+                <span key={i} className="flex justify-end">
+                  <Skeleton className="h-3.5 w-12" />
+                </span>
+              )
+            )}
+          </li>
+        ))}
+      </ul>
+      <span className="sr-only">Loading…</span>
+    </div>
+  );
+}
+
+// ── Sample / preview framing ─────────────────────────────────────────────────
+
+// Wraps a module that's rendering illustrative figures because the visitor has
+// no data of their own yet. The badge and footer are non-negotiable: the numbers
+// inside are examples, and the UI has to say so plainly before it says anything
+// else.
+export function SamplePreview({
+  children,
+  note,
+  cta,
+  href,
+  className = "",
+}: {
+  children: ReactNode;
+  note: string;
+  cta: string;
+  href: string;
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      {/* The dashed frame carries the "this isn't yours yet" signal, and the
+          badge straddles its top edge — so nothing ever sits on top of a number
+          the way an overlaid badge would. */}
+      <div className="relative rounded-xl border border-dashed border-gold/25 bg-gold/[0.02] p-3 pt-5 sm:p-4 sm:pt-6">
+        {/* Painted with the page background so it reads as a notch cut into the
+            dashed border, in either theme. */}
+        <span className="absolute -top-3 right-5 inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-[var(--bg)] px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-gold">
+          <span className="h-1.5 w-1.5 rounded-full bg-gold" />
+          Sample data
+        </span>
+
+        <div className="pointer-events-none select-none opacity-[0.85]" aria-hidden>
+          {children}
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-col items-center gap-3 rounded-lg border border-white/[0.08] bg-white/[0.02] px-5 py-4 text-center sm:flex-row sm:justify-between sm:text-left">
+        <p className="text-sm text-slate-300">{note}</p>
+        <Link
+          href={href}
+          className="inline-flex flex-none rounded-full bg-gradient-to-r from-gold-400 to-gold-600 px-5 py-2.5 text-sm font-semibold text-ink transition hover:opacity-90"
+        >
+          {cta}
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 // ── Market semantics ─────────────────────────────────────────────────────────
 
 export function ChangePill({

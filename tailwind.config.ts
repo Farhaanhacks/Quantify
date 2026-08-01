@@ -80,6 +80,7 @@ const config: Config = {
       },
       animation: {
         marquee: "marquee 38s linear infinite",
+        shimmer: "shimmer 1.6s ease-in-out infinite",
         floaty: "floaty 6s ease-in-out infinite",
         pulseDot: "pulseDot 2.4s ease-in-out infinite",
       },
