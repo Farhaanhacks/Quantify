@@ -1,5 +1,6 @@
 import { politeFetch } from "@/lib/ingest/politeFetch";
 import { jsonCached } from "@/lib/httpCache";
+import { htmlToText, focusOnItem } from "@/lib/filingText";
 
 export const dynamic = "force-dynamic";
 
@@ -26,35 +27,15 @@ function isAllowedFilingUrl(raw: string): boolean {
   return true;
 }
 
-// EDGAR documents are HTML with heavy inline styling and (on older filings)
-// nested tables. We want the prose, so scripts/styles go first, block-level tags
-// become newlines, and the rest is stripped and collapsed.
-function htmlToText(html: string): string {
-  return html
-    .replace(/<(script|style|head)[\s\S]*?<\/\1>/gi, " ")
-    .replace(/<!--[\s\S]*?-->/g, " ")
-    .replace(/<\/(p|div|tr|h[1-6]|li|table)>/gi, "\n")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&#39;|&rsquo;|&apos;/gi, "’")
-    .replace(/&quot;|&ldquo;|&rdquo;/gi, "\"")
-    .replace(/&#\d+;/g, " ")
-    .replace(/[ \t ]+/g, " ")
-    .replace(/\n\s*\n\s*\n+/g, "\n\n")
-    .split("\n")
-    .map((l) => l.trim())
-    .join("\n")
-    .trim();
-}
-
 // The readable text of a single EDGAR filing document, for the event detail
 // modal. Public-domain government data — no key, no licence.
 export async function GET(req: Request) {
-  const url = new URL(req.url).searchParams.get("url") || "";
+  const params = new URL(req.url).searchParams;
+  const url = params.get("url") || "";
+  // Optional: the 8-K item code this event was classified from, so we can open
+  // the document at the relevant section.
+  const rawItem = params.get("item") || "";
+  const item = /^\d\.\d\d$/.test(rawItem) ? rawItem : undefined;
 
   if (!isAllowedFilingUrl(url)) {
     return jsonCached({ ok: false, reason: "unsupported-url", text: "" }, 60);
@@ -70,7 +51,7 @@ export async function GET(req: Request) {
     if (!r.ok) return jsonCached({ ok: false, reason: `status-${r.status}`, text: "" }, 300);
 
     const html = await r.text();
-    const text = htmlToText(html);
+    const text = focusOnItem(htmlToText(html), item);
     // Filings are immutable once accepted, so this can cache hard.
     return jsonCached({ ok: true, url, text: text.slice(0, 12000) }, 86400, 604800);
   } catch {

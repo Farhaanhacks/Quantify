@@ -93,7 +93,11 @@ function EventBlock({ event, first }: { event: CompanyEvent; first: boolean }) {
     setState("loading");
     (async () => {
       try {
-        const r = await fetch(`/api/filing?url=${encodeURIComponent(event.url as string)}`);
+        // The item code lets the server open the document at the relevant
+        // section instead of the cover page.
+        const qs = new URLSearchParams({ url: event.url as string });
+        if (event.item) qs.set("item", event.item);
+        const r = await fetch(`/api/filing?${qs.toString()}`);
         const d = await r.json();
         if (cancelled) return;
         const body = typeof d?.text === "string" ? d.text.trim() : "";
@@ -112,7 +116,7 @@ function EventBlock({ event, first }: { event: CompanyEvent; first: boolean }) {
     return () => {
       cancelled = true;
     };
-  }, [event.url]);
+  }, [event.url, event.item]);
 
   const copyLink = async () => {
     if (!event.url) return;
