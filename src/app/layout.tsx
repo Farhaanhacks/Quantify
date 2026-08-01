@@ -63,7 +63,12 @@ export default function RootLayout({
   // theme script under the strict (no 'unsafe-inline') script-src.
   const nonce = headers().get("x-nonce") ?? undefined;
   return (
-    <html lang="en" className={`dark ${inter.variable}`}>
+    // The pre-hydration theme script below mutates documentElement.classList
+    // (adding `light`) before React hydrates, so the server-rendered class list
+    // intentionally differs from the client's. suppressHydrationWarning scopes
+    // that expected difference to <html> without masking real mismatches deeper
+    // in the tree.
+    <html lang="en" className={`dark ${inter.variable}`} suppressHydrationWarning>
       <head>
         {/* Light mode is the default for first-time visitors; we only stay in
             dark mode when the user has explicitly chosen it. Applied before
