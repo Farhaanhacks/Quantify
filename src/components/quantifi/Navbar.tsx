@@ -245,10 +245,12 @@ export default function Navbar() {
             <Link
               key={l.href}
               href={l.href}
+              // Hovering paints the same soft square as the active page, so the
+              // whole row reads as a set of chips rather than bare text.
               className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-sm font-medium transition ${
                 isActive(l.href)
                   ? "bg-white/10 text-white"
-                  : "text-slate-300 hover:text-white"
+                  : "text-slate-300 hover:bg-white/10 hover:text-white"
               }`}
             >
               {l.label}
@@ -283,8 +285,10 @@ export default function Navbar() {
                 key={l.href}
                 href={l.href}
                 onClick={() => setOpen(false)}
-                className={`rounded-lg px-3 py-2 text-sm ${
-                  isActive(l.href) ? "bg-white/10 text-white" : "text-slate-300"
+                className={`rounded-lg px-3 py-2 text-sm transition ${
+                  isActive(l.href)
+                    ? "bg-white/10 text-white"
+                    : "text-slate-300 hover:bg-white/10 hover:text-white"
                 }`}
               >
                 {l.label}
