@@ -58,7 +58,7 @@ interface TickerRow {
 
 let cikMap: Record<string, { cik: string; name: string }> | null = null;
 
-async function loadCikMap(): Promise<Record<string, { cik: string; name: string }>> {
+export async function loadCikMap(): Promise<Record<string, { cik: string; name: string }>> {
   if (cikMap) return cikMap;
   const res = await politeFetch("https://www.sec.gov/files/company_tickers.json", {
     userAgent: UA,

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createChart, ColorType, LineStyle } from "lightweight-charts";
 import { GlassCard, ChangePill, TickerChip } from "@/components/quantifi/Cards";
 import { fmtPrice, currencySymbol } from "@/data/demo";
+import { CATEGORY_COLOR, type CompanyEvent, type EventCategory } from "@/lib/companyEvents";
 
 interface Meta {
   price?: number;
@@ -14,11 +15,15 @@ interface Meta {
 
 const RANGES: { key: string; label: string }[] = [
   { key: "1mo", label: "1M" },
+  { key: "3mo", label: "3M" },
   { key: "6mo", label: "6M" },
   { key: "1y", label: "1Y" },
+  { key: "3y", label: "3Y" },
   { key: "5y", label: "5Y" },
   { key: "max", label: "Max" },
 ];
+
+const CATEGORY_ORDER: EventCategory[] = ["Dividend", "Financial", "Management", "Strategy", "Other"];
 
 type ChartStyle = "area" | "candles";
 
@@ -30,13 +35,21 @@ export default function PriceChart({
   height?: number;
 }) {
   const elRef = useRef<HTMLDivElement>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
   const [range, setRange] = useState("1y");
+  const [events, setEvents] = useState<CompanyEvent[]>([]);
+  const [showEvents, setShowEvents] = useState(true);
   const [style, setStyle] = useState<ChartStyle>("area");
   const [meta, setMeta] = useState<Meta | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   // Set when the user wants candles but the source only gave us closes (Stooq).
   const [noCandles, setNoCandles] = useState(false);
+
+  // Canvas tooltips are built inside the chart effect, so the currency symbol has
+  // to be resolvable there — derive it from the ticker plus whatever the quote
+  // has told us so far.
+  const tipCurrency = currencySymbol(meta?.currency, symbol);
 
   // Price badge comes from the authoritative live quote (/api/quote) — the SAME
   // source the valuation cards, watchlist and portfolio use — so the number and
@@ -71,6 +84,28 @@ export default function PriceChart({
       cancelled = true;
     };
   }, [symbol]);
+
+  // Corporate events for the marker lane. Public-domain sources only (SEC 8-K
+  // item codes, plus dividends/splits), so an empty list is a normal outcome —
+  // non-US listings aren't in EDGAR at all.
+  useEffect(() => {
+    let cancelled = false;
+    setEvents([]);
+    (async () => {
+      try {
+        const r = await fetch(
+          `/api/events/${encodeURIComponent(symbol)}?range=${encodeURIComponent(range)}`
+        );
+        const d = await r.json();
+        if (!cancelled && Array.isArray(d?.events)) setEvents(d.events as CompanyEvent[]);
+      } catch {
+        /* markers are optional — the chart stands on its own */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [symbol, range]);
 
   useEffect(() => {
     let chart: ReturnType<typeof createChart> | undefined;
@@ -154,6 +189,44 @@ export default function PriceChart({
           return res;
         };
 
+        // One marker per event date. lightweight-charts anchors markers to a bar
+        // that exists in the series, so an event filed on a non-trading day is
+        // snapped forward to the next session rather than silently dropped.
+        const barTimes: string[] = (useCandles ? candles : points).map(
+          (p: { time: string }) => p.time
+        );
+        const snapToBar = (date: string): string | null => {
+          if (!barTimes.length) return null;
+          if (date < barTimes[0]) return null;
+          for (const t of barTimes) if (t >= date) return t;
+          return null;
+        };
+
+        const visibleEvents = showEvents ? events : [];
+        const markers = visibleEvents
+          .map((e) => {
+            const time = snapToBar(e.date);
+            return time
+              ? {
+                  time,
+                  position: "belowBar" as const,
+                  color: CATEGORY_COLOR[e.category] ?? "#94a3b8",
+                  shape: "circle" as const,
+                  text: "",
+                  size: 1 as const,
+                }
+              : null;
+          })
+          .filter((m): m is NonNullable<typeof m> => m != null)
+          // The library requires markers in ascending time order.
+          .sort((a, b) => a.time.localeCompare(b.time));
+
+        // Whichever series we build, the price lines and markers attach to it.
+        let seriesRef:
+          | ReturnType<NonNullable<typeof chart>["addCandlestickSeries"]>
+          | ReturnType<NonNullable<typeof chart>["addAreaSeries"]>
+          | undefined;
+
         if (useCandles) {
           const series = chart.addCandlestickSeries({
             upColor: "#34D399",
@@ -166,6 +239,7 @@ export default function PriceChart({
             autoscaleInfoProvider: clampToZero,
           });
           series.setData(candles);
+          seriesRef = series;
         } else {
           // Gold gradient to match the brand rather than the stock blue.
           const series = chart.addAreaSeries({
@@ -180,8 +254,86 @@ export default function PriceChart({
             autoscaleInfoProvider: clampToZero,
           });
           series.setData(points);
+          seriesRef = series;
         }
+
+        // Period high/low, drawn the way a research chart shows them: a dashed
+        // rule with the actual figure on the axis.
+        const series = seriesRef;
+        const closes: number[] = useCandles
+          ? candles.map((c: { high: number }) => c.high)
+          : points.map((p: { value: number }) => p.value);
+        const lows: number[] = useCandles
+          ? candles.map((c: { low: number }) => c.low)
+          : points.map((p: { value: number }) => p.value);
+        if (series && closes.length) {
+          const hi = Math.max(...closes);
+          const lo = Math.min(...lows);
+          const lineOpts = {
+            lineWidth: 1 as const,
+            lineStyle: LineStyle.Dashed,
+            axisLabelVisible: true,
+          };
+          series.createPriceLine({ ...lineOpts, price: hi, color: "rgba(52,211,153,0.45)", title: "high" });
+          series.createPriceLine({ ...lineOpts, price: lo, color: "rgba(251,113,133,0.45)", title: "low" });
+          series.setMarkers(markers);
+        }
+
         chart.timeScale().fitContent();
+
+        // Floating date + price readout, plus any event filed that day. The
+        // library's axis labels stay on for scale; this is the detail box.
+        const tip = tipRef.current;
+        if (tip && series) {
+          const byDate = new Map<string, CompanyEvent[]>();
+          for (const e of visibleEvents) {
+            const t = snapToBar(e.date);
+            if (!t) continue;
+            byDate.set(t, [...(byDate.get(t) ?? []), e]);
+          }
+          chart.subscribeCrosshairMove((param) => {
+            const time = param.time as string | undefined;
+            const point = param.point;
+            if (!time || !point || point.x < 0 || point.y < 0) {
+              tip.style.display = "none";
+              return;
+            }
+            const bar = param.seriesData.get(series) as
+              | { value?: number; close?: number }
+              | undefined;
+            const price = bar?.value ?? bar?.close;
+            if (price == null) {
+              tip.style.display = "none";
+              return;
+            }
+            const when = new Date(`${time}T00:00:00Z`).toLocaleDateString("en-GB", {
+              weekday: "short",
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+              timeZone: "UTC",
+            });
+            const hits = byDate.get(time) ?? [];
+            tip.innerHTML =
+              `<div class="text-[0.62rem] text-slate-400">${when}</div>` +
+              `<div class="font-mono text-sm font-semibold tnum text-white">${tipCurrency}${fmtPrice(price)}</div>` +
+              hits
+                .map(
+                  (h) =>
+                    `<div class="mt-1 flex items-center gap-1.5 text-[0.65rem] text-slate-300">` +
+                    `<span class="h-1.5 w-1.5 flex-none rounded-full" style="background:${
+                      CATEGORY_COLOR[h.category] ?? "#94a3b8"
+                    }"></span>${h.label}</div>`
+                )
+                .join("");
+            tip.style.display = "block";
+            // Keep the box inside the chart on both edges.
+            const w = tip.offsetWidth;
+            const left = Math.min(Math.max(point.x - w / 2, 4), el.clientWidth - w - 4);
+            tip.style.left = `${left}px`;
+            tip.style.top = `8px`;
+          });
+        }
 
         ro = new ResizeObserver((entries) => {
           if (chart && entries[0]) chart.applyOptions({ width: entries[0].contentRect.width });
@@ -200,7 +352,7 @@ export default function PriceChart({
       if (ro) ro.disconnect();
       if (chart) chart.remove();
     };
-  }, [symbol, height, range, style]);
+  }, [symbol, height, range, style, events, showEvents, tipCurrency]);
 
   const symbolCurrency = currencySymbol(meta?.currency, symbol);
 
@@ -260,7 +412,42 @@ export default function PriceChart({
         </div>
       </div>
 
-      <div ref={elRef} style={{ height }} />
+      <div className="relative">
+        <div ref={elRef} style={{ height }} />
+        <div
+          ref={tipRef}
+          className="pointer-events-none absolute z-10 hidden rounded-lg border border-white/10 bg-ink-900/95 px-2.5 py-1.5 shadow-panel backdrop-blur"
+          style={{ display: "none" }}
+        />
+      </div>
+
+      {/* Event lane legend — only shown when this symbol actually has events. */}
+      {events.length ? (
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/[0.06] pt-3">
+          <button
+            type="button"
+            onClick={() => setShowEvents((v) => !v)}
+            aria-pressed={showEvents}
+            className={`rounded-md px-2 py-1 text-[0.7rem] font-medium transition ${
+              showEvents ? "bg-gold/15 text-gold" : "text-slate-400 hover:text-white"
+            }`}
+          >
+            Events
+          </button>
+          {CATEGORY_ORDER.filter((c) => events.some((e) => e.category === c)).map((c) => (
+            <span key={c} className="flex items-center gap-1.5 text-[0.7rem] text-slate-400">
+              <span
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: CATEGORY_COLOR[c] }}
+              />
+              {c}
+            </span>
+          ))}
+          <span className="ml-auto text-[0.62rem] text-slate-600">
+            SEC 8-K item codes · dividends &amp; splits
+          </span>
+        </div>
+      ) : null}
 
       {loading ? <p className="mt-2 text-xs text-slate-500">Loading chart…</p> : null}
       {err ? <p className="mt-2 text-xs text-down">{err}</p> : null}
