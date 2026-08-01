@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   GlassCard,
   SectionHeading,
   StatTile,
   TickerChip,
   ChangePill,
+  tickerHref,
 } from "@/components/quantifi/Cards";
 import { fmtPrice, fmtPct, currencySymbol, currencyForTicker } from "@/data/demo";
 import { popularTickers } from "@/data/popularTickers";
@@ -163,7 +165,17 @@ function AllocationDonut({
           >
             <span className="flex min-w-0 items-center gap-2">
               <span className="h-2.5 w-2.5 flex-none rounded-sm" style={{ backgroundColor: s.color }} />
-              <span className="truncate font-mono text-slate-200">{s.name}</span>
+              {s.name === "Other" ? (
+                <span className="truncate font-mono text-slate-200">{s.name}</span>
+              ) : (
+                <Link
+                  href={tickerHref(s.name)}
+                  className="truncate font-mono text-slate-200 transition hover:text-gold"
+                  title={`Open ${s.name} analysis`}
+                >
+                  {s.name}
+                </Link>
+              )}
             </span>
             <span className="flex-none font-mono tnum text-slate-400">{s.pct.toFixed(1)}%</span>
           </li>
@@ -583,8 +595,13 @@ export default function PortfolioManager() {
                   className="grid grid-cols-2 gap-3 px-5 py-4 lg:grid-cols-[1.4fr_0.7fr_0.8fr_0.8fr_1fr_0.9fr_auto] lg:items-center"
                 >
                   <div className="flex items-center gap-2.5">
-                    <TickerChip ticker={r.ticker} />
-                    <span className="hidden text-sm text-slate-300 sm:inline">{r.name}</span>
+                    <TickerChip ticker={r.ticker} link />
+                    <Link
+                      href={tickerHref(r.ticker)}
+                      className="hidden truncate text-sm text-slate-300 transition hover:text-white sm:inline"
+                    >
+                      {r.name}
+                    </Link>
                   </div>
                   {editing ? (
                     <div className="flex justify-end lg:pl-1">

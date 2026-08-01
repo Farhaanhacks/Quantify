@@ -221,22 +221,40 @@ export function ChangePill({
   );
 }
 
+// The canonical place a ticker points at. Kept here so every chip that becomes
+// clickable agrees on the destination.
+export const tickerHref = (ticker: string) =>
+  `/stock-analysis?symbol=${encodeURIComponent(ticker)}`;
+
+// Pass `link` to make the chip navigate to that ticker's analysis. It's opt-in
+// rather than the default because some chips sit inside a <button> (the row
+// pickers), and an anchor nested in a button is invalid markup.
 export function TickerChip({
   ticker,
   active = false,
+  link = false,
 }: {
   ticker: string;
   active?: boolean;
+  link?: boolean;
 }) {
-  return (
-    <span
-      className={`chip font-mono tnum tracking-tight ${
-        active ? "border-gold/40 bg-gold/10 text-gold" : "text-slate-200"
-      }`}
-    >
-      {ticker}
-    </span>
-  );
+  const className = `chip font-mono tnum tracking-tight ${
+    active ? "border-gold/40 bg-gold/10 text-gold" : "text-slate-200"
+  }`;
+
+  if (link) {
+    return (
+      <Link
+        href={tickerHref(ticker)}
+        className={`${className} transition hover:border-gold/40 hover:text-gold`}
+        title={`Open ${ticker} analysis`}
+      >
+        {ticker}
+      </Link>
+    );
+  }
+
+  return <span className={className}>{ticker}</span>;
 }
 
 export function Tag({

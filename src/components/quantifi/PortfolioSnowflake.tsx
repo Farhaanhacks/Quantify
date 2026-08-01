@@ -152,7 +152,7 @@ export default function PortfolioSnowflake({ heading = true }: { heading?: boole
                 {scored.map((h) => (
                   <li key={h.ticker} className="flex items-center justify-between gap-4 py-3">
                     <div className="flex min-w-0 items-center gap-2.5">
-                      <TickerChip ticker={h.ticker} />
+                      <TickerChip ticker={h.ticker} link />
                       <span className="truncate text-sm text-slate-300">{h.name}</span>
                     </div>
                     <div className="flex flex-none items-center gap-4">
