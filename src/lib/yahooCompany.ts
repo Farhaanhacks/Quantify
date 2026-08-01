@@ -383,6 +383,27 @@ export async function getYahooCompany(input: string): Promise<CompanyData | null
     num(ks.priceToBook) ??
     (marketCapResolved != null && nonZero(bal0.totalEquity) ? marketCapResolved / bal0.totalEquity : undefined);
 
+  // P/E got no fallback while P/S and P/B did, so any listing where Yahoo omits
+  // trailingPE rendered a bare "—" even with market cap AND earnings both sitting
+  // right there on the card (Korean listings like 004310.KS are a common case).
+  // Derive it the same way: price ÷ EPS first (the literal definition), then
+  // market cap ÷ net income. Both need a POSITIVE denominator — a negative P/E is
+  // meaningless, and a loss-making company should fall through to the P/S lens.
+  const trailingPeResolved =
+    num(sd.trailingPE) ??
+    num(ks.trailingPE) ??
+    (livePrice != null && epsVal != null && epsVal > 0 ? livePrice / epsVal : undefined) ??
+    (marketCapResolved != null && netIncomeVal2 != null && netIncomeVal2 > 0
+      ? marketCapResolved / netIncomeVal2
+      : undefined);
+  const forwardEpsVal = num(ks.forwardEps);
+  const forwardPeResolved =
+    num(sd.forwardPE) ??
+    num(ks.forwardPE) ??
+    (livePrice != null && forwardEpsVal != null && forwardEpsVal > 0
+      ? livePrice / forwardEpsVal
+      : undefined);
+
   const data: CompanyData = {
     symbol,
     resolvedFrom,
@@ -412,17 +433,19 @@ export async function getYahooCompany(input: string): Promise<CompanyData | null
     marketCap: marketCapResolved,
     enterpriseValue: num(ks.enterpriseValue),
     sharesOutstanding: sharesOutstandingResolved,
-    trailingPE: num(sd.trailingPE) ?? num(ks.trailingPE),
-    forwardPE: num(sd.forwardPE) ?? num(ks.forwardPE),
+    trailingPE: trailingPeResolved,
+    forwardPE: forwardPeResolved,
     priceToSales: priceToSalesResolved,
     priceToBook: priceToBookResolved,
     pegRatio: num(ks.pegRatio),
     evToRevenue: num(ks.enterpriseToRevenue),
     evToEbitda: num(ks.enterpriseToEbitda),
-    revenue: num(fd.totalRevenue),
-    grossProfit: num(fd.grossProfits),
+    // Fall back to the reported income statement — these two feed the valuation
+    // donut, and Yahoo's summary modules drop them for plenty of non-US listings.
+    revenue: revenueVal,
+    grossProfit: num(fd.grossProfits) ?? inc0.grossProfit,
     ebitda: num(fd.ebitda),
-    netIncome: num(ks.netIncomeToCommon),
+    netIncome: netIncomeVal2,
     eps: num(ks.trailingEps),
     revenueGrowth: num(fd.revenueGrowth),
     earningsGrowth: num(fd.earningsGrowth) ?? num(ks.earningsQuarterlyGrowth),

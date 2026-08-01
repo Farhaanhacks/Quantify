@@ -72,3 +72,18 @@ export const QUANTIFI_PRO: ProPlan = {
 // (FREE_LAUNCH_DAYS) runs out — so their Pro is "blocked again unless they buy".
 export const FREE_LAUNCH_OFFER = true;
 export const FREE_LAUNCH_DAYS = 7; // each free grant lasts one week, then lapses
+
+// ── Display-only price labels ──────────────────────────────────────────────
+// While the launch offer is on, Pro costs nothing, so every upgrade surface must
+// say "Free" — quoting a rupee/cent figure next to a free offer just confuses
+// people. These are presentation strings ONLY; QUANTIFI_PRO.amount stays the
+// real Razorpay charge for when the offer ends. Surfaces that hardcoded
+// QUANTIFI_PRO.price drifted out of sync with FREE_LAUNCH_OFFER once already —
+// import these instead of re-deriving the label.
+export const PRO_STANDARD_PRICE = "₹500";
+/** "Free" during the launch offer, otherwise the billed price. */
+export const PRO_PRICE_LABEL = FREE_LAUNCH_OFFER ? "Free" : QUANTIFI_PRO.price;
+/** Short qualifier to sit beside PRO_PRICE_LABEL. */
+export const PRO_PRICE_NOTE = FREE_LAUNCH_OFFER
+  ? "for a limited time"
+  : `per ${QUANTIFI_PRO.period}`;

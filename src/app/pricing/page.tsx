@@ -1,12 +1,19 @@
 import Link from "next/link";
 import PricingPlans from "@/components/quantifi/PricingPlans";
 import { Eyebrow } from "@/components/quantifi/Cards";
-import { QUANTIFI_PRO, FREE_LAUNCH_OFFER } from "@/data/plans";
+import { QUANTIFI_PRO, FREE_LAUNCH_OFFER, PRO_STANDARD_PRICE } from "@/data/plans";
 import { buildMetadata } from "@/lib/seo";
 
+// The page body already respected the launch offer, but the title/description
+// still quoted the paid price — and that's the copy Google and the browser tab
+// show, so the offer was invisible in search results.
 export const metadata = buildMetadata({
-  title: `Pricing — Quantifi Pro (${QUANTIFI_PRO.price}/month)`,
-  description: `Quantifi Pro — ${QUANTIFI_PRO.price}/month (standard ₹500). Unlimited stock analysis, all research ideas, full source packs and portfolio diagnosis. Research only, not investment advice.`,
+  title: FREE_LAUNCH_OFFER
+    ? "Pricing — Quantifi Pro is free for a limited time"
+    : `Pricing — Quantifi Pro (${QUANTIFI_PRO.price}/month)`,
+  description: FREE_LAUNCH_OFFER
+    ? `Quantifi Pro is free for a limited time (standard ${PRO_STANDARD_PRICE}/month) — instant access, no card required. Unlimited stock analysis, all research ideas, full source packs and portfolio diagnosis. Research only, not investment advice.`
+    : `Quantifi Pro — ${QUANTIFI_PRO.price}/month (standard ${PRO_STANDARD_PRICE}). Unlimited stock analysis, all research ideas, full source packs and portfolio diagnosis. Research only, not investment advice.`,
   path: "/pricing",
 });
 

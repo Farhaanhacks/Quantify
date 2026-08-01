@@ -5,8 +5,16 @@ import { useEffect, useState } from "react";
 export default function ThemeToggle({ className = "" }: { className?: string }) {
   const [light, setLight] = useState(false);
 
+  // Watch the <html> class rather than reading it once: the account menu has its
+  // own theme control, and without this the icon here would keep showing the old
+  // theme after switching there.
   useEffect(() => {
-    setLight(document.documentElement.classList.contains("light"));
+    const el = document.documentElement;
+    const sync = () => setLight(el.classList.contains("light"));
+    sync();
+    const mo = new MutationObserver(sync);
+    mo.observe(el, { attributes: true, attributeFilter: ["class"] });
+    return () => mo.disconnect();
   }, []);
 
   const toggle = () => {

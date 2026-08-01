@@ -26,7 +26,14 @@ import { SCORE_AXES, type CompanyAnalytics } from "@/data/demo";
 import type { EtfData } from "@/lib/yahooEtf";
 import { popularTickers } from "@/data/popularTickers";
 import { useProStatus } from "@/lib/useProStatus";
-import { QUANTIFI_PRO } from "@/data/plans";
+import {
+  QUANTIFI_PRO,
+  FREE_LAUNCH_OFFER,
+  FREE_LAUNCH_DAYS,
+  PRO_PRICE_LABEL,
+  PRO_PRICE_NOTE,
+  PRO_STANDARD_PRICE,
+} from "@/data/plans";
 import { FREE_LIMIT } from "@/lib/freeLimit";
 import { knownFund } from "@/data/knownFunds";
 
@@ -581,21 +588,44 @@ function FreeLimitWall({ ticker, signedIn }: { ticker: string; signedIn: boolean
         <h2 className="mt-4 font-display text-2xl font-semibold text-white sm:text-3xl">
           You&apos;ve used your {FREE_LIMIT} free analyses
         </h2>
-        <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-400">
-          <span className="font-mono text-slate-200">{ticker}</span> — its chart, the Quantifi
-          Score, fundamentals and insider activity — needs Quantifi Pro now. Unlock unlimited
-          analysis for{" "}
-          <span className="font-semibold text-gold">
-            {QUANTIFI_PRO.price}/{QUANTIFI_PRO.period}
-          </span>{" "}
-          <span className="text-slate-500 line-through">₹500</span>.
-        </p>
+
+        {/* This wall hardcoded the paid price and so kept quoting a figure long
+            after the launch offer made Pro free. Both states now come from the
+            shared labels in plans.ts. */}
+        {FREE_LAUNCH_OFFER ? (
+          <>
+            <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-400">
+              <span className="font-mono text-slate-200">{ticker}</span> — its chart, the Quantifi
+              Score, fundamentals and insider activity — needs Quantifi Pro. Right now Pro is{" "}
+              <span className="font-semibold text-gold">free</span> for your first{" "}
+              {FREE_LAUNCH_DAYS} days — no card needed.
+            </p>
+            <div className="mt-5 inline-flex items-baseline gap-2.5 rounded-lg border border-gold/30 bg-gold/[0.07] px-4 py-2.5">
+              <span className="font-display text-3xl font-semibold text-gold">{PRO_PRICE_LABEL}</span>
+              <span className="font-display text-lg font-medium text-slate-500 line-through decoration-slate-400/70">
+                {PRO_STANDARD_PRICE}
+              </span>
+              <span className="text-xs text-slate-400">{PRO_PRICE_NOTE}</span>
+            </div>
+          </>
+        ) : (
+          <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-400">
+            <span className="font-mono text-slate-200">{ticker}</span> — its chart, the Quantifi
+            Score, fundamentals and insider activity — needs Quantifi Pro now. Unlock unlimited
+            analysis for{" "}
+            <span className="font-semibold text-gold">
+              {QUANTIFI_PRO.price}/{QUANTIFI_PRO.period}
+            </span>{" "}
+            <span className="text-slate-500 line-through">{PRO_STANDARD_PRICE}</span>.
+          </p>
+        )}
+
         <div className="mt-7 flex items-center justify-center gap-3">
           <Link
             href="/pricing"
             className="rounded-full bg-gradient-to-r from-gold-400 to-gold-600 px-6 py-2.5 text-sm font-semibold text-ink transition hover:opacity-90"
           >
-            Get Quantifi Pro →
+            {FREE_LAUNCH_OFFER ? "Claim free Pro →" : "Get Quantifi Pro →"}
           </Link>
           {!signedIn ? (
             <a

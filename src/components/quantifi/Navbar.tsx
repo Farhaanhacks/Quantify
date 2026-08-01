@@ -261,6 +261,10 @@ export default function Navbar() {
         <div className="flex items-center gap-2">
           {/* Wide enough that the placeholder isn't clipped at the larger type size. */}
           <SearchBox className="hidden w-64 md:flex lg:w-72" />
+          {/* Theme also appears inside the account menu. Both write the same
+              localStorage key, and ThemeToggle watches the <html> class, so the
+              two controls stay in sync. It stays in the nav for signed-out
+              visitors, who have no account menu to open. */}
           <ThemeToggle />
           <NotificationBell />
           <AuthButton />

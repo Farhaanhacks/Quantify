@@ -144,6 +144,12 @@ export default function PeerComparison({ symbol, name }: { symbol: string; name?
   // one-name "comparison" is noise (Competitors above already handles empty).
   if (symbols && symbols.length < 2) return null;
 
+  // Company name for a ticker. The chips render before `rows` lands, so this is
+  // undefined on the first paint and the chip falls back to the bare symbol.
+  // The current company is the one name we always know up front (prop).
+  const nameFor = (s: string, i: number) =>
+    rows?.find((r) => r.symbol.toUpperCase() === s.toUpperCase())?.name ?? (i === 0 ? name : undefined);
+
   return (
     <section className="mx-auto max-w-7xl px-4 pb-4 sm:px-6 lg:px-8">
       <SectionHeading
@@ -156,17 +162,28 @@ export default function PeerComparison({ symbol, name }: { symbol: string; name?
         {/* Ticker legend + range selector */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            {(symbols ?? []).map((s, i) => (
-              <span
-                key={s}
-                className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-mono text-sm text-slate-200"
-                style={{ borderColor: `${CMP_COLORS[i % CMP_COLORS.length]}66`, backgroundColor: `${CMP_COLORS[i % CMP_COLORS.length]}14` }}
-              >
-                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: CMP_COLORS[i % CMP_COLORS.length] }} />
-                {s}
-                {i === 0 ? <span className="text-[0.6rem] uppercase tracking-wide text-slate-500">this</span> : null}
-              </span>
-            ))}
+            {(symbols ?? []).map((s, i) => {
+              const nm = nameFor(s, i);
+              return (
+                <span
+                  key={s}
+                  className="flex items-center gap-2 rounded-lg border px-3 py-1.5 text-slate-200"
+                  style={{ borderColor: `${CMP_COLORS[i % CMP_COLORS.length]}66`, backgroundColor: `${CMP_COLORS[i % CMP_COLORS.length]}14` }}
+                >
+                  <span className="h-2 w-2 flex-none rounded-full" style={{ backgroundColor: CMP_COLORS[i % CMP_COLORS.length] }} />
+                  {/* Company name reads first — a wall of numeric Korean/BSE codes
+                      tells you nothing about who you're comparing. Ticker stays
+                      underneath so the chip is still precise. */}
+                  <span className="min-w-0">
+                    <span className="block max-w-[12rem] truncate text-sm leading-tight">{nm ?? s}</span>
+                    {nm ? (
+                      <span className="block max-w-[12rem] truncate font-mono text-[0.62rem] leading-tight text-slate-500">{s}</span>
+                    ) : null}
+                  </span>
+                  {i === 0 ? <span className="flex-none text-[0.6rem] uppercase tracking-wide text-slate-500">this</span> : null}
+                </span>
+              );
+            })}
           </div>
           <div className="inline-flex rounded-lg border border-white/10 bg-white/[0.03] p-0.5">
             {CMP_RANGES.map((rg) => (
@@ -267,9 +284,9 @@ export default function PeerComparison({ symbol, name }: { symbol: string; name?
                       if (s.length < 2) return null;
                       const first = s[0].v;
                       const pts = s.map((p, i) => ({ x: i / (s.length - 1), y: (p.v / first - 1) * 100 }));
-                      return { symbol: r.symbol, color: CMP_COLORS[idx % CMP_COLORS.length], pts, final: pts[pts.length - 1].y };
+                      return { symbol: r.symbol, label: r.name ?? r.symbol, color: CMP_COLORS[idx % CMP_COLORS.length], pts, final: pts[pts.length - 1].y };
                     })
-                    .filter((n): n is { symbol: string; color: string; pts: { x: number; y: number }[]; final: number } => n != null);
+                    .filter((n): n is { symbol: string; label: string; color: string; pts: { x: number; y: number }[]; final: number } => n != null);
                   // Symbols we couldn't chart (no live price history for the ticker —
                   // common for some Korean/OTC listings). Call them out explicitly so
                   // "4 peers but 2 lines" never reads as a broken chart.
@@ -292,8 +309,11 @@ export default function PeerComparison({ symbol, name }: { symbol: string; name?
                       <div className="flex flex-wrap items-center gap-4 text-xs">
                         {normed.map((n) => (
                           <span key={n.symbol} className="flex items-center gap-1.5">
-                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: n.color }} />
-                            <span className="font-mono text-slate-200">{n.symbol}</span>
+                            <span className="h-2 w-2 flex-none rounded-full" style={{ backgroundColor: n.color }} />
+                            <span className="max-w-[13rem] truncate text-slate-200" title={n.symbol}>{n.label}</span>
+                            {n.label !== n.symbol ? (
+                              <span className="font-mono text-[0.68rem] text-slate-500">{n.symbol}</span>
+                            ) : null}
                             <span className="font-mono font-semibold" style={{ color: n.color }}>{n.final >= 0 ? "+" : ""}{n.final.toFixed(1)}%</span>
                           </span>
                         ))}

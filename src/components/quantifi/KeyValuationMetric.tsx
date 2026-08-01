@@ -265,6 +265,17 @@ export default function KeyValuationMetric({ symbol, name }: { symbol: string; n
                 {v!.ratio != null && isFinite(v!.ratio) ? `${v!.ratio.toFixed(1)}${v!.unit}` : "—"}
               </div>
               <div className="mt-1 text-sm text-slate-400">{v!.full}</div>
+              {/* A bare dash next to a populated donut looks broken. If we still
+                  can't form the multiple, say which side of it is missing. */}
+              {v!.ratio == null || !isFinite(v!.ratio) ? (
+                <div className="mt-1 text-xs leading-snug text-slate-500">
+                  {v!.denom == null
+                    ? `${v!.denomLabel} not reported for this listing.`
+                    : v!.denom <= 0
+                    ? `${v!.denomLabel} is negative (${money(v!.denom)}) — this multiple isn't meaningful.`
+                    : "Market capitalisation not reported for this listing."}
+                </div>
+              ) : null}
               {tab === "pe" && data.forwardPE != null ? (
                 <button
                   type="button"
