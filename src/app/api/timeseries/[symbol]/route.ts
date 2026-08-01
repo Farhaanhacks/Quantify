@@ -14,6 +14,17 @@ interface Point {
   value: number;
 }
 
+// Yahoo's chart response carries full OHLC per bar; we used to read only `close`,
+// which is why the chart could never be anything but a line. Candles ride along
+// on the same request — no extra fetch.
+interface Candle {
+  time: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+}
+
 // Yahoo's long-range history occasionally has a single bad tick — e.g. Tata Steel
 // showing a lone ₹645 spike in 2006 that blows the y-axis to 800 and flattens the
 // real prices to a near-zero line. Drop points that spike far from BOTH neighbours
@@ -51,7 +62,7 @@ async function fetchYahooPoints(
   sym: string,
   range: string,
   interval: string
-): Promise<{ points: Point[]; meta: Record<string, unknown> }> {
+): Promise<{ points: Point[]; candles: Candle[]; meta: Record<string, unknown> }> {
   let json: unknown = null;
   for (const host of ["query1", "query2"]) {
     try {
@@ -74,25 +85,67 @@ async function fetchYahooPoints(
       /* try next host */
     }
   }
-  if (json == null) return { points: [], meta: {} };
+  if (json == null) return { points: [], candles: [], meta: {} };
 
   const result = (json as { chart?: { result?: unknown[]; error?: unknown } })?.chart?.result?.[0] as
-    | { timestamp?: number[]; indicators?: { quote?: { close?: (number | null)[] }[] }; meta?: Record<string, unknown> }
+    | {
+        timestamp?: number[];
+        indicators?: {
+          quote?: {
+            close?: (number | null)[];
+            open?: (number | null)[];
+            high?: (number | null)[];
+            low?: (number | null)[];
+          }[];
+        };
+        meta?: Record<string, unknown>;
+      }
     | undefined;
-  if (!result || (json as { chart?: { error?: unknown } })?.chart?.error) return { points: [], meta: {} };
+  if (!result || (json as { chart?: { error?: unknown } })?.chart?.error)
+    return { points: [], candles: [], meta: {} };
 
   const ts: number[] = result.timestamp ?? [];
-  const closes: (number | null)[] = result.indicators?.quote?.[0]?.close ?? [];
+  const q = result.indicators?.quote?.[0] ?? {};
+  const closes: (number | null)[] = q.close ?? [];
+  const opens: (number | null)[] = q.open ?? [];
+  const highs: (number | null)[] = q.high ?? [];
+  const lows: (number | null)[] = q.low ?? [];
+
   const raw: Point[] = [];
+  const rawCandles = new Map<string, Candle>();
+  const ok = (v: number | null | undefined): v is number =>
+    v != null && isFinite(v) && v > 0;
+
   for (let i = 0; i < ts.length; i++) {
     const c = closes[i];
-    if (c == null || !isFinite(c) || c <= 0) continue;
-    raw.push({
-      time: new Date(ts[i] * 1000).toISOString().slice(0, 10),
-      value: Number(c.toFixed(2)),
-    });
+    if (!ok(c)) continue;
+    const time = new Date(ts[i] * 1000).toISOString().slice(0, 10);
+    raw.push({ time, value: Number(c.toFixed(2)) });
+
+    // A candle needs all four legs. Where Yahoo has a hole in open/high/low we
+    // simply skip that bar rather than inventing one from the close.
+    const o = opens[i];
+    const h = highs[i];
+    const l = lows[i];
+    if (ok(o) && ok(h) && ok(l)) {
+      rawCandles.set(time, {
+        time,
+        open: Number(o.toFixed(2)),
+        high: Number(h.toFixed(2)),
+        low: Number(l.toFixed(2)),
+        close: Number(c.toFixed(2)),
+      });
+    }
   }
-  return { points: dropSpikes(raw), meta: (result.meta ?? {}) as Record<string, unknown> };
+
+  // Keep candles aligned with the de-spiked closes so both series tell the same
+  // story, and drop duplicate dates (intraday 1D collapses to one bar per day —
+  // lightweight-charts rejects a series with repeated timestamps).
+  const points = dropSpikes(raw);
+  const kept = new Set(points.map((p) => p.time));
+  const candles = Array.from(rawCandles.values()).filter((c) => kept.has(c.time));
+
+  return { points, candles, meta: (result.meta ?? {}) as Record<string, unknown> };
 }
 
 async function yahooSeries(symbol: string, range: string) {
@@ -109,7 +162,7 @@ async function yahooSeries(symbol: string, range: string) {
   if (/\.BO$/i.test(symbol)) candidates.push(symbol.replace(/\.BO$/i, ".NS"));
   else if (/\.NS$/i.test(symbol)) candidates.push(symbol.replace(/\.NS$/i, ".BO"));
 
-  let best: { points: Point[]; meta: Record<string, unknown> } | null = null;
+  let best: { points: Point[]; candles: Candle[]; meta: Record<string, unknown> } | null = null;
   for (const sym of candidates) {
     const got = await fetchYahooPoints(sym, range, interval);
     if (!best || got.points.length > best.points.length) best = got;
@@ -134,6 +187,7 @@ async function yahooSeries(symbol: string, range: string) {
   return {
     symbol,
     points,
+    candles: best.candles,
     meta: {
       price: Number(price.toFixed(2)),
       change: Number((price - prev).toFixed(2)),
@@ -163,6 +217,9 @@ function fromStooq(symbol: string, points: StooqPoint[], range: string) {
   return {
     symbol,
     points: sliced,
+    // Stooq's free feed is closes-only, so there are no candles on this path.
+    // The chart falls back to the line view and says why.
+    candles: [] as Candle[],
     meta: {
       price: last,
       change: Number((last - prev).toFixed(2)),
@@ -208,6 +265,7 @@ export async function GET(
     {
       symbol,
       points: [],
+      candles: [],
       meta: {
         price: 0,
         change: 0,

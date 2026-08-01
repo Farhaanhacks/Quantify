@@ -75,12 +75,18 @@ function toTvSymbol(raw: string): string {
 // it throws "this symbol doesn't exist" — default them all to the Yahoo-powered
 // Quantifi chart, which covers them. US tickers have no such suffix (Yahoo uses
 // a hyphen, e.g. BRK-B), so they stay on TradingView. The user can still toggle.
-function defaultEngine(t: string): Engine {
+// True when TradingView's free widget can't render this symbol at all, so the
+// engine shouldn't even be offered.
+function tvCantServe(t: string): boolean {
   const u = t.toUpperCase();
-  if (/\.[A-Z]{1,4}$/.test(u)) return "quantifi";
+  if (/\.[A-Z]{1,4}$/.test(u)) return true; // any non-US listing
   // Non-exchange-traded funds (e.g. ARKVX) aren't on TradingView's free widget.
-  if (knownFund(u)?.preferQuantifiChart) return "quantifi";
-  return "tv";
+  if (knownFund(u)?.preferQuantifiChart) return true;
+  return false;
+}
+
+function defaultEngine(t: string): Engine {
+  return tvCantServe(t) ? "quantifi" : "tv";
 }
 
 interface ScoreResponse {
@@ -255,6 +261,7 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
   };
 
   const tvSym = toTvSymbol(ticker);
+  const tvUnsupported = tvCantServe(ticker);
 
   const segBtn = (e: Engine, label: string) => (
     <button
@@ -320,9 +327,9 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
             ))}
           </div>
           <p className="mt-3 text-xs text-slate-500">
-            Two chart engines: TradingView (interactive) and Quantifi (Yahoo data,
-            covers symbols TradingView&apos;s free widget skips, like many Indian
-            stocks). Switch anytime with the toggle.
+            {tvUnsupported
+              ? "Charts for this listing are drawn by the Quantifi engine (Yahoo data) — TradingView’s free widget doesn’t carry non-US symbols."
+              : "Two chart engines: TradingView (interactive) and Quantifi (Yahoo data, covers symbols TradingView’s free widget skips, like many Indian stocks). Switch anytime with the toggle."}
           </p>
         </GlassCard>
       </section>
@@ -353,14 +360,21 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
             {/* Live chart with engine toggle — only for a revealed name or Pro. */}
             <section id="sec-chart" className="scroll-mt-24 px-4 pb-2 pt-6 sm:px-6 lg:px-8">
               <div className="mx-auto max-w-4xl">
-                <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
-                  <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] p-0.5 text-xs">
-                    {segBtn("tv", "TradingView")}
-                    {segBtn("quantifi", "Quantifi")}
+                {/* TradingView's free widget can't serve suffixed non-US listings
+                    (.NS/.BO/.KS/.HK/.T/…) — it just renders "symbol doesn't
+                    exist". Defaulting away from it wasn't enough: the toggle was
+                    still there to be tapped into that error. For those symbols we
+                    don't offer the engine at all. */}
+                {tvUnsupported ? null : (
+                  <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
+                    <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] p-0.5 text-xs">
+                      {segBtn("tv", "TradingView")}
+                      {segBtn("quantifi", "Quantifi")}
+                    </div>
                   </div>
-                </div>
+                )}
 
-                {engine === "tv" ? (
+                {engine === "tv" && !tvUnsupported ? (
                   <>
                     <TradingViewWidget
                       symbol={tvSym}

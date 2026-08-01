@@ -46,6 +46,7 @@ export interface CompanyData {
   industry?: string;
   website?: string;
   employees?: number;
+  country?: string;
   currency?: string; // price / quote currency (e.g. USD for an ADR)
   financialCurrency?: string; // currency the financial statements are reported in
   // price / overview
@@ -264,8 +265,13 @@ export async function getYahooStatements(
 }
 
 export async function getYahooCompany(input: string): Promise<CompanyData | null> {
+  // recommendationTrend carries the analyst vote DISTRIBUTION (strongBuy/buy/
+  // hold/sell/strongSell counts). Yahoo populates it for many non-US listings
+  // where financialData has no recommendationKey at all — which is why the
+  // Analyst Rating card read "No analyst rating available" for names that do
+  // have coverage. earningsTrend gives us a next-earnings date fallback.
   const modules =
-    "assetProfile,summaryDetail,defaultKeyStatistics,financialData,price,calendarEvents,fundOwnership,institutionOwnership,majorHoldersBreakdown";
+    "assetProfile,summaryDetail,defaultKeyStatistics,financialData,price,calendarEvents,recommendationTrend,earningsTrend,fundOwnership,institutionOwnership,majorHoldersBreakdown";
 
   let symbol = input.toUpperCase();
   let resolvedFrom: string | undefined;
@@ -291,6 +297,48 @@ export async function getYahooCompany(input: string): Promise<CompanyData | null
 
   const earningsObj = (ce.earnings ?? {}) as Record<string, unknown>;
   const earningsArr = (earningsObj.earningsDate ?? []) as unknown[];
+
+  // ── Analyst coverage, derived rather than assumed ────────────────────────
+  // financialData.recommendationKey is US-centric and frequently absent abroad.
+  // When it's missing, rebuild the same verdict from the recommendationTrend
+  // vote counts: weight each bucket 1..5 and map the mean back onto a key. This
+  // is exactly how the key is defined, so the two paths agree where both exist.
+  const rt = (result.recommendationTrend ?? {}) as Record<string, unknown>;
+  const rtRows = (rt.trend ?? []) as Record<string, unknown>[];
+  // "0m" is the current month; fall back to the first row Yahoo returns.
+  const rtRow = rtRows.find((r) => str(r.period) === "0m") ?? rtRows[0];
+  const votes = {
+    strongBuy: num(rtRow?.strongBuy) ?? 0,
+    buy: num(rtRow?.buy) ?? 0,
+    hold: num(rtRow?.hold) ?? 0,
+    sell: num(rtRow?.sell) ?? 0,
+    strongSell: num(rtRow?.strongSell) ?? 0,
+  };
+  const voteCount =
+    votes.strongBuy + votes.buy + votes.hold + votes.sell + votes.strongSell;
+  const meanVote =
+    voteCount > 0
+      ? (votes.strongBuy * 1 + votes.buy * 2 + votes.hold * 3 + votes.sell * 4 + votes.strongSell * 5) /
+        voteCount
+      : undefined;
+  const keyFromVotes =
+    meanVote == null
+      ? undefined
+      : meanVote <= 1.5
+      ? "strong_buy"
+      : meanVote <= 2.5
+      ? "buy"
+      : meanVote <= 3.5
+      ? "hold"
+      : meanVote <= 4.5
+      ? "underperform"
+      : "sell";
+
+  // Next earnings: calendarEvents first, then earningsTrend's period end date.
+  const etRows = ((result.earningsTrend ?? {}) as Record<string, unknown>).trend as
+    | Record<string, unknown>[]
+    | undefined;
+  const etDate = etRows?.find((r) => str(r.period) === "0q")?.endDate;
 
   // Top fund / ETF holders of this stock (Yahoo's fundOwnership module).
   const fo = (result.fundOwnership ?? {}) as Record<string, unknown>;
@@ -413,6 +461,7 @@ export async function getYahooCompany(input: string): Promise<CompanyData | null
     industry: str(ap.industry),
     website: str(ap.website),
     employees: num(ap.fullTimeEmployees),
+    country: str(ap.country),
     currency: str(pr.currency) ?? str(sd.currency),
     financialCurrency: str(fd.financialCurrency),
     // Prefer the live quote (regularMarketPrice) over financialData.currentPrice,
@@ -468,9 +517,10 @@ export async function getYahooCompany(input: string): Promise<CompanyData | null
     targetMean: num(fd.targetMeanPrice),
     targetHigh: num(fd.targetHighPrice),
     targetLow: num(fd.targetLowPrice),
-    recommendationKey: str(fd.recommendationKey),
-    numberOfAnalysts: num(fd.numberOfAnalystOpinions),
-    earningsDate: earningsArr.length ? dateOf(earningsArr[0]) : undefined,
+    recommendationKey: str(fd.recommendationKey) ?? keyFromVotes,
+    numberOfAnalysts: num(fd.numberOfAnalystOpinions) ?? (voteCount > 0 ? voteCount : undefined),
+    earningsDate:
+      (earningsArr.length ? dateOf(earningsArr[0]) : undefined) ?? dateOf(etDate),
     topFundHolders: topFundHolders.length ? topFundHolders : undefined,
     topInstitutionalHolders: topInstitutionalHolders.length ? topInstitutionalHolders : undefined,
     ownership:

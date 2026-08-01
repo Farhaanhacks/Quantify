@@ -105,6 +105,47 @@ export default function CompanyVitals({ symbol }: { symbol: string }) {
   const revPerEmp = data.revenue && data.employees ? data.revenue / data.employees : undefined;
   const earnPerEmp = data.netIncome && data.employees ? data.netIncome / data.employees : undefined;
 
+  // The card used to hardcode four employee-derived tiles, so any listing where
+  // Yahoo omits headcount (common outside the US — Hyundai Pharma, Indiabulls)
+  // showed four dashes even though revenue, earnings and market cap were all
+  // present. Build a candidate list instead and render the first four that
+  // actually have a value, so the card reflects what we know.
+  const money = (n: number) => `${n < 0 ? "-" : ""}${c}${fmtCompactCur(Math.abs(n), indian)}`;
+  const facts = (
+    [
+      data.employees ? { label: "Employees", value: data.employees.toLocaleString() } : null,
+      data.earningsDate ? { label: "Next earnings", value: fmtDate(data.earningsDate) } : null,
+      revPerEmp ? { label: "Revenue / employee", value: money(revPerEmp) } : null,
+      earnPerEmp
+        ? {
+            label: "Earnings / employee",
+            value: money(earnPerEmp),
+            sub: earnPerEmp < 0 ? "net loss" : undefined,
+          }
+        : null,
+      // Fallbacks — only reached when the employee-derived tiles can't be built.
+      data.revenue ? { label: "Revenue", value: money(data.revenue) } : null,
+      data.netIncome != null
+        ? {
+            label: "Net income",
+            value: money(data.netIncome),
+            sub: data.netIncome < 0 ? "net loss" : undefined,
+          }
+        : null,
+      data.marketCap ? { label: "Market cap", value: money(data.marketCap) } : null,
+      data.profitMargin != null
+        ? { label: "Profit margin", value: `${(data.profitMargin * 100).toFixed(1)}%` }
+        : null,
+      data.fiftyTwoWeekLow != null && data.fiftyTwoWeekHigh != null
+        ? {
+            label: "52-week range",
+            value: `${c}${data.fiftyTwoWeekLow.toFixed(0)}–${c}${data.fiftyTwoWeekHigh.toFixed(0)}`,
+          }
+        : null,
+      data.country ? { label: "Headquarters", value: data.country } : null,
+    ].filter(Boolean) as { label: string; value: string; sub?: string }[]
+  ).slice(0, 4);
+
   // Media coverage gauge from recent headline tone.
   const news = data.news ?? [];
   let pos = 0;
@@ -133,7 +174,11 @@ export default function CompanyVitals({ symbol }: { symbol: string }) {
             {rating ? (
               <Gauge value={rating.score} color={rating.color} label={rating.label} />
             ) : (
-              <p className="py-6 text-center text-sm text-slate-500">No analyst rating available.</p>
+              <p className="py-6 text-center text-sm leading-relaxed text-slate-500">
+                {data.targetMean != null
+                  ? "Analysts publish a price target for this listing but no consensus buy/hold/sell rating."
+                  : "No brokerage coverage is published for this listing by our data source — common for smaller non-US names."}
+              </p>
             )}
           </div>
           <div className="mt-2 grid grid-cols-2 gap-3 border-t border-white/[0.06] pt-3">
@@ -161,14 +206,13 @@ export default function CompanyVitals({ symbol }: { symbol: string }) {
         <GlassCard className="p-5">
           <h3 className="font-display text-base font-semibold text-white">Company facts</h3>
           <div className="mt-3 grid grid-cols-2 gap-2.5">
-            <Stat label="Employees" value={data.employees ? data.employees.toLocaleString() : "—"} />
-            <Stat label="Next earnings" value={fmtDate(data.earningsDate)} />
-            <Stat label="Revenue / employee" value={revPerEmp ? `${c}${fmtCompactCur(revPerEmp, indian)}` : "—"} />
-            <Stat
-              label="Earnings / employee"
-              value={earnPerEmp ? `${earnPerEmp < 0 ? "-" : ""}${c}${fmtCompactCur(Math.abs(earnPerEmp), indian)}` : "—"}
-              sub={earnPerEmp != null && earnPerEmp < 0 ? "net loss" : undefined}
-            />
+            {facts.length ? (
+              facts.map((f) => <Stat key={f.label} label={f.label} value={f.value} sub={f.sub} />)
+            ) : (
+              <p className="col-span-2 py-4 text-sm text-slate-500">
+                No company facts published for this listing.
+              </p>
+            )}
           </div>
           <div className="mt-3 border-t border-white/[0.06] pt-3 text-[0.7rem] text-slate-500">
             {data.sector ? <span>{data.sector}</span> : null}

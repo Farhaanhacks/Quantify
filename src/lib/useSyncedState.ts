@@ -28,13 +28,59 @@ function isEnvelope<T>(x: unknown): x is Envelope<T> {
   );
 }
 
+// ── Cross-component sync ───────────────────────────────────────────────────
+// Every call to this hook used to own a private useState, so a write from one
+// component was invisible to every other component reading the same key: adding
+// a holding updated the form's copy of the portfolio but NOT the summary total or
+// the value chart, and only a page refresh (which re-ran the loader everywhere)
+// made them agree. A module-level channel per key fixes that at the root — any
+// write is broadcast to every live subscriber of that key, so all readers of
+// "portfolios" re-render together.
+type Sub<T> = (v: T, t: number) => void;
+const channels = new Map<string, Set<Sub<unknown>>>();
+
+function subscribe<T>(key: string, fn: Sub<T>): () => void {
+  let set = channels.get(key);
+  if (!set) {
+    set = new Set();
+    channels.set(key, set);
+  }
+  set.add(fn as Sub<unknown>);
+  return () => {
+    set!.delete(fn as Sub<unknown>);
+    if (set!.size === 0) channels.delete(key);
+  };
+}
+
+// Notifies every subscriber, including the writer. That's deliberate: the writer
+// sets the exact same object reference, so React bails out of the redundant
+// render rather than looping.
+function broadcast<T>(key: string, v: T, t: number) {
+  const set = channels.get(key);
+  if (!set) return;
+  for (const fn of Array.from(set)) (fn as Sub<T>)(v, t);
+}
+
 export function useSyncedState<T>(key: string, initial: T) {
   const [value, setValueState] = useState<T>(initial);
   const [ready, setReady] = useState(false);
   const [scope, setScope] = useState<"account" | "device">("device");
   const authedRef = useRef(false);
   const tRef = useRef(0);
+  // Mirrors `value` so setValue can read the current state synchronously and
+  // publish the resolved result to the other subscribers.
+  const valueRef = useRef<T>(initial);
   const LS = `quantifi.${key}.v1`;
+
+  // Accept writes made by any other component sharing this key.
+  useEffect(() => {
+    const onRemote: Sub<T> = (v, t) => {
+      valueRef.current = v;
+      tRef.current = t;
+      setValueState(v);
+    };
+    return subscribe<T>(key, onRemote);
+  }, [key]);
 
   const writeLocal = useCallback(
     (env: Envelope<T>) => {
@@ -115,6 +161,7 @@ export function useSyncedState<T>(key: string, initial: T) {
 
       if (chosen) {
         setValueState(chosen.v);
+        valueRef.current = chosen.v;
         tRef.current = chosen.t;
         if (source === "server") {
           writeLocal(chosen);
@@ -127,6 +174,7 @@ export function useSyncedState<T>(key: string, initial: T) {
         }
       } else {
         setValueState(initial);
+        valueRef.current = initial;
         tRef.current = 0;
       }
       setReady(true);
@@ -140,18 +188,22 @@ export function useSyncedState<T>(key: string, initial: T) {
 
   const setValue = useCallback(
     (updater: Updater<T>) => {
-      setValueState((prev) => {
-        const resolved =
-          typeof updater === "function" ? (updater as (p: T) => T)(prev) : (updater as T);
-        const t = Date.now();
-        tRef.current = t;
-        const env: Envelope<T> = { v: resolved, t };
-        writeLocal(env);
-        if (authedRef.current) putServer(env);
-        return resolved;
-      });
+      // Resolved outside setValueState: persisting and broadcasting are side
+      // effects and must not run inside a state updater (React may invoke it
+      // twice). valueRef is the authoritative current value.
+      const prev = valueRef.current;
+      const resolved =
+        typeof updater === "function" ? (updater as (p: T) => T)(prev) : (updater as T);
+      const t = Date.now();
+      valueRef.current = resolved;
+      tRef.current = t;
+      const env: Envelope<T> = { v: resolved, t };
+      writeLocal(env);
+      if (authedRef.current) putServer(env);
+      // Updates this component AND every other reader of the same key.
+      broadcast<T>(key, resolved, t);
     },
-    [writeLocal, putServer]
+    [writeLocal, putServer, key]
   );
 
   return { value, setValue, ready, scope };
