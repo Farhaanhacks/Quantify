@@ -34,6 +34,29 @@ const STOP_NAME = new Set([
   "materials", "properties", "advantage", "signal", "sector", "index",
 ]);
 
+// Single-word company names that also name a completely different, better-known
+// business in another market. Matching the bare word attaches the wrong listing.
+//
+// The case that prompted this: SEC's company file lists "Reliance, Inc." (RS, a
+// US metals distributor), which cleans down to just "reliance" — so every Indian
+// headline about the Reliance group resolved to a US metals stock. Worse, some
+// of those headlines are about Reliance Capital, which was delisted from BSE and
+// NSE after its NCLT resolution and acquisition by IndusInd International
+// Holdings, so there is no tradeable listing to point at in the first place.
+//
+// Names here are still reachable when qualified ("Reliance Industries" →
+// RELIANCE.NS via the curated list) or by their all-caps symbol. A bare mention
+// resolves to nothing, which is the correct answer: no ticker beats the wrong
+// ticker.
+const AMBIGUOUS_NAME = new Set(["reliance"]);
+
+// A name is only usable as a prose keyword if it's long enough to be
+// distinctive, isn't a bare English word, and isn't a known cross-market
+// collision.
+function usableName(kw: string, min: number): boolean {
+  return kw.length >= min && !STOP_NAME.has(kw) && !AMBIGUOUS_NAME.has(kw);
+}
+
 // ETFs are absent from SEC company_tickers.json (that file is operating
 // companies), so a named ETF ticker like MSOS would never be recognised. Seed a
 // curated set of widely-covered ETFs so their tickers are detectable in prose.
@@ -100,7 +123,7 @@ async function loadUniverse(): Promise<{ names: Entry[]; syms: Set<string> }> {
         const sym = t.toUpperCase();
         syms.add(sym);
         const kw = cleanName(title);
-        if (kw.length >= 5 && !STOP_NAME.has(kw)) names.push({ ticker: sym, kw });
+        if (usableName(kw, 5)) names.push({ ticker: sym, kw });
       }
     }
   } catch {
@@ -110,7 +133,7 @@ async function loadUniverse(): Promise<{ names: Entry[]; syms: Set<string> }> {
   // Always include curated names (India + supplemental) so coverage never regresses.
   for (const p of popularTickers) {
     const kw = cleanName(p.n);
-    if (kw.length >= 4 && !STOP_NAME.has(kw)) names.push({ ticker: p.s, kw });
+    if (usableName(kw, 4)) names.push({ ticker: p.s, kw });
     syms.add(p.s.replace(/\.(NS|BO)$/, "").toUpperCase());
   }
 
