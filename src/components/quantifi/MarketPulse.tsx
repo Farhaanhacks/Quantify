@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { fmtPct, fmtPrice } from "@/data/demo";
+import { fmtPct } from "@/data/demo";
 import { getPulse, type PulseEntry } from "@/lib/marketPulse";
 
 function PulseRow({ items }: { items: PulseEntry[] }) {
@@ -25,7 +24,7 @@ function PulseRow({ items }: { items: PulseEntry[] }) {
 }
 
 export default async function MarketPulse() {
-  const { pulse, movers, live, asOf } = await getPulse();
+  const { pulse, live, asOf } = await getPulse();
 
   return (
     <section className="border-y border-white/[0.06] bg-ink-900/50">
@@ -37,26 +36,6 @@ export default async function MarketPulse() {
           <div className="mask-fade-x relative flex-1 overflow-hidden">
             <PulseRow items={pulse} />
           </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.04] py-3">
-          <span className="flex items-center gap-2 text-[0.7rem] uppercase tracking-[0.16em] text-slate-500">
-            Today&apos;s movers
-          </span>
-          {movers.map((q) => {
-            const up = q.changePct >= 0;
-            return (
-              <Link
-                key={q.ticker}
-                href={`/stock-analysis?symbol=${encodeURIComponent(q.ticker)}`}
-                className={`chip font-mono tnum transition hover:border-white/25 hover:brightness-125 ${up ? "text-up" : "text-down"}`}
-                title={`Open ${q.ticker} analysis${q.price ? ` · $${fmtPrice(q.price)}` : ""}`}
-              >
-                {q.ticker}
-                <span>{fmtPct(q.changePct)}</span>
-              </Link>
-            );
-          })}
         </div>
 
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-white/[0.04] py-2 text-[0.62rem] text-slate-500">

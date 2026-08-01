@@ -139,7 +139,25 @@ export default function PortfolioToday({ heading = true }: { heading?: boolean }
       ) : null}
 
       {!ready || loading ? (
-        <GlassCard className="mt-6 p-8 text-center text-sm text-slate-500">Loading today&apos;s move…</GlassCard>
+        <div className="mt-6 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]" aria-hidden>
+          <GlassCard className="flex flex-col justify-center gap-3 p-6">
+            <div className="h-3 w-24 animate-pulse rounded bg-white/[0.06]" />
+            <div className="h-10 w-32 animate-pulse rounded bg-white/[0.06]" />
+            <div className="flex gap-2">
+              <div className="h-6 w-20 animate-pulse rounded-full bg-white/[0.06]" />
+              <div className="h-6 w-20 animate-pulse rounded-full bg-white/[0.06]" />
+            </div>
+          </GlassCard>
+          <GlassCard className="divide-y divide-white/[0.05] overflow-hidden">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center justify-between px-5 py-4">
+                <div className="h-5 w-24 animate-pulse rounded bg-white/[0.06]" />
+                <div className="h-5 w-14 animate-pulse rounded bg-white/[0.06]" />
+                <div className="h-5 w-16 animate-pulse rounded bg-white/[0.06]" />
+              </div>
+            ))}
+          </GlassCard>
+        </div>
       ) : !hasHoldings ? (
         <GlassCard className="mt-6 p-10 text-center">
           <p className="text-sm text-slate-300">No holdings yet — add some to see your daily move.</p>

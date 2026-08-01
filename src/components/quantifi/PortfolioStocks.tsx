@@ -133,7 +133,28 @@ export default function PortfolioStocks({
       ) : null}
 
       {!ready ? (
-        <GlassCard className="mt-6 p-8 text-center text-sm text-slate-500">Loading…</GlassCard>
+        <div className="mt-6 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]" aria-hidden>
+          <GlassCard className="divide-y divide-white/[0.05] overflow-hidden">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center justify-between px-5 py-4">
+                <div className="h-5 w-28 animate-pulse rounded bg-white/[0.06]" />
+                <div className="h-5 w-10 animate-pulse rounded bg-white/[0.06]" />
+                <div className="h-5 w-12 animate-pulse rounded bg-white/[0.06]" />
+                <div className="h-5 w-12 animate-pulse rounded bg-white/[0.06]" />
+              </div>
+            ))}
+          </GlassCard>
+          <GlassCard className="flex flex-col gap-4 p-6">
+            <div className="h-6 w-20 animate-pulse rounded-full bg-white/[0.06]" />
+            <div className="h-5 w-40 animate-pulse rounded bg-white/[0.06]" />
+            <div className="h-12 w-full animate-pulse rounded bg-white/[0.06]" />
+            <div className="grid grid-cols-2 gap-3">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="h-10 animate-pulse rounded bg-white/[0.06]" />
+              ))}
+            </div>
+          </GlassCard>
+        </div>
       ) : !hasHoldings || !selected ? (
         <GlassCard className="mt-6 p-10 text-center">
           <p className="text-sm text-slate-300">No holdings yet — start your own portfolio.</p>

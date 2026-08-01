@@ -11,7 +11,8 @@ export default function Hero() {
         </h1>
 
         <p className="mx-auto mt-6 max-w-2xl font-display text-xl font-medium leading-snug text-slate-200 sm:text-2xl">
-          See what&apos;s shifting, why it&apos;s breaking, and how.
+          Quantifi maps every price move back to the news, filings and insider trades that caused
+          it — the &ldquo;why&rdquo; that Bloomberg and Yahoo Finance leave you to piece together yourself.
         </p>
 
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">

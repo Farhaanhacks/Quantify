@@ -11,13 +11,15 @@ import NotificationBell from "@/components/quantifi/NotificationBell";
 // Ideas, Rare Finds and Tools are no longer surfaced in the nav — their content
 // is moving to the community page. The routes still exist, so any saved/shared
 // link keeps working; they're just not advertised here any more.
+// "Subscribe" is intentionally excluded here — it's the paid-conversion CTA and
+// is rendered as a filled button (below) so it stands apart from the free tool
+// links rather than blending in as one more text link.
 const links = [
   { href: "/", label: "Home" },
   { href: "/news", label: "News" },
   { href: "/screener", label: "Screener" },
   { href: "/portfolio", label: "Portfolio" },
   { href: "/watchlist", label: "Watchlist" },
-  { href: "/pricing", label: "Subscribe" },
 ];
 
 // One search result / recently-viewed entry.
@@ -261,6 +263,14 @@ export default function Navbar() {
         <div className="flex items-center gap-2">
           {/* Wide enough that the placeholder isn't clipped at the larger type size. */}
           <SearchBox className="hidden w-64 md:flex lg:w-72" />
+          {/* Paid conversion CTA — a filled gold button so it reads as the one
+              action to take, distinct from the free nav links. */}
+          <Link
+            href="/pricing"
+            className="hidden shrink-0 whitespace-nowrap rounded-full bg-gradient-to-r from-gold-400 to-gold-600 px-4 py-2 text-sm font-semibold text-ink transition hover:opacity-90 sm:inline-flex"
+          >
+            Subscribe
+          </Link>
           {/* Theme also appears inside the account menu. Both write the same
               localStorage key, and ThemeToggle watches the <html> class, so the
               two controls stay in sync. It stays in the nav for signed-out
@@ -299,6 +309,13 @@ export default function Navbar() {
               </Link>
             ))}
           </div>
+          <Link
+            href="/pricing"
+            onClick={() => setOpen(false)}
+            className="mt-2 flex items-center justify-center rounded-lg bg-gradient-to-r from-gold-400 to-gold-600 px-3 py-2.5 text-sm font-semibold text-ink transition hover:opacity-90"
+          >
+            Subscribe
+          </Link>
         </div>
       ) : null}
     </header>

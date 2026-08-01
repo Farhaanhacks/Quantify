@@ -346,7 +346,17 @@ export default function InsiderActivity({
             </div>
           ) : null}
           {loading && disclosures.length === 0 ? (
-            <div className="px-5 py-10 text-center text-sm text-slate-500">Loading disclosures…</div>
+            <ul className="divide-y divide-white/[0.05]" aria-hidden>
+              {[0, 1, 2, 3, 4].map((i) => (
+                <li key={i} className="flex items-center justify-between px-5 py-4">
+                  <div className="flex flex-col gap-2">
+                    <div className="h-4 w-48 animate-pulse rounded bg-white/[0.06]" />
+                    <div className="h-3 w-32 animate-pulse rounded bg-white/[0.06]" />
+                  </div>
+                  <div className="h-3 w-16 animate-pulse rounded bg-white/[0.06]" />
+                </li>
+              ))}
+            </ul>
           ) : null}
         </GlassCard>
       ) : (
@@ -406,7 +416,20 @@ export default function InsiderActivity({
         ) : null}
 
         {loading && filtered.length === 0 ? (
-          <div className="px-5 py-10 text-center text-sm text-slate-500">Loading insider filings…</div>
+          <ul className="divide-y divide-white/[0.05]" aria-hidden>
+            {[0, 1, 2, 3, 4].map((i) => (
+              <li
+                key={i}
+                className="grid grid-cols-2 gap-3 px-5 py-4 lg:grid-cols-[1.3fr_1.1fr_1fr_0.8fr_0.8fr] lg:items-center"
+              >
+                <div className="h-5 w-24 animate-pulse rounded bg-white/[0.06]" />
+                <div className="h-5 w-28 animate-pulse rounded bg-white/[0.06]" />
+                <div className="h-5 w-16 animate-pulse rounded bg-white/[0.06]" />
+                <div className="ml-auto h-5 w-14 animate-pulse rounded bg-white/[0.06]" />
+                <div className="ml-auto h-5 w-16 animate-pulse rounded bg-white/[0.06]" />
+              </li>
+            ))}
+          </ul>
         ) : null}
       </GlassCard>
       )}
