@@ -1,4 +1,3 @@
-import Hero from "@/components/quantifi/Hero";
 import ResearchPriming from "@/components/quantifi/ResearchPriming";
 import PortfolioStocks from "@/components/quantifi/PortfolioStocks";
 import PortfolioToday from "@/components/quantifi/PortfolioToday";
@@ -30,12 +29,14 @@ export default async function HomePage() {
 
   return (
     <>
-      <Hero />
+      {/* News Impact leads the page — the live feed is the first thing a
+          visitor sees, ahead of the research framing and the portfolio
+          modules. There is no hero above it. */}
+      <NewsImpact items={news} limit={5} />
       <ResearchPriming />
       <PortfolioToday />
       <PortfolioStocks limit={4} />
       <Diversification />
-      <NewsImpact items={news} limit={5} />
       <InsiderActivity showFilter={false} limit={5} />
     </>
   );

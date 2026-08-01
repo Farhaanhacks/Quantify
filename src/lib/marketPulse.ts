@@ -17,9 +17,11 @@ export interface PulseEntry {
   label: string;
   value: string;
   changePct: number;
-  // Set for entries that map to a page on the site (the watched stocks). Index
-  // and commodity entries have no analysis page, so they stay unlinked.
-  symbol?: string;
+}
+export interface MoverEntry {
+  ticker: string;
+  changePct: number;
+  price: number;
 }
 
 type Fmt = "index" | "usd" | "pct" | "plain";
@@ -72,11 +74,9 @@ function fmtVal(v: number, fmt: Fmt): string {
   return v.toFixed(2);
 }
 
-// One tape for the whole bar: indices and commodities first, then the watched
-// movers. They used to be rendered as two stacked strips; a ticker tape mixing
-// both is what a real one does, and it costs half the vertical space.
 export async function getPulse(): Promise<{
   pulse: PulseEntry[];
+  movers: MoverEntry[];
   live: boolean;
   asOf: string;
 }> {
@@ -126,25 +126,20 @@ export async function getPulse(): Promise<{
   });
 
   const moverResults = await Promise.all(
-    MOVER_TICKERS.map(async (ticker): Promise<PulseEntry | null> => {
+    MOVER_TICKERS.map(async (ticker): Promise<MoverEntry | null> => {
       const q = quotes.get(ticker.toUpperCase());
-      // Indian listings quote in rupees — never stamp a $ on them.
-      const sym = /\.(NS|BO)$/i.test(ticker) ? "₹" : "$";
-      const entry = (price: number, changePct: number): PulseEntry => ({
-        label: ticker.replace(/\.(NS|BO)$/i, ""),
-        value: `${sym}${price.toLocaleString("en-US", { maximumFractionDigits: price >= 1000 ? 0 : 2 })}`,
-        changePct: Number(changePct.toFixed(2)),
-        symbol: ticker,
-      });
-      if (q && q.changePercent != null) return entry(q.price ?? 0, q.changePercent);
+      if (q && q.changePercent != null) {
+        return { ticker, changePct: Number(q.changePercent.toFixed(2)), price: q.price ?? 0 };
+      }
       const d = await fetchOne(ticker);
       if (!d) return null;
-      return entry(d.price, d.prev ? ((d.price - d.prev) / d.prev) * 100 : 0);
+      const changePct = d.prev ? ((d.price - d.prev) / d.prev) * 100 : 0;
+      return { ticker, changePct: Number(changePct.toFixed(2)), price: d.price };
     })
   );
   // Only movers with a live quote are shown — no fabricated day-change.
-  const movers = moverResults.filter((m): m is PulseEntry => m != null);
+  const movers: MoverEntry[] = moverResults.filter((m): m is MoverEntry => m != null);
   if (movers.length) live = true;
 
-  return { pulse: [...pulse, ...movers], live, asOf };
+  return { pulse, movers, live, asOf };
 }
