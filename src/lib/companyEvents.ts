@@ -31,6 +31,8 @@ export interface CompanyEvent {
   label: string;
   /** Longer description for the tooltip. */
   detail: string;
+  /** The SEC item code this was classified from, e.g. "2.02". */
+  item?: string;
   /** Link to the source filing, when there is one. */
   url?: string;
 }
@@ -93,14 +95,16 @@ interface Submissions {
 // One filing can report several items (an earnings 8-K is usually "2.02,9.01").
 // We keep the first code we can classify, so the marker names the substantive
 // event rather than the exhibit list that accompanies it.
-function classify(itemsField: string): { category: EventCategory; label: string; detail: string } | null {
+function classify(
+  itemsField: string
+): { category: EventCategory; label: string; detail: string; item: string } | null {
   const codes = itemsField
     .split(",")
     .map((c) => c.trim())
     .filter(Boolean);
   for (const code of codes) {
     const hit = ITEM_MAP[code];
-    if (hit) return hit;
+    if (hit) return { ...hit, item: code };
   }
   return null;
 }
@@ -136,6 +140,7 @@ async function get8kEvents(ticker: string, sinceMs: number): Promise<CompanyEven
       category: hit.category,
       label: hit.label,
       detail: hit.detail,
+      item: hit.item,
       url:
         accNo && doc
           ? `https://www.sec.gov/Archives/edgar/data/${cikInt}/${accNo.replace(/-/g, "")}/${doc}`

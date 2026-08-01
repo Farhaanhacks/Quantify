@@ -5,6 +5,7 @@ import { createChart, ColorType, LineStyle } from "lightweight-charts";
 import { GlassCard, ChangePill, TickerChip } from "@/components/quantifi/Cards";
 import { fmtPrice, currencySymbol } from "@/data/demo";
 import { CATEGORY_COLOR, type CompanyEvent, type EventCategory } from "@/lib/companyEvents";
+import EventDetailModal from "@/components/quantifi/EventDetailModal";
 
 interface Meta {
   price?: number;
@@ -39,6 +40,8 @@ export default function PriceChart({
   const [range, setRange] = useState("1y");
   const [events, setEvents] = useState<CompanyEvent[]>([]);
   const [showEvents, setShowEvents] = useState(true);
+  // The date whose events are open in the detail modal, if any.
+  const [openDate, setOpenDate] = useState<string | null>(null);
   const [style, setStyle] = useState<ChartStyle>("area");
   const [meta, setMeta] = useState<Meta | null>(null);
   const [loading, setLoading] = useState(true);
@@ -296,6 +299,7 @@ export default function PriceChart({
             const point = param.point;
             if (!time || !point || point.x < 0 || point.y < 0) {
               tip.style.display = "none";
+              el.style.cursor = "default";
               return;
             }
             const bar = param.seriesData.get(series) as
@@ -314,6 +318,7 @@ export default function PriceChart({
               timeZone: "UTC",
             });
             const hits = byDate.get(time) ?? [];
+            el.style.cursor = hits.length ? "pointer" : "default";
             tip.innerHTML =
               `<div class="text-[0.62rem] text-slate-400">${when}</div>` +
               `<div class="font-mono text-sm font-semibold tnum text-white">${tipCurrency}${fmtPrice(price)}</div>` +
@@ -332,6 +337,20 @@ export default function PriceChart({
             const left = Math.min(Math.max(point.x - w / 2, 4), el.clientWidth - w - 4);
             tip.style.left = `${left}px`;
             tip.style.top = `8px`;
+          });
+        }
+
+        if (series) {
+          const byDateForClick = new Map<string, string>();
+          for (const e of visibleEvents) {
+            const t = snapToBar(e.date);
+            if (t) byDateForClick.set(t, e.date);
+          }
+          chart.subscribeClick((param) => {
+            const time = param.time as string | undefined;
+            if (!time) return;
+            const real = byDateForClick.get(time);
+            if (real) setOpenDate(real);
           });
         }
 
@@ -443,6 +462,7 @@ export default function PriceChart({
               {c}
             </span>
           ))}
+          <span className="text-[0.65rem] text-slate-500">Click a marker for detail</span>
           <span className="ml-auto text-[0.62rem] text-slate-600">
             SEC 8-K item codes · dividends &amp; splits
           </span>
@@ -456,6 +476,14 @@ export default function PriceChart({
           Candles need open/high/low data, which our backup price source doesn&apos;t publish for this
           symbol — showing the closing line instead.
         </p>
+      ) : null}
+
+      {openDate ? (
+        <EventDetailModal
+          date={openDate}
+          events={events.filter((e) => e.date === openDate)}
+          onClose={() => setOpenDate(null)}
+        />
       ) : null}
     </GlassCard>
   );
