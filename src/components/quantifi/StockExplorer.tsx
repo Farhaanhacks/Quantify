@@ -72,11 +72,8 @@ function toTvSymbol(raw: string): string {
 // Any non-US listing carries an exchange suffix (.NS/.BO India, .KS/.KQ Korea,
 // .T Japan, .HK Hong Kong, .L London, .SS/.SZ China, …). TradingView's free
 // widget routinely doesn't serve these without an exchange-specific prefix, so
-// it throws "this symbol doesn't exist" — default them all to the Yahoo-powered
-// Quantifi chart, which covers them. US tickers have no such suffix (Yahoo uses
-// a hyphen, e.g. BRK-B), so they stay on TradingView. The user can still toggle.
-// True when TradingView's free widget can't render this symbol at all, so the
-// engine shouldn't even be offered.
+// it throws "this symbol doesn't exist" — the engine shouldn't even be offered
+// for them.
 function tvCantServe(t: string): boolean {
   const u = t.toUpperCase();
   if (/\.[A-Z]{1,4}$/.test(u)) return true; // any non-US listing
@@ -85,8 +82,12 @@ function tvCantServe(t: string): boolean {
   return false;
 }
 
-function defaultEngine(t: string): Engine {
-  return tvCantServe(t) ? "quantifi" : "tv";
+// The Quantifi chart leads everywhere, including US names TradingView can serve:
+// it's the one carrying our own work — the 8-K event markers, period high/low and
+// the crosshair detail — and it keeps the chart consistent across every listing.
+// TradingView stays one click away for anyone who wants its drawing tools.
+function defaultEngine(_t: string): Engine {
+  return "quantifi";
 }
 
 interface ScoreResponse {
@@ -329,7 +330,7 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
           <p className="mt-3 text-xs text-slate-500">
             {tvUnsupported
               ? "Charts for this listing are drawn by the Quantifi engine (Yahoo data) — TradingView’s free widget doesn’t carry non-US symbols."
-              : "Two chart engines: TradingView (interactive) and Quantifi (Yahoo data, covers symbols TradingView’s free widget skips, like many Indian stocks). Switch anytime with the toggle."}
+              : "The Quantifi chart is shown by default — it carries corporate event markers drawn from SEC filings, plus period high/low. Switch to TradingView anytime for its drawing tools."}
           </p>
         </GlassCard>
       </section>

@@ -42,7 +42,10 @@ export default function PriceChart({
   const [showEvents, setShowEvents] = useState(true);
   // The date whose events are open in the detail modal, if any.
   const [openDate, setOpenDate] = useState<string | null>(null);
-  const [style, setStyle] = useState<ChartStyle>("area");
+  // Candles by default: this is a research chart, and OHLC bars carry the
+  // intraday range the line hides. Sources without OHLC fall back to the line
+  // automatically (see `noCandles`).
+  const [style, setStyle] = useState<ChartStyle>("candles");
   const [meta, setMeta] = useState<Meta | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
