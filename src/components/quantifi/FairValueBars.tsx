@@ -17,11 +17,21 @@ export function FairValueBars({
   fair,
   cur,
   outOfRange = false,
+  fairLabel = "Fair Value",
+  note,
+  outOfRangeTitle = "Beyond a 10-year DCF horizon",
+  outOfRangeNote = "Shown as context — the model can't support an over/under call here.",
 }: {
   price: number;
   fair: number;
   cur: string;
   outOfRange?: boolean;
+  /** What the second bar is called — "Fair Value", "Sector Fair Value", … */
+  fairLabel?: string;
+  /** Method footnote under the bars. Omit to show none. */
+  note?: string;
+  outOfRangeTitle?: string;
+  outOfRangeNote?: string;
 }) {
   const max = Math.max(price, fair) || 1;
   // Never let the smaller bar vanish entirely — at extreme ratios a 0.5% bar is
@@ -43,12 +53,8 @@ export function FairValueBars({
         </div>
       ) : (
         <div className="mb-3">
-          <div className="font-display text-lg font-semibold text-slate-300">
-            Beyond a 10-year DCF horizon
-          </div>
-          <div className="text-sm text-slate-500">
-            Shown as context — the model can&apos;t support an over/under call here.
-          </div>
+          <div className="font-display text-lg font-semibold text-slate-300">{outOfRangeTitle}</div>
+          <div className="text-sm text-slate-500">{outOfRangeNote}</div>
         </div>
       )}
 
@@ -60,14 +66,12 @@ export function FairValueBars({
           widthPct={pct(price)}
           tone={outOfRange ? "neutral" : over ? "down" : "up"}
         />
-        <Bar label="Fair Value" value={fair} cur={cur} widthPct={pct(fair)} tone="fair" />
+        <Bar label={fairLabel} value={fair} cur={cur} widthPct={pct(fair)} tone="fair" />
       </div>
 
-      <p className="mt-3 text-[0.7rem] leading-relaxed text-slate-500">
-        Fair value from a 2-stage discounted cash flow: ten years of projected free cash flow plus a
-        terminal value, discounted at a cost of equity derived from the company&apos;s beta.
-        Research only, not advice.
-      </p>
+      {note ? (
+        <p className="mt-3 text-[0.7rem] leading-relaxed text-slate-500">{note}</p>
+      ) : null}
     </div>
   );
 }

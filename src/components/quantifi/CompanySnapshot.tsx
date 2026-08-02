@@ -66,7 +66,6 @@ export default function CompanySnapshot({
 
   const gap = ((a.fairValue.estimate - resolvedPrice) / resolvedPrice) * 100;
   const under = gap > 0;
-  const tag = "";
 
   // --- Synthesis: strongest / weakest axis, a risk lens and a one-line read ---
   const ranked = [...SCORE_AXES]
@@ -139,29 +138,18 @@ export default function CompanySnapshot({
           </div>
           <p className="mt-1 max-w-md text-xs text-slate-500">{a.fairValue.note}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-          <div>
-            <div className="text-xs text-slate-500">Current</div>
-            <div className="font-mono text-xl font-semibold tnum text-white">{cur}{fmtPrice(resolvedPrice)}</div>
-          </div>
-          <div>
-            <div className="text-xs text-slate-500">Fair value</div>
-            <div className="font-mono text-xl font-semibold tnum text-white">{cur}{fmtPrice(a.fairValue.estimate)}</div>
-          </div>
-          <Tag tone={under ? "up" : "down"}>
-            {under ? "Below" : "Above"} fair value · {Math.abs(gap).toFixed(0)}%
-          </Tag>
-        </div>
+        <Tag tone={under ? "up" : "down"}>
+          {under ? "Below" : "Above"} fair value · {Math.abs(gap).toFixed(0)}%
+        </Tag>
       </div>
       <div className="mt-5">
-        <div className="relative h-2 rounded-full bg-white/[0.06]">
-          <div className="absolute top-1/2 h-3.5 w-0.5 -translate-y-1/2 bg-teal" style={{ left: `${Math.min(95, Math.max(5, (a.fairValue.estimate / Math.max(a.fairValue.estimate, resolvedPrice)) * 90))}%` }} aria-hidden />
-          <div className="absolute top-1/2 h-3.5 w-0.5 -translate-y-1/2 bg-gold" style={{ left: `${Math.min(95, Math.max(5, (resolvedPrice / Math.max(a.fairValue.estimate, resolvedPrice)) * 90))}%` }} aria-hidden />
-        </div>
-        <div className="mt-2 flex gap-4 text-[0.7rem] text-slate-500">
-          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-gold" /> Current price</span>
-          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-teal" /> Fair value{tag}</span>
-        </div>
+        <FairValueBars
+          price={resolvedPrice}
+          fair={a.fairValue.estimate}
+          cur={cur}
+          fairLabel="Fair Value"
+          note="Analysts' average price target vs the current price — a research input, not advice."
+        />
       </div>
     </GlassCard>
   );
@@ -230,39 +218,20 @@ export default function CompanySnapshot({
           </div>
           <p className="mt-1 max-w-md text-xs text-slate-500">{sv.note}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-          <div>
-            <div className="text-xs text-slate-500">Current</div>
-            <div className="font-mono text-xl font-semibold tnum text-white">{cur}{fmtPrice(resolvedPrice)}</div>
-          </div>
-          <div>
-            <div className="text-xs text-slate-500">{sv.valueLabel}</div>
-            <div className="font-mono text-xl font-semibold tnum text-white">{cur}{fmtPrice(sv.estimate)}</div>
-          </div>
-          <Tag tone={sv.tagUnder ? "up" : "down"}>{sv.tag}</Tag>
-        </div>
+        <Tag tone={sv.tagUnder ? "up" : "down"}>{sv.tag}</Tag>
       </div>
       <div className="mt-3 text-[0.7rem] uppercase tracking-[0.14em] text-slate-500">
         {sv.sector} · <span className="font-mono normal-case tracking-normal text-slate-300">{sv.metricLabel}</span>
       </div>
       {sv.showBar ? (
         <div className="mt-4">
-          <div className="relative h-2 rounded-full bg-white/[0.06]">
-            <div
-              className="absolute top-1/2 h-3.5 w-0.5 -translate-y-1/2 bg-teal"
-              style={{ left: `${Math.min(95, Math.max(5, (sv.estimate / Math.max(sv.estimate, resolvedPrice)) * 90))}%` }}
-              aria-hidden
-            />
-            <div
-              className="absolute top-1/2 h-3.5 w-0.5 -translate-y-1/2 bg-gold"
-              style={{ left: `${Math.min(95, Math.max(5, (resolvedPrice / Math.max(sv.estimate, resolvedPrice)) * 90))}%` }}
-              aria-hidden
-            />
-          </div>
-          <div className="mt-2 flex gap-4 text-[0.7rem] text-slate-500">
-            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-gold" /> Current price</span>
-            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-teal" /> {sv.valueLabel}</span>
-          </div>
+          <FairValueBars
+            price={resolvedPrice}
+            fair={sv.estimate}
+            cur={cur}
+            fairLabel={sv.valueLabel}
+            note={`A ${sv.method} benchmark applied to this company's own figures — a sector heuristic, not a precise target.`}
+          />
         </div>
       ) : null}
     </GlassCard>
