@@ -69,7 +69,7 @@ function dcfPerShare(
   shares: number | undefined,
   growth: number | undefined,
   discount = 0.09,
-  termGrowth = 0.025,
+  termGrowth = 0.025, // callers pass the bond-linked rate; this is only a fallback
   years = 10
 ): number | undefined {
   if (fcf == null || fcf <= 0 || shares == null || shares <= 0) return undefined;
@@ -120,20 +120,56 @@ function dcfPerShare(
   return isFinite(perShare) && perShare > 0 ? perShare : undefined;
 }
 
-// Cost of equity (the DCF discount rate) by the listing's home market. It's driven
-// mostly by the local risk-free rate + an equity risk premium, so it varies a lot
-// by country: a flat US 9% applied to Indian or Brazilian cash flows badly
-// understates the discount and inflates the value. Keyed by the reporting/quote
-// currency; unknown markets get a conservative emerging-market default.
-function costOfEquity(currency: string | undefined): number {
-  const c = (currency ?? "USD").toUpperCase();
-  const map: Record<string, number> = {
-    USD: 0.09, CAD: 0.09, GBP: 0.09, EUR: 0.085, CHF: 0.07, JPY: 0.07,
-    AUD: 0.095, SGD: 0.085, HKD: 0.09, TWD: 0.095, KRW: 0.10, CNY: 0.10,
-    INR: 0.125, IDR: 0.14, THB: 0.10, PHP: 0.12, MYR: 0.10,
-    BRL: 0.15, MXN: 0.135, ZAR: 0.15, TRY: 0.22, AED: 0.10, SAR: 0.10,
-  };
-  return map[c] ?? 0.115; // unknown → conservative EM default
+// ── DCF rate inputs ──────────────────────────────────────────────────────────
+//
+// Two market-level constants drive the model, both keyed by the listing's home
+// currency because a US 9% discount applied to Indian cash flows understates the
+// risk and inflates the value.
+//
+// RISK_FREE is the local 10-year government bond yield. It does double duty: it
+// anchors the cost of equity, and it IS the terminal growth rate — a mature
+// company cannot compound faster than its economy forever, and the long bond is
+// the standard proxy for that ceiling.
+const RISK_FREE: Record<string, number> = {
+  USD: 0.043, CAD: 0.033, GBP: 0.042, EUR: 0.025, CHF: 0.005, JPY: 0.016,
+  AUD: 0.043, SGD: 0.028, HKD: 0.035, TWD: 0.015, KRW: 0.031, CNY: 0.018,
+  INR: 0.069, IDR: 0.068, THB: 0.026, PHP: 0.061, MYR: 0.038,
+  BRL: 0.113, MXN: 0.095, ZAR: 0.105, TRY: 0.27, AED: 0.043, SAR: 0.045,
+};
+
+// Equity risk premium — the excess return demanded over the local bond for
+// carrying equity risk. Developed markets sit near 5%, emerging markets higher.
+const EQUITY_RISK_PREMIUM: Record<string, number> = {
+  USD: 0.05, CAD: 0.05, GBP: 0.05, EUR: 0.055, CHF: 0.05, JPY: 0.055,
+  AUD: 0.05, SGD: 0.055, HKD: 0.06, TWD: 0.06, KRW: 0.065, CNY: 0.07,
+  INR: 0.07, IDR: 0.08, THB: 0.07, PHP: 0.08, MYR: 0.07,
+  BRL: 0.075, MXN: 0.07, ZAR: 0.08, TRY: 0.09, AED: 0.06, SAR: 0.06,
+};
+
+function riskFreeRate(currency: string | undefined): number {
+  return RISK_FREE[(currency ?? "USD").toUpperCase()] ?? 0.06;
+}
+
+// Cost of equity by CAPM: risk-free + beta x equity risk premium.
+//
+// Beta is the market's own measure of how much a name amplifies market moves, so
+// a defensive utility and a high-volatility small cap no longer get discounted
+// identically. It's clamped to 0.6–2.0: Yahoo's beta is noisy, and an unclamped
+// 0.1 or 3.5 swings the valuation more than the underlying business ever could.
+// The result is clamped again to 6–18% so neither a zero-rate market nor a
+// distressed one produces a nonsense discount.
+function costOfEquity(currency: string | undefined, beta?: number): number {
+  const rf = riskFreeRate(currency);
+  const erp = EQUITY_RISK_PREMIUM[(currency ?? "USD").toUpperCase()] ?? 0.07;
+  const b = beta != null && isFinite(beta) && beta > 0 ? Math.min(2.0, Math.max(0.6, beta)) : 1.0;
+  return Math.min(0.18, Math.max(0.06, rf + b * erp));
+}
+
+// Terminal growth for the Gordon step: the local 10-year bond rate, but never so
+// close to the discount rate that (rate - growth) collapses and the terminal
+// value explodes. A 3-point spread is the floor.
+function terminalGrowthFor(currency: string | undefined, discount: number): number {
+  return Math.max(0.005, Math.min(riskFreeRate(currency), discount - 0.03));
 }
 
 // Compound annual growth rate between the oldest and newest values in a series
@@ -821,11 +857,19 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   // be discounted at a US 9%). Cyclical commodity producers get a further risk
   // premium AND ~no real growth, so the estimate is a normalised mid-cycle read
   // rather than an extrapolation of a peak year.
-  const discountRate = costOfEquity(financialCurrency ?? priceCurrency);
+  const rateCurrency = financialCurrency ?? priceCurrency;
+  const betaRaw = num(sd.beta) ?? num(ks.beta);
+  const discountRate = costOfEquity(rateCurrency, betaRaw);
+  // Cyclical producers carry an extra premium on top of their CAPM rate.
+  const cyclicalRate = Math.min(0.18, discountRate + 0.02);
+  const effectiveRate = isCyclicalCommodity ? cyclicalRate : discountRate;
+  const terminalGrowth = terminalGrowthFor(rateCurrency, effectiveRate);
   const cfRaw = dcfComputable
     ? isCyclicalCommodity
-      ? dcfPerShare(baseCashflow, sharesOutstanding, 0.025, discountRate + 0.02)
-      : dcfPerShare(baseCashflow, sharesOutstanding, cashflowGrowth, discountRate)
+      // A commodity producer isn't compounding — value the through-cycle cash at
+      // the terminal rate only, discounted at the higher cyclical cost of equity.
+      ? dcfPerShare(baseCashflow, sharesOutstanding, terminalGrowth, cyclicalRate, terminalGrowth)
+      : dcfPerShare(baseCashflow, sharesOutstanding, cashflowGrowth, discountRate, terminalGrowth)
     : undefined;
   // Sanity band only — reject clearly-broken data (e.g. a unit mismatch that
   // slips past the currency check), NOT to second-guess a legitimate low/high

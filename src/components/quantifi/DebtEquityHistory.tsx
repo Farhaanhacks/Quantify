@@ -84,6 +84,18 @@ function Insight({ title, detail, tone }: { title: string; detail: string; tone:
   );
 }
 
+// One definition of "debt" for this whole section: the reported total when
+// Yahoo gives it, otherwise long-term plus current borrowings, otherwise
+// whichever single component exists. Total liabilities is the last resort — it
+// includes payables and is not really debt, but it is better than a blank.
+function totalDebtOf(v: Record<string, number | undefined>): number | undefined {
+  if (v.totalDebt != null) return v.totalDebt;
+  const lt = v.longTermDebt;
+  const cur = v.currentDebt;
+  if (lt != null || cur != null) return (lt ?? 0) + (cur ?? 0);
+  return v.totalLiabilities;
+}
+
 export default function DebtEquityHistory({ symbol, name }: { symbol: string; name?: string }) {
   const [data, setData] = useState<CompanyData | null | undefined>(undefined);
 
@@ -116,7 +128,11 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
     .reverse()
     .map((r) => ({
       date: r.date,
-      debt: r.values.longTermDebt ?? r.values.totalLiabilities,
+      // TOTAL debt, to match the seesaw and the insight cards below. This line
+      // used to read longTermDebt, so a company funding itself with short-term
+      // borrowings showed a chart legend of "Debt 19.4M" directly above a
+      // balance reading "Debt 4.45B" — same section, two different metrics.
+      debt: totalDebtOf(r.values),
       equity: r.values.totalEquity,
       cash: r.values.cash,
     }))
@@ -130,7 +146,10 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
 
   // ── Insight lines (from the most reliable current figures) ─────────────────
   const cash = data.totalCash;
-  const debt = data.totalDebt;
+  // The live total-debt figure when we have it, else the newest annual point —
+  // and this single value drives the legend, the balance and the insight cards,
+  // so the section can never quote itself two different numbers.
+  const debt = data.totalDebt ?? series[series.length - 1].debt;
   const ocf = data.operatingCashflow;
 
   const insights: { title: string; detail: string; tone: Tone }[] = [];
@@ -216,7 +235,7 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
           <span className="flex items-center gap-1.5">
             <span className="h-2 w-2 rounded-full bg-[#FB7185]" />
             <span className="text-slate-300">Debt</span>
-            <span className="font-mono text-slate-400">{compactCur(last.debt, sym)}</span>
+            <span className="font-mono text-slate-400">{compactCur(debt, sym)}</span>
           </span>
           <span className="ml-auto font-mono text-slate-500">figures in {stmtCur}</span>
         </div>
@@ -243,7 +262,7 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
 
         {/* Balance beam — debt vs equity at a glance */}
         {(() => {
-          const dNow = debt ?? last.debt;
+          const dNow = debt;
           const eNow = last.equity;
           return dNow != null && dNow > 0 && eNow != null && eNow > 0 ? (
             <div className="mt-4">

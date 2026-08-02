@@ -2,6 +2,7 @@ import { getYahooScore } from "@/lib/yahooFundamentals";
 import { knownFund } from "@/data/knownFunds";
 import { jsonCached } from "@/lib/httpCache";
 import { aliasSymbol } from "@/lib/symbolAlias";
+import { recordFairValue } from "@/lib/fairValueHistory";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,12 @@ export async function GET(
   try {
     const y = await getYahooScore(symbol);
     if (y) {
+      // Log today's cash-flow value so the history chart has something real to
+      // draw. Fire-and-forget: the series is a nice-to-have, the score is not.
+      const cfv = y.analytics?.cashflowValue?.estimate;
+      if (cfv != null && y.price != null) {
+        void recordFairValue(symbol, cfv, y.price);
+      }
       // Cache at the edge for 60s — long enough to absorb the scanner's fan-out
       // and quick reloads, short enough that the price and market cap stay close
       // to the live market during trading hours.

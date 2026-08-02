@@ -233,7 +233,13 @@ export async function getYahooStatements(
     const balance = dates.map((d) => pick(d, {
       totalAssets: "annualTotalAssets", totalLiabilities: "annualTotalLiabilitiesNetMinorityInterest",
       totalEquity: "annualStockholdersEquity", cash: "annualCashAndCashEquivalents",
+      // Total debt is the figure every debt-vs-equity read-out should use —
+      // long-term borrowings alone understate a company that funds itself with
+      // short-term paper. Yahoo publishes it directly; the two components are
+      // kept so it can be reconstructed when the total line is missing.
+      totalDebt: "annualTotalDebt",
       longTermDebt: "annualLongTermDebt",
+      currentDebt: "annualCurrentDebt",
       currentAssets: "annualCurrentAssets", currentLiabilities: "annualCurrentLiabilities",
       inventory: "annualInventory",
     }));
