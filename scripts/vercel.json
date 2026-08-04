@@ -1,0 +1,1 @@
+{"crons":[{"path":"/api/cron/insider-in","schedule":"30 13 * * *"}]}

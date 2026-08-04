@@ -1,0 +1,54 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+export default function ThemeToggle({ className = "" }: { className?: string }) {
+  const [light, setLight] = useState(false);
+
+  // Watch the <html> class rather than reading it once: the account menu has its
+  // own theme control, and without this the icon here would keep showing the old
+  // theme after switching there.
+  useEffect(() => {
+    const el = document.documentElement;
+    const sync = () => setLight(el.classList.contains("light"));
+    sync();
+    const mo = new MutationObserver(sync);
+    mo.observe(el, { attributes: true, attributeFilter: ["class"] });
+    return () => mo.disconnect();
+  }, []);
+
+  const toggle = () => {
+    const el = document.documentElement;
+    const next = !el.classList.contains("light");
+    el.classList.toggle("light", next);
+    try {
+      localStorage.setItem("theme", next ? "light" : "dark");
+    } catch {
+      /* ignore */
+    }
+    setLight(next);
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-label={light ? "Switch to dark mode" : "Switch to light mode"}
+      title={light ? "Dark mode" : "Light mode"}
+      className={`grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/[0.03] text-slate-300 transition hover:border-gold/40 hover:text-gold ${className}`}
+    >
+      {light ? (
+        // moon
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
+        </svg>
+      ) : (
+        // sun
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+        </svg>
+      )}
+    </button>
+  );
+}
