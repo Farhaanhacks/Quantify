@@ -15,6 +15,7 @@ import { join } from "node:path";
 
 const SKIP = new Set(["node_modules", ".next", ".git", "out", "dist", "build", ".vercel"]);
 const EXTS = [".json", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".css", ".md", ".mts"];
+// The walk already yields .json, so package.json is covered.
 
 function* walk(dir) {
   for (const entry of readdirSync(dir)) {
@@ -29,6 +30,35 @@ function* walk(dir) {
     if (st.isDirectory()) yield* walk(p);
     else if (EXTS.some((e) => entry.endsWith(e))) yield p;
   }
+}
+
+// A stray copy of the project nested inside the tree — a release zip extracted
+// into src/ or scripts/ rather than at the repo root. It has happened three
+// times: it shadows the real configs, and it puts files where the linter and
+// the compiler will try to read them. A package.json anywhere but the root is
+// the reliable tell, so fail loudly and name the directory instead of leaving
+// a confusing error in some minified vendor file thirty screens later.
+function findNestedProjectCopies() {
+  const hits = [];
+  const root = process.cwd();
+  for (const file of walk(root)) {
+    if (!file.endsWith("/package.json") && !file.endsWith("\\package.json")) continue;
+    if (file === join(root, "package.json")) continue;
+    hits.push(file.replace(root + "/", ""));
+  }
+  return hits;
+}
+
+const nested = findNestedProjectCopies();
+if (nested.length) {
+  console.error("\n[preflight] A copy of the project is nested inside the repository:\n");
+  for (const n of nested) console.error(`  ${n}`);
+  console.error(
+    "\nThis happens when a release archive is extracted into a subfolder instead of\n" +
+      "the repository root. Delete the directories listed above and re-extract so the\n" +
+      "contents land next to the root package.json.\n"
+  );
+  process.exit(1);
 }
 
 const fixed = [];
