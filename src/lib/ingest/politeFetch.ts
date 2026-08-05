@@ -12,13 +12,19 @@ export interface PoliteFetchOptions {
   revalidateSeconds?: number;
   timeoutMs?: number;
   accept?: string;
+  /**
+   * Redirect handling. Defaults to "follow". Pass "manual" when the caller has
+   * allow-listed the URL's host: following a redirect would leave that host, so
+   * the allowlist would only be guarding the first hop.
+   */
+  redirect?: RequestRedirect;
 }
 
 export async function politeFetch(
   url: string,
   opts: PoliteFetchOptions = {}
 ): Promise<Response> {
-  const { userAgent, revalidateSeconds = 3600, timeoutMs = 10000, accept } = opts;
+  const { userAgent, revalidateSeconds = 3600, timeoutMs = 10000, accept, redirect } = opts;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -28,6 +34,7 @@ export async function politeFetch(
         ...(accept ? { Accept: accept } : {}),
       },
       signal: controller.signal,
+      ...(redirect ? { redirect } : {}),
       next: { revalidate: revalidateSeconds },
     });
   } finally {

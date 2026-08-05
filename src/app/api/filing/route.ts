@@ -42,12 +42,20 @@ export async function GET(req: Request) {
   }
 
   try {
+    // redirect: "manual" is part of the allowlist, not an optimisation. fetch
+    // follows redirects by default, so without this the host check would only
+    // guard the FIRST hop — a 3xx anywhere under /Archives/ would carry the
+    // request off sec.gov and we would return whatever answered.
     const r = await politeFetch(url, {
       userAgent: UA,
       revalidateSeconds: 86400,
       accept: "text/html",
       timeoutMs: 9000,
+      redirect: "manual",
     });
+    if (r.status >= 300 && r.status < 400) {
+      return jsonCached({ ok: false, reason: "redirected", text: "" }, 300);
+    }
     if (!r.ok) return jsonCached({ ok: false, reason: `status-${r.status}`, text: "" }, 300);
 
     const html = await r.text();

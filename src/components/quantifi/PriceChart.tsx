@@ -322,18 +322,27 @@ export default function PriceChart({
             });
             const hits = byDate.get(time) ?? [];
             el.style.cursor = hits.length ? "pointer" : "default";
-            tip.innerHTML =
-              `<div class="text-[0.62rem] text-slate-400">${when}</div>` +
-              `<div class="font-mono text-sm font-semibold tnum text-white">${tipCurrency}${fmtPrice(price)}</div>` +
-              hits
-                .map(
-                  (h) =>
-                    `<div class="mt-1 flex items-center gap-1.5 text-[0.65rem] text-slate-300">` +
-                    `<span class="h-1.5 w-1.5 flex-none rounded-full" style="background:${
-                      CATEGORY_COLOR[h.category] ?? "#94a3b8"
-                    }"></span>${h.label}</div>`
-                )
-                .join("");
+            // Built as DOM nodes rather than an innerHTML string: `label` comes
+            // from the events API, and an HTML sink fed by response data is one
+            // upstream change away from being an XSS hole. textContent can't be
+            // parsed as markup.
+            tip.replaceChildren();
+            const dateEl = document.createElement("div");
+            dateEl.className = "text-[0.62rem] text-slate-400";
+            dateEl.textContent = when;
+            const priceEl = document.createElement("div");
+            priceEl.className = "font-mono text-sm font-semibold tnum text-white";
+            priceEl.textContent = `${tipCurrency}${fmtPrice(price)}`;
+            tip.append(dateEl, priceEl);
+            for (const h of hits) {
+              const row = document.createElement("div");
+              row.className = "mt-1 flex items-center gap-1.5 text-[0.65rem] text-slate-300";
+              const dot = document.createElement("span");
+              dot.className = "h-1.5 w-1.5 flex-none rounded-full";
+              dot.style.background = CATEGORY_COLOR[h.category] ?? "#94a3b8";
+              row.append(dot, document.createTextNode(h.label));
+              tip.append(row);
+            }
             tip.style.display = "block";
             // Keep the box inside the chart on both edges.
             const w = tip.offsetWidth;

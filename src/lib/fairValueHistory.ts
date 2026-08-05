@@ -27,6 +27,13 @@ const MAX_POINTS = 750;
 
 const key = (ticker: string) => `quantifi:fvhist:${ticker.toUpperCase()}`;
 
+// Only a plausible ticker may become a key. The symbol reaches here from a URL
+// path, and while the prefix means it can't escape its namespace, an unbounded
+// set of arbitrary keys is still someone else's storage bill.
+// Leading ^ is legitimate — Yahoo indices are ^GSPC, ^NSEI, ^BSESN.
+const TICKER_RE = /^[A-Z0-9^][A-Z0-9.\-=^]{0,14}$/;
+const isTicker = (t: string) => TICKER_RE.test(t.toUpperCase());
+
 function parse(rows: string[]): FairValuePoint[] {
   const out: FairValuePoint[] = [];
   for (const r of rows) {
@@ -43,7 +50,7 @@ function parse(rows: string[]): FairValuePoint[] {
 }
 
 export async function getFairValueHistory(ticker: string): Promise<FairValuePoint[]> {
-  if (!kvConfigured()) return [];
+  if (!kvConfigured() || !isTicker(ticker)) return [];
   try {
     return parse(await kvLRange(key(ticker), 0, -1));
   } catch {
@@ -59,7 +66,7 @@ export async function recordFairValue(
   value: number,
   price: number
 ): Promise<void> {
-  if (!kvConfigured()) return;
+  if (!kvConfigured() || !isTicker(ticker)) return;
   if (!(value > 0) || !(price > 0)) return;
   const today = new Date().toISOString().slice(0, 10);
   try {
