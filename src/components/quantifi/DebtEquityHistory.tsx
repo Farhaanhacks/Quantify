@@ -85,15 +85,19 @@ function Insight({ title, detail, tone }: { title: string; detail: string; tone:
 }
 
 // One definition of "debt" for this whole section: the reported total when
-// Yahoo gives it, otherwise long-term plus current borrowings, otherwise
-// whichever single component exists. Total liabilities is the last resort — it
-// includes payables and is not really debt, but it is better than a blank.
+// Yahoo gives it, otherwise long-term plus current borrowings.
+//
+// Total liabilities is deliberately NOT a fallback. For a bank it is mostly
+// customer deposits, which are not borrowings: on Kotak Mahindra it read about
+// ₹8T against ₹1.12T of real debt, so the chart drew the debt line above
+// equity and the ratio card claimed 453.6% where the true figure is 62%. A
+// missing line is honest — a line plotting deposits as debt is not.
 function totalDebtOf(v: Record<string, number | undefined>): number | undefined {
   if (v.totalDebt != null) return v.totalDebt;
   const lt = v.longTermDebt;
   const cur = v.currentDebt;
   if (lt != null || cur != null) return (lt ?? 0) + (cur ?? 0);
-  return v.totalLiabilities;
+  return undefined;
 }
 
 export default function DebtEquityHistory({ symbol, name }: { symbol: string; name?: string }) {
@@ -172,6 +176,13 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
 
   const first = series[0];
   const last = series[series.length - 1];
+
+  // The legend labels the chart lines, and the balance beam and the ratio card
+  // quote the same figures, so the newest plotted point must BE that number.
+  // Without this the section drew a debt line ending at one value while the
+  // legend directly above it read another.
+  if (debt != null) last.debt = debt;
+
   const r0 = first.debt != null && first.equity ? (first.debt / first.equity) * 100 : null;
   const r1 = last.debt != null && last.equity ? (last.debt / last.equity) * 100 : null;
   const yrFirst = first.date ? Number(first.date.slice(0, 4)) : null;
@@ -216,6 +227,15 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
       .join(" ");
   const equityArea = `${X(0)},${Y(0)} ${line("equity")} ${X(series.length - 1)},${Y(0)}`;
 
+  // Debt can be missing for a year now that total liabilities is no longer
+  // substituted for it. Plot only the years we actually have, rather than
+  // letting a `?? 0` drop the line to the baseline and invent a year of zero
+  // borrowings.
+  const debtPoints = series
+    .map((s, i) => ({ i, v: s.debt }))
+    .filter((p): p is { i: number; v: number } => p.v != null);
+  const debtLine = debtPoints.map((p) => `${X(p.i)},${Y(Math.max(0, p.v))}`).join(" ");
+
   return (
     <section className="mx-auto max-w-7xl px-4 pb-4 sm:px-6 lg:px-8">
       <SectionHeading
@@ -232,11 +252,16 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
             <span className="text-slate-300">Equity</span>
             <span className="font-mono text-slate-400">{compactCur(last.equity, sym)}</span>
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-[#FB7185]" />
-            <span className="text-slate-300">Debt</span>
-            <span className="font-mono text-slate-400">{compactCur(debt, sym)}</span>
-          </span>
+          {/* Only label a line the chart actually draws. A bank that reports no
+              borrowings line has equity history and nothing to pair it with;
+              the current debt figure still appears on the balance beam below. */}
+          {debtPoints.length >= 2 ? (
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-[#FB7185]" />
+              <span className="text-slate-300">Debt</span>
+              <span className="font-mono text-slate-400">{compactCur(debt, sym)}</span>
+            </span>
+          ) : null}
           <span className="ml-auto font-mono text-slate-500">figures in {stmtCur}</span>
         </div>
 
@@ -251,7 +276,9 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
             </defs>
             <polygon points={equityArea} fill="url(#deEquity)" stroke="none" />
             <polyline points={line("equity")} fill="none" stroke="#4F93F7" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-            <polyline points={line("debt")} fill="none" stroke="#FB7185" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+            {debtPoints.length >= 2 ? (
+              <polyline points={debtLine} fill="none" stroke="#FB7185" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+            ) : null}
           </svg>
           <div className="mt-1 flex justify-between text-[0.6rem] text-slate-500">
             {series.map((s) => (

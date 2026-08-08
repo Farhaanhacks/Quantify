@@ -54,6 +54,142 @@ function AffectedCard({ a }: { a: AffectedName }) {
   );
 }
 
+// The impact panel. Rendered twice: as the right-hand column on large
+// screens, and inline underneath the tapped headline on mobile, where a
+// column beside the list does not exist and the panel would otherwise land
+// below every remaining article in the feed.
+function ImpactDetail({
+  selected,
+  detail,
+  className,
+}: {
+  selected: NewsArticle;
+  detail: NonNullable<ReturnType<typeof analyzeNews>>;
+  className: string;
+}) {
+  return (
+      <GlassCard className={className}>
+        <h3 className="font-display text-lg font-semibold leading-snug text-white">{selected.title}</h3>
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <Tag tone="neutral">{selected.source}</Tag>
+          <span className="text-[0.65rem] text-slate-500">{timeAgo(selected.publishedMs)}</span>
+          <Tag tone="neutral">{selected.region}</Tag>
+          <Tag tone={toneTag(detail.tone)}>{detail.tone} tone</Tag>
+          <Tag tone={LEVEL_TONE[detail.impact]}>{detail.impact} impact</Tag>
+          <Tag tone="teal">{detail.confidence}% confidence</Tag>
+        </div>
+
+        {/* What changed */}
+        <div className="mt-5">
+          <div className="text-[0.62rem] uppercase tracking-[0.16em] text-slate-500">What changed</div>
+          <p className="mt-1.5 text-sm leading-relaxed text-slate-200">{detail.whatChanged}</p>
+          {selected.summary ? (
+            <p className="mt-2 text-xs leading-relaxed text-slate-500">{selected.summary}</p>
+          ) : null}
+        </div>
+
+        {/* Why it matters */}
+        <div className="mt-4 rounded-lg border border-gold/20 bg-gold/[0.06] p-4">
+          <div className="text-[0.62rem] uppercase tracking-[0.16em] text-gold/80">Why it matters</div>
+          <p className="mt-1.5 text-sm leading-relaxed text-slate-200">{detail.whyItMatters}</p>
+        </div>
+
+        {/* Impact map */}
+        <div className="mt-5 rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
+          <div className="mb-3 text-[0.62rem] uppercase tracking-[0.16em] text-slate-500">Impact map</div>
+          <ol className="space-y-0">
+            {detail.impactMap.map((s, i) => (
+              <li key={s} className="relative pl-7">
+                <span className="absolute left-0 top-0.5 grid h-5 w-5 place-items-center rounded-full border border-gold/30 bg-gold/10 text-[0.6rem] font-semibold text-gold">
+                  {i + 1}
+                </span>
+                {i < detail.impactMap.length - 1 ? (
+                  <span className="absolute left-[9px] top-6 h-[calc(100%-1.25rem)] w-px bg-gradient-to-b from-gold/40 to-transparent" />
+                ) : null}
+                <p className={`pb-4 text-sm leading-snug ${i === detail.impactMap.length - 1 ? "text-white" : "text-slate-300"}`}>
+                  {s}
+                </p>
+              </li>
+            ))}
+          </ol>
+        </div>
+
+        {/* Names affected */}
+        {detail.affected.length ? (
+          <div className="mt-5">
+            <div className="text-[0.62rem] uppercase tracking-[0.16em] text-slate-500">Names affected</div>
+            <div className="mt-2 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              {detail.affected.map((a) => (
+                <AffectedCard key={a.ticker} a={a} />
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {/* Linked themes */}
+        {detail.themes.length ? (
+          <div className="mt-5">
+            <div className="text-[0.62rem] uppercase tracking-[0.16em] text-slate-500">Linked Quantifi themes</div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {detail.themes.map((t) => (
+                <Link
+                  key={t.id}
+                  href={`/ideas?theme=${encodeURIComponent(t.id)}`}
+                  className="inline-flex items-center rounded-full border border-gold/25 bg-gold/[0.06] px-3 py-1 text-xs text-gold transition hover:border-gold/50"
+                >
+                  {t.label} →
+                </Link>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {/* What to watch */}
+        <div className="mt-5">
+          <div className="text-[0.62rem] uppercase tracking-[0.16em] text-slate-500">What to watch next</div>
+          <ul className="mt-2 space-y-1.5">
+            {detail.watchNext.map((w) => (
+              <li key={w} className="flex items-start gap-2 text-xs text-slate-400">
+                <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-gold" />
+                {w}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Signal classification */}
+        <div className="mt-5 grid grid-cols-1 gap-3 rounded-lg border border-white/[0.06] bg-white/[0.02] p-4 sm:grid-cols-3">
+          <div>
+            <div className="text-[0.58rem] uppercase tracking-[0.16em] text-slate-500">Signal type</div>
+            <div className="mt-1 text-xs font-medium text-slate-200">{detail.signalType}</div>
+          </div>
+          <div>
+            <div className="text-[0.58rem] uppercase tracking-[0.16em] text-slate-500">Thesis relevance</div>
+            <div className="mt-1 text-xs font-medium text-slate-200">{detail.thesisRelevance}</div>
+          </div>
+          <div>
+            <div className="text-[0.58rem] uppercase tracking-[0.16em] text-slate-500">Time horizon</div>
+            <div className="mt-1 text-xs font-medium text-slate-200">{detail.timeHorizon}</div>
+          </div>
+        </div>
+
+        <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-white/[0.06] pt-4">
+          <a
+            href={selected.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-lg bg-gradient-to-r from-gold-400 to-gold-600 px-4 py-2 text-sm font-semibold text-ink transition hover:opacity-90"
+          >
+            Read full article ↗
+          </a>
+          <p className="text-xs text-slate-500">
+            Auto-generated impact map from a live article. Research starting point, not a recommendation.
+          </p>
+        </div>
+      </GlassCard>
+  );
+}
+
 export default function NewsImpact({
   items,
   limit,
@@ -66,6 +202,13 @@ export default function NewsImpact({
   const list = (limit ? items.slice(0, limit) : items).filter((a) => a && a.title);
   const [selectedLink, setSelectedLink] = useState<string>(list[0]?.link ?? "");
   const selected = list.find((n) => n.link === selectedLink) ?? list[0];
+
+  // Mobile tracks its own open row, separately from the desktop selection.
+  // The desktop column always has something in it (the first article is
+  // preselected), but on mobile that would mean the feed opens with a long
+  // panel already wedged under the first headline — so nothing is expanded
+  // until the reader actually taps, and tapping the open row closes it again.
+  const [openLink, setOpenLink] = useState<string>("");
 
   const detail = useMemo(
     () =>
@@ -108,162 +251,73 @@ export default function NewsImpact({
         <div className="space-y-3">
           {list.map((n) => {
             const isActive = n.link === selectedLink;
+            const isOpen = n.link === openLink;
             const a = analyzeNews({ title: n.title, summary: n.summary, tickers: n.tickers ?? [] });
             return (
-              <button
-                key={n.link}
-                type="button"
-                onClick={() => setSelectedLink(n.link)}
-                className={`w-full rounded-lg border p-4 text-left transition ${
-                  isActive
-                    ? "border-gold/40 bg-gold/[0.06]"
-                    : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
-                }`}
-              >
-                <div className="flex items-center gap-2 text-[0.7rem] text-slate-500">
-                  <span className="truncate text-teal">{n.source}</span>
-                  <span>·</span>
-                  <span>{timeAgo(n.publishedMs)}</span>
-                  <span className="ml-auto">
-                    <Tag tone={toneTag(a.tone)}>{a.tone}</Tag>
-                  </span>
-                </div>
-                <h3 className="mt-2 line-clamp-2 text-sm font-medium text-white">{n.title}</h3>
-                <div className="mt-2 flex items-center gap-1.5">
-                  <Tag tone={LEVEL_TONE[a.impact]}>{a.impact} impact</Tag>
-                  <span className="text-[0.65rem] text-slate-500">{a.confidence}% confidence</span>
-                  <span className="ml-auto flex gap-1.5">
-                    {(n.tickers ?? []).slice(0, 2).map((t) => (
-                      <TickerChip key={t} ticker={t} />
-                    ))}
-                  </span>
-                </div>
-              </button>
+              <div key={n.link}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedLink(n.link);
+                    setOpenLink(isOpen ? "" : n.link);
+                  }}
+                  aria-expanded={isOpen}
+                  className={`w-full rounded-lg border p-4 text-left transition ${
+                    isActive
+                      ? "border-gold/40 bg-gold/[0.06]"
+                      : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 text-[0.7rem] text-slate-500">
+                    <span className="truncate text-teal">{n.source}</span>
+                    <span>·</span>
+                    <span>{timeAgo(n.publishedMs)}</span>
+                    <span className="ml-auto">
+                      <Tag tone={toneTag(a.tone)}>{a.tone}</Tag>
+                    </span>
+                  </div>
+                  <h3 className="mt-2 line-clamp-2 text-sm font-medium text-white">{n.title}</h3>
+                  <div className="mt-2 flex items-center gap-1.5">
+                    {/* Impact and confidence are the panel's headline figures, so
+                        on a phone they stay there rather than being repeated on
+                        every collapsed row — three badges plus tickers on a
+                        320px-wide card left nothing readable. */}
+                    <span className="hidden items-center gap-1.5 sm:flex">
+                      <Tag tone={LEVEL_TONE[a.impact]}>{a.impact} impact</Tag>
+                      <span className="text-[0.65rem] text-slate-500">{a.confidence}% confidence</span>
+                    </span>
+                    <span className="ml-auto flex items-center gap-1.5">
+                      {(n.tickers ?? []).slice(0, 2).map((t) => (
+                        <TickerChip key={t} ticker={t} />
+                      ))}
+                      {/* Tap affordance — the row is a dropdown on mobile. */}
+                      <span
+                        aria-hidden="true"
+                        className={`text-slate-500 transition-transform lg:hidden ${isOpen ? "rotate-180" : ""}`}
+                      >
+                        ▾
+                      </span>
+                    </span>
+                  </div>
+                </button>
+
+                {/* The panel opens directly under the headline it belongs to. */}
+                {isOpen ? (
+                  <div className="mt-2 lg:hidden">
+                    <ImpactDetail selected={n} detail={a} className="p-4" />
+                  </div>
+                ) : null}
+              </div>
             );
           })}
         </div>
 
-        {/* Impact map detail */}
+        {/* Impact map detail — desktop column. On mobile this same panel is
+            rendered inline under the selected headline instead. */}
         {selected && detail ? (
-          <GlassCard className="p-5 sm:p-6">
-            <h3 className="font-display text-lg font-semibold leading-snug text-white">{selected.title}</h3>
-            <div className="mt-3 flex flex-wrap items-center gap-1.5">
-              <Tag tone="neutral">{selected.source}</Tag>
-              <span className="text-[0.65rem] text-slate-500">{timeAgo(selected.publishedMs)}</span>
-              <Tag tone="neutral">{selected.region}</Tag>
-              <Tag tone={toneTag(detail.tone)}>{detail.tone} tone</Tag>
-              <Tag tone={LEVEL_TONE[detail.impact]}>{detail.impact} impact</Tag>
-              <Tag tone="teal">{detail.confidence}% confidence</Tag>
-            </div>
-
-            {/* What changed */}
-            <div className="mt-5">
-              <div className="text-[0.62rem] uppercase tracking-[0.16em] text-slate-500">What changed</div>
-              <p className="mt-1.5 text-sm leading-relaxed text-slate-200">{detail.whatChanged}</p>
-              {selected.summary ? (
-                <p className="mt-2 text-xs leading-relaxed text-slate-500">{selected.summary}</p>
-              ) : null}
-            </div>
-
-            {/* Why it matters */}
-            <div className="mt-4 rounded-lg border border-gold/20 bg-gold/[0.06] p-4">
-              <div className="text-[0.62rem] uppercase tracking-[0.16em] text-gold/80">Why it matters</div>
-              <p className="mt-1.5 text-sm leading-relaxed text-slate-200">{detail.whyItMatters}</p>
-            </div>
-
-            {/* Impact map */}
-            <div className="mt-5 rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
-              <div className="mb-3 text-[0.62rem] uppercase tracking-[0.16em] text-slate-500">Impact map</div>
-              <ol className="space-y-0">
-                {detail.impactMap.map((s, i) => (
-                  <li key={s} className="relative pl-7">
-                    <span className="absolute left-0 top-0.5 grid h-5 w-5 place-items-center rounded-full border border-gold/30 bg-gold/10 text-[0.6rem] font-semibold text-gold">
-                      {i + 1}
-                    </span>
-                    {i < detail.impactMap.length - 1 ? (
-                      <span className="absolute left-[9px] top-6 h-[calc(100%-1.25rem)] w-px bg-gradient-to-b from-gold/40 to-transparent" />
-                    ) : null}
-                    <p className={`pb-4 text-sm leading-snug ${i === detail.impactMap.length - 1 ? "text-white" : "text-slate-300"}`}>
-                      {s}
-                    </p>
-                  </li>
-                ))}
-              </ol>
-            </div>
-
-            {/* Names affected */}
-            {detail.affected.length ? (
-              <div className="mt-5">
-                <div className="text-[0.62rem] uppercase tracking-[0.16em] text-slate-500">Names affected</div>
-                <div className="mt-2 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                  {detail.affected.map((a) => (
-                    <AffectedCard key={a.ticker} a={a} />
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            {/* Linked themes */}
-            {detail.themes.length ? (
-              <div className="mt-5">
-                <div className="text-[0.62rem] uppercase tracking-[0.16em] text-slate-500">Linked Quantifi themes</div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {detail.themes.map((t) => (
-                    <Link
-                      key={t.id}
-                      href={`/ideas?theme=${encodeURIComponent(t.id)}`}
-                      className="inline-flex items-center rounded-full border border-gold/25 bg-gold/[0.06] px-3 py-1 text-xs text-gold transition hover:border-gold/50"
-                    >
-                      {t.label} →
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            {/* What to watch */}
-            <div className="mt-5">
-              <div className="text-[0.62rem] uppercase tracking-[0.16em] text-slate-500">What to watch next</div>
-              <ul className="mt-2 space-y-1.5">
-                {detail.watchNext.map((w) => (
-                  <li key={w} className="flex items-start gap-2 text-xs text-slate-400">
-                    <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-gold" />
-                    {w}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Signal classification */}
-            <div className="mt-5 grid grid-cols-1 gap-3 rounded-lg border border-white/[0.06] bg-white/[0.02] p-4 sm:grid-cols-3">
-              <div>
-                <div className="text-[0.58rem] uppercase tracking-[0.16em] text-slate-500">Signal type</div>
-                <div className="mt-1 text-xs font-medium text-slate-200">{detail.signalType}</div>
-              </div>
-              <div>
-                <div className="text-[0.58rem] uppercase tracking-[0.16em] text-slate-500">Thesis relevance</div>
-                <div className="mt-1 text-xs font-medium text-slate-200">{detail.thesisRelevance}</div>
-              </div>
-              <div>
-                <div className="text-[0.58rem] uppercase tracking-[0.16em] text-slate-500">Time horizon</div>
-                <div className="mt-1 text-xs font-medium text-slate-200">{detail.timeHorizon}</div>
-              </div>
-            </div>
-
-            <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-white/[0.06] pt-4">
-              <a
-                href={selected.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-lg bg-gradient-to-r from-gold-400 to-gold-600 px-4 py-2 text-sm font-semibold text-ink transition hover:opacity-90"
-              >
-                Read full article ↗
-              </a>
-              <p className="text-xs text-slate-500">
-                Auto-generated impact map from a live article. Research starting point, not a recommendation.
-              </p>
-            </div>
-          </GlassCard>
+          <div className="hidden lg:block">
+            <ImpactDetail selected={selected} detail={detail} className="p-5 sm:p-6" />
+          </div>
         ) : null}
       </div>
     </section>

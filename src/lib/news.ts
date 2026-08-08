@@ -21,6 +21,48 @@ interface Feed {
   region: NewsArticle["region"];
 }
 
+// Social and user-generated platforms are not publishers. Google News
+// occasionally syndicates a post from one and reports the bare domain as the
+// source, so a Facebook post lands in the feed looking exactly like wire
+// copy from CNBC — same card, same impact badge, same confidence figure.
+// Nothing downstream can tell them apart, so they are dropped at ingest.
+// Anyone can post to these; a market-research feed should not imply otherwise.
+const UNTRUSTED_SOURCES = [
+  "facebook",
+  "instagram",
+  "threads.net",
+  "twitter",
+  "x.com",
+  "tiktok",
+  "reddit",
+  "quora",
+  "pinterest",
+  "tumblr",
+  "telegram",
+  "t.me",
+  "whatsapp",
+  "snapchat",
+  "discord",
+  "youtube",
+  "youtu.be",
+];
+
+// Matches the publisher label and, where we have a real one, the link host.
+// Google News links point at news.google.com, so the source tag does the work
+// there; direct publisher feeds are caught by the host.
+function isUntrustedSource(source: string, link: string): boolean {
+  const s = source.toLowerCase();
+  let host = "";
+  try {
+    host = new URL(link).hostname.toLowerCase();
+  } catch {
+    /* a malformed link just falls back to the source label */
+  }
+  return UNTRUSTED_SOURCES.some(
+    (bad) => s.includes(bad) || host === bad || host.endsWith(`.${bad}`) || host.includes(`${bad}.`)
+  );
+}
+
 // Keyless RSS feeds. Google News search feeds are reliable and dense; the
 // Indian business wires + corporate-action queries make sure big filings
 // (IPOs, M&A) in either market actually surface.
@@ -123,6 +165,7 @@ async function fetchFeed(feed: Feed): Promise<NewsArticle[]> {
       }
       const ms = pub ? Date.parse(pub) : NaN;
       if (!title || !link) return;
+      if (isUntrustedSource(source, link)) return;
       out.push({
         title,
         link,
