@@ -120,6 +120,35 @@ function dcfPerShare(
   return isFinite(perShare) && perShare > 0 ? perShare : undefined;
 }
 
+// The same valuation the live score runs, exposed so a past year can be valued
+// on the cash flow that year actually reported. Everything market-level (the
+// bond rate, the equity risk premium, beta, the share count) is necessarily
+// today's — Yahoo does not serve a 2023 beta or a 2023 share register — so this
+// is "the model applied to the cash flow of the year", not a snapshot of what
+// the model would have printed at the time. Callers must label it as such.
+export function cashflowValuePerShare({
+  fcf,
+  shares,
+  growth,
+  currency,
+  beta,
+  cyclical = false,
+}: {
+  fcf: number | undefined;
+  shares: number | undefined;
+  growth: number | undefined;
+  currency: string | undefined;
+  beta?: number;
+  cyclical?: boolean;
+}): number | undefined {
+  const discount = costOfEquity(currency, beta);
+  const rate = cyclical ? Math.min(0.18, discount + 0.02) : discount;
+  const term = terminalGrowthFor(currency, rate);
+  return cyclical
+    ? dcfPerShare(fcf, shares, term, rate, term)
+    : dcfPerShare(fcf, shares, growth, rate, term);
+}
+
 // ── DCF rate inputs ──────────────────────────────────────────────────────────
 //
 // Two market-level constants drive the model, both keyed by the listing's home

@@ -43,6 +43,18 @@ export async function kvSet(key: string, value: string): Promise<boolean> {
   }
 }
 
+// SET ... NX EX — claim a key only if nobody holds it, and let it expire on its
+// own. Returns true only for the caller that actually claimed it, which makes
+// it a one-round-trip "have we already done this today?" guard.
+export async function kvClaim(key: string, ttlSeconds: number): Promise<boolean> {
+  try {
+    const r = await command(["SET", key, "1", "NX", "EX", String(ttlSeconds)]);
+    return r === "OK";
+  } catch {
+    return false;
+  }
+}
+
 // List helpers (used for the community question inbox).
 export async function kvRPush(key: string, value: string): Promise<boolean> {
   try {

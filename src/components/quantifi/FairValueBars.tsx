@@ -7,6 +7,9 @@ interface Point {
   d: string;
   v: number;
   p: number;
+  // Reconstructed from that year's reported cash flow rather than recorded on
+  // the day. See lib/fairValueBackfill for exactly what is and isn't historical.
+  modelled?: boolean;
 }
 
 // Share price against the cash-flow (DCF) value, drawn as two bars on one scale
@@ -132,13 +135,19 @@ export function FairValueHistoryChart({
   cur: string;
 }) {
   const [points, setPoints] = useState<Point[] | null>(null);
+  // Whether the deployment can record history at all (KV configured server-side).
+  const [recording, setRecording] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     setPoints(null);
     fetch(`/api/fair-value-history/${encodeURIComponent(symbol)}`)
       .then((r) => r.json())
-      .then((d) => !cancelled && setPoints(Array.isArray(d?.points) ? d.points : []))
+      .then((d) => {
+        if (cancelled) return;
+        setPoints(Array.isArray(d?.points) ? d.points : []);
+        setRecording(d?.recording !== false);
+      })
       .catch(() => !cancelled && setPoints([]));
     return () => {
       cancelled = true;
@@ -153,6 +162,23 @@ export function FairValueHistoryChart({
   const gap = latest && latest.v > 0 ? ((latest.v - latest.p) / latest.v) * 100 : 0;
 
   if (points.length < 2) {
+    // Nowhere to write to means the series can never fill, however long you
+    // wait. Say that plainly instead of repeating "starts building from today"
+    // every day forever.
+    if (!recording) {
+      return (
+        <div className="mt-4 rounded-lg border border-white/[0.06] bg-white/[0.02] p-5 text-center">
+          <p className="text-sm text-slate-300">History isn&apos;t being recorded.</p>
+          <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-slate-500">
+            This deployment has no storage connected, so each day&apos;s cash-flow value is
+            computed and then discarded. Connect a KV database and set{" "}
+            <span className="font-mono text-slate-400">KV_REST_API_URL</span> and{" "}
+            <span className="font-mono text-slate-400">KV_REST_API_TOKEN</span>, and the series
+            will start filling from that day on.
+          </p>
+        </div>
+      );
+    }
     return (
       <div className="mt-4 rounded-lg border border-white/[0.06] bg-white/[0.02] p-5 text-center">
         <p className="text-sm text-slate-300">History starts building from today.</p>
@@ -165,6 +191,9 @@ export function FairValueHistoryChart({
     );
   }
 
+  const modelledCount = points.filter((p) => p.modelled).length;
+  const recordedCount = points.length - modelledCount;
+
   const W = 720;
   const H = 140;
   const pad = 8;
@@ -172,9 +201,20 @@ export function FairValueHistoryChart({
   const lo = Math.min(...all);
   const hi = Math.max(...all);
   const span = hi - lo || 1;
-  const X = (i: number) => pad + (i / (points.length - 1)) * (W - 2 * pad);
+  // Spaced by date, not by index. The series now mixes annual reconstructed
+  // points with daily recorded ones, and on an index axis a twelve-month gap
+  // drew the same width as an overnight one — which made a year of drift look
+  // like a single day's move.
+  const t = (d: string) => Date.parse(d);
+  const t0 = t(points[0].d);
+  const tSpan = Math.max(1, t(points[points.length - 1].d) - t0);
+  const X = (d: string) => pad + ((t(d) - t0) / tSpan) * (W - 2 * pad);
   const Y = (v: number) => H - pad - ((v - lo) / span) * (H - 2 * pad);
-  const path = (key: "v" | "p") => points.map((p, i) => `${X(i)},${Y(p[key])}`).join(" ");
+  const seg = (key: "v" | "p", from: number, to: number) =>
+    points
+      .slice(from, to)
+      .map((p) => `${X(p.d)},${Y(p[key])}`)
+      .join(" ");
 
   return (
     <div className="mt-4 rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
@@ -204,13 +244,65 @@ export function FairValueHistoryChart({
       </div>
 
       <svg viewBox={`0 0 ${W} ${H}`} className="mt-3 w-full" role="img" aria-label="Cash flow value history">
-        <polyline points={path("v")} fill="none" stroke="#4FD1C5" strokeWidth="2" />
-        <polyline points={path("p")} fill="none" stroke="#D4AF37" strokeWidth="2" />
+        {/* Reconstructed years are dashed, recorded days solid, so the chart
+            never passes a back-test off as an observation. The two share a
+            point at the join so the line doesn't break. */}
+        {modelledCount > 0 ? (
+          <>
+            <polyline
+              points={seg("v", 0, modelledCount)}
+              fill="none"
+              stroke="#4FD1C5"
+              strokeWidth="2"
+              strokeDasharray="4 3"
+              strokeOpacity="0.75"
+            />
+            <polyline
+              points={seg("p", 0, modelledCount)}
+              fill="none"
+              stroke="#D4AF37"
+              strokeWidth="2"
+              strokeDasharray="4 3"
+              strokeOpacity="0.75"
+            />
+          </>
+        ) : null}
+        {recordedCount > 0 ? (
+          <>
+            <polyline
+              points={seg("v", Math.max(0, modelledCount - 1), points.length)}
+              fill="none"
+              stroke="#4FD1C5"
+              strokeWidth="2"
+            />
+            <polyline
+              points={seg("p", Math.max(0, modelledCount - 1), points.length)}
+              fill="none"
+              stroke="#D4AF37"
+              strokeWidth="2"
+            />
+          </>
+        ) : null}
       </svg>
 
-      <p className="mt-2 text-[0.62rem] text-slate-600">
-        {points.length} day{points.length === 1 ? "" : "s"} recorded · builds as the valuation is
-        recomputed
+      <p className="mt-2 text-[0.62rem] leading-relaxed text-slate-600">
+        {modelledCount > 0 ? (
+          <>
+            {modelledCount} point{modelledCount === 1 ? "" : "s"} reconstructed from reported
+            financial years — each year&apos;s own free cash flow, valued by the same model,
+            against the share price on the day that year closed. Today&apos;s share count and
+            rates are used throughout, so read them as a back-test, not as what the model showed
+            at the time.
+            {recordedCount > 0
+              ? ` ${recordedCount} recorded live since then.`
+              : " Recorded points are added daily from here."}
+          </>
+        ) : (
+          <>
+            {points.length} day{points.length === 1 ? "" : "s"} recorded · builds as the valuation
+            is recomputed
+          </>
+        )}
       </p>
     </div>
   );

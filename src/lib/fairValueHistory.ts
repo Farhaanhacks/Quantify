@@ -10,7 +10,14 @@
 // a score is computed, and an honest "history starts here" state until there are
 // enough points to draw.
 
-import { kvConfigured, kvRPush, kvLRange, kvLTrim } from "@/lib/kv";
+import { kvConfigured, kvRPush, kvLRange, kvLTrim, kvClaim } from "@/lib/kv";
+
+// Whether there is anywhere to record history at all. Without the KV
+// environment variables every write below is a silent no-op, and the series
+// stays empty forever — which is indistinguishable, from the outside, from a
+// company whose history simply started today. The UI needs to tell those two
+// apart so it stops promising a chart that can never arrive.
+export const fairValueHistoryConfigured = kvConfigured;
 
 export interface FairValuePoint {
   /** ISO date, YYYY-MM-DD. */
@@ -70,12 +77,16 @@ export async function recordFairValue(
   if (!(value > 0) || !(price > 0)) return;
   const today = new Date().toISOString().slice(0, 10);
   try {
-    const existing = await getFairValueHistory(ticker);
-    if (existing.some((p) => p.d === today)) return; // already recorded today
+    // Claim the day first. Only the caller that wins the claim writes, so the
+    // common path (every other request today) is a single round trip and we
+    // never pull the whole series back just to check the last date.
+    // Two days of TTL so a late-UTC write can't be re-run by an early one.
+    const first = await kvClaim(`${key(ticker)}:${today}`, 2 * 24 * 60 * 60);
+    if (!first) return; // already recorded today
     await kvRPush(key(ticker), JSON.stringify({ d: today, v: value, p: price }));
-    if (existing.length + 1 > MAX_POINTS) {
-      await kvLTrim(key(ticker), -MAX_POINTS, -1);
-    }
+    // Keeps the newest MAX_POINTS; a no-op while the list is shorter than that,
+    // so it needs no separate length check.
+    await kvLTrim(key(ticker), -MAX_POINTS, -1);
   } catch {
     /* history is best-effort */
   }

@@ -19,10 +19,26 @@ export async function GET(
     const y = await getYahooScore(symbol);
     if (y) {
       // Log today's cash-flow value so the history chart has something real to
-      // draw. Fire-and-forget: the series is a nice-to-have, the score is not.
+      // draw.
+      //
+      // This has to be awaited. It used to be `void recordFairValue(...)` on
+      // the reasoning that the series is a nice-to-have and the score is not —
+      // but a serverless function can be frozen the moment it returns its
+      // response, so the pending write was being killed before it reached the
+      // database. Nothing was ever recorded, and the chart sat on "history
+      // starts building from today" indefinitely.
+      //
+      // The cost is one round trip: the day-claim below returns false for
+      // every request after the first each day, and the score response is
+      // edge-cached anyway. It can never fail the score — the helper swallows
+      // its own errors and this catch is a backstop.
       const cfv = y.analytics?.cashflowValue?.estimate;
       if (cfv != null && y.price != null) {
-        void recordFairValue(symbol, cfv, y.price);
+        try {
+          await recordFairValue(symbol, cfv, y.price);
+        } catch {
+          /* the score matters more than the series */
+        }
       }
       // Cache at the edge for 60s — long enough to absorb the scanner's fan-out
       // and quick reloads, short enough that the price and market cap stay close
