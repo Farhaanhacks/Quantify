@@ -533,7 +533,7 @@ function SignInGate() {
         </p>
         <div className="mt-7">
           <a
-            href="/api/auth/login"
+            href="/login"
             className="rounded-full bg-gradient-to-r from-gold-400 to-gold-600 px-6 py-2.5 text-sm font-semibold text-ink transition hover:opacity-90"
           >
             Sign in to continue →
@@ -644,7 +644,7 @@ function FreeLimitWall({ ticker, signedIn }: { ticker: string; signedIn: boolean
           </Link>
           {!signedIn ? (
             <a
-              href="/api/auth/login"
+              href="/login"
               className="rounded-full border border-white/15 px-6 py-2.5 text-sm font-medium text-white transition hover:border-gold/40"
             >
               Sign in

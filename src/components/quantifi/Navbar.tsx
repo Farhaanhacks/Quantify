@@ -240,7 +240,14 @@ export default function Navbar() {
     href === "/" ? pathname === "/" : pathname.startsWith(href);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-ink/70 backdrop-blur-xl">
+    // Solid background, no backdrop-blur. The bar used to be bg-ink/70 +
+    // backdrop-blur-xl, and on iOS Safari that blur layer got clipped to the
+    // bounds of the logo inside it, painting an opaque plate behind the mark —
+    // white over a light page, grey over a dark one. Over a bar this opaque the
+    // blur was barely visible anyway, so a solid surface loses nothing and
+    // renders identically on every engine. bg-ink-900 is remapped to white in
+    // light mode by globals.css, so both themes stay correct.
+    <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-ink-900">
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
         <BrandMark />
 

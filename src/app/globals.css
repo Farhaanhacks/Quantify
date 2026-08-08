@@ -180,6 +180,19 @@ html.light .text-gradient-gold {
    mode while preserving transparency. The gold (Pro) lockup stays as-is. */
 html.light .brand-logo--free { filter: brightness(0); }
 
+/* The lockup is a transparent PNG sitting inside the sticky, backdrop-blurred
+   header. iOS Safari intermittently composites a transparent image that lives
+   under a backdrop-filter ancestor against an opaque white plate, which paints
+   a white box tight around the logo — the artwork looks right, the background
+   behind it does not. Giving the image its own compositing layer keeps it off
+   that code path. The explicit transparent background is a second guard, so a
+   stale cached stylesheet can never put a fill behind the mark either. Both are
+   inert on every other engine. */
+.brand-logo {
+  background-color: transparent;
+  transform: translateZ(0);
+}
+
 /* Borders */
 html.light .border-white\/10,
 html.light .border-white\/15,

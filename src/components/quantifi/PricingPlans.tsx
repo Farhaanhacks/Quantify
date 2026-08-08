@@ -231,7 +231,7 @@ export default function PricingPlans() {
           <div className="mt-6 h-[42px] rounded-full border border-white/10" />
         ) : !user ? (
           <a
-            href="/api/auth/login"
+            href="/login"
             className="mt-6 rounded-full bg-gradient-to-r from-gold-400 to-gold-600 px-5 py-2.5 text-center text-sm font-semibold text-ink transition hover:opacity-90"
           >
             {FREE_LAUNCH_OFFER ? "Sign in to unlock free Pro" : "Sign in to upgrade"}

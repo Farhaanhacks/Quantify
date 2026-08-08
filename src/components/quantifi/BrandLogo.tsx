@@ -22,7 +22,11 @@ export default function BrandLogo({
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={isPro ? "/logo-gold.png" : "/logo-white.png"}
+      // ?v= is a cache-buster. Both files are served straight from public/ with
+      // a long-lived cache header, so a device or CDN edge that once stored a
+      // bad copy would keep serving it indefinitely — bumping this is the only
+      // way to force everyone onto a fresh fetch. Bump it if the art changes.
+      src={isPro ? "/logo-gold.png?v=2" : "/logo-white.png?v=2"}
       alt="Quantifi"
       // `brand-logo` + plan modifier let globals.css recolour the white
       // (free) wordmark to dark ink in light mode so it stays visible.

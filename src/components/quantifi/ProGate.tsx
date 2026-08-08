@@ -87,7 +87,7 @@ export default async function ProGate({
           </Link>
           {!signedIn ? (
             <a
-              href="/api/auth/login"
+              href="/login"
               className="rounded-full border border-white/15 px-6 py-2.5 text-sm font-medium text-white transition hover:border-gold/40"
             >
               Sign in

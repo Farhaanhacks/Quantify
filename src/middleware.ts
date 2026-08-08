@@ -11,7 +11,7 @@ const SESSION_COOKIE = "quantifi_session";
 // search engines (and viewable by anyone) — the indexable content, the trust
 // pages and pricing. Private/personal surfaces (portfolio, watchlist, insider,
 // billing) stay gated below.
-const PUBLIC_EXACT = new Set<string>(["/"]);
+const PUBLIC_EXACT = new Set<string>(["/", "/login"]);
 const PUBLIC_PREFIXES = [
   "/ideas",
   "/news",
@@ -93,7 +93,7 @@ export function middleware(req: NextRequest) {
     const signedIn = Boolean(req.cookies.get(SESSION_COOKIE)?.value);
     if (!signedIn) {
       const url = req.nextUrl.clone();
-      url.pathname = "/api/auth/login";
+      url.pathname = "/login";
       url.search = "";
       return NextResponse.redirect(url);
     }
