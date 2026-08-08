@@ -1,5 +1,5 @@
 import { getFairValueHistory, fairValueHistoryConfigured } from "@/lib/fairValueHistory";
-import { backfillFairValue, monthlyCloses } from "@/lib/fairValueBackfill";
+import { backfillWithReason, monthlyCloses, type BackfillReason } from "@/lib/fairValueBackfill";
 import { getYahooCompany } from "@/lib/yahooCompany";
 import { jsonCached } from "@/lib/httpCache";
 import { aliasSymbol } from "@/lib/symbolAlias";
@@ -32,13 +32,18 @@ export async function GET(_req: Request, { params }: { params: { symbol: string 
     /* fall through with an empty recorded series */
   }
 
-  let modelled: Awaited<ReturnType<typeof backfillFairValue>> = [];
+  let modelled: { d: string; v: number; p: number; modelled: true }[] = [];
+  let reason: BackfillReason | "unavailable" = "unavailable";
   try {
     const [company, closes] = await Promise.all([
       getYahooCompany(symbol),
       monthlyCloses(symbol),
     ]);
-    if (company && closes.length) modelled = backfillFairValue(company, closes);
+    if (company) {
+      const r = backfillWithReason(company, closes);
+      modelled = r.points;
+      reason = r.reason;
+    }
   } catch {
     /* the reconstruction is a bonus; never fail the endpoint for it */
   }
@@ -49,7 +54,7 @@ export async function GET(_req: Request, { params }: { params: { symbol: string 
   const points = [...byDate.values()].sort((a, b) => a.d.localeCompare(b.d));
 
   return jsonCached(
-    { ok: true, symbol, recording, points, modelledCount: modelled.length },
+    { ok: true, symbol, recording, points, modelledCount: modelled.length, reason },
     300,
     3600
   );

@@ -137,6 +137,8 @@ export function FairValueHistoryChart({
   const [points, setPoints] = useState<Point[] | null>(null);
   // Whether the deployment can record history at all (KV configured server-side).
   const [recording, setRecording] = useState(true);
+  // Why the reconstruction produced nothing, when it did.
+  const [reason, setReason] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -147,6 +149,7 @@ export function FairValueHistoryChart({
         if (cancelled) return;
         setPoints(Array.isArray(d?.points) ? d.points : []);
         setRecording(d?.recording !== false);
+        setReason(typeof d?.reason === "string" ? d.reason : "");
       })
       .catch(() => !cancelled && setPoints([]));
     return () => {
@@ -179,13 +182,27 @@ export function FairValueHistoryChart({
         </div>
       );
     }
+    // Say which of the reconstruction's requirements this company fails, rather
+    // than showing the same sentence to everyone and leaving them to guess.
+    const why: Record<string, string> = {
+      "no-statements":
+        "There are fewer than two years of reported cash-flow statements for this company, so there is no cycle to reconstruct from.",
+      "no-prices":
+        "Price history isn't available for this listing, so past years can't be paired with what the shares actually cost.",
+      "cash-negative":
+        "This company's cash flow was negative through the cycle in every year on record — the model has no positive base to value those years on. Today's estimate comes from consensus forward earnings instead, which isn't available for past years.",
+      "too-few":
+        "Only one past year could be valued, and a single point isn't a line.",
+      unavailable:
+        "The financial statements couldn't be reached just now, so the earlier years haven't been reconstructed.",
+    };
     return (
       <div className="mt-4 rounded-lg border border-white/[0.06] bg-white/[0.02] p-5 text-center">
         <p className="text-sm text-slate-300">History starts building from today.</p>
         <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-slate-500">
-          Each day&apos;s cash-flow value is recorded as it&apos;s computed. It can&apos;t be
-          back-filled — the estimate depends on the fundamentals and rates current on the day, and
-          drawing today&apos;s model backwards would be a made-up line, not history.
+          {why[reason] ??
+            "Each day's cash-flow value is recorded as it's computed, and past years are reconstructed from reported statements where the data allows."}{" "}
+          From here it&apos;s recorded daily, so the line fills in as the valuation is recomputed.
         </p>
       </div>
     );

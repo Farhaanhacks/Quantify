@@ -120,6 +120,61 @@ function dcfPerShare(
   return isFinite(perShare) && perShare > 0 ? perShare : undefined;
 }
 
+// The through-cycle cash-flow base, extracted so the live score and the
+// historical reconstruction cannot drift apart. Raw free cash flow is the wrong
+// input on its own: it is negative in the investment years of any capital-heavy
+// business, and valuing only the positive years cherry-picks a small,
+// unrepresentative base. So this blends the median with a recency-weighted mean
+// (capped at 2x the median, so one exceptional year can't run away), and offers
+// normalised owner earnings — through-cycle operating cash flow less
+// through-cycle capex — as the fallback when free cash flow is negative through
+// the cycle. That fallback still charges for capital spending.
+export function throughCycleCashflow(
+  fcfSeries: number[],
+  ocfSeries: number[],
+  capexSeries: number[]
+): { medFcf: number | undefined; normalisedOwnerEarnings: number | undefined } {
+  const blend = (series: number[]): number | undefined => {
+    const m = median(series);
+    const w = recencyWeightedMean(series);
+    if (m == null || w == null) return m ?? w;
+    return m > 0 ? Math.min(Math.max(m, w), m * 2) : w;
+  };
+  const medOcf = blend(ocfSeries);
+  const medCapex = blend(capexSeries);
+  return {
+    medFcf: blend(fcfSeries),
+    normalisedOwnerEarnings:
+      medOcf != null && medCapex != null ? medOcf - medCapex : undefined,
+  };
+}
+
+// Pick the base the DCF should run on, in the live model's order of preference.
+export function pickBaseCashflow(
+  fcfSeries: number[],
+  ocfSeries: number[],
+  capexSeries: number[]
+): number | undefined {
+  const { medFcf, normalisedOwnerEarnings } = throughCycleCashflow(
+    fcfSeries,
+    ocfSeries,
+    capexSeries
+  );
+  if (medFcf != null && medFcf > 0) return medFcf;
+  if (normalisedOwnerEarnings != null && normalisedOwnerEarnings > 0)
+    return normalisedOwnerEarnings;
+  return undefined;
+}
+
+// Growth to pair with that base. Operating cash flow first — it is steadier
+// than free cash flow, which swings with the capex cycle.
+export function cashflowGrowthFrom(
+  ocfSeries: number[],
+  fcfSeries: number[]
+): number | undefined {
+  return cagr(ocfSeries) ?? cagr(fcfSeries);
+}
+
 // The same valuation the live score runs, exposed so a past year can be valued
 // on the cash flow that year actually reported. Everything market-level (the
 // bond rate, the equity risk premium, beta, the share count) is necessarily
@@ -645,14 +700,11 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   // gets valued off a stale average. So we take the recency-weighted mean too and
   // use the higher of the two — capped at 2x the median so one exceptional year
   // can't run away with the valuation.
-  const rawMedFcf = median(fcfSeries);
-  const weightedFcf = recencyWeightedMean(fcfSeries);
-  const medFcf =
-    rawMedFcf != null && weightedFcf != null
-      ? rawMedFcf > 0
-        ? Math.min(Math.max(rawMedFcf, weightedFcf), rawMedFcf * 2)
-        : weightedFcf
-      : rawMedFcf ?? weightedFcf;
+  const { medFcf, normalisedOwnerEarnings: noeShared } = throughCycleCashflow(
+    fcfSeries,
+    ocfSeries,
+    capexSeries
+  );
 
   // If free cash flow is negative through the cycle, the company is reinvesting
   // more than it generates. Normalised owner earnings (through-cycle operating
@@ -662,16 +714,7 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   // capacity it overstates distributable cash just as badly in the other
   // direction.
   // Same recency-weighted treatment, so the fallback tracks the current regime too.
-  const blend = (series: number[]): number | undefined => {
-    const m = median(series);
-    const w = recencyWeightedMean(series);
-    if (m == null || w == null) return m ?? w;
-    return m > 0 ? Math.min(Math.max(m, w), m * 2) : w;
-  };
-  const medOcf = blend(ocfSeries);
-  const medCapex = blend(capexSeries);
-  const normalisedOwnerEarnings =
-    medOcf != null && medCapex != null ? medOcf - medCapex : undefined;
+  const normalisedOwnerEarnings = noeShared;
 
   let baseCashflow: number | undefined;
   let baseIsOcf = false; // true → base is normalised owner earnings, not plain FCF

@@ -18,7 +18,11 @@
 // draw them differently and say so. Recorded points always win where both exist.
 
 import type { CompanyData } from "@/lib/yahooCompany";
-import { cashflowValuePerShare } from "@/lib/yahooFundamentals";
+import {
+  cashflowValuePerShare,
+  pickBaseCashflow,
+  cashflowGrowthFrom,
+} from "@/lib/yahooFundamentals";
 import type { FairValuePoint } from "@/lib/fairValueHistory";
 
 export interface BackfillPoint extends FairValuePoint {
@@ -94,17 +98,27 @@ function fcfOf(v: Record<string, number | undefined>): number | undefined {
   return undefined;
 }
 
-// Compound annual growth between the first and last of a run of yearly figures.
-// Undefined unless both ends are positive — one loss-making year would otherwise
-// produce a nonsense rate.
-function cagrOf(vals: number[]): number | undefined {
-  if (vals.length < 2) return undefined;
-  const a = vals[0];
-  const b = vals[vals.length - 1];
-  const years = vals.length - 1;
-  if (!(a > 0) || !(b > 0) || years < 1) return undefined;
-  const g = Math.pow(b / a, 1 / years) - 1;
-  return isFinite(g) ? g : undefined;
+// Why a reconstruction produced nothing, in terms the panel can show. Guessing
+// at this from an empty chart is exactly the dead end this whole section kept
+// putting people in.
+export type BackfillReason =
+  | "ok"
+  | "no-statements"
+  | "no-prices"
+  | "cash-negative"
+  | "too-few";
+
+export function backfillWithReason(
+  data: CompanyData,
+  closes: Close[]
+): { points: BackfillPoint[]; reason: BackfillReason } {
+  if ((data.cashflowStatements ?? []).filter((r) => r.date).length < 2)
+    return { points: [], reason: "no-statements" };
+  if (!closes.length) return { points: [], reason: "no-prices" };
+  const points = backfillFairValue(data, closes);
+  if (points.length === 0) return { points, reason: "cash-negative" };
+  if (points.length < 2) return { points, reason: "too-few" };
+  return { points, reason: "ok" };
 }
 
 export function backfillFairValue(data: CompanyData, closes: Close[]): BackfillPoint[] {
@@ -122,25 +136,53 @@ export function backfillFairValue(data: CompanyData, closes: Close[]): BackfillP
   const cyclical = sector.includes("basic materials") || sector.includes("energy");
 
   const out: BackfillPoint[] = [];
+  // Expanding windows: each year is valued on the cash-flow record available up
+  // to and including itself, never on years that had not happened yet.
   const fcfSoFar: number[] = [];
+  const ocfSoFar: number[] = [];
+  const capexSoFar: number[] = [];
 
   for (const row of rows) {
     const fcf = fcfOf(row.values);
+    const ocf = row.values.operatingCashFlow;
+    // The live model subtracts capex, and Yahoo reports it negative, so flip it
+    // to a positive spend before handing it over.
+    const capex = row.values.capex;
     if (fcf != null) fcfSoFar.push(fcf);
+    if (ocf != null) ocfSoFar.push(ocf);
+    if (capex != null) capexSoFar.push(Math.abs(capex));
+
+    // Two years minimum before a point means anything: a single year is not a
+    // cycle, and growth cannot be measured from it.
+    if (fcfSoFar.length < 2 && ocfSoFar.length < 2) continue;
+
     const date = row.date!.slice(0, 10);
     const price = priceOn(closes, date);
-    // Growth is measured only from years up to and including this one, so an
-    // early point is never valued using cash flows that had not happened yet.
-    const growth = cagrOf(fcfSoFar);
-    // The earliest year has nothing behind it to measure growth against, and
-    // letting the model fall back to its default 5% put a point on the chart
-    // that said more about the fallback than the company — a 25%-growth name
-    // opened at a third of its next year's value and the line jumped. If the
-    // growth can't be measured for a year, that year doesn't get a point.
-    // Cyclicals are exempt: they're valued at the terminal rate, not on growth.
+    if (price == null) continue;
+
+    // Exactly the base the live score would pick from this record: the
+    // through-cycle blend, falling back to normalised owner earnings when free
+    // cash flow is negative across the cycle. Using raw single-year free cash
+    // flow here produced no points at all for any capital-heavy company — the
+    // investment years are negative and the DCF rejects them.
+    const base = pickBaseCashflow(fcfSoFar, ocfSoFar, capexSoFar);
+    if (base == null) continue;
+    const growth = cashflowGrowthFrom(ocfSoFar, fcfSoFar);
+    // Years whose growth cannot be measured are skipped rather than valued on
+    // the model's default: a 25%-growth name opened at a third of the next
+    // year's value and the line jumped, describing the fallback and not the
+    // company. Cyclicals are exempt — they're valued at the terminal rate.
     if (growth == null && !cyclical) continue;
-    const v = cashflowValuePerShare({ fcf, shares, growth, currency, beta: data.beta, cyclical });
-    if (v == null || price == null) continue;
+
+    const v = cashflowValuePerShare({
+      fcf: base,
+      shares,
+      growth,
+      currency,
+      beta: data.beta,
+      cyclical,
+    });
+    if (v == null) continue;
     // The same sanity band the live score applies — reject a unit mismatch
     // rather than plotting a value 100x the share price.
     if (!(v >= price * 0.02 && v <= price * 25)) continue;
