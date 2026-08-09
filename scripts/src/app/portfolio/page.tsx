@@ -1,0 +1,30 @@
+import PortfolioManager from "@/components/quantifi/PortfolioManager";
+import PortfolioValueChart from "@/components/quantifi/PortfolioValueChart";
+import PortfolioSnowflake from "@/components/quantifi/PortfolioSnowflake";
+import PortfolioNews from "@/components/quantifi/PortfolioNews";
+import InsiderActivity from "@/components/quantifi/InsiderActivity";
+import Watchlist from "@/components/quantifi/Watchlist";
+import { Eyebrow } from "@/components/quantifi/Cards";
+
+export const metadata = {
+  title: "Portfolio",
+  description: "Build and track multiple portfolios, then see the quality snowflake and live news around the names you actually hold.",
+  robots: { index: false, follow: false },
+};
+
+export default function PortfolioPage() {
+  return (
+    <>
+      <section className="mx-auto max-w-7xl px-4 pt-12 sm:px-6 lg:px-8">
+        <Eyebrow>Portfolio Command Center</Eyebrow>
+      </section>
+
+      <PortfolioManager />
+      <PortfolioValueChart />
+      <Watchlist />
+      <PortfolioSnowflake />
+      <PortfolioNews />
+      <InsiderActivity showFilter={false} limit={5} />
+    </>
+  );
+}
