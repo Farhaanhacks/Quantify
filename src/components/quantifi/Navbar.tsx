@@ -8,6 +8,7 @@ import ThemeToggle from "@/components/quantifi/ThemeToggle";
 import BrandLogo from "@/components/quantifi/BrandLogo";
 import NotificationBell from "@/components/quantifi/NotificationBell";
 import { useProStatus } from "@/lib/useProStatus";
+import FlagChip from "@/components/quantifi/FlagChip";
 
 // Ideas, Rare Finds and Tools are no longer surfaced in the nav — their content
 // is moving to the community page. The routes still exist, so any saved/shared
@@ -41,6 +42,8 @@ interface Match {
   type: string;
   exchange: string;
   flag: string;
+  country?: string;
+  kind?: "Stock" | "ETF" | "Fund" | "Index";
 }
 
 const RECENT_KEY = "quantifi.recent-searches.v1";
@@ -201,9 +204,16 @@ function SearchBox({ onGo, className = "" }: { onGo?: () => void; className?: st
                 i === active ? "bg-white/[0.07]" : "hover:bg-white/[0.04]"
               }`}
             >
-              <span className="text-base leading-none">{m.flag}</span>
+              <FlagChip country={m.country} />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[0.78rem] text-white">{m.name}</span>
+                <span className="flex items-center gap-1.5">
+                  <span className="min-w-0 truncate text-[0.78rem] text-white">{m.name}</span>
+                  {m.kind && m.kind !== "Stock" ? (
+                    <span className="flex-none rounded-[3px] border border-white/15 px-1.5 py-px text-[0.55rem] uppercase tracking-wide text-slate-400">
+                      {m.kind}
+                    </span>
+                  ) : null}
+                </span>
                 <span className="block truncate text-[0.64rem] text-slate-500">
                   {m.exchange ? `${m.exchange}: ` : ""}
                   {m.symbol}

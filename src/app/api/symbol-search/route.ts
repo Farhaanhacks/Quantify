@@ -14,6 +14,66 @@ export interface SearchHit {
   type: string;
   exchange: string;
   flag: string;
+  /** ISO-3166 alpha-2, so the client can draw a flag rather than rely on emoji. */
+  country?: string;
+  /** Normalised class: what this listing actually is. */
+  kind?: "Stock" | "ETF" | "Fund" | "Index";
+}
+
+// Yahoo and EODHD each describe the same thing several ways ("Common Stock",
+// "EQUITY", "FUND", "Mutual Fund", "ETF"). One label, so the UI can say what a
+// row is without repeating the vendor's vocabulary.
+function kindOf(type: string, symbol: string): SearchHit["kind"] {
+  const t = (type || "").toLowerCase();
+  if (/index/.test(t)) return "Index";
+  if (/etf|exchange.traded/.test(t)) return "ETF";
+  // 0P-prefixed codes are Morningstar's identifiers for mutual funds. They come
+  // back from EODHD carrying an exchange suffix, so they look like listings and
+  // sort among real companies unless they're recognised for what they are.
+  if (/fund|mutual|oeic|sicav|unit trust/.test(t) || /^0P[0-9A-Z]{6,}/i.test(symbol)) return "Fund";
+  return "Stock";
+}
+
+// Rank so a search for a company finds the company.
+//
+// EODHD returns matches in its own order, which put six Morningstar fund codes
+// above Kotak Mahindra Bank for the query "kotak". Nothing was sorting them;
+// the route simply truncated whatever arrived. Ordering, most significant
+// first: what the thing is, how squarely the name matches, and whether the
+// symbol is one a human would recognise.
+function rank(hit: SearchHit, q: string): number {
+  const name = hit.name.toLowerCase();
+  const sym = hit.symbol.toUpperCase();
+  const query = q.toLowerCase().trim();
+  let score = 0;
+
+  // 1. Companies first, then ETFs, then funds. This is the whole complaint.
+  score += { Stock: 0, ETF: 300, Fund: 600, Index: 450 }[hit.kind ?? "Stock"];
+
+  // 2. A name that starts with the query beats one that merely contains it.
+  if (name === query) score -= 120;
+  else if (name.startsWith(query)) score -= 80;
+  else if (new RegExp(`\\b${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(name)) score -= 40;
+
+  // 3. An exact ticker match is almost always what was meant.
+  if (sym === query.toUpperCase() || sym.split(".")[0] === query.toUpperCase()) score -= 150;
+
+  // 4. A row whose name is just its own code tells the reader nothing —
+  //    "0P0000GBDS.BO" is not a search result, it is an identifier. These sink
+  //    below anything with a real name, including other funds.
+  const nameIsJustTheCode =
+    name.replace(/\.[a-z]{1,4}$/, "") === sym.replace(/\.[A-Z]{1,4}$/, "").toLowerCase();
+  if (nameIsJustTheCode) score += 400;
+  else if (/^0P[0-9A-Z]{6,}/i.test(sym)) score += 60; // named, but still an opaque ticker
+
+  // 5. Primary listings over OTC/pink-sheet cross-listings. Kept well below the
+  //    no-name penalty, so a named OTC fund still beats an unnamed local one.
+  if (/otc|pink|grey/i.test(hit.exchange)) score += 50;
+
+  // 6. Shorter names are usually the parent company rather than a share class.
+  score += Math.min(40, name.length / 4);
+
+  return score;
 }
 
 // Map a Yahoo symbol's exchange suffix to a country flag so users can eyeball the
@@ -25,6 +85,31 @@ const SUFFIX_FLAG: Record<string, string> = {
   IR: "🇮🇪", HK: "🇭🇰", T: "🇯🇵", SS: "🇨🇳", SZ: "🇨🇳", KS: "🇰🇷", KQ: "🇰🇷",
   TW: "🇹🇼", TWO: "🇹🇼", SI: "🇸🇬", KL: "🇲🇾", BK: "🇹🇭", JK: "🇮🇩", SA: "🇧🇷",
   MX: "🇲🇽", BA: "🇦🇷", SR: "🇸🇦", TA: "🇮🇱", IS: "🇹🇷", CA: "🇪🇬", JO: "🇿🇦",
+};
+
+// ISO-2 for the same suffixes, so the client can draw a real flag. Emoji flags
+// are regional-indicator pairs that Windows has no font for — they render there
+// as the bare letters "IN"/"US", which is exactly what this was meant to avoid.
+const SUFFIX_COUNTRY: Record<string, string> = {
+  NS: "IN", BO: "IN", L: "GB", TO: "CA", V: "CA", AX: "AU", NZ: "NZ",
+  DE: "DE", F: "DE", PA: "FR", AS: "NL", BR: "BE", MI: "IT", MC: "ES",
+  SW: "CH", ST: "SE", OL: "NO", CO: "DK", HE: "FI", LS: "PT", VI: "AT",
+  IR: "IE", HK: "HK", T: "JP", SS: "CN", SZ: "CN", KS: "KR", KQ: "KR",
+  TW: "TW", TWO: "TW", SI: "SG", KL: "MY", BK: "TH", JK: "ID", SA: "BR",
+  MX: "MX", BA: "AR", SR: "SA", TA: "IL", IS: "TR", CA: "EG", JO: "ZA",
+};
+
+function countryFor(symbol: string): string {
+  const dot = symbol.lastIndexOf(".");
+  if (dot === -1) return "US";
+  return SUFFIX_COUNTRY[symbol.slice(dot + 1).toUpperCase()] ?? "";
+}
+
+const COUNTRY_ISO: Record<string, string> = {
+  USA: "US", "United States": "US", India: "IN", Taiwan: "TW",
+  "South Korea": "KR", Korea: "KR", China: "CN", "Hong Kong": "HK",
+  UK: "GB", "United Kingdom": "GB", Canada: "CA", Australia: "AU",
+  Japan: "JP", Germany: "DE", France: "FR", Singapore: "SG", Brazil: "BR",
 };
 
 function flagFor(symbol: string): string {
@@ -84,9 +169,11 @@ async function eodhdSearch(q: string, key: string): Promise<SearchHit[] | null> 
         type,
         exchange: str(it.Exchange) ?? "",
         flag: COUNTRY_FLAG[country] ?? flagFor(symbol),
+        country: COUNTRY_ISO[country] ?? countryFor(symbol),
+        kind: kindOf(type, symbol),
       });
     }
-    return out.slice(0, 8);
+    return out.sort((a, b) => rank(a, q) - rank(b, q)).slice(0, 8);
   } catch {
     return null;
   }
@@ -110,9 +197,15 @@ async function yahooSearch(q: string): Promise<SearchHit[]> {
         const name = str(quote.shortname) ?? str(quote.longname) ?? symbol;
         const type = str(quote.typeDisp) ?? str(quote.quoteType) ?? "";
         const exchange = str(quote.exchDisp) ?? str(quote.exchange) ?? "";
-        return { symbol, name, type, exchange, flag: flagFor(symbol) };
+        return {
+          symbol, name, type, exchange,
+          flag: flagFor(symbol),
+          country: countryFor(symbol),
+          kind: kindOf(type, symbol),
+        };
       })
       .filter((x): x is SearchHit => !!x && isEquityType(x.type))
+      .sort((a, b) => rank(a, q) - rank(b, q))
       .slice(0, 8);
   } catch {
     return [];
@@ -133,7 +226,10 @@ async function resolveBseCode(code: string): Promise<SearchHit | null> {
     const meta = j?.chart?.result?.[0]?.meta;
     const name = str(meta?.longName) ?? str(meta?.shortName);
     if (!name) return null;
-    return { symbol: `${code}.BO`, name, type: "Equity", exchange: "BSE", flag: "🇮🇳" };
+    return {
+      symbol: `${code}.BO`, name, type: "Equity", exchange: "BSE",
+      flag: "🇮🇳", country: "IN", kind: "Stock",
+    };
   } catch {
     return null;
   }
@@ -167,5 +263,6 @@ export async function GET(req: Request) {
     seen.add(hit.symbol);
     merged.push(hit);
   }
+  merged.sort((a, b) => rank(a, q) - rank(b, q));
   return NextResponse.json({ results: merged.slice(0, 8) });
 }

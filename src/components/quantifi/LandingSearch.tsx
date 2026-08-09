@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { popularTickers } from "@/data/popularTickers";
+import FlagChip from "@/components/quantifi/FlagChip";
 
 // The front door's search box. Picking a company opens Stock Analysis for it
 // without asking anyone to sign in first — a visitor gets to put a name they
@@ -19,6 +20,8 @@ interface Match {
   type: string;
   exchange: string;
   flag: string;
+  country?: string;
+  kind?: "Stock" | "ETF" | "Fund" | "Index";
 }
 
 const SUGGESTED = popularTickers.slice(0, 5);
@@ -163,11 +166,19 @@ export default function LandingSearch() {
                     i === active ? "bg-white/[0.07]" : "hover:bg-white/[0.04]"
                   }`}
                 >
-                  {/* The flag, not a country code — it reads at a glance and
-                      needs no legend. The search API already returns one. */}
-                  <span className="text-base leading-none">{m.flag}</span>
+                  <FlagChip country={m.country} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[0.82rem] text-white">{m.name}</span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="min-w-0 truncate text-[0.82rem] text-white">{m.name}</span>
+                      {/* Say what it is. A search for a company turns up its
+                          funds too, and the two are otherwise indistinguishable
+                          from the name alone. */}
+                      {m.kind && m.kind !== "Stock" ? (
+                        <span className="flex-none rounded-[3px] border border-white/15 px-1.5 py-px text-[0.55rem] uppercase tracking-wide text-slate-400">
+                          {m.kind}
+                        </span>
+                      ) : null}
+                    </span>
                     <span className="block truncate text-[0.66rem] text-slate-500">
                       {m.exchange ? `${m.exchange}: ` : ""}
                       {m.symbol}
