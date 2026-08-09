@@ -12,11 +12,13 @@ import { useEffect, useState } from "react";
 // The fade is slow on purpose (700ms): a panel that snaps over the page reads
 // as an interruption, one that arrives gently reads as the next step.
 export default function SignUpModal({
-  ticker,
+  label,
   open,
   onClose,
 }: {
-  ticker: string;
+  /** What to call the listing — its company name where we have one, not its
+      ticker. "0P0000OQWJ" is an identifier, not something to say to a reader. */
+  label: string;
   open: boolean;
   onClose: () => void;
 }) {
@@ -64,7 +66,7 @@ export default function SignUpModal({
       }`}
       role="dialog"
       aria-modal="true"
-      aria-label={`Create a free account to continue analysing ${ticker}`}
+      aria-label={`Create a free account to continue analysing ${label}`}
     >
       <button
         aria-label="Close"
@@ -117,7 +119,7 @@ export default function SignUpModal({
           <p className="text-[0.62rem] uppercase tracking-[0.2em] text-gold/80">Quantifi</p>
           <h2 className="mt-3 font-display text-xl font-semibold leading-snug text-white sm:text-2xl">
             Sign up free and keep analysing{" "}
-            <span className="whitespace-nowrap text-gold">{ticker}</span>
+            <span className="text-gold">{label}</span>
           </h2>
           <p className="mt-2.5 text-[0.82rem] leading-relaxed text-slate-400">
             The score, the fundamentals, the debt and the insider trades are on the other side.

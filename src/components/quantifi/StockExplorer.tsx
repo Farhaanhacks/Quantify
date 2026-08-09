@@ -507,7 +507,7 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
           onReveal={reveal}
         />
       ) : stage === "signin" ? (
-        <SignedOutTeaser ticker={ticker} score={score} />
+        <SignedOutTeaser ticker={ticker} score={score} etf={etf} />
       ) : stage === "wall" ? (
         <FreeLimitWall ticker={ticker} signedIn={Boolean(user)} />
       ) : null}
@@ -528,10 +528,21 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
 function SignedOutTeaser({
   ticker,
   score,
+  etf,
 }: {
   ticker: string;
   score: ScoreResponse | null;
+  etf: EtfData | null;
 }) {
+  // What to call this listing when addressing the reader. A symbol like
+  // 0P0000OQWJ is Morningstar's internal identifier for a fund — printing it
+  // back at someone tells them nothing about what they just opened. Prefer the
+  // real name; if the source hasn't returned one, describe the thing rather
+  // than repeat the code.
+  const label =
+    score?.name ??
+    etf?.name ??
+    (/^0P[0-9A-Z]{6,}/i.test(ticker) ? "this fund" : ticker);
   const [askOpen, setAskOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const markerRef = useRef<HTMLElement>(null);
@@ -583,7 +594,7 @@ function SignedOutTeaser({
           <div className="mx-auto max-w-4xl text-center">
             <Eyebrow>Quantifi score</Eyebrow>
             <h2 className="mt-3 font-display text-2xl font-semibold text-white">
-              The rest of {ticker} is behind a free account
+              The rest of {label} is behind a free account
             </h2>
             <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-slate-400">
               Valuation, financial health, key statistics, analyst view, ownership, peers and
@@ -604,7 +615,7 @@ function SignedOutTeaser({
       </div>
 
       <SignUpModal
-        ticker={ticker}
+        label={label}
         open={askOpen}
         onClose={() => {
           setAskOpen(false);
