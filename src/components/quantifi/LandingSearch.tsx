@@ -131,7 +131,7 @@ export default function LandingSearch() {
               }}
               onFocus={() => setOpen(true)}
               onKeyDown={onKeyDown}
-              placeholder="Search any stock — Apple, Reliance, NVDA"
+              placeholder="Search any stock: Apple, Reliance, NVDA"
               aria-label="Search any stock"
               role="combobox"
               aria-expanded={open}

@@ -97,7 +97,7 @@ function ValuationPreview() {
       </div>
       <p className="mt-3 text-[0.68rem] leading-relaxed text-slate-500">
         Discounted cash flow, with the discount rate built from the local bond yield, the
-        company&apos;s beta and an equity risk premium — not a fixed 9% applied to every market.
+        company&apos;s beta and an equity risk premium, not a fixed 9% applied to every market.
       </p>
     </div>
   );
@@ -201,20 +201,20 @@ export default function Landing() {
             </h1>
             <p className="mt-6 max-w-xl text-[1.02rem] leading-relaxed text-slate-300">
               Quantifi reads the filings, the cash flows and the day&apos;s news for a company and
-              shows you the working — the valuation, the debt, the insider trades and the headlines
+              shows you the working: the valuation, the debt, the insider trades and the headlines
               that actually move the name. Every figure traces back to a source you can open.
             </p>
 
             <div className="mt-9 flex flex-wrap items-center gap-3">
               <Link
                 href="/login"
-                className="inline-flex items-center gap-2.5 rounded-full bg-gradient-to-r from-gold-400 to-gold-600 px-6 py-3 text-sm font-semibold text-ink transition hover:opacity-90"
+                className="inline-flex items-center gap-2.5 rounded-lg bg-gradient-to-r from-gold-400 to-gold-600 px-6 py-3 text-sm font-semibold text-ink transition hover:opacity-90"
               >
                 Create your free account
               </Link>
               <Link
                 href="/pricing"
-                className="inline-flex items-center rounded-full border border-white/15 px-6 py-3 text-sm font-medium text-slate-200 transition hover:border-gold/40 hover:text-gold"
+                className="inline-flex items-center rounded-lg border border-white/15 px-6 py-3 text-sm font-medium text-slate-200 transition hover:border-gold/40 hover:text-gold"
               >
                 See what&apos;s included
               </Link>
@@ -226,7 +226,7 @@ export default function Landing() {
                 product might contradict, the page sends people to /pricing,
                 where the plan is set out in one place. */}
             <p className="mt-3 text-xs text-slate-500">
-              Free to start — no card required.
+              Free to start. No card required.
             </p>
           </div>
 
@@ -271,7 +271,7 @@ export default function Landing() {
             <Rule n="01">What just happened, and to whom?</Rule>
             <p className="mt-3 text-[0.88rem] leading-relaxed text-slate-400">
               Every headline is traced into what changed, why it matters and the chain of names it
-              reaches — the supplier and the index fund, not only the company in the title.
+              reaches: the supplier and the index fund, not only the company in the title.
             </p>
           </div>
           <div>
@@ -305,7 +305,7 @@ export default function Landing() {
             <p className="mt-5 max-w-xl leading-relaxed text-slate-300">
               Results, executive changes, acquisitions and delisting notices are pinned to the
               price chart on the date they were filed. Open one and you get the relevant section of
-              the document itself — not a summary of it.
+              the document itself, not a summary of it.
             </p>
             <p className="mt-4 max-w-xl text-sm leading-relaxed text-slate-500">
               Events are classified from the 8-K item codes the company filed under. A code we
@@ -362,7 +362,7 @@ export default function Landing() {
               Find your next Money Maker.
             </h2>
             <p className="mt-5 max-w-xl leading-relaxed text-slate-300">
-              Screen the US and Indian markets on the numbers that decide an outcome — cash
+              Screen the US and Indian markets on the numbers that decide an outcome: cash
               generation, debt, growth and what the shares already cost. Every name comes with the
               valuation worked through, so you can tell a cheap company from a broken one.
             </p>
@@ -461,19 +461,19 @@ export default function Landing() {
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link
               href="/login"
-              className="inline-flex items-center rounded-full bg-gradient-to-r from-gold-400 to-gold-600 px-7 py-3 text-sm font-semibold text-ink transition hover:opacity-90"
+              className="inline-flex items-center rounded-lg bg-gradient-to-r from-gold-400 to-gold-600 px-7 py-3 text-sm font-semibold text-ink transition hover:opacity-90"
             >
               Create your free account
             </Link>
             <Link
               href="/pricing"
-              className="inline-flex items-center rounded-full border border-white/15 px-7 py-3 text-sm font-medium text-slate-200 transition hover:border-gold/40 hover:text-gold"
+              className="inline-flex items-center rounded-lg border border-white/15 px-7 py-3 text-sm font-medium text-slate-200 transition hover:border-gold/40 hover:text-gold"
             >
               Pro is {PRO_PRICE_LABEL.toLowerCase()} {PRO_PRICE_NOTE}
             </Link>
           </div>
           <p className="mt-5 text-xs text-slate-500">
-            Market data may be delayed. For research and education — not investment advice.
+            Market data may be delayed. For research and education, not investment advice.
           </p>
         </div>
       </section>

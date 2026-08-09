@@ -67,7 +67,7 @@ export default async function MarketPulse() {
             </span>
           ) : (
             <span className="text-slate-400">
-              Live feed temporarily unavailable — showing last-known reference values.
+              Live feed temporarily unavailable. Showing last-known reference values.
             </span>
           )}
           <span className="text-slate-600">·</span>

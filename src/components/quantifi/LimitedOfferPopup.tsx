@@ -151,12 +151,12 @@ export default function LimitedOfferPopup() {
 
           {FREE_LAUNCH_OFFER ? (
             <p className="mt-2.5 text-[0.85rem] leading-relaxed text-slate-400">
-              Free for {FREE_LAUNCH_DAYS} days. No card, no catch — claim it in one tap.
+              Free for {FREE_LAUNCH_DAYS} days. No card, no catch. Claim it in one tap.
             </p>
           ) : (
             <p className="mt-2.5 text-[0.85rem] leading-relaxed text-slate-400">
               Full access for{" "}
-              <span className="font-semibold text-gold">{QUANTIFI_PRO.price}/month</span> — standard
+              <span className="font-semibold text-gold">{QUANTIFI_PRO.price}/month</span>, standard
               price{" "}
               <span className="text-slate-300 line-through decoration-slate-500">
                 {PRO_STANDARD_PRICE}/month
@@ -181,7 +181,7 @@ export default function LimitedOfferPopup() {
           </button>
 
           <p className="mt-5 text-[0.68rem] leading-relaxed text-slate-600">
-            Cancel anytime. Research and education only — not investment advice.
+            Cancel anytime. Research and education only, not investment advice.
           </p>
         </div>
       </div>

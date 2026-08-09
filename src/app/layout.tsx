@@ -29,7 +29,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
   title: {
-    default: "Quantifi — Stock Research, Portfolio Analysis & Market Theme Intelligence",
+    default: "Quantifi · Stock Research, Portfolio Analysis & Market Theme Intelligence",
     template: "%s · Quantifi",
   },
   description: SITE.description,
@@ -42,13 +42,13 @@ export const metadata: Metadata = {
     type: "website",
     siteName: SITE.name,
     url: SITE.url,
-    title: "Quantifi — Stock Research, Portfolio Analysis & Market Theme Intelligence",
+    title: "Quantifi · Stock Research, Portfolio Analysis & Market Theme Intelligence",
     description: SITE.description,
     images: [{ url: SITE.ogImage, width: 1200, height: 630, alt: "Quantifi" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Quantifi — Stock Research, Portfolio Analysis & Market Theme Intelligence",
+    title: "Quantifi · Stock Research, Portfolio Analysis & Market Theme Intelligence",
     description: SITE.description,
     images: [SITE.ogImage],
   },

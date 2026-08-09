@@ -94,7 +94,7 @@ export default function SignUpModal({
             Safeguard and grow your portfolio.
           </h3>
           <p className="mt-2.5 text-[0.82rem] leading-relaxed text-slate-400">
-            Valuation, financial health and insider activity on every name you follow — in one
+            Valuation, financial health and insider activity on every name you follow, in one
             place.
           </p>
           <div className="mt-5 rounded-lg border border-white/[0.08] bg-ink p-3">
@@ -109,7 +109,7 @@ export default function SignUpModal({
               </div>
             ))}
             <p className="mt-2 text-[0.6rem] leading-relaxed text-slate-600">
-              Illustrative — your own figures are computed live.
+              Illustrative. Your own figures are computed live.
             </p>
           </div>
         </div>
@@ -152,7 +152,7 @@ export default function SignUpModal({
             <a href="/privacy" className="underline underline-offset-2 hover:text-slate-400">
               Privacy Policy
             </a>
-            . Research and education only — not investment advice.
+            . Research and education only, not investment advice.
           </p>
         </div>
       </div>

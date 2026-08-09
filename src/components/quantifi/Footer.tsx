@@ -141,7 +141,7 @@ export default function Footer() {
         </div>
 
         <p className="mt-6 text-xs text-slate-500">
-          © {new Date().getFullYear()} Quantifi — educational market research &amp; analytics. Payments processed securely by Razorpay.
+          © {new Date().getFullYear()} Quantifi. Educational market research &amp; analytics. Payments processed securely by Razorpay.
         </p>
 
         <p className="mt-3 max-w-4xl text-[0.72rem] leading-relaxed text-slate-600">
