@@ -22,6 +22,8 @@ import {
   cashflowValuePerShare,
   pickBaseCashflow,
   cashflowGrowthFrom,
+  throughCycleCashflow,
+  earningsCashBase,
 } from "@/lib/yahooFundamentals";
 import type { FairValuePoint } from "@/lib/fairValueHistory";
 
@@ -135,12 +137,25 @@ export function backfillFairValue(data: CompanyData, closes: Close[]): BackfillP
   // valuing them off a peak year's growth is what invents a fantasy number.
   const cyclical = sector.includes("basic materials") || sector.includes("energy");
 
+  // Reported profit by fiscal year, keyed by date so it can be lined up with the
+  // cash-flow statement for the same year.
+  const netIncomeByDate = new Map<string, number>();
+  const revenueByDate = new Map<string, number>();
+  for (const r of data.incomeStatements ?? []) {
+    if (!r.date) continue;
+    const d = r.date.slice(0, 10);
+    if (r.values.netIncome != null) netIncomeByDate.set(d, r.values.netIncome);
+    if (r.values.revenue != null) revenueByDate.set(d, r.values.revenue);
+  }
+
   const out: BackfillPoint[] = [];
   // Expanding windows: each year is valued on the cash-flow record available up
   // to and including itself, never on years that had not happened yet.
   const fcfSoFar: number[] = [];
   const ocfSoFar: number[] = [];
   const capexSoFar: number[] = [];
+  const niSoFar: number[] = [];
+  const revSoFar: number[] = [];
 
   for (const row of rows) {
     const fcf = fcfOf(row.values);
@@ -152,11 +167,16 @@ export function backfillFairValue(data: CompanyData, closes: Close[]): BackfillP
     if (ocf != null) ocfSoFar.push(ocf);
     if (capex != null) capexSoFar.push(Math.abs(capex));
 
+    const date = row.date!.slice(0, 10);
+    const ni = netIncomeByDate.get(date);
+    const rev = revenueByDate.get(date);
+    if (ni != null) niSoFar.push(ni);
+    if (rev != null) revSoFar.push(rev);
+
     // Two years minimum before a point means anything: a single year is not a
     // cycle, and growth cannot be measured from it.
-    if (fcfSoFar.length < 2 && ocfSoFar.length < 2) continue;
+    if (fcfSoFar.length < 2 && ocfSoFar.length < 2 && niSoFar.length < 2) continue;
 
-    const date = row.date!.slice(0, 10);
     const price = priceOn(closes, date);
     if (price == null) continue;
 
@@ -165,9 +185,29 @@ export function backfillFairValue(data: CompanyData, closes: Close[]): BackfillP
     // cash flow is negative across the cycle. Using raw single-year free cash
     // flow here produced no points at all for any capital-heavy company — the
     // investment years are negative and the DCF rejects them.
-    const base = pickBaseCashflow(fcfSoFar, ocfSoFar, capexSoFar);
+    let base = pickBaseCashflow(fcfSoFar, ocfSoFar, capexSoFar);
+    let onEarnings = false;
+    if (base == null) {
+      // No cash base through the cycle. A bank is the standard case — lending
+      // growth is an operating outflow, so a growing bank never shows positive
+      // free cash flow and the whole series would otherwise be empty. Value the
+      // year on its reported profit, converted at the company's own rate, which
+      // is what the live model falls back to as well.
+      const expanding = (cashflowGrowthFrom([], revSoFar) ?? 0) > 0.15;
+      base = earningsCashBase(
+        niSoFar[niSoFar.length - 1],
+        throughCycleCashflow(fcfSoFar, ocfSoFar, capexSoFar).medFcf,
+        niSoFar[niSoFar.length - 1],
+        expanding
+      );
+      onEarnings = true;
+    }
     if (base == null) continue;
-    const growth = cashflowGrowthFrom(ocfSoFar, fcfSoFar);
+    // Growth must come from the same series the base does, or a bank's noisy
+    // cash flow would set the growth rate for a profit-based valuation.
+    const growth = onEarnings
+      ? cashflowGrowthFrom([], niSoFar)
+      : cashflowGrowthFrom(ocfSoFar, fcfSoFar);
     // Years whose growth cannot be measured are skipped rather than valued on
     // the model's default: a 25%-growth name opened at a third of the next
     // year's value and the line jumped, describing the fallback and not the

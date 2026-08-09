@@ -149,6 +149,40 @@ export function throughCycleCashflow(
   };
 }
 
+// Share of accounting profit the business actually keeps as cash. Clamped to
+// 25–100%, with the floor lifted to 60% for a demonstrably expanding company:
+// its shortfall is growth capex, which is discretionary and buys the growth the
+// model then projects, so freezing today's ratio as a permanent haircut
+// double-counts it.
+export function clampConversion(raw: number, expanding: boolean): number {
+  return Math.min(1, Math.max(expanding ? 0.6 : 0.25, raw));
+}
+
+// Value a year on its reported profit when cash flow can't carry the valuation.
+//
+// This is the historical twin of the live model's forward-earnings path. Banks
+// are the case that forces it: lending growth is an operating outflow, so a
+// growing bank reports negative operating cash flow year after year and a
+// cash-flow base never exists — Kotak Mahindra reconstructs to nothing on cash
+// alone, in every year on record. Profit is the number that actually describes
+// such a business, and unlike consensus forward earnings it IS reported for
+// past years. Converted at the company's own rate so a capital-hungry business
+// is still charged for its reinvestment rather than credited with profit it
+// never keeps.
+export function earningsCashBase(
+  netIncome: number | undefined,
+  medFcf: number | undefined,
+  referenceNetIncome: number | undefined,
+  expanding: boolean
+): number | undefined {
+  if (netIncome == null || !(netIncome > 0)) return undefined;
+  const raw =
+    medFcf != null && referenceNetIncome != null && referenceNetIncome > 0
+      ? medFcf / referenceNetIncome
+      : 0.6; // no clean read → a conservative default conversion
+  return netIncome * clampConversion(raw, expanding);
+}
+
 // Pick the base the DCF should run on, in the live model's order of preference.
 export function pickBaseCashflow(
   fcfSeries: number[],
@@ -901,8 +935,7 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
     // the business is demonstrably expanding, floor the conversion nearer a
     // steady-state level instead of assuming it reinvests at this rate forever.
     const expanding = revGrowth != null && revGrowth > 0.15;
-    const conversionFloor = expanding ? 0.6 : 0.25;
-    const conversion = Math.min(1, Math.max(conversionFloor, rawConversion));
+    const conversion = clampConversion(rawConversion, expanding);
     const candidate = forwardNetIncome * conversion;
     if (candidate > 0 && (baseCashflow == null || candidate > baseCashflow)) {
       forwardBase = candidate;
