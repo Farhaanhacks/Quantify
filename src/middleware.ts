@@ -24,6 +24,12 @@ const SESSION_COOKIE = "quantifi_session";
 // intended behaviour here rather than an oversight.
 const PUBLIC_EXACT = new Set<string>(["/", "/login"]);
 const PUBLIC_PREFIXES = [
+  // Stock Analysis is reachable without an account ON PURPOSE. The landing
+  // page's search box opens it, so a visitor can put a company they care about
+  // into the product and watch it respond before being asked for anything. The
+  // page itself shows the search and then a sign-in wall where the research
+  // would start — the gate moved inside the page rather than in front of it.
+  "/stock-analysis",
   "/pricing",
   "/about",
   "/contact",

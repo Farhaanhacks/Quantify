@@ -174,12 +174,12 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
   //   signin   → not signed in (quota is per email, so we need one)
   //   reveal   → signed-in free user with slots left
   //   wall     → signed-in free user who has spent every slot
-  type Stage = "loading" | "analysis" | "reveal" | "wall";
+  type Stage = "loading" | "analysis" | "reveal" | "wall" | "signin";
   const resolved = !scoreLoading && score !== null; // know whether there's data to gate
   let stage: Stage = "loading";
   if (!proReady) stage = "loading";
   else if (pro) stage = "analysis";
-  else if (!user) stage = "loading"; // signed-out is handled by the early SignInGate return
+  else if (!user) stage = "signin"; // reachable signed out — the wall sits in the page
   else if (!meterReady) stage = "loading";
   else if (unlocked) stage = "analysis";
   else if (!resolved) stage = "loading";
@@ -280,8 +280,6 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
 
   // Signed-out visitors can't analyse at all — the free quota is per email, so we
   // require sign-in before anything (the chart included) is shown.
-  if (proReady && !user) return <SignInGate />;
-
   return (
     <>
       <section className="mx-auto max-w-7xl px-4 pb-4 pt-8 sm:px-6 lg:px-8">
@@ -507,6 +505,8 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
           revealing={revealing}
           onReveal={reveal}
         />
+      ) : stage === "signin" ? (
+        <SignInGate ticker={ticker} />
       ) : stage === "wall" ? (
         <FreeLimitWall ticker={ticker} signedIn={Boolean(user)} />
       ) : null}
@@ -517,26 +517,27 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
 // The free quota is per email, so a signed-out visitor can't analyse at all —
 // otherwise they could just reload (or open another device) to dodge the limit.
 // This gates the whole page, chart included.
-function SignInGate() {
+function SignInGate({ ticker }: { ticker: string }) {
   return (
-    <section className="mx-auto max-w-2xl px-4 pb-16 pt-6 sm:px-6">
+    <section className="mx-auto max-w-2xl px-4 pb-16 pt-2 sm:px-6">
       <GlassCard className="border-gold/30 bg-gold/[0.04] p-8 text-center">
         <Eyebrow>Quantifi</Eyebrow>
         <h2 className="mt-4 font-display text-2xl font-semibold text-white sm:text-3xl">
-          Sign in to analyse stocks &amp; ETFs
+          Create a free account to see {ticker}
         </h2>
         <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-400">
-          Stock Analysis — the live chart, the Quantifi Score, fundamentals and insider
-          activity — is for signed-in members. Every account gets{" "}
-          <span className="text-gold">{FREE_LIMIT} free analyses</span> to start, tied to
-          your account so they follow you across every device.
+          The valuation, the Quantifi Score, the fundamentals and the insider trades for{" "}
+          <span className="text-white">{ticker}</span> are a moment away. Accounts are free, and
+          your free analyses are tied to the account so they follow you across every device.
+          {/* No count quoted: it would come from FREE_LIMIT, and that figure is
+              a per-day quota rather than what an account is actually granted. */}
         </p>
         <div className="mt-7">
           <a
             href="/login"
             className="rounded-full bg-gradient-to-r from-gold-400 to-gold-600 px-6 py-2.5 text-sm font-semibold text-ink transition hover:opacity-90"
           >
-            Sign in to continue →
+            Create your free account →
           </a>
         </div>
       </GlassCard>
