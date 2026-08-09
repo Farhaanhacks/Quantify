@@ -146,7 +146,7 @@ async function eodhdSearch(q: string, key: string): Promise<SearchHit[] | null> 
   try {
     const url = `https://eodhd.com/api/search/${encodeURIComponent(
       q
-    )}?api_token=${encodeURIComponent(key)}&fmt=json&limit=15`;
+    )}?api_token=${encodeURIComponent(key)}&fmt=json&limit=50`;
     const r = await fetch(url, { next: { revalidate: 3600 }, signal: AbortSignal.timeout(7000) });
     if (!r.ok) return null;
     const arr = (await r.json()) as Record<string, unknown>[];
@@ -173,7 +173,10 @@ async function eodhdSearch(q: string, key: string): Promise<SearchHit[] | null> 
         kind: kindOf(type, symbol),
       });
     }
-    return out.sort((a, b) => rank(a, q) - rank(b, q)).slice(0, 8);
+    // Every candidate, unranked and untruncated. The caller merges this with
+    // Yahoo's results and ranks the union — cutting to 8 here would throw away
+    // the company before anything had a chance to sort it above the funds.
+    return out;
   } catch {
     return null;
   }
@@ -242,25 +245,31 @@ export async function GET(req: Request) {
   const q = raw.replace(/^[A-Za-z]{2,6}:\s*/, "").trim();
   if (q.length < 1) return NextResponse.json({ results: [] });
 
-  // 1) EODHD when configured — best name + code coverage (incl. Indian micro-caps).
+  // Both sources, always, then rank the union.
+  //
+  // EODHD used to short-circuit this: if it returned anything at all, Yahoo was
+  // never asked. That is backwards for a query like "kotak", where EODHD's
+  // index is full of fund share classes — hundreds of them — and the bank fell
+  // outside the results entirely. Yahoo's search is weak on Indian micro-caps
+  // and strong on large companies, so the two cover each other's gaps; asking
+  // only the first one to answer meant a user had to type "kotak bank" to find
+  // Kotak Mahindra Bank.
   const key = process.env.EODHD_API_KEY;
-  if (key) {
-    const eod = await eodhdSearch(q, key);
-    if (eod && eod.length) return NextResponse.json({ results: eod });
-  }
-
-  // 2) Yahoo search, plus a direct BSE-scrip-code resolution for all-numeric input.
   const numeric = /^\d{4,6}$/.test(q);
-  const [yahoo, bse] = await Promise.all([
+  const [eod, yahoo, bse] = await Promise.all([
+    key ? eodhdSearch(q, key) : Promise.resolve(null),
     yahooSearch(q),
     numeric ? resolveBseCode(q) : Promise.resolve(null),
   ]);
 
   const merged: SearchHit[] = [];
   const seen = new Set<string>();
-  for (const hit of [...(bse ? [bse] : []), ...yahoo]) {
-    if (seen.has(hit.symbol)) continue;
-    seen.add(hit.symbol);
+  // Yahoo first on ties: for a name every source knows, its symbol is the one
+  // the rest of the app resolves most reliably.
+  for (const hit of [...(bse ? [bse] : []), ...yahoo, ...(eod ?? [])]) {
+    const dedupeKey = hit.symbol.toUpperCase();
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
     merged.push(hit);
   }
   merged.sort((a, b) => rank(a, q) - rank(b, q));
