@@ -47,6 +47,23 @@ const UNTRUSTED_SOURCES = [
   "youtu.be",
 ];
 
+// Indian listings carry an exchange suffix (.NS on the NSE, .BO on the BSE);
+// US ones are bare. So the tickers a story actually mentions say where it
+// belongs better than the feed it arrived on. A story spanning both markets is
+// Global. With no tickers detected there is nothing to go on, so the feed's own
+// region stands.
+function regionFromTickers(
+  tickers: string[] | undefined,
+  fallback: NewsArticle["region"]
+): NewsArticle["region"] {
+  if (!tickers || tickers.length === 0) return fallback;
+  const indian = tickers.filter((t) => /\.(NS|BO)$/i.test(t)).length;
+  const foreign = tickers.length - indian;
+  if (indian > 0 && foreign === 0) return "India";
+  if (foreign > 0 && indian === 0) return "US";
+  return "Global";
+}
+
 // Matches the publisher label and, where we have a real one, the link host.
 // Google News links point at news.google.com, so the source tag does the work
 // there; direct publisher feeds are caught by the host.
@@ -237,6 +254,12 @@ export async function getMarketNews(): Promise<NewsArticle[]> {
       } catch {
         a.tickers = [];
       }
+      // Region follows the companies the story is about, not the wire that
+      // carried it. Every Economic Times item was being labelled India, so a
+      // piece about Berkshire Hathaway buying Alphabet — GOOGL, BRK-B, no
+      // Indian name anywhere in it — sat under an India tag, and the India
+      // filter returned US stories.
+      a.region = regionFromTickers(a.tickers, a.region);
     })
   );
 

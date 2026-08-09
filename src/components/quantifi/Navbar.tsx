@@ -7,6 +7,7 @@ import AuthButton from "@/components/quantifi/AuthButton";
 import ThemeToggle from "@/components/quantifi/ThemeToggle";
 import BrandLogo from "@/components/quantifi/BrandLogo";
 import NotificationBell from "@/components/quantifi/NotificationBell";
+import { useProStatus } from "@/lib/useProStatus";
 
 // Ideas, Rare Finds and Tools are no longer surfaced in the nav — their content
 // is moving to the community page. The routes still exist, so any saved/shared
@@ -22,6 +23,15 @@ const links = [
   { href: "/portfolio", label: "Portfolio" },
   { href: "/watchlist", label: "Watchlist" },
   { href: "/pricing", label: "Subscribe", accent: true },
+];
+
+// Signed out, every one of those except Subscribe now bounces off the auth
+// gate, so offering them is offering a door that doesn't open. The landing
+// page gets a nav that matches what a visitor can actually reach.
+const signedOutLinks: typeof links = [
+  { href: "/pricing", label: "Plans", accent: true },
+  { href: "/about", label: "About" },
+  { href: "/contact", label: "Contact" },
 ];
 
 // One search result / recently-viewed entry.
@@ -235,6 +245,12 @@ function BrandMark() {
 export default function Navbar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  // `ready` guards the swap: until the session resolves we render the
+  // signed-out set, so a logged-in visitor never sees the product links
+  // disappear and reappear on first paint.
+  const { user, ready } = useProStatus();
+  const signedIn = ready && user != null;
+  const navLinks = signedIn ? links : signedOutLinks;
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -252,7 +268,7 @@ export default function Navbar() {
         <BrandMark />
 
         <div className="hidden items-center gap-0.5 xl:flex">
-          {links.map((l) => (
+          {navLinks.map((l) => (
             <Link
               key={l.href}
               href={l.href}
@@ -273,13 +289,17 @@ export default function Navbar() {
 
         <div className="flex items-center gap-2">
           {/* Wide enough that the placeholder isn't clipped at the larger type size. */}
-          <SearchBox className="hidden w-64 md:flex lg:w-72" />
+          {/* Search resolves to /stock-analysis, which is behind the gate, so a
+              signed-out visitor typing a ticker would only be bounced to the
+              sign-in page. Same for the alerts bell — there is no account to
+              raise alerts against yet. */}
+          {signedIn ? <SearchBox className="hidden w-64 md:flex lg:w-72" /> : null}
           {/* Theme also appears inside the account menu. Both write the same
               localStorage key, and ThemeToggle watches the <html> class, so the
               two controls stay in sync. It stays in the nav for signed-out
               visitors, who have no account menu to open. */}
           <ThemeToggle />
-          <NotificationBell />
+          {signedIn ? <NotificationBell /> : null}
           <AuthButton />
           <button
             type="button"
@@ -295,9 +315,9 @@ export default function Navbar() {
 
       {open ? (
         <div className="border-t border-white/[0.06] bg-ink/95 px-4 pb-4 pt-2 xl:hidden">
-          <SearchBox className="mb-2" onGo={() => setOpen(false)} />
+          {signedIn ? <SearchBox className="mb-2" onGo={() => setOpen(false)} /> : null}
           <div className="grid grid-cols-2 gap-1">
-            {links.map((l) => (
+            {navLinks.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}

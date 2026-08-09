@@ -251,6 +251,17 @@ body::after {
   pointer-events: none;
 }
 
+/* Editorial serif for the marketing page only. The app is Inter throughout,
+   which is right for dense figures and wrong for a headline — a landing page
+   set entirely in the same UI sans is the visual signature of a template.
+   A system stack, deliberately: no extra font to download, no third-party
+   request, and these faces ship on effectively every device. */
+.font-editorial {
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua",
+    Georgia, "Times New Roman", serif;
+  font-feature-settings: "kern" 1, "liga" 1;
+}
+
 @layer components {
   .glass {
     background: var(--panel);

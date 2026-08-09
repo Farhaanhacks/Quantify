@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+import Landing from "@/components/quantifi/Landing";
+import { SESSION_COOKIE, verifySession, authConfig } from "@/lib/auth";
 import ResearchPriming from "@/components/quantifi/ResearchPriming";
 import PortfolioStocks from "@/components/quantifi/PortfolioStocks";
 import PortfolioToday from "@/components/quantifi/PortfolioToday";
@@ -23,6 +26,15 @@ export const metadata = {
 export const revalidate = 60;
 
 export default async function HomePage() {
+  // Signed out, "/" is the front door rather than the product. The session is
+  // verified here (not just sniffed for presence, as the edge middleware does)
+  // because this decides what content renders, not merely where to redirect.
+  const { secret } = authConfig();
+  const signedIn = secret
+    ? verifySession(cookies().get(SESSION_COOKIE)?.value, secret) != null
+    : false;
+  if (!signedIn) return <Landing />;
+
   // Same live feed that powers /news — the homepage News Impact shows real,
   // current articles, not curated examples.
   const news = await getMarketNews().catch(() => []);

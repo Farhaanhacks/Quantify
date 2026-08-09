@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import BrandLogo from "@/components/quantifi/BrandLogo";
+import { SESSION_COOKIE, verifySession, authConfig } from "@/lib/auth";
 
 const columns: { title: string; items: { label: string; href: string }[] }[] = [
   {
@@ -58,12 +60,49 @@ const columns: { title: string; items: { label: string; href: string }[] }[] = [
   },
 ];
 
+// Signed out, four of the five columns above point at gated routes — a footer
+// full of Portfolio Tracker, Stock Analysis, Screener and News Impact links
+// that all bounce off the sign-in wall. The front door advertises only what a
+// visitor can actually open.
+const publicColumns: typeof columns = [
+  {
+    title: "Quantifi",
+    items: [
+      { label: "Plans & Pricing", href: "/pricing" },
+      { label: "About", href: "/about" },
+      { label: "Contact", href: "/contact" },
+    ],
+  },
+  {
+    title: "Legal",
+    items: [
+      { label: "Privacy Policy", href: "/privacy" },
+      { label: "Terms of Service", href: "/terms" },
+      { label: "Refund & Cancellation", href: "/refund-policy" },
+    ],
+  },
+  {
+    title: "Get started",
+    items: [{ label: "Create a free account", href: "/login" }],
+  },
+];
+
 export default function Footer() {
+  const { secret } = authConfig();
+  const signedIn = secret
+    ? verifySession(cookies().get(SESSION_COOKIE)?.value, secret) != null
+    : false;
+  const cols = signedIn ? columns : publicColumns;
+
   return (
     <footer className="mt-24 border-t border-white/[0.06]">
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-5">
-          {columns.map((col) => (
+        <div
+          className={`grid grid-cols-2 gap-8 sm:grid-cols-3 ${
+            signedIn ? "lg:grid-cols-5" : "lg:grid-cols-3"
+          }`}
+        >
+          {cols.map((col) => (
             <div key={col.title}>
               <h3 className="font-display text-sm font-semibold text-white">{col.title}</h3>
               <ul className="mt-4 space-y-2.5">

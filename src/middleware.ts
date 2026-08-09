@@ -11,18 +11,19 @@ const SESSION_COOKIE = "quantifi_session";
 // search engines (and viewable by anyone) — the indexable content, the trust
 // pages and pricing. Private/personal surfaces (portfolio, watchlist, insider,
 // billing) stay gated below.
+// The product is behind the door. "/" serves the landing page when signed out,
+// and the only other routes reachable without an account are the ones the
+// landing page itself needs to work: sign-in, what it costs, who runs it, and
+// the legal pages a payment provider and an app store both require to be
+// publicly reachable.
+//
+// Everything else — every research surface — now requires a session. This is a
+// deliberate trade: those pages were previously crawlable, and closing them
+// means search engines can no longer index the research content, so organic
+// traffic to it will fall away. That is the cost of gating, and it is the
+// intended behaviour here rather than an oversight.
 const PUBLIC_EXACT = new Set<string>(["/", "/login"]);
 const PUBLIC_PREFIXES = [
-  "/ideas",
-  "/news",
-  "/stock-analysis",
-  "/stocks",
-  "/screener",
-  "/tools",
-  "/explore",
-  "/rare-finds",
-  "/research",
-  "/community", // redirects to /ideas
   "/pricing",
   "/about",
   "/contact",

@@ -164,7 +164,21 @@ export function FairValueHistoryChart({
   const latest = points[points.length - 1];
   const gap = latest && latest.v > 0 ? ((latest.v - latest.p) / latest.v) * 100 : 0;
 
-  if (points.length < 2) {
+  const modelledCount = points.filter((p) => p.modelled).length;
+  const recordedCount = points.length - modelledCount;
+  const spanDays =
+    points.length >= 2
+      ? (Date.parse(points[points.length - 1].d) - Date.parse(points[0].d)) / 86_400_000
+      : 0;
+
+  // Two points a day apart are not a history. Drawn, they became two flat
+  // parallel lines carrying no information at all, which is worse than an empty
+  // state: it looks like a chart and says nothing. Wait for a reconstruction, a
+  // couple of weeks of drift, or a handful of readings before drawing anything.
+  const worthDrawing =
+    points.length >= 2 && (modelledCount > 0 || points.length >= 5 || spanDays >= 14);
+
+  if (!worthDrawing) {
     // Nowhere to write to means the series can never fill, however long you
     // wait. Say that plainly instead of repeating "starts building from today"
     // every day forever.
@@ -198,18 +212,21 @@ export function FairValueHistoryChart({
     };
     return (
       <div className="mt-4 rounded-lg border border-white/[0.06] bg-white/[0.02] p-5 text-center">
-        <p className="text-sm text-slate-300">History starts building from today.</p>
+        <p className="text-sm text-slate-300">
+          {recordedCount > 0
+            ? `${recordedCount} reading${recordedCount === 1 ? "" : "s"} recorded so far.`
+            : "History starts building from today."}
+        </p>
         <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-slate-500">
           {why[reason] ??
             "Each day's cash-flow value is recorded as it's computed, and past years are reconstructed from reported statements where the data allows."}{" "}
-          From here it&apos;s recorded daily, so the line fills in as the valuation is recomputed.
+          {recordedCount > 0
+            ? "A chart appears once there is enough of a run to show movement — two readings a day apart would just be two flat lines."
+            : "From here it's recorded daily, so the line fills in as the valuation is recomputed."}
         </p>
       </div>
     );
   }
-
-  const modelledCount = points.filter((p) => p.modelled).length;
-  const recordedCount = points.length - modelledCount;
 
   const W = 720;
   const H = 140;
