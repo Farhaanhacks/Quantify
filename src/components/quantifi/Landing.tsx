@@ -2,7 +2,7 @@ import Link from "next/link";
 // PRO_PRICE_LABEL/NOTE rather than a hardcoded figure: Pro is free during the
 // launch offer, and the file these come from documents a surface having drifted
 // out of sync with that once already.
-import { FREE_LIMITS, PRO_PRICE_LABEL, PRO_PRICE_NOTE } from "@/data/plans";
+import { PRO_PRICE_LABEL, PRO_PRICE_NOTE } from "@/data/plans";
 
 // The signed-out front door. Everything a visitor sees before they have an
 // account, and the only page on the site that is not the product.
@@ -109,10 +109,7 @@ export default function Landing() {
       <section className="mx-auto max-w-7xl px-4 pb-16 pt-14 sm:px-6 sm:pt-20 lg:px-8">
         <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
           <div>
-            <p className="font-mono text-[0.68rem] uppercase tracking-[0.22em] text-gold/80">
-              Equity research for people who read the footnotes
-            </p>
-            <h1 className="mt-5 font-editorial text-[2.6rem] font-normal leading-[1.06] tracking-tight text-white sm:text-[3.4rem] lg:text-[3.9rem]">
+            <h1 className="font-editorial text-[2.6rem] font-normal leading-[1.06] tracking-tight text-white sm:text-[3.4rem] lg:text-[3.9rem]">
               Know what a company is
               <br className="hidden sm:block" /> worth, and{" "}
               <span className="text-gold">why</span>.
@@ -137,9 +134,14 @@ export default function Landing() {
                 See what&apos;s included
               </Link>
             </div>
+            {/* No allowance quoted here on purpose. The figure this used to
+                print came from FREE_LIMITS.analysesPerDay, which the app
+                enforces as a per-day quota, and that does not describe what a
+                free account actually gets. Rather than restate a number the
+                product might contradict, the page sends people to /pricing,
+                where the plan is set out in one place. */}
             <p className="mt-3 text-xs text-slate-500">
-              Free to start · {FREE_LIMITS.analysesPerDay} full stock analyses a day, no card
-              required
+              Free to start — no card required.
             </p>
           </div>
 
