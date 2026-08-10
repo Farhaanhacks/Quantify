@@ -75,7 +75,7 @@ export default function SignUpModal({
       />
 
       <div
-        className={`relative grid w-full max-w-3xl overflow-hidden rounded-2xl border border-white/12 bg-ink-900 shadow-2xl transition-all duration-700 ease-out md:grid-cols-2 ${
+        className={`relative grid max-h-[88vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-white/12 bg-ink-900 shadow-2xl transition-all duration-700 ease-out md:max-h-none md:grid-cols-2 md:overflow-hidden ${
           shown ? "translate-y-0 scale-100" : "translate-y-3 scale-[0.98]"
         }`}
       >
@@ -89,7 +89,8 @@ export default function SignUpModal({
         </button>
 
         {/* Left: what they're being let into. */}
-        <div className="hidden border-r border-white/[0.08] bg-white/[0.02] p-7 md:block">
+        {/* Shown on every size — see the note in LimitedOfferPopup. */}
+        <div className="border-b border-white/[0.08] bg-white/[0.02] p-6 sm:p-7 md:border-b-0 md:border-r">
           <h3 className="font-editorial text-[1.5rem] leading-tight text-white">
             Safeguard and grow your portfolio.
           </h3>
@@ -97,7 +98,12 @@ export default function SignUpModal({
             Valuation, financial health and insider activity on every name you follow, in one
             place.
           </p>
-          <div className="mt-5 rounded-lg border border-white/[0.08] bg-ink p-3">
+          {/* Hidden on phones. Stacked, this table pushed "Continue with
+              Google" off the bottom of a 640px screen — the visitor saw the
+              pitch and had to scroll inside the modal to find the button.
+              It is labelled illustrative anyway, so it is the first thing to
+              go when space is short. */}
+          <div className="mt-5 hidden rounded-lg border border-white/[0.08] bg-ink p-3 sm:block">
             <div className="mb-2 flex items-center justify-between text-[0.58rem] uppercase tracking-[0.14em] text-slate-500">
               <span>Name</span>
               <span>Fair value</span>
@@ -127,7 +133,12 @@ export default function SignUpModal({
 
           <a
             href="/api/auth/login"
-            className="mt-6 flex w-full items-center justify-center gap-2.5 rounded-lg bg-white px-5 py-3 text-sm font-semibold text-ink-900 transition hover:bg-white/90"
+            /* The border is not decoration. In light mode the card behind this
+               is white and so is the button, so without it the primary action
+               reads as a line of text. border-white/15 is remapped to a dark
+               translucent edge in light mode (see globals.css), which is how
+               the sign-in button on /login stays visible — same trick here. */
+            className="mt-6 flex w-full items-center justify-center gap-2.5 rounded-lg border border-white/15 bg-white px-5 py-3 text-sm font-semibold text-ink-900 transition hover:bg-white/90"
           >
             <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true">
               <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.2-2.27H12v4.51h6.47c-.28 1.48-1.13 2.73-2.4 3.58v2.98h3.89c2.27-2.09 3.53-5.17 3.53-8.8z" />

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { COUNTRY_ISO, countryForSymbol } from "@/lib/listingCountry";
 
 export const dynamic = "force-dynamic";
 
@@ -87,30 +88,12 @@ const SUFFIX_FLAG: Record<string, string> = {
   MX: "🇲🇽", BA: "🇦🇷", SR: "🇸🇦", TA: "🇮🇱", IS: "🇹🇷", CA: "🇪🇬", JO: "🇿🇦",
 };
 
-// ISO-2 for the same suffixes, so the client can draw a real flag. Emoji flags
-// are regional-indicator pairs that Windows has no font for — they render there
-// as the bare letters "IN"/"US", which is exactly what this was meant to avoid.
-const SUFFIX_COUNTRY: Record<string, string> = {
-  NS: "IN", BO: "IN", L: "GB", TO: "CA", V: "CA", AX: "AU", NZ: "NZ",
-  DE: "DE", F: "DE", PA: "FR", AS: "NL", BR: "BE", MI: "IT", MC: "ES",
-  SW: "CH", ST: "SE", OL: "NO", CO: "DK", HE: "FI", LS: "PT", VI: "AT",
-  IR: "IE", HK: "HK", T: "JP", SS: "CN", SZ: "CN", KS: "KR", KQ: "KR",
-  TW: "TW", TWO: "TW", SI: "SG", KL: "MY", BK: "TH", JK: "ID", SA: "BR",
-  MX: "MX", BA: "AR", SR: "SA", TA: "IL", IS: "TR", CA: "EG", JO: "ZA",
-};
-
-function countryFor(symbol: string): string {
-  const dot = symbol.lastIndexOf(".");
-  if (dot === -1) return "US";
-  return SUFFIX_COUNTRY[symbol.slice(dot + 1).toUpperCase()] ?? "";
-}
-
-const COUNTRY_ISO: Record<string, string> = {
-  USA: "US", "United States": "US", India: "IN", Taiwan: "TW",
-  "South Korea": "KR", Korea: "KR", China: "CN", "Hong Kong": "HK",
-  UK: "GB", "United Kingdom": "GB", Canada: "CA", Australia: "AU",
-  Japan: "JP", Germany: "DE", France: "FR", Singapore: "SG", Brazil: "BR",
-};
+// The suffix→ISO and name→ISO maps live in lib/listingCountry because the search
+// dropdown needs the same answer for rows it loaded from localStorage. Emoji
+// flags are regional-indicator pairs that Windows has no font for — they render
+// there as the bare letters "IN"/"US", which is what the ISO code + drawn SVG
+// replaced.
+const countryFor = countryForSymbol;
 
 function flagFor(symbol: string): string {
   const dot = symbol.lastIndexOf(".");

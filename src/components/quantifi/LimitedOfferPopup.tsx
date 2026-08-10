@@ -98,7 +98,7 @@ export default function LimitedOfferPopup() {
       />
 
       <div
-        className={`relative grid w-full max-w-3xl overflow-hidden rounded-2xl border border-gold/25 bg-ink-900 shadow-2xl transition-all duration-700 ease-out md:grid-cols-2 ${
+        className={`relative grid max-h-[88vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-gold/25 bg-ink-900 shadow-2xl transition-all duration-700 ease-out md:max-h-none md:grid-cols-2 md:overflow-hidden ${
           shown ? "translate-y-0 scale-100" : "translate-y-3 scale-[0.98]"
         }`}
       >
@@ -113,16 +113,24 @@ export default function LimitedOfferPopup() {
         </button>
 
         {/* Left: what Pro opens up. */}
-        <div className="hidden border-r border-white/[0.08] bg-white/[0.02] p-7 md:block">
+        {/* Shown on every size. This used to be md:block, so a phone got the
+            ask with none of the reasons for it — and a phone is where most of
+            these are seen. Stacked above the offer on small screens instead. */}
+        <div className="border-b border-white/[0.08] bg-white/[0.02] p-6 sm:p-7 md:border-b-0 md:border-r">
           <h3 className="font-editorial text-[1.5rem] leading-tight text-white">
             The whole research suite.
           </h3>
           <p className="mt-2.5 text-[0.82rem] leading-relaxed text-slate-400">
             Everything Quantifi computes, on every name you follow.
           </p>
-          <ul className="mt-5 space-y-2.5">
-            {PRO_FEATURES.slice(0, 5).map((f) => (
-              <li key={f} className="flex items-start gap-2.5 text-[0.82rem] text-slate-300">
+          <ul className="mt-4 space-y-2 sm:mt-5 sm:space-y-2.5">
+            {PRO_FEATURES.slice(0, 5).map((f, i) => (
+              <li
+                key={f}
+                /* Three on a phone keeps the card inside the viewport; the
+                   rest appear as soon as there is room. */
+                className={`items-start gap-2.5 text-[0.82rem] text-slate-300 ${i > 2 ? "hidden sm:flex" : "flex"}`}
+              >
                 <svg
                   width="15"
                   height="15"

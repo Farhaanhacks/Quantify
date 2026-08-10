@@ -166,7 +166,7 @@ export default function LandingSearch() {
                     i === active ? "bg-white/[0.07]" : "hover:bg-white/[0.04]"
                   }`}
                 >
-                  <FlagChip country={m.country} />
+                  <FlagChip country={m.country} symbol={m.symbol} />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1.5">
                       <span className="min-w-0 truncate text-[0.82rem] text-white">{m.name}</span>

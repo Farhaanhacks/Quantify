@@ -204,10 +204,16 @@ function SearchBox({ onGo, className = "" }: { onGo?: () => void; className?: st
                 i === active ? "bg-white/[0.07]" : "hover:bg-white/[0.04]"
               }`}
             >
-              <FlagChip country={m.country} />
+              <FlagChip country={m.country} symbol={m.symbol} />
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-1.5">
                   <span className="min-w-0 truncate text-[0.78rem] text-white">{m.name}</span>
+                  {/* One badge, not two. There used to be a second chip on the
+                      right edge printing the raw vendor `type`, which for a
+                      mutual fund is also the word "FUND" — so every fund row
+                      said FUND twice, once beside the name and once at the far
+                      right. `kind` is the normalised label; `type` is the
+                      vendor's wording for the same fact. */}
                   {m.kind && m.kind !== "Stock" ? (
                     <span className="flex-none rounded-[3px] border border-white/15 px-1.5 py-px text-[0.55rem] uppercase tracking-wide text-slate-400">
                       {m.kind}
@@ -219,11 +225,6 @@ function SearchBox({ onGo, className = "" }: { onGo?: () => void; className?: st
                   {m.symbol}
                 </span>
               </span>
-              {m.type && !/equity/i.test(m.type) ? (
-                <span className="flex-none rounded border border-white/10 px-1.5 py-0.5 text-[0.55rem] uppercase tracking-wide text-slate-400">
-                  {m.type}
-                </span>
-              ) : null}
             </button>
           ))}
 

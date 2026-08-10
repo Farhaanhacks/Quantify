@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { SITE } from "@/lib/seo";
+import { isPublicPath } from "@/lib/publicRoutes";
 import { tradingIdeas } from "@/data/ideas";
 import { playbooks } from "@/data/playbooks";
 import { popularTickers } from "@/data/popularTickers";
@@ -50,5 +51,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     u(`/stocks/${encodeURIComponent(t.s)}`, 0.6, "daily")
   );
 
-  return [...core, ...themes, ...research, ...tools, ...stocks];
+  // Only advertise what a crawler can actually open. Every entry is checked
+  // against the same gate the middleware enforces, so a page that redirects to
+  // sign-in never appears here. Listing one is worse than omitting it: the
+  // crawler spends budget fetching a URL only to be bounced to a noindex page,
+  // and a sitemap full of those is a sitemap search engines learn to distrust.
+  const all = [...core, ...themes, ...research, ...tools, ...stocks];
+  return all.filter((entry) => {
+    const path = entry.url.replace(SITE.url, "") || "/";
+    return isPublicPath(path.split("?")[0]);
+  });
 }

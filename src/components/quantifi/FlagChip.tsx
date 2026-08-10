@@ -9,10 +9,15 @@
 // anywhere else falls back to a tidy two-letter chip rather than a broken
 // glyph. Drawn rather than fetched: an <img> per row would be a network request
 // each, and a strict CSP blocks the usual flag CDNs anyway.
+import { displayCountry } from "@/lib/listingCountry";
+
 const box = "inline-block h-3.5 w-5 flex-none overflow-hidden rounded-[2px] ring-1 ring-white/15";
 
-export default function FlagChip({ country }: { country?: string }) {
-  const c = (country ?? "").toUpperCase();
+export default function FlagChip({ country, symbol }: { country?: string; symbol?: string }) {
+  // Fall back to the symbol's exchange suffix. Rows restored from localStorage
+  // predate the `country` field, so trusting it alone left half a list of
+  // recently-viewed companies with no flag while the rest had one.
+  const c = symbol ? displayCountry({ country, symbol }) : (country ?? "").toUpperCase();
 
   if (c === "IN") {
     return (
@@ -41,7 +46,11 @@ export default function FlagChip({ country }: { country?: string }) {
     );
   }
 
-  if (!c) return null;
+  // An empty slot rather than nothing. Returning null collapsed the row, so a
+  // list where one listing's exchange wasn't recognised had its names stepping
+  // in and out by 20px down the column — the "disorganised" look.
+  if (!c) return <span className={`${box} bg-white/[0.06] ring-white/10`} aria-hidden="true" />;
+
   return (
     <span className="inline-flex h-3.5 flex-none items-center rounded-[2px] bg-white/10 px-1 font-mono text-[0.55rem] leading-none tracking-wide text-slate-300">
       {c}
