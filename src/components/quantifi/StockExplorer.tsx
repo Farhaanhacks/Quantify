@@ -283,8 +283,14 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
   // require sign-in before anything (the chart included) is shown.
   return (
     <>
+      {/* Search — only when the nav bar hasn't already got one.
+          Signed in, this was the second search box on the screen, directly
+          under the one in the header, both doing the same job. Signed out the
+          header has no search at all, so here it is the only way to look up
+          another company and removing it outright would strand that visitor on
+          whichever symbol they arrived with. */}
+      {!user ? (
       <section className="mx-auto max-w-7xl px-4 pb-4 pt-8 sm:px-6 lg:px-8">
-        {/* Search */}
         <GlassCard className="p-5">
           <label className="mb-2 block text-[0.7rem] uppercase tracking-[0.16em] text-slate-500">
             Search any stock or ETF
@@ -333,6 +339,7 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
           </p>
         </GlassCard>
       </section>
+      ) : null}
 
       {stage === "analysis" ? (
         <div className="mx-auto max-w-7xl lg:grid lg:grid-cols-[224px_minmax(0,1fr)]">

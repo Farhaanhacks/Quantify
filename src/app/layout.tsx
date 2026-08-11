@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { headers } from "next/headers";
 import { Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import Navbar from "@/components/quantifi/Navbar";
-import MarketPulse from "@/components/quantifi/MarketPulse";
+import MarketPulse, { MarketPulseSkeleton } from "@/components/quantifi/MarketPulse";
 import Footer from "@/components/quantifi/Footer";
 import LimitedOfferPopup from "@/components/quantifi/LimitedOfferPopup";
 import JsonLd from "@/components/JsonLd";
@@ -78,8 +79,16 @@ export default function RootLayout({
       </head>
       <body className="font-sans antialiased">
         <JsonLd data={[organizationJsonLd(), websiteJsonLd(), softwareApplicationJsonLd()]} />
-        {/* Market pulse ticker sits at the very top, right above the nav bar. */}
-        <MarketPulse />
+        {/* Market pulse ticker sits at the very top, right above the nav bar.
+            Suspended, because it is an async server component in the ROOT
+            layout: without a boundary here its quote fetch had to finish before
+            a single byte of ANY page could be sent, on every navigation in the
+            app. A decorative ticker should never be the thing a page is waiting
+            on. The fallback reserves its exact height so nothing below it
+            jumps when the real strip arrives. */}
+        <Suspense fallback={<MarketPulseSkeleton />}>
+          <MarketPulse />
+        </Suspense>
         <Navbar />
         <main>{children}</main>
         <Footer />
