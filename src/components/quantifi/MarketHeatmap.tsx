@@ -398,16 +398,19 @@ export default function MarketHeatmap({ initial }: { initial: HeatmapData }) {
                 >
                   {showTicker ? (
                     <span
-                      className="max-w-full truncate px-0.5 font-semibold text-white"
-                      style={{ fontSize: Math.min(15, Math.max(8, rect.w / 5.5)) }}
+                      /* Colour set inline, not via text-white: the light theme
+                         remaps that utility to near-black, and these labels sit
+                         on saturated red/green in every theme. */
+                      className="max-w-full truncate px-0.5 font-semibold"
+                      style={{ color: "#fff", fontSize: Math.min(15, Math.max(8, rect.w / 5.5)) }}
                     >
                       {tile.symbol.replace(/\.(NS|BO)$/, "")}
                     </span>
                   ) : null}
                   {showPct ? (
                     <span
-                      className="mt-0.5 max-w-full truncate px-0.5 text-white/85"
-                      style={{ fontSize: Math.min(12, Math.max(7, rect.w / 7.5)) }}
+                      className="mt-0.5 max-w-full truncate px-0.5"
+                      style={{ color: "rgba(255,255,255,0.88)", fontSize: Math.min(12, Math.max(7, rect.w / 7.5)) }}
                     >
                       {fmtPct(tile.changePct)}
                     </span>
@@ -433,32 +436,33 @@ export default function MarketHeatmap({ initial }: { initial: HeatmapData }) {
           }}
         >
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-white">
+            <div className="truncate text-sm font-semibold" style={{ color: "#fff" }}>
               {hover.tile.symbol.replace(/\.(NS|BO)$/, "")}
             </div>
-            <div className="max-w-[15rem] truncate text-[0.68rem] text-slate-400">
+            <div className="max-w-[15rem] truncate text-[0.68rem]" style={{ color: "#94a3b8" }}>
               {hover.tile.name}
             </div>
           </div>
           <div className="text-right">
-            <div className="font-mono text-sm text-white">
+            <div className="font-mono text-sm" style={{ color: "#fff" }}>
               {fmtPrice(hover.tile.price, hover.tile.currency)}
             </div>
-            <div className="text-[0.6rem] uppercase tracking-wide text-slate-500">Price</div>
+            <div className="text-[0.6rem] uppercase tracking-wide" style={{ color: "#7c8899" }}>Price</div>
           </div>
           <div className="text-right">
-            <div className="font-mono text-sm text-white">
+            <div className="font-mono text-sm" style={{ color: "#fff" }}>
               {fmtCap(hover.tile.marketCap, hover.tile.currency)}
             </div>
-            <div className="text-[0.6rem] uppercase tracking-wide text-slate-500">Market cap</div>
+            <div className="text-[0.6rem] uppercase tracking-wide" style={{ color: "#7c8899" }}>Market cap</div>
           </div>
           <div className="text-right">
             <div
-              className={`font-mono text-sm ${hover.tile.changePct >= 0 ? "text-up" : "text-down"}`}
+              className="font-mono text-sm"
+              style={{ color: hover.tile.changePct >= 0 ? "#34D399" : "#FB7185" }}
             >
               {fmtPct(hover.tile.changePct)}
             </div>
-            <div className="text-[0.6rem] uppercase tracking-wide text-slate-500">Change 1D</div>
+            <div className="text-[0.6rem] uppercase tracking-wide" style={{ color: "#7c8899" }}>Change 1D</div>
           </div>
         </div>
       ) : null}

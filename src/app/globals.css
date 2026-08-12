@@ -80,9 +80,14 @@ html.light .text-slate-50,
 html.light .text-slate-100 { color: #0b0f1a; }
 html.light .text-slate-200 { color: #1e293b; }
 html.light .text-slate-300 { color: #334155; }
-html.light .text-slate-400 { color: #475569; }
-html.light .text-slate-500 { color: #64748b; }
-html.light .text-slate-600 { color: #94a3b8; }
+/* Each secondary tone moved one step darker. On white, the old values were
+   drifting into "technically visible" rather than readable — the fine print in
+   particular sat at slate-400 on a white card. */
+html.light .text-slate-400 { color: #334155; }
+html.light .text-slate-500 { color: #475569; }
+/* #64748b measured 4.43:1 on the page background — under the 4.5 AA floor for
+   the small print this tone is used for. */
+html.light .text-slate-600 { color: #57647a; }
 html.light .text-ink { color: #0b0f1a; }
 /* SVG text fills (e.g. donut centre value) */
 html.light .fill-white,
@@ -164,7 +169,17 @@ html.light .text-gold\/90,
 html.light .text-gold\/80,
 html.light .text-gold\/70,
 html.light .text-gold\/60,
-html.light .hover\:text-gold:hover { color: #2358c9; }
+html.light .hover\:text-gold:hover { color: #7a5c10; }
+
+/* Up/down had no light-mode value at all, so a mint #34D399 and a rose #FB7185
+   — both mixed for a near-black background — were being painted onto white.
+   Every gain and loss on the site was rendering as pale wash. These are the
+   same hues taken several steps darker, which is also what makes them legible
+   on the light tints (bg-up/10) they frequently sit on. */
+html.light .text-up { color: #047857; }
+html.light .text-down { color: #be123c; }
+html.light .fill-up { fill: #047857; }
+html.light .fill-down { fill: #be123c; }
 
 /* The brand gold gradient text (headlines) — swap the light gradient stops
    for a deeper amber gradient so it stays readable on white. */
