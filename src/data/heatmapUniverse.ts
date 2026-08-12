@@ -180,6 +180,21 @@ const ELECTRONIC_TECH = new Set([
   "1810.HK", "0981.HK",
 ]);
 
+// Second share classes of a company already in the list.
+//
+// Alphabet appeared twice — GOOGL (class A) and GOOG (class C) — as two tiles
+// for one company. Beyond looking broken, it distorts the map: Yahoo quotes the
+// ISSUER's market cap against each class, so Alphabet was claiming roughly
+// twice its true area and inflating Communication Services with it.
+//
+// Keep the class carrying the voting shares and the more familiar ticker; drop
+// the rest. Anything added here must be a share class of a company that is
+// already in the universe under another symbol, never a company in its own
+// right.
+const SECONDARY_SHARE_CLASSES = new Set([
+  "GOOG", // Alphabet class C — GOOGL (class A) is kept
+]);
+
 /**
  * Refine a company's sector for the heatmap. Currently only splits Technology;
  * everything else passes through untouched.
@@ -191,6 +206,9 @@ function refineSector(symbol: string, sector: string): string {
     : "Technology Services";
 }
 
+const isSecondaryClass = (symbol: string): boolean =>
+  SECONDARY_SHARE_CLASSES.has(symbol.toUpperCase());
+
 export function regionLabel(key: string): string {
   return REGIONS.find((r) => r.key === key)?.label ?? "US";
 }
@@ -200,13 +218,15 @@ export function universeFor(key: string): { symbol: string; sector: string }[] {
   const mapped = FROM_SECTOR_MAP[key];
   if (mapped) {
     return Object.entries(SECTOR_MAP)
-      .filter(([, info]) => info.region === mapped)
+      .filter(([symbol, info]) => info.region === mapped && !isSecondaryClass(symbol))
       .map(([symbol, info]) => ({ symbol, sector: refineSector(symbol, info.sector) }));
   }
   const curated = CURATED[key];
   if (!curated) return [];
-  return Object.entries(curated).map(([symbol, sector]) => ({
-    symbol,
-    sector: refineSector(symbol, sector),
-  }));
+  return Object.entries(curated)
+    .filter(([symbol]) => !isSecondaryClass(symbol))
+    .map(([symbol, sector]) => ({
+      symbol,
+      sector: refineSector(symbol, sector),
+    }));
 }

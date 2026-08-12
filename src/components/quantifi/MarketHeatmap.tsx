@@ -286,7 +286,7 @@ export default function MarketHeatmap({ initial }: { initial: HeatmapData }) {
       <div className="mb-3 flex flex-wrap items-center gap-2">
         {/* Nine markets, so this wraps rather than forcing a horizontal
             scroll on a phone. */}
-        <div className="flex flex-wrap items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] p-0.5 text-xs">
+        <div className="flex flex-wrap items-center gap-1 rounded-md border border-white/10 bg-white/[0.03] p-0.5 text-xs">
           {REGIONS.map((r) => (
             <button
               key={r.key}
@@ -294,8 +294,8 @@ export default function MarketHeatmap({ initial }: { initial: HeatmapData }) {
               onClick={() => switchRegion(r.key)}
               className={
                 region === r.key
-                  ? "rounded-full bg-gold/20 px-2.5 py-1 font-medium text-gold"
-                  : "rounded-full px-2.5 py-1 text-slate-400 transition hover:text-white"
+                  ? "rounded-[3px] bg-gold/20 px-2.5 py-1 font-medium text-gold"
+                  : "rounded-[3px] px-2.5 py-1 text-slate-400 transition hover:text-white"
               }
             >
               {r.label}
