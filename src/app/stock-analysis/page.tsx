@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import StockExplorer from "@/components/quantifi/StockExplorer";
+import { fromTvSymbol } from "@/lib/tvSymbol";
 
 export const dynamic = "force-dynamic";
 
@@ -15,9 +16,17 @@ export const metadata = buildMetadata({
 export default function StockAnalysisPage({
   searchParams,
 }: {
-  searchParams: { symbol?: string };
+  searchParams: { symbol?: string; tvwidgetsymbol?: string };
 }) {
-  const initial = (searchParams?.symbol ?? "NVDA").toUpperCase();
+  // `tvwidgetsymbol` is what the home-page heatmap sends when a tile is
+  // clicked — TradingView appends it in EXCHANGE:TICKER form. Mapping it here
+  // is what keeps those clicks inside Quantifi instead of bouncing the reader
+  // out to tradingview.com. Our own `symbol` param wins if both are present.
+  const initial = (
+    searchParams?.symbol?.toUpperCase() ||
+    fromTvSymbol(searchParams?.tvwidgetsymbol) ||
+    "NVDA"
+  ).toUpperCase();
   // The page itself is open to everyone; free accounts get a couple of analyses
   // for free and StockExplorer shows a Pro upsell beyond that (metered client-side).
   return (

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { cookies } from "next/headers";
 import Landing from "@/components/quantifi/Landing";
 import MarketHeatmap from "@/components/quantifi/MarketHeatmap";
+import { getHeatmap } from "@/lib/heatmap";
 import { SectionHeading } from "@/components/quantifi/Cards";
 import { SESSION_COOKIE, verifySession, authConfig } from "@/lib/auth";
 import ResearchPriming from "@/components/quantifi/ResearchPriming";
@@ -28,7 +29,37 @@ export const metadata = {
 // "last updated" timestamp) stay fresh without hammering the data source.
 export const revalidate = 60;
 
-// The news feed, split out so it can be suspended.
+// The heatmap, split out so its quote fetch can be suspended rather than
+// holding up the page shell.
+async function HeatmapSection() {
+  const data = await getHeatmap("us").catch(() => null);
+  return (
+    <section className="mx-auto max-w-7xl px-4 pt-10 sm:px-6 lg:px-8">
+      <SectionHeading
+        eyebrow="Market heatmap"
+        title="Where the money moved today"
+        subtitle="Sized by market cap, coloured by the day's move. Hover any company for its price, size and change — click it to open the full Quantifi analysis."
+      />
+      <div className="mt-6">
+        <MarketHeatmap
+          initial={data ?? { region: "us", regionLabel: "US", tiles: [], asOf: "", live: false }}
+        />
+      </div>
+    </section>
+  );
+}
+
+function HeatmapSkeleton() {
+  return (
+    <section className="mx-auto max-w-7xl px-4 pt-10 sm:px-6 lg:px-8">
+      <div className="h-4 w-32 animate-pulse rounded bg-white/[0.06]" />
+      <div className="mt-3 h-8 w-80 animate-pulse rounded bg-white/[0.06]" />
+      <div className="mt-6 h-[620px] animate-pulse rounded-lg bg-white/[0.03]" />
+    </section>
+  );
+}
+
+// The news feed, likewise.
 //
 // This await used to sit in HomePage itself, which meant the page returned no
 // HTML at all until every RSS feed had been fetched and 60 headlines had been
@@ -70,18 +101,12 @@ export default async function HomePage() {
   return (
     <>
       {/* The market, in one picture. This leads the page: it needs no reading
-          to interpret, it renders without waiting on our own APIs, and it
-          answers "what happened today" before any headline does. */}
-      <section className="mx-auto max-w-7xl px-4 pt-10 sm:px-6 lg:px-8">
-        <SectionHeading
-          eyebrow="Market heatmap"
-          title="Where the money moved today"
-          subtitle="Every S&P 500 company, sized by market cap and coloured by the day's move. Hover any tile for its price, size and change; use the controls to switch index, grouping or measure."
-        />
-        <div className="mt-6">
-          <MarketHeatmap />
-        </div>
-      </section>
+          to interpret, and it answers "what happened today" before any headline
+          does. Suspended for the same reason as everything else here — the
+          quote fetch behind it must not hold up the shell. */}
+      <Suspense fallback={<HeatmapSkeleton />}>
+        <HeatmapSection />
+      </Suspense>
 
       <Suspense fallback={<NewsSkeleton />}>
         <NewsSection />
