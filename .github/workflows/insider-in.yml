@@ -27,7 +27,7 @@ on:
 jobs:
   ingest:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     steps:
       - uses: actions/setup-node@v4
         with:
@@ -58,19 +58,26 @@ jobs:
           //   insider:in:<SYMBOL>   JSON array of disclosures, newest first, capped
           //   insider:in:_meta      { lastRun, symbols, rows, source }
 
-          // The Indian companies the app carries, as NSE symbols. Kept in step with
-          // SECTOR_MAP's India entries in src/data/sectors.ts.
-          const SYMBOLS = [
+          // Fallback universe, used only if NSE's own equity list cannot be fetched.
+          // A hand-kept list is always out of date the moment a company lists — Lenskart
+          // was missing from the app for exactly that reason — so this is the safety net,
+          // not the source.
+          const FALLBACK_SYMBOLS = [
             "ADANIENT", "ADANIPORTS", "APOLLOHOSP", "ASIANPAINT", "AXISBANK", "BAJAJ-AUTO",
             "BAJAJFINSV", "BAJFINANCE", "BHARTIARTL", "BPCL", "BRITANNIA", "CIPLA",
             "COALINDIA", "DABUR", "DIVISLAB", "DRREDDY", "EICHERMOT", "GRASIM", "HCLTECH",
             "HDFCBANK", "HDFCLIFE", "HINDALCO", "HINDUNILVR", "ICICIBANK", "INDUSINDBK",
-            "INFY", "IOC", "ITC", "JSWSTEEL", "KOTAKBANK", "LT", "LTIM", "M&M", "MARUTI",
-            "NESTLEIND", "NTPC", "ONGC", "PERSISTENT", "POWERGRID", "RELIANCE", "SBILIFE",
-            "SBIN", "SHREECEM", "SIEMENS", "SUNPHARMA", "TATACONSUM", "TATAMOTORS",
-            "TATAPOWER", "TATASTEEL", "TCS", "TECHM", "TITAN", "TRENT", "ULTRACEMCO",
-            "WIPRO", "ZOMATO",
+            "INFY", "IOC", "ITC", "JSWSTEEL", "KOTAKBANK", "LENSKART", "LT", "LTIM", "M&M",
+            "MARUTI", "NESTLEIND", "NTPC", "ONGC", "PERSISTENT", "POWERGRID", "RELIANCE",
+            "SBILIFE", "SBIN", "SHREECEM", "SIEMENS", "SUNPHARMA", "TATACONSUM",
+            "TATAMOTORS", "TATAPOWER", "TATASTEEL", "TCS", "TECHM", "TITAN", "TRENT",
+            "ULTRACEMCO", "WIPRO", "ZOMATO",
           ];
+
+          // How many symbols to ask about at once. NSE has just started serving us; this
+          // stays low deliberately, because losing that access costs far more than the
+          // job finishing a few minutes sooner.
+          const CONCURRENCY = 4;
 
           const KV_URL = process.env.KV_REST_API_URL;
           const KV_TOKEN = process.env.KV_REST_API_TOKEN;
@@ -213,6 +220,48 @@ jobs:
             return best;
           }
 
+          /**
+           * Every symbol listed on NSE, from NSE's own equity list.
+           *
+           * This is the difference between a heatmap of companies someone once typed out
+           * and the actual market. Falls back to the built-in list if the archive cannot
+           * be reached, so a bad fetch degrades rather than empties the run.
+           */
+          async function loadSymbols() {
+            try {
+              const res = await nseGet(
+                "https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv",
+                "text/csv,*/*"
+              );
+              if (res.status === 200 && res.text.includes(",")) {
+                const lines = res.text.trim().split("\n").slice(1); // drop the header
+                const syms = lines
+                  .map((l) => l.split(",")[0]?.trim().toUpperCase())
+                  .filter((s) => s && /^[A-Z0-9&\-]{1,20}$/.test(s));
+                if (syms.length > 100) {
+                  console.log(`   symbol list: ${syms.length} from NSE's equity archive`);
+                  return [...new Set(syms)];
+                }
+              }
+              console.log(`   symbol list: archive unusable (HTTP ${res.status}), using built-in list`);
+            } catch (e) {
+              console.log(`   symbol list: archive fetch failed (${String(e).slice(0, 80)}), using built-in list`);
+            }
+            return FALLBACK_SYMBOLS;
+          }
+
+          /** Run `worker` over `items`, `limit` at a time. */
+          async function pooled(items, limit, worker) {
+            let i = 0;
+            const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
+              while (i < items.length) {
+                const idx = i++;
+                await worker(items[idx], idx);
+              }
+            });
+            await Promise.all(runners);
+          }
+
           async function main() {
             const days = Number(process.env.INSIDER_WINDOW_DAYS) || 7;
             console.log(`→ Warming up on nseindia.com …`);
@@ -277,23 +326,27 @@ jobs:
             // serve the whole market from that endpoint the way this assumed. Asking per
             // symbol is what the filings page does, so that is what we do.
             if (!rows.length) {
-              console.log(`→ Market-wide came back empty. Falling back to per-symbol over ${SYMBOLS.length} companies …`);
+              const symbols = await loadSymbols();
+              console.log(`→ Market-wide came back empty. Asking per symbol across ${symbols.length} companies …`);
               let hit = 0;
-              for (const sym of SYMBOLS) {
+              let done = 0;
+              let shown = 0;
+              await pooled(symbols, CONCURRENCY, async (sym) => {
                 const res = await nseGet(`${base}&symbol=${encodeURIComponent(sym)}`);
                 const data = extractRows(res.json);
+                done++;
                 if (data.length) {
                   hit++;
                   rows.push(...data);
+                } else if (hit === 0 && shown < 3) {
+                  // Show the first few misses in full so a wrong query is visible at once
+                  // rather than after every symbol has silently returned nothing.
+                  shown++;
+                  console.log(`   ${sym}: HTTP ${res.status} — ${res.text.slice(0, 140).replace(/\s+/g, " ")}`);
                 }
-                // Log the first few in full so a wrong query is visible immediately
-                // rather than after 56 silent misses.
-                if (hit === 0 && SYMBOLS.indexOf(sym) < 3) {
-                  console.log(`   ${sym}: HTTP ${res.status}, ${data.length} rows — ${res.text.slice(0, 160).replace(/\s+/g, " ")}`);
-                }
-                await new Promise((r) => setTimeout(r, 250)); // be a polite guest
-              }
-              console.log(`→ per-symbol: ${hit}/${SYMBOLS.length} companies had filings, ${rows.length} rows total`);
+                if (done % 250 === 0) console.log(`   … ${done}/${symbols.length} checked, ${rows.length} rows so far`);
+              });
+              console.log(`→ per-symbol: ${hit}/${symbols.length} companies had filings, ${rows.length} rows total`);
               if (rows.length) wonWith = "per-symbol";
             }
 
