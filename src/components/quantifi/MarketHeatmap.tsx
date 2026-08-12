@@ -20,6 +20,52 @@ import { REGIONS } from "@/data/heatmapUniverse";
 
 const SECTOR_HEADER = 22; // px reserved for a sector's title bar
 const GAP = 3;
+/** Tiles drawn in the whole-market view. Below this they stop being readable. */
+const OVERVIEW_MAX = 100;
+/** No tile smaller than this: below it, a company is an unclickable speck. */
+const MIN_TILE_AREA = 18 * 18;
+
+/**
+ * Weights for the treemap, floored so every company gets a tile you can
+ * actually see and click.
+ *
+ * Market caps inside a single sector still span orders of magnitude, and a
+ * strictly proportional treemap gives the smallest member an area that rounds
+ * to zero — a button with no pixels. That is exactly the company the drill-down
+ * exists to reveal, so the floor is the difference between the feature working
+ * and not.
+ *
+ * Raising the small weights raises the total too, so the floor is applied
+ * iteratively until it settles. Returns whether any clamping happened, so the
+ * UI can admit that the smallest tiles are drawn at a minimum size rather than
+ * strictly to scale.
+ */
+function flooredWeights(
+  values: number[],
+  width: number,
+  height: number
+): { values: number[]; clamped: boolean } {
+  const canvas = width * height;
+  if (canvas <= 0 || !values.length) return { values, clamped: false };
+  let out = values.slice();
+  let clamped = false;
+  for (let pass = 0; pass < 8; pass++) {
+    const sum = out.reduce((a, b) => a + b, 0);
+    if (sum <= 0) break;
+    const floor = (MIN_TILE_AREA / canvas) * sum;
+    let changed = false;
+    out = out.map((v) => {
+      if (v < floor) {
+        changed = true;
+        clamped = true;
+        return floor;
+      }
+      return v;
+    });
+    if (!changed) break;
+  }
+  return { values: out, clamped };
+}
 
 // TradingView's scale reads the same way to anyone who has seen one: saturated
 // red through neutral to saturated green, saturating at ±3%.
@@ -77,6 +123,38 @@ interface SectorBlock {
   cells: Cell[];
 }
 
+/**
+ * One sector filling the whole canvas — the drilled-in view. No sector header
+ * bar and no outer treemap, so every tile gets the full area to share and the
+ * small companies become readable.
+ */
+function buildFocusedLayout(
+  tiles: HeatmapTile[],
+  sector: string,
+  width: number,
+  height: number
+): SectorBlock[] {
+  if (!tiles.length || width <= 0 || height <= 0) return [];
+  const { values } = flooredWeights(tiles.map((t) => t.marketCap), width, height);
+  const rects = squarify(
+    tiles.map((t, i) => ({ id: t.symbol, value: values[i] })),
+    { x: 0, y: 0, w: width, h: height }
+  );
+  const bySymbol = new Map(tiles.map((t) => [t.symbol, t]));
+  return [
+    {
+      sector,
+      rect: { id: sector, value: 0, x: 0, y: 0, w: width, h: height },
+      cells: rects
+        .map((rect) => {
+          const tile = bySymbol.get(rect.id);
+          return tile ? { tile, rect } : null;
+        })
+        .filter((c): c is Cell => c !== null),
+    },
+  ];
+}
+
 function buildLayout(tiles: HeatmapTile[], width: number, height: number): SectorBlock[] {
   if (!tiles.length || width <= 0 || height <= 0) return [];
 
@@ -104,8 +182,9 @@ function buildLayout(tiles: HeatmapTile[], width: number, height: number): Secto
       w: Math.max(0, sr.w - GAP * 2),
       h: Math.max(0, sr.h - SECTOR_HEADER - GAP),
     };
+    const { values } = flooredWeights(list.map((t) => t.marketCap), inner.w, inner.h);
     const cellRects = squarify(
-      list.map((t) => ({ id: t.symbol, value: t.marketCap })),
+      list.map((t, i) => ({ id: t.symbol, value: values[i] })),
       inner
     );
     const bySymbol = new Map(list.map((t) => [t.symbol, t]));
@@ -131,6 +210,8 @@ export default function MarketHeatmap({ initial }: { initial: HeatmapData }) {
   const [loading, setLoading] = useState(false);
   const [width, setWidth] = useState(0);
   const [hover, setHover] = useState<{ tile: HeatmapTile; x: number; y: number } | null>(null);
+  /** Sector currently drilled into, or null for the whole market. */
+  const [focus, setFocus] = useState<string | null>(null);
 
   const height = width > 900 ? 620 : width > 620 ? 520 : 460;
 
@@ -150,6 +231,8 @@ export default function MarketHeatmap({ initial }: { initial: HeatmapData }) {
       if (next === region) return;
       const previous = region;
       setRegion(next);
+      // A sector drilled into in one market means nothing in the next.
+      setFocus(null);
       setLoading(true);
       try {
         const r = await fetch(`/api/heatmap?region=${encodeURIComponent(next)}`);
@@ -167,10 +250,31 @@ export default function MarketHeatmap({ initial }: { initial: HeatmapData }) {
     [region]
   );
 
-  const blocks = useMemo(
-    () => buildLayout(data.tiles, width, height),
-    [data.tiles, width, height]
+  // The overview draws only the largest names — beyond roughly a hundred, tiles
+  // stop being readable or clickable. Drilling into a sector drops that cap and
+  // shows EVERY company we have in it, which is how the smaller ones become
+  // visible at all.
+  const overview = useMemo(() => data.tiles.slice(0, OVERVIEW_MAX), [data.tiles]);
+  const focusTiles = useMemo(
+    () => (focus ? data.tiles.filter((t) => t.sector === focus) : []),
+    [data.tiles, focus]
   );
+
+  const blocks = useMemo(
+    () =>
+      focus
+        ? buildFocusedLayout(focusTiles, focus, width, height)
+        : buildLayout(overview, width, height),
+    [focus, focusTiles, overview, width, height]
+  );
+
+  // Whether any tile hit the minimum-size floor, so the caption can say the
+  // smallest squares are not strictly to scale rather than quietly implying it.
+  const clamped = useMemo(() => {
+    const source = focus ? focusTiles : overview;
+    if (!source.length || width <= 0) return false;
+    return flooredWeights(source.map((t) => t.marketCap), width, height).clamped;
+  }, [focus, focusTiles, overview, width, height]);
 
   const open = (symbol: string) => {
     // The whole point of drawing this ourselves.
@@ -198,9 +302,26 @@ export default function MarketHeatmap({ initial }: { initial: HeatmapData }) {
             </button>
           ))}
         </div>
-        <span className="text-[0.68rem] text-slate-500">
-          Top {data.tiles.length} by market cap · coloured by today&apos;s move
-        </span>
+        {focus ? (
+          <span className="flex items-center gap-1.5 text-[0.72rem]">
+            <button
+              type="button"
+              onClick={() => setFocus(null)}
+              className="text-slate-400 transition hover:text-white"
+            >
+              ‹ All
+            </button>
+            <span className="text-slate-600">·</span>
+            <span className="font-medium text-white">{focus}</span>
+            <span className="text-slate-500">
+              ({focusTiles.length} {focusTiles.length === 1 ? "company" : "companies"})
+            </span>
+          </span>
+        ) : (
+          <span className="text-[0.68rem] text-slate-500">
+            Top {overview.length} by market cap · click a sector to open it
+          </span>
+        )}
         <span className="ml-auto flex items-center gap-1.5 text-[0.62rem] text-slate-500">
           <span>-3%</span>
           {[-3, -2, -1, 0, 1, 2, 3].map((p) => (
@@ -235,13 +356,23 @@ export default function MarketHeatmap({ initial }: { initial: HeatmapData }) {
 
         {blocks.map((b) => (
           <div key={b.sector}>
-            {/* Sector title bar */}
-            <div
-              className="absolute truncate px-1.5 text-[0.62rem] font-semibold uppercase tracking-[0.1em] text-slate-400"
-              style={{ left: b.rect.x + GAP, top: b.rect.y + 4, width: Math.max(0, b.rect.w - GAP * 2) }}
-            >
-              {b.sector}
-            </div>
+            {/* Sector title bar — the way into the sector. */}
+            {focus ? null : (
+              <button
+                type="button"
+                onClick={() => setFocus(b.sector)}
+                title={`Open ${b.sector}`}
+                className="absolute flex items-center gap-1 truncate px-1.5 text-[0.62rem] font-semibold uppercase tracking-[0.1em] text-slate-400 transition hover:text-white"
+                style={{
+                  left: b.rect.x + GAP,
+                  top: b.rect.y + 4,
+                  width: Math.max(0, b.rect.w - GAP * 2),
+                }}
+              >
+                <span className="truncate">{b.sector}</span>
+                <span aria-hidden="true" className="flex-none">›</span>
+              </button>
+            )}
             {b.cells.map(({ tile, rect }) => {
               const showTicker = rect.w > 34 && rect.h > 20;
               const showPct = rect.w > 52 && rect.h > 34;
@@ -334,6 +465,9 @@ export default function MarketHeatmap({ initial }: { initial: HeatmapData }) {
 
       <p className="mt-2 text-[0.68rem] text-slate-500">
         Live quotes as of {data.asOf}. Click any company to open its Quantifi analysis.
+        {clamped
+          ? " Tile area tracks market cap, except the smallest, which are drawn at a minimum size so they stay readable."
+          : ""}
       </p>
     </div>
   );

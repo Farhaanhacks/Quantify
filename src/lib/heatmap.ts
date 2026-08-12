@@ -37,8 +37,12 @@ export interface HeatmapData {
 // so ask in chunks and let one bad chunk cost only its own names.
 const CHUNK = 50;
 
-/** How many companies the picture holds. See the note where it is applied. */
-const MAX_TILES = 100;
+// How many companies the payload carries. The overview only DRAWS the largest
+// hundred or so — past that tiles shrink to a pixel — but the client keeps the
+// rest so that drilling into a sector can show the companies the overview had
+// no room for. That is the whole point of the drill-down: it reveals names you
+// could not otherwise see, rather than just magnifying the ones you could.
+const MAX_TILES = 400;
 
 export function normaliseRegion(raw: string | null | undefined): string {
   const k = (raw ?? "").toLowerCase().trim();

@@ -155,6 +155,42 @@ const FROM_SECTOR_MAP: Record<string, string> = {
   in: "India",
 };
 
+// "Technology" is too coarse a bucket for a treemap. In the US it swallows a
+// third of the market's value, so chip makers and software houses — businesses
+// with almost nothing in common — end up in one block, and the block is so
+// large that everything inside it is squeezed small.
+//
+// Splitting it the way market-structure classifications do (hardware and
+// semiconductors on one side, software and IT services on the other) gives two
+// legible blocks whose moves actually mean different things.
+//
+// Only the heatmap sees this. SECTOR_MAP keeps its GICS sectors, because the
+// portfolio risk lens buckets holdings against those and should not silently
+// change what "Technology" means to an existing user.
+const ELECTRONIC_TECH = new Set([
+  // US hardware, semiconductors, networking and devices
+  "AAPL", "NVDA", "AVGO", "AMD", "INTC", "QCOM", "TXN", "CSCO", "AMAT", "MU",
+  "LRCX", "KLAC", "ADI", "HPQ", "DELL", "HPE", "ANET", "SMCI", "ARM", "ASML",
+  "MRVL", "ON", "NXPI", "MCHP", "GLW", "STX", "WDC",
+  // Japan
+  "6861.T", "8035.T", "6971.T",
+  // Germany
+  "IFX.DE",
+  // Hong Kong
+  "1810.HK", "0981.HK",
+]);
+
+/**
+ * Refine a company's sector for the heatmap. Currently only splits Technology;
+ * everything else passes through untouched.
+ */
+function refineSector(symbol: string, sector: string): string {
+  if (sector !== "Technology") return sector;
+  return ELECTRONIC_TECH.has(symbol.toUpperCase())
+    ? "Electronic Technology"
+    : "Technology Services";
+}
+
 export function regionLabel(key: string): string {
   return REGIONS.find((r) => r.key === key)?.label ?? "US";
 }
@@ -165,9 +201,12 @@ export function universeFor(key: string): { symbol: string; sector: string }[] {
   if (mapped) {
     return Object.entries(SECTOR_MAP)
       .filter(([, info]) => info.region === mapped)
-      .map(([symbol, info]) => ({ symbol, sector: info.sector }));
+      .map(([symbol, info]) => ({ symbol, sector: refineSector(symbol, info.sector) }));
   }
   const curated = CURATED[key];
   if (!curated) return [];
-  return Object.entries(curated).map(([symbol, sector]) => ({ symbol, sector }));
+  return Object.entries(curated).map(([symbol, sector]) => ({
+    symbol,
+    sector: refineSector(symbol, sector),
+  }));
 }

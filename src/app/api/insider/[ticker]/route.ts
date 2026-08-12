@@ -14,6 +14,32 @@ export const dynamic = "force-dynamic";
 // every load retried from cold. Give it headroom for both passes.
 export const maxDuration = 110;
 
+/** Why an Indian lookup came back empty. */
+export type EmptyReason = "unconfigured" | "blocked" | "empty";
+
+/**
+ * Distinguish "this company filed nothing" from "we never got an answer".
+ *
+ * NSE and BSE both block datacenter IPs, so without a residential proxy or a
+ * vendor API the request cannot succeed for ANY symbol — that is `unconfigured`
+ * and no amount of retrying changes it. With one configured, a 401/403/5xx or a
+ * timeout from the exchange is `blocked`. Only a clean response carrying no rows
+ * is genuinely `empty`.
+ */
+function whyEmpty(...debugs: unknown[]): EmptyReason {
+  const configured =
+    Boolean(process.env.SCRAPER_API_KEY?.trim()) ||
+    Boolean(process.env.INSIDER_API_URL?.trim() && process.env.INSIDER_API_KEY?.trim());
+  if (!configured) return "unconfigured";
+  for (const d of debugs) {
+    const status = (d as { httpStatus?: number | null } | null)?.httpStatus;
+    // Anything other than a clean 200 means we did not get the exchange's answer.
+    if (typeof status === "number" && status !== 200) return "blocked";
+    if (status == null) return "blocked"; // never completed (timeout / throw)
+  }
+  return "empty";
+}
+
 export async function GET(req: Request, { params }: { params: { ticker: string } }) {
   const ticker = aliasSymbol(params.ticker);
   const wantDebug = new URL(req.url).searchParams.get("debug") === "1";
@@ -61,6 +87,14 @@ export async function GET(req: Request, { params }: { params: { ticker: string }
       // 2) Fall back to BSE announcements.
       const { disclosures, debug } = await getIndiaInsiderWithDebug(ticker, 20);
       const hit = disclosures.length > 0;
+      // WHY there is nothing, which the UI must not guess at.
+      //
+      // An exchange that blocked us and a company that genuinely filed nothing
+      // both arrive here as an empty array. The page used to render the second
+      // message for both cases — telling a reader "no disclosures found for
+      // RELIANCE" when in truth we never got an answer. That is the app
+      // asserting a fact about a company that it does not know.
+      const reason = hit ? undefined : whyEmpty(nse.debug, debug);
       // Cache a HIT for 15 min (disclosures change slowly). Cache a MISS only
       // briefly (2 min) so a transient block clears fast instead of freezing
       // "no data" on the page for a full 15 minutes.
@@ -69,6 +103,7 @@ export async function GET(req: Request, { params }: { params: { ticker: string }
           available: hit,
           market: "IN",
           source: hit ? "bse" : "none",
+          reason,
           disclosures,
           // On a miss, surface BOTH sources' debug so we can see why each failed.
           ...(wantDebug ? { debug: { nse: nse.debug, bse: debug } } : {}),

@@ -128,6 +128,10 @@ export default function InsiderActivity({
   const [exchange, setExchange] = useState<"NSE" | "BSE">("NSE");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  // Why an Indian lookup came back empty, straight from the API. Without this
+  // the page cannot tell "this company filed nothing" from "the exchange never
+  // answered us", and it used to state the first for both.
+  const [reason, setReason] = useState<"unconfigured" | "blocked" | "empty" | undefined>(undefined);
   const [filter, setFilter] = useState<Filter>("All");
 
   // Standalone (no fixed ticker) page lets the user search a company. `query`
@@ -140,6 +144,7 @@ export default function InsiderActivity({
     let cancelled = false;
     setLoading(true);
     setError(false);
+    setReason(undefined);
     const url = activeTicker
       ? `/api/insider/${encodeURIComponent(activeTicker)}`
       : "/api/insider-feed";
@@ -151,6 +156,7 @@ export default function InsiderActivity({
           available?: boolean;
           market?: "US" | "IN";
           source?: string;
+          reason?: "unconfigured" | "blocked" | "empty";
           trades?: ApiTrade[];
           disclosures?: ApiDisclosure[];
         };
@@ -160,6 +166,7 @@ export default function InsiderActivity({
           // "store"/"nse" → NSE; "bse" → BSE. Default NSE (the primary source now).
           setExchange(d.source === "bse" ? "BSE" : "NSE");
           setDisclosures(d.available && Array.isArray(d.disclosures) ? d.disclosures : []);
+          setReason(d.reason);
           setTrades([]);
         } else {
           setMarket("US");
@@ -222,10 +229,17 @@ export default function InsiderActivity({
   }, [disclosures]);
 
   // When embedded on a stock page (a fixed `ticker`), don't render an empty
-  // Insider Activity section at all once the fetch has resolved with nothing —
-  // a blank "no disclosures" card just looks broken. The standalone page (no
-  // fixed ticker, has its own search UI) always renders.
-  if (ticker && !loading && !live && !liveIN) return null;
+  // Insider Activity section once the fetch has resolved with nothing — a blank
+  // "no disclosures" card just looks broken. The standalone page (no fixed
+  // ticker, has its own search UI) always renders.
+  //
+  // But only when the emptiness is REAL. If the exchange blocked us, or nothing
+  // is configured to reach it, hiding the section is how this ends up looking
+  // like a feature that simply does not exist: the reader gets no data and no
+  // explanation, and cannot tell the difference. Those cases keep the section
+  // and say what happened.
+  const unexplained = reason === "blocked" || reason === "unconfigured";
+  if (ticker && !loading && !live && !liveIN && !unexplained) return null;
 
   const filters: Filter[] = ["All", "Buys", "Sells", "Planned"];
 
@@ -368,10 +382,32 @@ export default function InsiderActivity({
             ))}
           </ul>
           {!loading && disclosures.length === 0 ? (
-            <div className="px-5 py-10 text-center text-sm text-slate-500">
-              {error
-                ? `Couldn't reach ${exchange} right now — Indian disclosures are fetched live and it may be rate-limiting or blocking the request. Please try again shortly.`
-                : `No recent insider / SAST disclosures found for ${activeTicker}. This covers NSE/BSE-filed SEBI PIT disclosures; some names or periods simply have none.`}
+            <div className="px-5 py-10 text-center text-sm leading-relaxed text-slate-500">
+              {/* Each branch says only what we actually know. Claiming a company
+                  filed nothing is a statement about that company, and we are
+                  only entitled to make it when the exchange answered us. */}
+              {reason === "unconfigured" ? (
+                <>
+                  Indian insider disclosures aren&apos;t switched on for this deployment.
+                  <span className="mt-2 block text-[0.78rem] text-slate-600">
+                    SEBI PIT filings are published by NSE and BSE, and both refuse requests
+                    from datacenter IPs — so this needs either a data vendor or a residential
+                    proxy configured before any company will show them. Nothing is wrong with{" "}
+                    {activeTicker}.
+                  </span>
+                </>
+              ) : reason === "blocked" || error ? (
+                <>
+                  Couldn&apos;t reach {exchange} just now, so we don&apos;t know what{" "}
+                  {activeTicker} has filed.
+                  <span className="mt-2 block text-[0.78rem] text-slate-600">
+                    Indian disclosures are fetched live and the exchange is rate-limiting or
+                    refusing the request. This is not a statement that there are none.
+                  </span>
+                </>
+              ) : (
+                `No recent insider / SAST disclosures found for ${activeTicker}. This covers NSE/BSE-filed SEBI PIT disclosures; some names or periods simply have none.`
+              )}
             </div>
           ) : null}
         </GlassCard>

@@ -35,11 +35,7 @@ async function HeatmapSection() {
   const data = await getHeatmap("us").catch(() => null);
   return (
     <section className="mx-auto max-w-7xl px-4 pt-10 sm:px-6 lg:px-8">
-      <SectionHeading
-        eyebrow="Market heatmap"
-        title="Where the money moved today"
-        subtitle="Sized by market cap, coloured by the day's move. Hover any company for its price, size and change — click it to open the full Quantifi analysis."
-      />
+      <SectionHeading eyebrow="Market heatmap" title="Where the money moved today" />
       <div className="mt-6">
         <MarketHeatmap
           initial={data ?? { region: "us", regionLabel: "US", tiles: [], asOf: "", live: false }}

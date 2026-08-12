@@ -38,6 +38,8 @@ export async function generateMetadata({ params }: { params: { ticker: string } 
 
 export default async function StockSeoPage({ params }: { params: { ticker: string } }) {
   const ticker = clean(params.ticker);
+  // NSE/BSE listings answer to SEBI, not the SEC.
+  const isIndian = /\.(NS|BO)$/i.test(ticker);
   if (!ticker) notFound();
 
   // Server-render real company facts for SEO (best-effort; live widgets below
@@ -64,11 +66,19 @@ export default async function StockSeoPage({ params }: { params: { ticker: strin
     },
     {
       q: `Is there recent insider trading activity in ${ticker}?`,
-      a: `Quantifi surfaces ${ticker} insider activity from SEC Form 4 filings — who bought or sold, how many shares and at what price — as research context. Open the Insider Activity page for the latest filings. Insider transactions are one signal among many, not a recommendation.`,
+      // Which regulator's filings these are depends on where the company is
+      // listed. Telling a reader that an NSE-listed company's insider activity
+      // comes from SEC Form 4 is simply false — the SEC has no jurisdiction
+      // over it — and this text is indexed by search engines as well as read.
+      a: isIndian
+        ? `Quantifi surfaces ${ticker} insider and SAST disclosures filed with NSE and BSE under SEBI (PIT) Regulation 7 — promoters, directors and designated persons, as disclosed. Insider transactions are one signal among many, not a recommendation.`
+        : `Quantifi surfaces ${ticker} insider activity from SEC Form 4 filings — who bought or sold, how many shares and at what price — as research context. Open the Insider Activity page for the latest filings. Insider transactions are one signal among many, not a recommendation.`,
     },
     {
       q: `Where can I see ${ticker} SEC filings and financials?`,
-      a: `${ticker}'s financial summary, ownership and insider (Form 4) activity on Quantifi are built from public SEC and market-data sources. Use them as a starting point and confirm against the company's official SEC EDGAR filings before acting.`,
+      a: isIndian
+        ? `${ticker}'s financial summary, ownership and disclosure history on Quantifi are built from public exchange and market-data sources. Use them as a starting point and confirm against the company's official NSE/BSE filings before acting.`
+        : `${ticker}'s financial summary, ownership and insider (Form 4) activity on Quantifi are built from public SEC and market-data sources. Use them as a starting point and confirm against the company's official SEC EDGAR filings before acting.`,
     },
     {
       q: `Does Quantifi give buy or sell signals for ${ticker}?`,
