@@ -27,6 +27,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# lockfile (not tracked in this repo)
-package-lock.json
+# package-lock.json IS tracked. Without it the deploy resolves every
+# caret-ranged dependency fresh on each build, so the same commit can compile
+# one day and fail the next, and a build that passes locally proves nothing
+# about the one that runs on the server.
 quantifi-latest.zip

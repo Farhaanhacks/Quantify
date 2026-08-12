@@ -70,6 +70,65 @@ function Seesaw({
   );
 }
 
+// Two reported years is not a trend, and drawing it as one is a lie the eye
+// believes. A polyline through two points is always a straight diagonal, so a
+// recently-listed company (Lenskart has exactly two annual balance sheets) got a
+// chart that looked like steady linear growth measured continuously, when all
+// that exists is a pair of numbers. Bars say "two observations" and nothing
+// more, which is the truth.
+function YearBars({
+  series,
+  maxV,
+  sym,
+  fmt,
+}: {
+  series: { date?: string; debt?: number; equity?: number }[];
+  maxV: number;
+  sym: string;
+  fmt: (n: number | undefined, s: string) => string;
+}) {
+  const TRACK = 176; // px; the bar heights are a share of this
+  const bar = (v: number | undefined, color: string) => {
+    if (v == null) return null;
+    return (
+      // Fixed width, not flex-1. Letting each bar claim an equal share of the
+      // year's column pushed the equity and debt bars to opposite ends of it,
+      // so a pair that should read as one year's comparison looked like two
+      // unrelated readings.
+      <div className="flex w-[68px] flex-none flex-col items-center gap-1.5">
+        <span className="whitespace-nowrap font-mono text-[0.6rem] text-slate-400">
+          {fmt(v, sym)}
+        </span>
+        <div className="flex w-full items-end justify-center" style={{ height: TRACK }}>
+          <div
+            className="w-full max-w-[46px] rounded-t-[3px]"
+            style={{
+              height: `${Math.max(2, (Math.max(0, v) / maxV) * 100)}%`,
+              backgroundColor: color,
+            }}
+          />
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex items-end justify-around gap-4 px-2 pt-2">
+      {series.map((s, i) => (
+        <div key={s.date ?? i} className="flex min-w-0 flex-col items-center">
+          <div className="flex items-end justify-center gap-1 sm:gap-2">
+            {bar(s.equity, "#4F93F7")}
+            {bar(s.debt, "#FB7185")}
+          </div>
+          <span className="mt-2 w-full border-t border-white/[0.08] pt-1.5 text-center font-mono text-[0.62rem] text-slate-500">
+            {s.date?.slice(0, 4) ?? ""}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Insight({ title, detail, tone }: { title: string; detail: string; tone: Tone }) {
   const dot =
     tone === "good" ? "bg-up" : tone === "warn" ? "bg-gold" : "bg-down";
@@ -236,6 +295,13 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
     .filter((p): p is { i: number; v: number } => p.v != null);
   const debtLine = debtPoints.map((p) => `${X(p.i)},${Y(Math.max(0, p.v))}`).join(" ");
 
+  // Fewer than three reported years can't carry a trend line — see YearBars.
+  const sparse = series.length < 3;
+  // A line needs two points to exist; a bar needs one. So a company with debt
+  // reported in only its latest year shows that bar (matching the balance beam
+  // directly below it) where the line chart could show nothing.
+  const showDebt = sparse ? debtPoints.length >= 1 : debtPoints.length >= 2;
+
   return (
     <section className="mx-auto max-w-7xl px-4 pb-4 sm:px-6 lg:px-8">
       <SectionHeading
@@ -255,7 +321,7 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
           {/* Only label a line the chart actually draws. A bank that reports no
               borrowings line has equity history and nothing to pair it with;
               the current debt figure still appears on the balance beam below. */}
-          {debtPoints.length >= 2 ? (
+          {showDebt ? (
             <span className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-[#FB7185]" />
               <span className="text-slate-300">Debt</span>
@@ -267,25 +333,43 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
 
         {/* Chart */}
         <div className="mt-3 overflow-hidden rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
-          <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 260 }} preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="deEquity" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#4F93F7" stopOpacity="0.28" />
-                <stop offset="100%" stopColor="#4F93F7" stopOpacity="0.02" />
-              </linearGradient>
-            </defs>
-            <polygon points={equityArea} fill="url(#deEquity)" stroke="none" />
-            <polyline points={line("equity")} fill="none" stroke="#4F93F7" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-            {debtPoints.length >= 2 ? (
-              <polyline points={debtLine} fill="none" stroke="#FB7185" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-            ) : null}
-          </svg>
-          <div className="mt-1 flex justify-between text-[0.6rem] text-slate-500">
-            {series.map((s) => (
-              <span key={s.date} className="font-mono">{s.date?.slice(0, 4) ?? ""}</span>
-            ))}
-          </div>
+          {sparse ? (
+            <YearBars
+              series={series.map((s) => ({ ...s, debt: showDebt ? s.debt : undefined }))}
+              maxV={maxV}
+              sym={sym}
+              fmt={compactCur}
+            />
+          ) : (
+            <>
+              <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 260 }} preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="deEquity" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#4F93F7" stopOpacity="0.28" />
+                    <stop offset="100%" stopColor="#4F93F7" stopOpacity="0.02" />
+                  </linearGradient>
+                </defs>
+                <polygon points={equityArea} fill="url(#deEquity)" stroke="none" />
+                <polyline points={line("equity")} fill="none" stroke="#4F93F7" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+                {showDebt ? (
+                  <polyline points={debtLine} fill="none" stroke="#FB7185" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+                ) : null}
+              </svg>
+              <div className="mt-1 flex justify-between text-[0.6rem] text-slate-500">
+                {series.map((s) => (
+                  <span key={s.date} className="font-mono">{s.date?.slice(0, 4) ?? ""}</span>
+                ))}
+              </div>
+            </>
+          )}
         </div>
+
+        {sparse ? (
+          <p className="mt-2 text-[0.68rem] leading-relaxed text-slate-500">
+            {label} has only {series.length} reported annual balance sheets, so these are shown as
+            separate years rather than a trend line.
+          </p>
+        ) : null}
 
         {/* Balance beam — debt vs equity at a glance */}
         {(() => {

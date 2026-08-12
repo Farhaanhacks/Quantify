@@ -10,8 +10,8 @@
 // this executes, that check has already passed or failed. vercel.json has to be
 // correct in the repository itself.
 
-import { readdirSync, statSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { readdirSync, statSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { join, dirname } from "node:path";
 
 const SKIP = new Set(["node_modules", ".next", ".git", "out", "dist", "build", ".vercel"]);
 const EXTS = [".json", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".css", ".md", ".mts"];
@@ -41,24 +41,91 @@ function* walk(dir) {
 function findNestedProjectCopies() {
   const hits = [];
   const root = process.cwd();
+  let rootName;
+  try {
+    rootName = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).name;
+  } catch {
+    rootName = undefined;
+  }
   for (const file of walk(root)) {
     if (!file.endsWith("/package.json") && !file.endsWith("\\package.json")) continue;
     if (file === join(root, "package.json")) continue;
-    hits.push(file.replace(root + "/", ""));
+    // Only a copy of THIS project, identified by the package name matching the
+    // root's. A genuine nested package (a workspace, a vendored tool) has its
+    // own name and is left alone — this must never delete something it merely
+    // failed to recognise.
+    let name;
+    try {
+      name = JSON.parse(readFileSync(file, "utf8")).name;
+    } catch {
+      continue;
+    }
+    if (rootName && name !== rootName) {
+      console.warn(`[preflight] leaving nested package '${name}' at ${file} alone`);
+      continue;
+    }
+    hits.push(dirname(file));
   }
   return hits;
 }
 
+// The files an extracted project copy brings with it. Only these are removed,
+// never the directory holding them — the copies land *alongside* real source
+// (src/ ends up holding both the stray package.json and the actual src/app),
+// so deleting the parent would take the application with it. That is not a
+// hypothetical: the first version of this repair did exactly that, and the
+// test below is what caught it.
+const COPY_FILES = [
+  "package.json", "package-lock.json", "next.config.mjs", "tsconfig.json",
+  "tailwind.config.ts", "postcss.config.mjs", "vercel.json", ".eslintrc.json",
+  ".gitignore", ".gitattributes", ".editorconfig", "README.md",
+  "SECURITY-HEADERS.md", "next-env.d.ts", ".env.local",
+];
+const COPY_DIRS = ["src", "scripts", "public", ".next", "out", "node_modules"];
+
+// Repair rather than refuse.
+//
+// This used to print the offending directories and exit 1. That was right as a
+// diagnosis and useless as a fix: the build failed, and the copies stayed
+// exactly where they were until someone deleted them by hand — which, on this
+// project, is a thing that has had to happen four times. A release archive
+// extracted into the wrong folder cannot be undone by extracting it again,
+// because unzipping only adds and overwrites; it never removes. So the only
+// place this can actually be put right is here.
+//
+// The directory is removed and the build carries on. On a build server the
+// checkout is disposable, so this simply lets the deploy succeed. On a working
+// copy the files really are deleted, so the next `git add -A` records the
+// removal and the repository is finally clean.
 const nested = findNestedProjectCopies();
 if (nested.length) {
-  console.error("\n[preflight] A copy of the project is nested inside the repository:\n");
-  for (const n of nested) console.error(`  ${n}`);
-  console.error(
-    "\nThis happens when a release archive is extracted into a subfolder instead of\n" +
-      "the repository root. Delete the directories listed above and re-extract so the\n" +
-      "contents land next to the root package.json.\n"
+  console.warn("\n[preflight] A copy of the project was nested inside the repository:\n");
+  for (const dir of nested) {
+    const rel = dir.replace(process.cwd() + "/", "");
+    for (const entry of [...COPY_FILES, ...COPY_DIRS]) {
+      const target = join(dir, entry);
+      let exists = true;
+      try {
+        statSync(target);
+      } catch {
+        exists = false;
+      }
+      if (!exists) continue;
+      try {
+        rmSync(target, { recursive: true, force: true });
+        console.warn(`  removed  ${rel}/${entry}`);
+      } catch (err) {
+        console.error(`  FAILED to remove ${rel}/${entry} — ${err.message}`);
+        process.exit(1);
+      }
+    }
+  }
+  console.warn(
+    "\nThis happens when a release archive is extracted into a subfolder rather than\n" +
+      "the repository root. The copies above have been deleted and the build is\n" +
+      "continuing. If this was a working copy rather than a build server, commit the\n" +
+      "deletions (git add -A) so the repository stops carrying them.\n"
   );
-  process.exit(1);
 }
 
 const fixed = [];

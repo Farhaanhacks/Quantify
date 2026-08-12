@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import TradingViewWidget from "@/components/quantifi/TradingViewWidget";
@@ -21,6 +21,7 @@ import KeyValuationMetric from "@/components/quantifi/KeyValuationMetric";
 import AnalystConsensus from "@/components/quantifi/AnalystConsensus";
 import DebtEquityHistory from "@/components/quantifi/DebtEquityHistory";
 import StockSectionNav, { type NavSection } from "@/components/quantifi/StockSectionNav";
+import SignUpModal from "@/components/quantifi/SignUpModal";
 import { GlassCard, Eyebrow } from "@/components/quantifi/Cards";
 import { SCORE_AXES, type CompanyAnalytics } from "@/data/demo";
 import type { EtfData } from "@/lib/yahooEtf";
@@ -174,12 +175,12 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
   //   signin   → not signed in (quota is per email, so we need one)
   //   reveal   → signed-in free user with slots left
   //   wall     → signed-in free user who has spent every slot
-  type Stage = "loading" | "analysis" | "reveal" | "wall";
+  type Stage = "loading" | "analysis" | "reveal" | "wall" | "signin";
   const resolved = !scoreLoading && score !== null; // know whether there's data to gate
   let stage: Stage = "loading";
   if (!proReady) stage = "loading";
   else if (pro) stage = "analysis";
-  else if (!user) stage = "loading"; // signed-out is handled by the early SignInGate return
+  else if (!user) stage = "signin"; // reachable signed out — the wall sits in the page
   else if (!meterReady) stage = "loading";
   else if (unlocked) stage = "analysis";
   else if (!resolved) stage = "loading";
@@ -280,12 +281,16 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
 
   // Signed-out visitors can't analyse at all — the free quota is per email, so we
   // require sign-in before anything (the chart included) is shown.
-  if (proReady && !user) return <SignInGate />;
-
   return (
     <>
+      {/* Search — only when the nav bar hasn't already got one.
+          Signed in, this was the second search box on the screen, directly
+          under the one in the header, both doing the same job. Signed out the
+          header has no search at all, so here it is the only way to look up
+          another company and removing it outright would strand that visitor on
+          whichever symbol they arrived with. */}
+      {!user ? (
       <section className="mx-auto max-w-7xl px-4 pb-4 pt-8 sm:px-6 lg:px-8">
-        {/* Search */}
         <GlassCard className="p-5">
           <label className="mb-2 block text-[0.7rem] uppercase tracking-[0.16em] text-slate-500">
             Search any stock or ETF
@@ -334,6 +339,7 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
           </p>
         </GlassCard>
       </section>
+      ) : null}
 
       {stage === "analysis" ? (
         <div className="mx-auto max-w-7xl lg:grid lg:grid-cols-[224px_minmax(0,1fr)]">
@@ -507,6 +513,8 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
           revealing={revealing}
           onReveal={reveal}
         />
+      ) : stage === "signin" ? (
+        <SignedOutTeaser ticker={ticker} score={score} etf={etf} />
       ) : stage === "wall" ? (
         <FreeLimitWall ticker={ticker} signedIn={Boolean(user)} />
       ) : null}
@@ -517,30 +525,111 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
 // The free quota is per email, so a signed-out visitor can't analyse at all —
 // otherwise they could just reload (or open another device) to dodge the limit.
 // This gates the whole page, chart included.
-function SignInGate() {
+// What a signed-out visitor gets: the company, its price and the live chart —
+// real data for the name they actually chose — and then, at the point where the
+// score would begin, the sign-up panel.
+//
+// The order is the argument. Showing the product working on their own stock
+// before asking for anything is a different proposition from a wall in front of
+// the door, which is what this used to be.
+function SignedOutTeaser({
+  ticker,
+  score,
+  etf,
+}: {
+  ticker: string;
+  score: ScoreResponse | null;
+  etf: EtfData | null;
+}) {
+  // What to call this listing when addressing the reader. A symbol like
+  // 0P0000OQWJ is Morningstar's internal identifier for a fund — printing it
+  // back at someone tells them nothing about what they just opened. Prefer the
+  // real name; if the source hasn't returned one, describe the thing rather
+  // than repeat the code.
+  const label =
+    score?.name ??
+    etf?.name ??
+    (/^0P[0-9A-Z]{6,}/i.test(ticker) ? "this fund" : ticker);
+  const [askOpen, setAskOpen] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  const markerRef = useRef<HTMLElement>(null);
+
+  // Fire when the score section scrolls into view. Once dismissed it stays
+  // dismissed for this page — re-opening on every scroll past would be a trap
+  // rather than an invitation.
+  useEffect(() => {
+    const el = markerRef.current;
+    if (!el || dismissed) return;
+    // Observe the score section itself rather than a thin marker before it. A
+    // 1px element can be stepped straight over between scroll frames — and
+    // scrolling the section to the top of the viewport pushes anything above it
+    // out of view, so the marker never intersected at all. A tall element
+    // cannot be missed. The bottom inset means it fires as the section starts
+    // to appear, not only once it is fully on screen.
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) setAskOpen(true);
+      },
+      { rootMargin: "0px 0px -20% 0px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [dismissed]);
+
   return (
-    <section className="mx-auto max-w-2xl px-4 pb-16 pt-6 sm:px-6">
-      <GlassCard className="border-gold/30 bg-gold/[0.04] p-8 text-center">
-        <Eyebrow>Quantifi</Eyebrow>
-        <h2 className="mt-4 font-display text-2xl font-semibold text-white sm:text-3xl">
-          Sign in to analyse stocks &amp; ETFs
-        </h2>
-        <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-400">
-          Stock Analysis — the live chart, the Quantifi Score, fundamentals and insider
-          activity — is for signed-in members. Every account gets{" "}
-          <span className="text-gold">{FREE_LIMIT} free analyses</span> to start, tied to
-          your account so they follow you across every device.
-        </p>
-        <div className="mt-7">
-          <a
-            href="/login"
-            className="rounded-full bg-gradient-to-r from-gold-400 to-gold-600 px-6 py-2.5 text-sm font-semibold text-ink transition hover:opacity-90"
-          >
-            Sign in to continue →
-          </a>
-        </div>
-      </GlassCard>
-    </section>
+    <div className="mx-auto max-w-7xl">
+      <div className="min-w-0">
+        <StockHero
+          ticker={ticker}
+          name={score?.name}
+          price={score?.price}
+          currency={score?.currency}
+        />
+
+        <section id="sec-chart" className="scroll-mt-24 px-4 pb-2 pt-6 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-4xl">
+            <PriceChart symbol={ticker} height={500} />
+          </div>
+        </section>
+
+        {/* Reaching this is what raises the ask. */}
+        <section
+          ref={markerRef}
+          id="sec-score"
+          className="scroll-mt-24 px-4 pb-24 pt-10 sm:px-6 lg:px-8"
+        >
+          <div className="mx-auto max-w-4xl text-center">
+            <Eyebrow>Quantifi score</Eyebrow>
+            <h2 className="mt-3 font-display text-2xl font-semibold text-white">
+              The rest of {label} is behind a free account
+            </h2>
+            <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-slate-400">
+              Valuation, financial health, key statistics, analyst view, ownership, peers and
+              insider trades.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setDismissed(false);
+                setAskOpen(true);
+              }}
+              className="mt-6 rounded-lg bg-gradient-to-r from-gold-400 to-gold-600 px-6 py-2.5 text-sm font-semibold text-ink transition hover:opacity-90"
+            >
+              Create your free account
+            </button>
+          </div>
+        </section>
+      </div>
+
+      <SignUpModal
+        label={label}
+        open={askOpen}
+        onClose={() => {
+          setAskOpen(false);
+          setDismissed(true);
+        }}
+      />
+    </div>
   );
 }
 

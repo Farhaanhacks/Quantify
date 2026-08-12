@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { isPublicPath } from "@/lib/publicRoutes";
 
 // Gate the whole app behind sign-in. Only the home page (and the excluded
 // auth/static paths in `config.matcher`) is viewable while logged out; every
@@ -11,31 +12,8 @@ const SESSION_COOKIE = "quantifi_session";
 // search engines (and viewable by anyone) — the indexable content, the trust
 // pages and pricing. Private/personal surfaces (portfolio, watchlist, insider,
 // billing) stay gated below.
-// The product is behind the door. "/" serves the landing page when signed out,
-// and the only other routes reachable without an account are the ones the
-// landing page itself needs to work: sign-in, what it costs, who runs it, and
-// the legal pages a payment provider and an app store both require to be
-// publicly reachable.
-//
-// Everything else — every research surface — now requires a session. This is a
-// deliberate trade: those pages were previously crawlable, and closing them
-// means search engines can no longer index the research content, so organic
-// traffic to it will fall away. That is the cost of gating, and it is the
-// intended behaviour here rather than an oversight.
-const PUBLIC_EXACT = new Set<string>(["/", "/login"]);
-const PUBLIC_PREFIXES = [
-  "/pricing",
-  "/about",
-  "/contact",
-  "/privacy",
-  "/terms",
-  "/refund-policy",
-];
-
-function isPublic(pathname: string): boolean {
-  if (PUBLIC_EXACT.has(pathname)) return true;
-  return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
-}
+// Which routes are public lives in lib/publicRoutes, shared with the sitemap so
+// the gate and what we advertise to search engines cannot disagree.
 
 // A fresh, unguessable nonce per request. script-src trusts this nonce instead
 // of 'unsafe-inline', so an injected inline <script> (DOM-based XSS) is blocked.
@@ -90,7 +68,7 @@ export function middleware(req: NextRequest) {
 
   // Auth gate: an unauthenticated visit to a private route starts sign-in. The
   // redirect carries no document, so it needs no CSP.
-  if (!isPublic(pathname)) {
+  if (!isPublicPath(pathname)) {
     const signedIn = Boolean(req.cookies.get(SESSION_COOKIE)?.value);
     if (!signedIn) {
       const url = req.nextUrl.clone();
