@@ -44,6 +44,43 @@ const CHUNK = 50;
 // could not otherwise see, rather than just magnifying the ones you could.
 const MAX_TILES = 400;
 
+/**
+ * The day's move for a quote.
+ *
+ * Yahoo's own reported percentage is authoritative — it is the figure brokers
+ * show, and recomputing from prices would drift from it. But it sometimes comes
+ * back as a flat 0 while that same response's price and previous close plainly
+ * disagree, which is how a handful of companies end up sitting at "+0.00%" on a
+ * day they moved. When the field and the prices contradict each other, the
+ * prices win; a 0 that the prices agree with is left alone, because plenty of
+ * companies really do close unchanged.
+ *
+ * Returns undefined when there is nothing trustworthy to show, so the caller
+ * can drop the tile rather than draw a fabricated one.
+ */
+export function resolveChangePct(q: {
+  changePercent?: number;
+  price?: number;
+  previousClose?: number;
+}): number | undefined {
+  const reported = q.changePercent;
+  const canDerive =
+    typeof q.price === "number" &&
+    typeof q.previousClose === "number" &&
+    q.previousClose > 0;
+  const derived = canDerive
+    ? ((q.price as number) - (q.previousClose as number)) / (q.previousClose as number) * 100
+    : undefined;
+
+  if (typeof reported === "number" && Number.isFinite(reported)) {
+    // Only override an exact zero, and only when the prices disagree by enough
+    // to actually show at the two decimals we display.
+    if (reported === 0 && derived != null && Math.abs(derived) >= 0.005) return derived;
+    return reported;
+  }
+  return derived != null && Number.isFinite(derived) ? derived : undefined;
+}
+
 export function normaliseRegion(raw: string | null | undefined): string {
   const k = (raw ?? "").toLowerCase().trim();
   return REGION_KEYS.includes(k) ? k : "us";
@@ -83,13 +120,14 @@ export async function getHeatmap(regionKey = "us"): Promise<HeatmapData> {
       // Size must be real: without a market cap there is no honest area for
       // this tile, so it doesn't get drawn.
       if (!sector || typeof q.marketCap !== "number" || !(q.marketCap > 0)) continue;
-      if (typeof q.changePercent !== "number" || !Number.isFinite(q.changePercent)) continue;
+      const changePct = resolveChangePct(q);
+      if (changePct == null) continue;
       tiles.push({
         symbol,
         name: q.name || symbol,
         sector,
         marketCap: q.marketCap,
-        changePct: q.changePercent,
+        changePct,
         price: typeof q.price === "number" ? q.price : 0,
         currency: q.currency || "USD",
       });
