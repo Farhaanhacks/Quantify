@@ -133,6 +133,30 @@ function toDisclosure(row) {
   };
 }
 
+/**
+ * Pull the filing rows out of whatever NSE returned.
+ *
+ * `json.data` is where its insider feed puts them, but that was an assumption
+ * carried from code that had never once reached NSE — every attempt had been
+ * blocked before it got an answer. So this also accepts a bare top-level array,
+ * and falls back to the largest array of objects anywhere in the payload. If
+ * NSE names the key differently, the ingest still works instead of reporting a
+ * confident zero.
+ */
+function extractRows(json) {
+  if (!json) return [];
+  if (Array.isArray(json)) return json;
+  if (Array.isArray(json.data)) return json.data;
+  if (typeof json !== "object") return [];
+  let best = [];
+  for (const v of Object.values(json)) {
+    if (Array.isArray(v) && v.length > best.length && v.every((x) => x && typeof x === "object")) {
+      best = v;
+    }
+  }
+  return best;
+}
+
 async function main() {
   const days = Number(process.env.INSIDER_WINDOW_DAYS) || 7;
   console.log(`→ Warming up on nseindia.com …`);
@@ -144,6 +168,16 @@ async function main() {
       `NSE refused this runner's IP (HTTP ${home.status}). GitHub's network is blocked too — a vendor feed is the remaining option.`
     );
   }
+
+  // Then the filings page itself. NSE scopes some of its cookies to the section
+  // you are browsing, and its APIs hand back an empty payload — not an error —
+  // when called with only the homepage's cookies. A 200 carrying no rows is
+  // exactly that symptom, so this visit is the first thing to try.
+  const page = await nseGet(
+    "https://www.nseindia.com/companies-listing/corporate-filings-insider-trading",
+    "text/html,application/xhtml+xml"
+  );
+  console.log(`   filings page: HTTP ${page.status}, ${page.text.length} bytes`);
 
   // Wide window first; NSE returns empty for over-large ranges, so fall back.
   const base = "https://www.nseindia.com/api/corporates-pit?index=equities";
@@ -158,10 +192,19 @@ async function main() {
   let wonWith = null;
   for (const v of variants) {
     const res = await nseGet(v.url);
-    const data = Array.isArray(res.json?.data) ? res.json.data : [];
+    const data = extractRows(res.json);
     console.log(`   pit[${v.q}]: HTTP ${res.status}, ${data.length} rows`);
-    if (res.status !== 200 && res.status !== 0) {
-      console.log(`   body: ${res.text.slice(0, 200).replace(/\s+/g, " ")}`);
+    // Show the body whenever it did not yield rows — including on a 200.
+    //
+    // The first live run returned "HTTP 200, 0 rows" and printed nothing else,
+    // because this only logged on a non-200. That hid the one thing worth
+    // knowing: a 200 carrying no rows means NSE answered us, so the payload is
+    // either shaped differently than assumed or the query is wrong. Neither can
+    // be diagnosed without seeing it.
+    if (!data.length) {
+      const keys = res.json && typeof res.json === "object" ? Object.keys(res.json) : [];
+      console.log(`   → top-level keys: ${keys.length ? keys.join(", ") : "(not JSON)"}`);
+      console.log(`   → body[0:400]: ${res.text.slice(0, 400).replace(/\s+/g, " ")}`);
     }
     if (data.length) {
       rows = data;
