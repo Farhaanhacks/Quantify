@@ -84,5 +84,16 @@ const junk = API_HEADER + "\n" +
   '"-","0","Sell","Equity Shares","1","1","04-Aug-2026","04-Aug-2026","05-Aug-2026","Sale","NSE"\n';
 check('quantity "-" is dropped', parsePitCsv(junk, "X").length === 0, `got ${parsePitCsv(junk, "X").length}`);
 
+// ── 6. Market-wide export: rows carry their own SYMBOL, none is passed in.
+console.log("\n[market-wide export, no symbol argument]");
+const wide = API_HEADER + "\n" +
+  '"RELIANCE","Reliance Industries Limited","Reg 7(2)","Kokilaben Ambani","Promoter Group","Equity Shares","1","1","Equity Shares","150000","21400000","Sell","Equity Shares","1","1","04-Aug-2026","04-Aug-2026","05-Aug-2026","Market Sale","NSE"\n' +
+  '"LENSKART","Lenskart Solutions Limited","Reg 7(2)","Peyush Bansal","Promoters","Equity Shares","1","1","Equity Shares","8250","1180000","Buy","Equity Shares","1","1","29-Jul-2026","29-Jul-2026","30-Jul-2026","Market Purchase","NSE"\n';
+const w = parsePitCsv(wide, "");
+check("parses every company in one response", w.length === 2, `got ${w.length}`);
+check("first row keeps its own symbol", w[0]?.symbol === "RELIANCE", w[0]?.symbol);
+check("second row keeps its own symbol", w[1]?.symbol === "LENSKART", w[1]?.symbol);
+check("rows are not cross-attributed", w[1]?.acqName === "Peyush Bansal", w[1]?.acqName);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
