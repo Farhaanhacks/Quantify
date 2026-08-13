@@ -350,27 +350,50 @@ jobs:
               const probeSym = process.env.INSIDER_PROBE_SYMBOL || "LENSKART";
               const yearAgo = dd(ago(365));
               const todayStr = dd(new Date());
+              const iso = (d) => d.toISOString().slice(0, 10);
+              // Every form NSE's own UI is known to produce. The company that exposed
+              // this — Lenskart — has a year of filings in NSE's CSV export yet returns
+              // nothing for the two forms tried so far, and that export is named
+              // "CFPITAnnualequities…", so a period parameter is the obvious candidate.
+              // Rather than guess which, try them all ONCE against a company known to
+              // have filings and keep whichever returns the most.
               const forms = [
+                { name: "no-date", make: (x) => `${base}&symbol=${encodeURIComponent(x)}` },
                 {
                   name: "dated(1y)",
                   make: (x) => `${base}&symbol=${encodeURIComponent(x)}&from_date=${yearAgo}&to_date=${todayStr}`,
                 },
-                { name: "no-date", make: (x) => `${base}&symbol=${encodeURIComponent(x)}` },
+                { name: "period=1Y", make: (x) => `${base}&symbol=${encodeURIComponent(x)}&period=1Y` },
+                { name: "period=Annual", make: (x) => `${base}&symbol=${encodeURIComponent(x)}&period=Annual` },
+                {
+                  name: "iso-dated(1y)",
+                  make: (x) => `${base}&symbol=${encodeURIComponent(x)}&from_date=${iso(ago(365))}&to_date=${iso(new Date())}`,
+                },
               ];
-              let form = forms[1];
+              let form = forms[0];
+              let best = -1;
               let probeHadRows = false;
-              console.log(`→ Probing query forms on ${probeSym} …`);
+              console.log(`\u2192 Probing query forms on ${probeSym} \u2026`);
               for (const f of forms) {
-                const r = await nseGet(f.make(probeSym));
-                const n = extractRows(r.json).length;
-                console.log(`   ${f.name}: HTTP ${r.status}, ${n} rows`);
-                if (n > 0) {
-                  form = f;
-                  probeHadRows = true;
-                  break;
+                let n = 0;
+                let status = "err";
+                try {
+                  const r = await nseGet(f.make(probeSym));
+                  status = r.status;
+                  n = extractRows(r.json).length;
+                } catch (e) {
+                  status = String(e).slice(0, 40);
                 }
+                console.log(`   ${f.name}: HTTP ${status}, ${n} rows`);
+                // Keep the BEST, not the first: a form returning a year of filings beats
+                // one returning only this week's.
+                if (n > best) {
+                  best = n;
+                  form = f;
+                }
+                if (n > 0) probeHadRows = true;
               }
-              console.log(`   using ${form.name}`);
+              console.log(`   using ${form.name} (${best} rows on ${probeSym})`);
 
               const symbols = await loadSymbols();
               // The probe found nothing while thousands of other symbols answered, so the
@@ -468,9 +491,6 @@ jobs:
           }
 
           main().catch((e) => die(String(e)));
-
-          QUANTIFI_INGEST_EOF
-          node "$RUNNER_TEMP/ingest.mjs"
 
           QUANTIFI_INGEST_EOF
           node "$RUNNER_TEMP/ingest.mjs"
