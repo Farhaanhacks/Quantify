@@ -60,6 +60,17 @@ function fmtDate(d: string): string {
   return new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+// Share counts arrive from NSE as bare digit strings ("1200000"). Ungrouped,
+// a column of them cannot be read at a glance — which is the whole point of
+// giving shares a column. Group them the way Indian filings and Indian readers
+// do (12,00,000), and leave anything that isn't a plain number alone.
+function fmtShares(text?: string): string | undefined {
+  const lead = text?.match(/^[\d,]+/)?.[0];
+  if (!lead) return text;
+  const n = Number(lead.replace(/,/g, ""));
+  return Number.isFinite(n) && n > 0 ? n.toLocaleString("en-IN") : lead;
+}
+
 // Green for buy-like actions, red for sell-like, neutral otherwise.
 function insiderTone(action?: string): "up" | "down" | "flat" {
   const a = (action || "").toLowerCase();
@@ -324,62 +335,112 @@ export default function InsiderActivity({
 
       {isIndia ? (
         <GlassCard className="mt-6 overflow-hidden">
-          <div className="hidden grid-cols-[2.6fr_1fr] gap-3 border-b border-white/[0.06] px-5 py-3 text-[0.62rem] uppercase tracking-[0.16em] text-slate-500 lg:grid">
-            <span>Disclosure</span>
+          {/* Six columns rather than one paragraph. Name, role, side, size and
+              value were being run together into a single "·"-joined line, so
+              nothing could be compared down the page — the thing a filings
+              table exists for. Below lg they stack with inline labels, since
+              six columns on a phone is worse than none. */}
+          <div className="hidden grid-cols-[1.7fr_1.2fr_0.6fr_0.85fr_0.9fr_0.75fr] gap-3 border-b border-white/[0.06] px-5 py-3 text-[0.62rem] uppercase tracking-[0.16em] text-slate-500 lg:grid">
+            <span>Person</span>
+            <span>Role</span>
+            <span>Side</span>
+            <span className="text-right">Shares</span>
+            <span className="text-right">Value</span>
             <span className="text-right">When</span>
           </div>
           <ul className="divide-y divide-white/[0.05]">
             {loading && disclosures.length === 0 ? (
-              <FilingSkeletonRows rows={limit ?? 5} cols={["2.6fr", "1fr"]} />
+              <FilingSkeletonRows rows={limit ?? 5} cols={["1.7fr", "1.2fr", "0.6fr", "0.85fr", "0.9fr", "0.75fr"]} />
             ) : null}
-            {(limit ? disclosures.slice(0, limit) : disclosures).map((d) => (
-              <li
-                key={d.id}
-                className="grid grid-cols-1 gap-1 px-5 py-4 lg:grid-cols-[2.6fr_1fr] lg:items-start"
-              >
-                <div className="min-w-0">
-                  {/* Line 1: who + what (a coloured Buy/Sell pill) */}
-                  <div className="flex flex-wrap items-center gap-2">
+            {(limit ? disclosures.slice(0, limit) : disclosures).map((d) => {
+              const tone = d.action ? insiderTone(d.action) : "flat";
+              const pill =
+                tone === "up"
+                  ? "border-up/30 bg-up/10 text-up"
+                  : tone === "down"
+                    ? "border-down/30 bg-down/10 text-down"
+                    : "border-white/10 bg-white/[0.04] text-slate-300";
+              // The share count reads better as a figure in its own column;
+              // "15000 Equity Shares" repeated down a column headed "Shares" is
+              // mostly the word "Equity Shares". The full text stays as the
+              // tooltip so nothing is lost.
+              const sharesNum = fmtShares(d.sharesText);
+
+              // A BSE announcement has no structured fields — only a headline.
+              // Forcing that into columns would leave five empty cells and a
+              // truncated sentence, so it keeps the full width.
+              if (!d.person) {
+                return (
+                  <li key={d.id} className="grid grid-cols-1 gap-1 px-5 py-4 lg:grid-cols-[5.25fr_0.75fr]">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      {!ticker ? <TickerChip ticker={d.ticker} /> : null}
+                      <span className="font-display text-sm font-semibold text-white">{d.headline}</span>
+                    </div>
+                    <div className="text-xs text-slate-500 lg:text-right">{fmtDate(d.date)}</div>
+                  </li>
+                );
+              }
+
+              return (
+                <li
+                  key={d.id}
+                  className="grid grid-cols-1 gap-1.5 px-5 py-4 lg:grid-cols-[1.7fr_1.2fr_0.6fr_0.85fr_0.9fr_0.75fr] lg:items-center lg:gap-3"
+                >
+                  {/* Person */}
+                  {/* nowrap on desktop: a chip + long name that wraps to a
+                      second line pushes this row taller than its neighbours and
+                      breaks the alignment the columns exist for. The name
+                      truncates instead, with the full text on hover. */}
+                  <div className="flex min-w-0 flex-wrap items-center gap-2 lg:flex-nowrap">
                     {!ticker ? <TickerChip ticker={d.ticker} /> : null}
-                    <span className="font-display text-sm font-semibold text-white">
-                      {d.person ?? d.headline}
+                    <span className="min-w-0 truncate font-display text-sm font-semibold text-white" title={d.person}>
+                      {d.person}
                     </span>
                     {d.action ? (
                       <span
-                        className={`rounded-full border px-2 py-0.5 text-[0.6rem] font-medium uppercase tracking-wide ${
-                          insiderTone(d.action) === "up"
-                            ? "border-up/30 bg-up/10 text-up"
-                            : insiderTone(d.action) === "down"
-                            ? "border-down/30 bg-down/10 text-down"
-                            : "border-white/10 bg-white/[0.04] text-slate-300"
-                        }`}
+                        className={`rounded-full border px-2 py-0.5 text-[0.6rem] font-medium uppercase tracking-wide lg:hidden ${pill}`}
                       >
                         {d.action}
                       </span>
                     ) : null}
                   </div>
-                  {/* Line 2: role · shares · value — muted, scannable */}
-                  {d.person ? (
-                    <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-slate-400">
-                      {d.category ? <span>{d.category}</span> : null}
-                      {d.sharesText ? (
-                        <>
-                          <span className="text-slate-600">·</span>
-                          <span className="text-slate-300">{d.sharesText}</span>
-                        </>
-                      ) : null}
-                      {d.valueText ? (
-                        <>
-                          <span className="text-slate-600">·</span>
-                          <span className="text-slate-300">{d.valueText}</span>
-                        </>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-                <div className="text-right text-xs text-slate-500">{fmtDate(d.date)}</div>
-              </li>
-            ))}
+
+                  {/* Role */}
+                  <div className="min-w-0 truncate text-xs text-slate-400" title={d.category}>
+                    <span className="text-slate-600 lg:hidden">Role · </span>
+                    {d.category || "—"}
+                  </div>
+
+                  {/* Side — its own column on desktop; shown beside the name on mobile */}
+                  <div className="hidden lg:block">
+                    {d.action ? (
+                      <span
+                        className={`inline-block rounded-full border px-2 py-0.5 text-[0.6rem] font-medium uppercase tracking-wide ${pill}`}
+                      >
+                        {d.action}
+                      </span>
+                    ) : (
+                      <span className="text-slate-600">—</span>
+                    )}
+                  </div>
+
+                  {/* Shares */}
+                  <div className="text-xs text-slate-300 lg:text-right" title={d.sharesText}>
+                    <span className="text-slate-600 lg:hidden">Shares · </span>
+                    <span className="font-mono tnum">{sharesNum || "—"}</span>
+                  </div>
+
+                  {/* Value */}
+                  <div className="text-xs text-slate-300 lg:text-right" title={d.valueText}>
+                    <span className="text-slate-600 lg:hidden">Value · </span>
+                    <span className="font-mono tnum">{d.valueText || "—"}</span>
+                  </div>
+
+                  {/* When */}
+                  <div className="text-xs text-slate-500 lg:text-right">{fmtDate(d.date)}</div>
+                </li>
+              );
+            })}
           </ul>
           {!loading && disclosures.length === 0 ? (
             <div className="px-5 py-10 text-center text-sm leading-relaxed text-slate-500">

@@ -23,6 +23,10 @@ on:
         description: "How many days back to pull"
         required: false
         default: "7"
+      reset:
+        description: "Clear every stored symbol before writing (use after a parser fix)"
+        required: false
+        default: "false"
 
 jobs:
   ingest:
@@ -38,6 +42,7 @@ jobs:
           KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
           KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
           INSIDER_WINDOW_DAYS: ${{ github.event.inputs.days || '7' }}
+          INSIDER_RESET: ${{ github.event.inputs.reset == 'true' && '1' || '0' }}
         run: |
           cat > "$RUNNER_TEMP/ingest.mjs" <<'QUANTIFI_INGEST_EOF'
           #!/usr/bin/env node
@@ -78,6 +83,9 @@ jobs:
           // stays low deliberately, because losing that access costs far more than the
           // job finishing a few minutes sooner.
           const CONCURRENCY = 4;
+
+          /** [symbol, company name] from NSE's archive, for diagnosing a wrong symbol. */
+          let archiveNames = [];
 
           const KV_URL = process.env.KV_REST_API_URL;
           const KV_TOKEN = process.env.KV_REST_API_TOKEN;
@@ -124,7 +132,7 @@ jobs:
                 Referer: "https://www.nseindia.com/companies-listing/corporate-filings-insider-trading",
                 ...(jar ? { Cookie: jar } : {}),
               },
-              signal: AbortSignal.timeout(25000),
+              signal: AbortSignal.timeout(12000),
               redirect: "follow",
             });
             remember(res);
@@ -220,6 +228,118 @@ jobs:
             return best;
           }
 
+
+          /** Split CSV text into rows of cells, honouring quoted fields and embedded commas. */
+          function csvRows(text) {
+            const cells = [];
+            let cur = "";
+            let row = [];
+            let inQuotes = false;
+            for (let i = 0; i < text.length; i++) {
+              const c = text[i];
+              if (inQuotes) {
+                if (c === '"' && text[i + 1] === '"') { cur += '"'; i++; }
+                else if (c === '"') inQuotes = false;
+                else cur += c;
+              } else if (c === '"') inQuotes = true;
+              else if (c === ",") { row.push(cur.trim()); cur = ""; }
+              else if (c === "\n") { row.push(cur.trim()); cells.push(row); row = []; cur = ""; }
+              else if (c !== "\r") cur += c;
+            }
+            if (cur || row.length) { row.push(cur.trim()); cells.push(row); }
+            return cells;
+          }
+
+          // Which column is which, matched against the header text rather than counted.
+          //
+          // Counting is what broke: this read column 0 as the company, 1 as the person
+          // and 4 as the share count, which is the layout of the CSV downloaded from
+          // NSE's website. The API's `csv=true` export is NOT that layout — it leads with
+          // SYMBOL, so every field landed two columns to the left of where it was read.
+          // The share count came out as "Promoters" and the person's name as the
+          // company's. Worse, the quantity check then passed on a text column, so nothing
+          // ever failed loudly; the header row itself sailed through as a filing.
+          //
+          // Names differ between the two exports, so each pattern is deliberately loose,
+          // and anchored on the words that actually distinguish the column.
+          const CSV_COLS = {
+            symbol: /^symbol$/i,
+            company: /^company$/i,
+            person: /name of the (acquirer|disposer|person)|^name of person/i,
+            category: /category of person/i,
+            secType: /type of security.*(acquir|dispos|displos)/i,
+            qty: /(no\.?|number) of securit(y|ies).*(acquir|dispos|displos)/i,
+            value: /value of security/i,
+            txType: /(acquisition|disposal).*transaction type|^transaction type/i,
+            mode: /mode of acquisition/i,
+            fromDate: /date of (allotment|acquisition).*from/i,
+            intimation: /date of intimation/i,
+          };
+
+          /** Locate the header row and map each known column to its index. */
+          function mapCsvHeader(rows) {
+            for (let i = 0; i < rows.length; i++) {
+              const r = rows[i];
+              if (!r.some((c) => CSV_COLS.person.test(c))) continue;
+              const idx = {};
+              for (const [key, re] of Object.entries(CSV_COLS)) {
+                const at = r.findIndex((c) => re.test(c));
+                if (at >= 0) idx[key] = at;
+              }
+              return { headerAt: i, idx };
+            }
+            return null;
+          }
+
+          /**
+           * Parse NSE's PIT CSV export into the same row shape its JSON returns.
+           *
+           * The JSON API returns nothing for some companies that its own CSV export
+           * covers fully — Lenskart is one — so where the CSV is the only thing carrying
+           * the data, the CSV is what we read.
+           *
+           * Columns are located by header name (see CSV_COLS). If the header cannot be
+           * found, this returns nothing rather than guessing at positions: a wrong guess
+           * produces rows that look plausible and are entirely false, which is far worse
+           * than an empty result that says so.
+           */
+          function parsePitCsv(text, symbol) {
+            const rows = csvRows(text);
+            const header = mapCsvHeader(rows);
+            if (!header) return [];
+            const { headerAt, idx } = header;
+            // Without a person and a quantity there is no filing to record.
+            if (idx.person == null || idx.qty == null) return [];
+
+            const cell = (r, key) => (idx[key] != null ? (r[idx[key]] ?? "").trim() : "");
+            const out = [];
+            for (let i = headerAt + 1; i < rows.length; i++) {
+              const r = rows[i];
+              const person = cell(r, "person");
+              if (!person) continue;
+              // The quantity must be an actual number. This is the check that keeps a
+              // repeated header — or any row that has drifted out of alignment — from
+              // being stored as a filing.
+              const qtyRaw = cell(r, "qty").replace(/,/g, "");
+              const qty = Number(qtyRaw);
+              if (!Number.isFinite(qty) || qty <= 0) continue;
+
+              const tx = cell(r, "txType") || cell(r, "mode");
+              out.push({
+                symbol: cell(r, "symbol") || symbol,
+                company: cell(r, "company"),
+                acqName: person,
+                personCategory: cell(r, "category"),
+                tdpTransactionType: tx,
+                secType: cell(r, "secType") || "Equity Shares",
+                secAcq: String(qty),
+                secVal: cell(r, "value"),
+                date: cell(r, "fromDate") || cell(r, "intimation"),
+              });
+            }
+            return out;
+          }
+
           /**
            * Every symbol listed on NSE, from NSE's own equity list.
            *
@@ -235,9 +355,18 @@ jobs:
               );
               if (res.status === 200 && res.text.includes(",")) {
                 const lines = res.text.trim().split("\n").slice(1); // drop the header
-                const syms = lines
-                  .map((l) => l.split(",")[0]?.trim().toUpperCase())
-                  .filter((s) => s && /^[A-Z0-9&\-]{1,20}$/.test(s));
+                // Keep the company names alongside the symbols. When a symbol returns
+                // nothing while thousands of others answer, the name is what identifies
+                // the right one.
+                archiveNames = lines
+                  .map((l) => {
+                    const cols = l.split(",");
+                    return [cols[0]?.trim().toUpperCase() ?? "", cols[1]?.trim() ?? ""];
+                  })
+                  .filter(([sy]) => sy);
+                const syms = archiveNames
+                  .map(([sy]) => sy)
+                  .filter((s) => /^[A-Z0-9&\-]{1,20}$/.test(s));
                 if (syms.length > 100) {
                   console.log(`   symbol list: ${syms.length} from NSE's equity archive`);
                   return [...new Set(syms)];
@@ -326,26 +455,114 @@ jobs:
             // serve the whole market from that endpoint the way this assumed. Asking per
             // symbol is what the filings page does, so that is what we do.
             if (!rows.length) {
+              // Which per-symbol form to use, decided by measurement rather than assumed.
+              //
+              // The no-date call returned filings for 51 companies but nothing for
+              // Lenskart, whose most recent filing is a month old — so NSE's default
+              // window is evidently short, and any company without very recent activity
+              // reads as empty. A dated call should reach further back, but dates are
+              // also what made the market-wide query return nothing, so neither form can
+              // be taken on trust. Ask a company known to have a year of filings both
+              // ways, and use whichever actually answers.
+              const probeSym = process.env.INSIDER_PROBE_SYMBOL || "LENSKART";
+              const yearAgo = dd(ago(365));
+              const todayStr = dd(new Date());
+              const iso = (d) => d.toISOString().slice(0, 10);
+              // Every form NSE's own UI is known to produce. The company that exposed
+              // this — Lenskart — has a year of filings in NSE's CSV export yet returns
+              // nothing for the two forms tried so far, and that export is named
+              // "CFPITAnnualequities…", so a period parameter is the obvious candidate.
+              // Rather than guess which, try them all ONCE against a company known to
+              // have filings and keep whichever returns the most.
+              const forms = [
+                { name: "no-date", make: (x) => `${base}&symbol=${encodeURIComponent(x)}` },
+                {
+                  name: "dated(1y)",
+                  make: (x) => `${base}&symbol=${encodeURIComponent(x)}&from_date=${yearAgo}&to_date=${todayStr}`,
+                },
+                { name: "period=Annual", make: (x) => `${base}&symbol=${encodeURIComponent(x)}&period=Annual` },
+                // NSE's own CSV export carries this company's filings — that export is
+                // where the evidence came from — while every JSON form returns nothing.
+                // So ask for the CSV. `csv=true` is what the Download button on the
+                // filings page appends.
+                { name: "csv", csv: true, make: (x) => `${base}&symbol=${encodeURIComponent(x)}&csv=true` },
+                {
+                  name: "csv+Annual",
+                  csv: true,
+                  make: (x) => `${base}&symbol=${encodeURIComponent(x)}&period=Annual&csv=true`,
+                },
+              ];
+              let form = forms[0];
+              let best = -1;
+              let probeHadRows = false;
+              console.log(`\u2192 Probing query forms on ${probeSym} \u2026`);
+              for (const f of forms) {
+                let n = 0;
+                let status = "err";
+                let snippet = "";
+                try {
+                  const r = await nseGet(f.make(probeSym), f.csv ? "text/csv,*/*" : undefined);
+                  status = r.status;
+                  n = f.csv ? parsePitCsv(r.text, probeSym).length : extractRows(r.json).length;
+                  snippet = r.text.slice(0, 120).replace(/\s+/g, " ");
+                } catch (e) {
+                  status = String(e).slice(0, 40);
+                }
+                // Print what came back, not just the count. A zero with no body is what
+                // sent this round in circles.
+                console.log(`   ${f.name}: HTTP ${status}, ${n} rows — ${snippet}`);
+                // Keep the BEST, not the first: a form returning a year of filings beats
+                // one returning only this week's.
+                if (n > best) {
+                  best = n;
+                  form = f;
+                }
+                if (n > 0) probeHadRows = true;
+              }
+              console.log(`   using ${form.name} (${best} rows on ${probeSym})`);
+
               const symbols = await loadSymbols();
+              // The probe found nothing while thousands of other symbols answered, so the
+              // symbol itself is wrong, not the query. The archive carries company NAMES
+              // beside symbols, so it can say what NSE actually calls this company.
+              if (!probeHadRows) {
+                const needle = probeSym.slice(0, 5).toUpperCase();
+                const guesses = archiveNames.filter(([, name]) => name.toUpperCase().includes(needle)).slice(0, 5);
+                console.log(
+                  guesses.length
+                    ? `   note: "${probeSym}" returned nothing. NSE lists: ${guesses.map(([sy, n]) => `${sy} (${n})`).join("; ")}`
+                    : `   note: "${probeSym}" returned nothing, and no NSE company name contains "${needle}".`
+                );
+              }
               console.log(`→ Market-wide came back empty. Asking per symbol across ${symbols.length} companies …`);
               let hit = 0;
               let done = 0;
               let shown = 0;
+              let failed = 0;
               await pooled(symbols, CONCURRENCY, async (sym) => {
-                const res = await nseGet(`${base}&symbol=${encodeURIComponent(sym)}`);
-                const data = extractRows(res.json);
-                done++;
-                if (data.length) {
-                  hit++;
-                  rows.push(...data);
-                } else if (hit === 0 && shown < 3) {
-                  // Show the first few misses in full so a wrong query is visible at once
-                  // rather than after every symbol has silently returned nothing.
-                  shown++;
-                  console.log(`   ${sym}: HTTP ${res.status} — ${res.text.slice(0, 140).replace(/\s+/g, " ")}`);
+                // Per-symbol isolation. A single slow response used to abort the whole
+                // job: one timeout at symbol 2250 of 2401 threw away 26,350 rows already
+                // fetched. Nothing about one company should cost the other two thousand.
+                try {
+                  const res = await nseGet(form.make(sym), form.csv ? "text/csv,*/*" : undefined);
+                  const data = form.csv ? parsePitCsv(res.text, sym) : extractRows(res.json);
+                  if (data.length) {
+                    hit++;
+                    rows.push(...data);
+                  } else if (hit === 0 && shown < 3) {
+                    // Show the first few misses in full so a wrong query is visible at
+                    // once rather than after every symbol silently returns nothing.
+                    shown++;
+                    console.log(`   ${sym}: HTTP ${res.status} — ${res.text.slice(0, 140).replace(/\s+/g, " ")}`);
+                  }
+                } catch (e) {
+                  failed++;
+                  if (failed <= 3) console.log(`   ${sym}: ${String(e).slice(0, 90)}`);
                 }
+                done++;
                 if (done % 250 === 0) console.log(`   … ${done}/${symbols.length} checked, ${rows.length} rows so far`);
               });
+              if (failed) console.log(`   ${failed} symbol(s) errored and were skipped`);
               console.log(`→ per-symbol: ${hit}/${symbols.length} companies had filings, ${rows.length} rows total`);
               if (rows.length) wonWith = "per-symbol";
             }
@@ -365,6 +582,40 @@ jobs:
 
             console.log(`→ ${rows.length} filings across ${bySymbol.size} companies (window ${wonWith})`);
 
+            // Print one finished row. The last run wrote 30,361 filings and reported
+            // success while every field was in the wrong column — a count alone cannot
+            // tell you the data is right, and nothing here was showing the data. One
+            // sample makes a misparse obvious at a glance instead of after it ships.
+            const [sampleSym, sampleRows] = bySymbol.entries().next().value ?? [];
+            if (sampleRows?.length) {
+              const s = sampleRows[0];
+              console.log(
+                `   sample ${sampleSym}: person="${s.person ?? ""}" role="${s.category}" ` +
+                  `side="${s.action ?? ""}" shares="${s.sharesText ?? ""}" value="${s.valueText ?? ""}" date="${s.date}"`
+              );
+            }
+
+            // A run that stored bad rows cannot be repaired by merging good ones on top —
+            // the bad rows have their own ids, so they survive the dedupe and stay on the
+            // page forever. INSIDER_RESET=1 drops every stored symbol first, so the run
+            // rewrites the store from scratch. Use it after fixing a parser; leave it off
+            // for normal daily runs, where accumulating history is the point.
+            const reset = process.env.INSIDER_RESET === "1";
+            if (reset) {
+              let cursor = "0";
+              let dropped = 0;
+              do {
+                const page = await kv(["SCAN", cursor, "MATCH", "insider:in:*", "COUNT", "500"]);
+                cursor = page?.[0] ?? "0";
+                const keys = (page?.[1] ?? []).filter((k) => k !== "insider:in:_meta");
+                for (let i = 0; i < keys.length; i += 100) {
+                  await kv(["DEL", ...keys.slice(i, i + 100)]);
+                }
+                dropped += keys.length;
+              } while (cursor !== "0");
+              console.log(`→ INSIDER_RESET: cleared ${dropped} stored symbol(s) before writing.`);
+            }
+
             let written = 0;
             for (const [symbol, fresh] of bySymbol) {
               const key = `insider:in:${symbol.toUpperCase()}`;
@@ -372,7 +623,7 @@ jobs:
               // as mergeStoredInsider does in the app.
               let existing = [];
               try {
-                const raw = await kv(["GET", key]);
+                const raw = reset ? null : await kv(["GET", key]);
                 if (raw) existing = JSON.parse(raw) ?? [];
               } catch {
                 /* treat an unreadable key as empty rather than losing the run */
@@ -400,6 +651,5 @@ jobs:
           }
 
           main().catch((e) => die(String(e)));
-
           QUANTIFI_INGEST_EOF
           node "$RUNNER_TEMP/ingest.mjs"

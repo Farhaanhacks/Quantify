@@ -8,14 +8,24 @@ import { aliasSymbol } from "@/lib/symbolAlias";
 
 export const dynamic = "force-dynamic";
 // The Indian path proxies BSE through ScraperAPI (residential proxies, slow) and
-// may auto-escalate to a second ultra_premium pass on a block. The default
-// serverless budget can kill that mid-flight — which left the UI stuck on
-// "Loading…" and, because the request never finished, nothing was ever cached so
-// every load retried from cold. Give it headroom for both passes.
-export const maxDuration = 110;
+// may auto-escalate to a second ultra_premium pass on a block, so it needs
+// headroom. 60s, not the 110s this used to ask for: Vercel's lower tiers cap
+// below that, and a route asking for more than its plan allows is killed
+// mid-flight — which the page then reported as the exchange refusing us.
+// Requests that cannot succeed now exit immediately (see below), so the long
+// path only runs when it has a real chance.
+export const maxDuration = 60;
 
 /** Why an Indian lookup came back empty. */
 export type EmptyReason = "unconfigured" | "blocked" | "empty";
+
+/** Whether anything is configured that could reach NSE/BSE from a datacenter. */
+function indiaFetchConfigured(): boolean {
+  return (
+    Boolean(process.env.SCRAPER_API_KEY?.trim()) ||
+    Boolean(process.env.INSIDER_API_URL?.trim() && process.env.INSIDER_API_KEY?.trim())
+  );
+}
 
 /**
  * Distinguish "this company filed nothing" from "we never got an answer".
@@ -27,10 +37,7 @@ export type EmptyReason = "unconfigured" | "blocked" | "empty";
  * is genuinely `empty`.
  */
 function whyEmpty(...debugs: unknown[]): EmptyReason {
-  const configured =
-    Boolean(process.env.SCRAPER_API_KEY?.trim()) ||
-    Boolean(process.env.INSIDER_API_URL?.trim() && process.env.INSIDER_API_KEY?.trim());
-  if (!configured) return "unconfigured";
+  if (!indiaFetchConfigured()) return "unconfigured";
   for (const d of debugs) {
     const status = (d as { httpStatus?: number | null } | null)?.httpStatus;
     // Anything other than a clean 200 means we did not get the exchange's answer.
@@ -65,6 +72,24 @@ export async function GET(req: Request, { params }: { params: { ticker: string }
           },
           900,
           1800
+        );
+      }
+
+      // Nothing stored, and nothing configured that could get past the
+      // exchanges' block on datacenter IPs? Then say so now rather than
+      // spending the request proving it.
+      //
+      // This route used to attempt a full NSE session handshake and a BSE
+      // fallback regardless — several seconds of fetches that cannot succeed
+      // without a proxy. Long enough to blow the function's time limit, and a
+      // timed-out request surfaces in the UI as "couldn't reach NSE", which
+      // reads as a passing glitch when the truth is that this deployment has no
+      // route to the data at all.
+      if (!indiaFetchConfigured()) {
+        return jsonCached(
+          { available: false, market: "IN", source: "none", reason: "unconfigured", disclosures: [] },
+          300,
+          600
         );
       }
 
