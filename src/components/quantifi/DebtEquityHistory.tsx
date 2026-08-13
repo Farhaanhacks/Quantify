@@ -90,6 +90,11 @@ function YearBars({
   const TRACK = 176; // px; the bar heights are a share of this
   const bar = (v: number | undefined, color: string) => {
     if (v == null) return null;
+    // A negative value hangs BELOW the baseline rather than being clamped to a
+    // 2px stub at the bottom, which is what a Math.max(0, …) height gives you —
+    // indistinguishable from "almost zero" when the truth is "less than
+    // nothing".
+    const negative = v < 0;
     return (
       // Fixed width, not flex-1. Letting each bar claim an equal share of the
       // year's column pushed the equity and debt bars to opposite ends of it,
@@ -99,12 +104,16 @@ function YearBars({
         <span className="whitespace-nowrap font-mono text-[0.6rem] text-slate-400">
           {fmt(v, sym)}
         </span>
-        <div className="flex w-full items-end justify-center" style={{ height: TRACK }}>
+        <div
+          className={`flex w-full justify-center ${negative ? "items-start" : "items-end"}`}
+          style={{ height: TRACK }}
+        >
           <div
-            className="w-full max-w-[46px] rounded-t-[3px]"
+            className={`w-full max-w-[46px] ${negative ? "rounded-b-[3px]" : "rounded-t-[3px]"}`}
             style={{
-              height: `${Math.max(2, (Math.max(0, v) / maxV) * 100)}%`,
+              height: `${Math.min(100, Math.max(2, (Math.abs(v) / maxV) * 100))}%`,
               backgroundColor: color,
+              opacity: negative ? 0.55 : 1,
             }}
           />
         </div>
@@ -242,8 +251,12 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
   // legend directly above it read another.
   if (debt != null) last.debt = debt;
 
-  const r0 = first.debt != null && first.equity ? (first.debt / first.equity) * 100 : null;
-  const r1 = last.debt != null && last.equity ? (last.debt / last.equity) * 100 : null;
+  // A debt-to-equity ratio needs POSITIVE equity to mean anything. Dividing by
+  // a negative book value yields a negative percentage, which this section would
+  // then narrate as "reduced from -60% to -12%" — a sentence that sounds like
+  // good news about a company whose liabilities exceed its assets.
+  const r0 = first.debt != null && first.equity != null && first.equity > 0 ? (first.debt / first.equity) * 100 : null;
+  const r1 = last.debt != null && last.equity != null && last.equity > 0 ? (last.debt / last.equity) * 100 : null;
   const yrFirst = first.date ? Number(first.date.slice(0, 4)) : null;
   const yrLast = last.date ? Number(last.date.slice(0, 4)) : null;
   const span = yrFirst && yrLast && yrLast > yrFirst ? yrLast - yrFirst : series.length - 1;
@@ -256,17 +269,34 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
     });
   }
 
+  // Negative equity is the single most important thing on this chart when it
+  // happens, and no ratio card will say it — they all divide by the number that
+  // has gone negative. So it gets stated outright.
+  if (last.equity != null && last.equity < 0) {
+    insights.push({
+      title: "Negative shareholder equity",
+      detail: `${label}'s reported equity is ${compactCur(last.equity, sym)} — its liabilities exceed its assets, so a debt-to-equity ratio isn't meaningful here.`,
+      tone: "bad",
+    });
+  }
+
   if (ocf != null && debt != null && debt > 0) {
     const cover = (ocf / debt) * 100;
     insights.push({
       title: "Debt coverage",
       detail:
-        cover >= 100
+        // A company burning cash has NEGATIVE operating cash flow, and the
+        // percentage form of that is gibberish: "covers only -36.0% of its
+        // debt" invites the reader to compare it with 20% and conclude it is
+        // merely low. It is not low, it is the wrong side of zero.
+        ocf <= 0
+          ? `${label}'s operating cash flow is negative (${compactCur(ocf, sym)}), so it isn't covering any of its ${compactCur(debt, sym)} debt.`
+          : cover >= 100
           ? `${label}'s debt is more than covered by operating cash flow (${cover.toFixed(1)}%).`
           : cover >= 20
           ? `${label}'s debt is well covered by operating cash flow (${cover.toFixed(1)}%).`
           : `${label}'s operating cash flow covers only ${cover.toFixed(1)}% of its debt.`,
-      tone: cover >= 100 ? "good" : cover >= 20 ? "warn" : "bad",
+      tone: ocf <= 0 ? "bad" : cover >= 100 ? "good" : cover >= 20 ? "warn" : "bad",
     });
   }
 
@@ -274,15 +304,29 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
   const W = 820;
   const H = 300;
   const pad = 14;
-  const maxV = Math.max(
-    1,
-    ...series.map((s) => Math.max(s.equity ?? 0, s.debt ?? 0))
-  );
+  // The vertical domain must include NEGATIVE values.
+  //
+  // Equity can be negative — accumulated losses exceeding paid-in capital — and
+  // this used to clamp every plotted point with Math.max(0, …) while computing
+  // the scale the same way. A company with equity of -₹741K therefore produced
+  // maxV = 1 and a line pinned flat along the baseline: a chart asserting
+  // "equity is zero and unchanging" directly beneath a legend reading -₹741.0K.
+  // The chart contradicted its own caption, and the flat line was the more
+  // believable of the two.
+  //
+  // So the scale spans the real minimum to the real maximum, zero always
+  // included, and points are plotted where they actually fall.
+  const plotted = series.flatMap((s) => [s.equity, s.debt]).filter((v): v is number => v != null);
+  const hiV = Math.max(1, ...plotted);
+  const loV = Math.min(0, ...plotted);
+  const spanV = hiV - loV || 1;
+  /** True when something dips below zero, so the chart owes the reader a zero line. */
+  const hasNegative = loV < 0;
   const X = (i: number) => pad + (i / (series.length - 1)) * (W - 2 * pad);
-  const Y = (v: number) => H - pad - (v / maxV) * (H - 2 * pad);
+  const Y = (v: number) => H - pad - ((v - loV) / spanV) * (H - 2 * pad);
   const line = (key: "debt" | "equity") =>
     series
-      .map((s, i) => `${X(i)},${Y(Math.max(0, s[key] ?? 0))}`)
+      .map((s, i) => `${X(i)},${Y(s[key] ?? 0)}`)
       .join(" ");
   const equityArea = `${X(0)},${Y(0)} ${line("equity")} ${X(series.length - 1)},${Y(0)}`;
 
@@ -293,7 +337,7 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
   const debtPoints = series
     .map((s, i) => ({ i, v: s.debt }))
     .filter((p): p is { i: number; v: number } => p.v != null);
-  const debtLine = debtPoints.map((p) => `${X(p.i)},${Y(Math.max(0, p.v))}`).join(" ");
+  const debtLine = debtPoints.map((p) => `${X(p.i)},${Y(p.v)}`).join(" ");
 
   // Fewer than three reported years can't carry a trend line — see YearBars.
   const sparse = series.length < 3;
@@ -336,7 +380,7 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
           {sparse ? (
             <YearBars
               series={series.map((s) => ({ ...s, debt: showDebt ? s.debt : undefined }))}
-              maxV={maxV}
+              maxV={Math.max(1, ...plotted.map((v) => Math.abs(v)))}
               sym={sym}
               fmt={compactCur}
             />
@@ -349,6 +393,25 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
                     <stop offset="100%" stopColor="#4F93F7" stopOpacity="0.02" />
                   </linearGradient>
                 </defs>
+                {/* Zero line, drawn only when something crosses it. Without it a
+                    line below the axis floor is just a low line, and the reader
+                    has no way to see that equity has gone negative. */}
+                {hasNegative ? (
+                  <>
+                    <line
+                      x1={pad}
+                      x2={W - pad}
+                      y1={Y(0)}
+                      y2={Y(0)}
+                      stroke="rgba(255,255,255,0.28)"
+                      strokeWidth="1"
+                      strokeDasharray="4 4"
+                    />
+                    <text x={pad + 2} y={Y(0) - 4} className="fill-slate-500" style={{ fontSize: 11 }}>
+                      0
+                    </text>
+                  </>
+                ) : null}
                 <polygon points={equityArea} fill="url(#deEquity)" stroke="none" />
                 <polyline points={line("equity")} fill="none" stroke="#4F93F7" strokeWidth="2" vectorEffect="non-scaling-stroke" />
                 {showDebt ? (

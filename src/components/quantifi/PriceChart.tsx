@@ -51,6 +51,9 @@ export default function PriceChart({
   const [err, setErr] = useState<string | null>(null);
   // Set when the user wants candles but the source only gave us closes (Stooq).
   const [noCandles, setNoCandles] = useState(false);
+  // The company has less trading history than the selected range — a recent
+  // listing. The chart is real; the window just isn't full.
+  const [partial, setPartial] = useState(false);
 
   // Canvas tooltips are built inside the chart effect, so the currency symbol has
   // to be resolvable there — derive it from the ticker plus whatever the quote
@@ -142,6 +145,7 @@ export default function PriceChart({
           setErr("Live chart data isn’t available for this symbol right now.");
           return;
         }
+        setPartial(Boolean(data.partial));
 
         // Candles need OHLC. The Stooq fallback is closes-only, so rather than
         // faking bars we render the line and say why.
@@ -483,6 +487,12 @@ export default function PriceChart({
 
       {loading ? <p className="mt-2 text-xs text-slate-500">Loading chart…</p> : null}
       {err ? <p className="mt-2 text-xs text-down">{err}</p> : null}
+      {partial && !err ? (
+        <p className="mt-2 text-xs text-slate-500">
+          This company hasn&apos;t traded for the full {range.toUpperCase()} window — the chart shows its
+          entire price history to date.
+        </p>
+      ) : null}
       {noCandles && !err ? (
         <p className="mt-2 text-xs text-slate-500">
           Candles need open/high/low data, which our backup price source doesn&apos;t publish for this

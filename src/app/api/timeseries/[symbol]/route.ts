@@ -168,8 +168,22 @@ async function yahooSeries(symbol: string, range: string) {
     if (!best || got.points.length > best.points.length) best = got;
     if (best.points.length >= need) break; // rich enough — stop early
   }
-  // Reject a stub series so it never renders as a genuine multi-month chart.
-  if (!best || best.points.length < need) throw new Error("Yahoo: series too short");
+  // Reject a STUB series — but not a short history.
+  //
+  // These thresholds exist so a handful of stray points never renders as a
+  // convincing year-long chart. Applied as a hard floor they also throw away
+  // the entire price history of a recently listed company: a stock that has
+  // traded for forty sessions cannot produce the eighty closes a 1Y view asks
+  // for, so the route reported "no chart data available" for a company whose
+  // data we were holding. The quote badge showed a live price directly above
+  // the empty chart, which is how it was noticed.
+  //
+  // A short series is now served and FLAGGED, so the chart can plot the real
+  // history and say it is all there is. Only a genuinely stubby response — too
+  // little to draw a line from — is still rejected.
+  const STUB_FLOOR = 5;
+  if (!best || best.points.length < STUB_FLOOR) throw new Error("Yahoo: series too short");
+  const partial = best.points.length < need;
 
   const points = best.points;
   const m = best.meta;
@@ -195,6 +209,10 @@ async function yahooSeries(symbol: string, range: string) {
       currency,
     },
     live: true,
+    // True when the company has less history than the requested range — a
+    // recent listing, not a data failure. The chart says so rather than
+    // implying the window is fully covered.
+    partial,
   };
 }
 
