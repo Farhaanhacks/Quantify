@@ -415,18 +415,34 @@ jobs:
 
             // Wide window first; NSE returns empty for over-large ranges, so fall back.
             const base = "https://www.nseindia.com/api/corporates-pit?index=equities";
+            const win = (d) => `&from_date=${dd(ago(d))}&to_date=${dd(new Date())}`;
+            // Each window is asked as JSON and as CSV.
+            //
+            // Only JSON was ever tried market-wide, and it answers {"acqNameList":[],
+            // "data":[]} for every window — which sent the whole job down the per-symbol
+            // path. But the per-symbol endpoint has no rows at all for some companies
+            // that NSE's own site exports fine (Lenskart: 93 filings in the download,
+            // zero from every per-symbol form). The site's Download button hits this
+            // market-wide endpoint with a date range and `csv=true`, so that is the one
+            // combination never tested. If it answers, it is also far kinder than 2,404
+            // separate requests.
             const variants = [
-              { q: `${days}d`, url: `${base}&from_date=${dd(ago(days))}&to_date=${dd(new Date())}` },
-              { q: "3d", url: `${base}&from_date=${dd(ago(3))}&to_date=${dd(new Date())}` },
-              { q: "1d", url: `${base}&from_date=${dd(ago(1))}&to_date=${dd(new Date())}` },
+              { q: `${days}d`, url: `${base}${win(days)}` },
+              { q: `${days}d-csv`, csv: true, url: `${base}${win(days)}&csv=true` },
+              { q: "30d-csv", csv: true, url: `${base}${win(30)}&csv=true` },
+              { q: "3d", url: `${base}${win(3)}` },
+              { q: "1d", url: `${base}${win(1)}` },
               { q: "latest", url: base },
+              { q: "latest-csv", csv: true, url: `${base}&csv=true` },
             ];
 
             let rows = [];
             let wonWith = null;
             for (const v of variants) {
-              const res = await nseGet(v.url);
-              const data = extractRows(res.json);
+              const res = await nseGet(v.url, v.csv ? "text/csv,*/*" : undefined);
+              // Market-wide CSV rows carry their own SYMBOL column, so no symbol is
+              // passed here — each row names the company it belongs to.
+              const data = v.csv ? parsePitCsv(res.text, "") : extractRows(res.json);
               console.log(`   pit[${v.q}]: HTTP ${res.status}, ${data.length} rows`);
               // Show the body whenever it did not yield rows — including on a 200.
               //
