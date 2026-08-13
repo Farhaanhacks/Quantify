@@ -26,10 +26,35 @@ export function tokensOf(s: string): string[] {
     .filter((t) => t.length >= 2);
 }
 
-/** Does this listing's name/symbol contain EVERY word of the query, in any order? */
+/** The individual words of a name, punctuation removed. */
+function wordsOf(s: string): string[] {
+  return s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean);
+}
+
+/**
+ * Does one query word match one word of a listing's name?
+ *
+ * Substring matching is not enough, because exchanges abbreviate. NSE files
+ * HDFC Life as "HDFC LIFE INS CO LTD" — so a search for "hdfc insurance"
+ * failed the containment test on its own top result, and the widening pass
+ * threw away the very company it had just fetched. INS, CO, LTD, IND, TECH,
+ * MFG are the norm, not the exception.
+ *
+ * So a word matches if either side is a prefix of the other: the query's
+ * "insurance" against the filing's "ins", or a typed "ins" against a written
+ * "insurance". The abbreviation must be at least three characters, which stops
+ * a two-letter fragment from matching most of the market.
+ */
+export function wordMatches(words: string[], token: string): boolean {
+  return words.some(
+    (w) => w === token || w.startsWith(token) || (w.length >= 3 && token.startsWith(w))
+  );
+}
+
+/** Does this listing's name/symbol match EVERY word of the query, in any order? */
 export function coversAllTokens(hit: SearchHit, tokens: string[]): boolean {
-  const hay = `${hit.name} ${hit.symbol}`.toLowerCase();
-  return tokens.every((t) => hay.includes(t));
+  const words = wordsOf(`${hit.name} ${hit.symbol}`);
+  return tokens.every((t) => wordMatches(words, t));
 }
 
 // Rank so a search for a company finds the company.
@@ -75,8 +100,8 @@ export function rank(hit: SearchHit, q: string): number {
   //    all, wherever they appear.
   const toks = tokensOf(query);
   if (toks.length > 1) {
-    const hay = `${name} ${sym.toLowerCase()}`;
-    const matched = toks.filter((t) => hay.includes(t)).length;
+    const words = wordsOf(`${name} ${sym.toLowerCase()}`);
+    const matched = toks.filter((t) => wordMatches(words, t)).length;
     score -= matched * 60;
     if (matched === toks.length) score -= 120; // every word present, any order
   }

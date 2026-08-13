@@ -20,7 +20,7 @@ execFileSync(
   ["tsc", join(root, "src/lib/searchRank.ts"), "--outDir", out, "--module", "esnext", "--target", "es2022", "--moduleResolution", "bundler"],
   { stdio: "pipe" }
 );
-const { tokensOf, coversAllTokens, rank } = await import(join(out, "searchRank.js"));
+const { tokensOf, coversAllTokens, rank, wordMatches } = await import(join(out, "searchRank.js"));
 rmSync(out, { recursive: true, force: true });
 
 let pass = 0;
@@ -78,6 +78,25 @@ check(
   "a row named only after its own code sinks",
   order([stock("0P0000GBDS.BO", "0P0000GBDS.BO"), HDFC_LIFE], "hdfc insurance")[0] === "HDFCLIFE.NS"
 );
+
+console.log("\n[abbreviated exchange names — the reported miss]");
+// These are the EXACT names the app displayed for this company.
+const NSE_ABBREV = stock("HDFCLIFE.NS", "HDFC LIFE INS CO LTD");
+const BSE_TRUNC = stock("HDFCLIFE.BO", "HDFC LIFE INSURANCE COMPANY LI", "Bombay");
+const t2 = tokensOf("hdfc insurance");
+check("'insurance' matches a filing that says 'INS'", coversAllTokens(NSE_ABBREV, t2), JSON.stringify(t2));
+check("the spelled-out listing still matches", coversAllTokens(BSE_TRUNC, t2));
+check("'hdfc insurance' ranks the insurer above the bank", order([HDFC_BANK, NSE_ABBREV], "hdfc insurance")[0] === "HDFCLIFE.NS", order([HDFC_BANK, NSE_ABBREV], "hdfc insurance").join(","));
+check("typing the abbreviation works too", coversAllTokens(BSE_TRUNC, tokensOf("hdfc ins")));
+check("'co' matches 'COMPANY'", coversAllTokens(BSE_TRUNC, tokensOf("hdfc co")));
+
+console.log("\n[the loosening must not match everything]");
+check("a two-letter fragment does not match a long word", !coversAllTokens(stock("X.NS", "Indus Towers Limited"), tokensOf("hdfc in")));
+check("an unrelated insurer is still excluded", !coversAllTokens(SBI_LIFE, t2));
+check("a bank is still excluded", !coversAllTokens(HDFC_BANK, t2));
+check("'tech' matches 'TECHNOLOGIES'", coversAllTokens(stock("HCLTECH.NS", "HCL TECHNOLOGIES LTD"), tokensOf("hcl tech")));
+check("'technologies' matches a filing that says 'TECH'", coversAllTokens(stock("HCLTECH.NS", "HCL TECH LTD"), tokensOf("hcl technologies")));
+check("a different company is not dragged in", !coversAllTokens(stock("TCS.NS", "TATA CONSULTANCY SERVICES LTD"), tokensOf("hcl technologies")));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
