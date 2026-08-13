@@ -79,6 +79,9 @@ jobs:
           // job finishing a few minutes sooner.
           const CONCURRENCY = 4;
 
+          /** [symbol, company name] from NSE's archive, for diagnosing a wrong symbol. */
+          let archiveNames = [];
+
           const KV_URL = process.env.KV_REST_API_URL;
           const KV_TOKEN = process.env.KV_REST_API_TOKEN;
           const MAX_PER_SYMBOL = 40; // must match src/lib/insiderStore.ts
@@ -124,7 +127,7 @@ jobs:
                 Referer: "https://www.nseindia.com/companies-listing/corporate-filings-insider-trading",
                 ...(jar ? { Cookie: jar } : {}),
               },
-              signal: AbortSignal.timeout(25000),
+              signal: AbortSignal.timeout(12000),
               redirect: "follow",
             });
             remember(res);
@@ -235,9 +238,18 @@ jobs:
               );
               if (res.status === 200 && res.text.includes(",")) {
                 const lines = res.text.trim().split("\n").slice(1); // drop the header
-                const syms = lines
-                  .map((l) => l.split(",")[0]?.trim().toUpperCase())
-                  .filter((s) => s && /^[A-Z0-9&\-]{1,20}$/.test(s));
+                // Keep the company names alongside the symbols. When a symbol returns
+                // nothing while thousands of others answer, the name is what identifies
+                // the right one.
+                archiveNames = lines
+                  .map((l) => {
+                    const cols = l.split(",");
+                    return [cols[0]?.trim().toUpperCase() ?? "", cols[1]?.trim() ?? ""];
+                  })
+                  .filter(([sy]) => sy);
+                const syms = archiveNames
+                  .map(([sy]) => sy)
+                  .filter((s) => /^[A-Z0-9&\-]{1,20}$/.test(s));
                 if (syms.length > 100) {
                   console.log(`   symbol list: ${syms.length} from NSE's equity archive`);
                   return [...new Set(syms)];
@@ -346,6 +358,7 @@ jobs:
                 { name: "no-date", make: (x) => `${base}&symbol=${encodeURIComponent(x)}` },
               ];
               let form = forms[1];
+              let probeHadRows = false;
               console.log(`→ Probing query forms on ${probeSym} …`);
               for (const f of forms) {
                 const r = await nseGet(f.make(probeSym));
@@ -353,31 +366,54 @@ jobs:
                 console.log(`   ${f.name}: HTTP ${r.status}, ${n} rows`);
                 if (n > 0) {
                   form = f;
+                  probeHadRows = true;
                   break;
                 }
               }
               console.log(`   using ${form.name}`);
 
               const symbols = await loadSymbols();
+              // The probe found nothing while thousands of other symbols answered, so the
+              // symbol itself is wrong, not the query. The archive carries company NAMES
+              // beside symbols, so it can say what NSE actually calls this company.
+              if (!probeHadRows) {
+                const needle = probeSym.slice(0, 5).toUpperCase();
+                const guesses = archiveNames.filter(([, name]) => name.toUpperCase().includes(needle)).slice(0, 5);
+                console.log(
+                  guesses.length
+                    ? `   note: "${probeSym}" returned nothing. NSE lists: ${guesses.map(([sy, n]) => `${sy} (${n})`).join("; ")}`
+                    : `   note: "${probeSym}" returned nothing, and no NSE company name contains "${needle}".`
+                );
+              }
               console.log(`→ Market-wide came back empty. Asking per symbol across ${symbols.length} companies …`);
               let hit = 0;
               let done = 0;
               let shown = 0;
+              let failed = 0;
               await pooled(symbols, CONCURRENCY, async (sym) => {
-                const res = await nseGet(form.make(sym));
-                const data = extractRows(res.json);
-                done++;
-                if (data.length) {
-                  hit++;
-                  rows.push(...data);
-                } else if (hit === 0 && shown < 3) {
-                  // Show the first few misses in full so a wrong query is visible at once
-                  // rather than after every symbol has silently returned nothing.
-                  shown++;
-                  console.log(`   ${sym}: HTTP ${res.status} — ${res.text.slice(0, 140).replace(/\s+/g, " ")}`);
+                // Per-symbol isolation. A single slow response used to abort the whole
+                // job: one timeout at symbol 2250 of 2401 threw away 26,350 rows already
+                // fetched. Nothing about one company should cost the other two thousand.
+                try {
+                  const res = await nseGet(form.make(sym));
+                  const data = extractRows(res.json);
+                  if (data.length) {
+                    hit++;
+                    rows.push(...data);
+                  } else if (hit === 0 && shown < 3) {
+                    // Show the first few misses in full so a wrong query is visible at
+                    // once rather than after every symbol silently returns nothing.
+                    shown++;
+                    console.log(`   ${sym}: HTTP ${res.status} — ${res.text.slice(0, 140).replace(/\s+/g, " ")}`);
+                  }
+                } catch (e) {
+                  failed++;
+                  if (failed <= 3) console.log(`   ${sym}: ${String(e).slice(0, 90)}`);
                 }
+                done++;
                 if (done % 250 === 0) console.log(`   … ${done}/${symbols.length} checked, ${rows.length} rows so far`);
               });
+              if (failed) console.log(`   ${failed} symbol(s) errored and were skipped`);
               console.log(`→ per-symbol: ${hit}/${symbols.length} companies had filings, ${rows.length} rows total`);
               if (rows.length) wonWith = "per-symbol";
             }
@@ -432,6 +468,9 @@ jobs:
           }
 
           main().catch((e) => die(String(e)));
+
+          QUANTIFI_INGEST_EOF
+          node "$RUNNER_TEMP/ingest.mjs"
 
           QUANTIFI_INGEST_EOF
           node "$RUNNER_TEMP/ingest.mjs"
