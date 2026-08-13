@@ -23,6 +23,10 @@ on:
         description: "How many days back to pull"
         required: false
         default: "7"
+      reset:
+        description: "Clear every stored symbol before writing (use after a parser fix)"
+        required: false
+        default: "false"
 
 jobs:
   ingest:
@@ -38,6 +42,7 @@ jobs:
           KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
           KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
           INSIDER_WINDOW_DAYS: ${{ github.event.inputs.days || '7' }}
+          INSIDER_RESET: ${{ github.event.inputs.reset == 'true' && '1' || '0' }}
         run: |
           cat > "$RUNNER_TEMP/ingest.mjs" <<'QUANTIFI_INGEST_EOF'
           #!/usr/bin/env node
@@ -224,18 +229,8 @@ jobs:
           }
 
 
-          /**
-           * Parse NSE's PIT CSV export into the same row shape its JSON returns.
-           *
-           * The JSON API returns nothing for some companies that its own CSV export
-           * covers fully — Lenskart is one, with 90-odd filings in the export and zero in
-           * every JSON form tried. Where the CSV is the only thing carrying the data, the
-           * CSV is what we read.
-           *
-           * The export's header spans several physical lines, so rows are located by
-           * their own shape rather than by counting header lines.
-           */
-          function parsePitCsv(text, symbol) {
+          /** Split CSV text into rows of cells, honouring quoted fields and embedded commas. */
+          function csvRows(text) {
             const cells = [];
             let cur = "";
             let row = [];
@@ -252,31 +247,94 @@ jobs:
               else if (c !== "\r") cur += c;
             }
             if (cur || row.length) { row.push(cur.trim()); cells.push(row); }
+            return cells;
+          }
 
+          // Which column is which, matched against the header text rather than counted.
+          //
+          // Counting is what broke: this read column 0 as the company, 1 as the person
+          // and 4 as the share count, which is the layout of the CSV downloaded from
+          // NSE's website. The API's `csv=true` export is NOT that layout — it leads with
+          // SYMBOL, so every field landed two columns to the left of where it was read.
+          // The share count came out as "Promoters" and the person's name as the
+          // company's. Worse, the quantity check then passed on a text column, so nothing
+          // ever failed loudly; the header row itself sailed through as a filing.
+          //
+          // Names differ between the two exports, so each pattern is deliberately loose,
+          // and anchored on the words that actually distinguish the column.
+          const CSV_COLS = {
+            symbol: /^symbol$/i,
+            company: /^company$/i,
+            person: /name of the (acquirer|disposer|person)|^name of person/i,
+            category: /category of person/i,
+            secType: /type of security.*(acquir|dispos|displos)/i,
+            qty: /(no\.?|number) of securit(y|ies).*(acquir|dispos|displos)/i,
+            value: /value of security/i,
+            txType: /(acquisition|disposal).*transaction type|^transaction type/i,
+            mode: /mode of acquisition/i,
+            fromDate: /date of (allotment|acquisition).*from/i,
+            intimation: /date of intimation/i,
+          };
+
+          /** Locate the header row and map each known column to its index. */
+          function mapCsvHeader(rows) {
+            for (let i = 0; i < rows.length; i++) {
+              const r = rows[i];
+              if (!r.some((c) => CSV_COLS.person.test(c))) continue;
+              const idx = {};
+              for (const [key, re] of Object.entries(CSV_COLS)) {
+                const at = r.findIndex((c) => re.test(c));
+                if (at >= 0) idx[key] = at;
+              }
+              return { headerAt: i, idx };
+            }
+            return null;
+          }
+
+          /**
+           * Parse NSE's PIT CSV export into the same row shape its JSON returns.
+           *
+           * The JSON API returns nothing for some companies that its own CSV export
+           * covers fully — Lenskart is one — so where the CSV is the only thing carrying
+           * the data, the CSV is what we read.
+           *
+           * Columns are located by header name (see CSV_COLS). If the header cannot be
+           * found, this returns nothing rather than guessing at positions: a wrong guess
+           * produces rows that look plausible and are entirely false, which is far worse
+           * than an empty result that says so.
+           */
+          function parsePitCsv(text, symbol) {
+            const rows = csvRows(text);
+            const header = mapCsvHeader(rows);
+            if (!header) return [];
+            const { headerAt, idx } = header;
+            // Without a person and a quantity there is no filing to record.
+            if (idx.person == null || idx.qty == null) return [];
+
+            const cell = (r, key) => (idx[key] != null ? (r[idx[key]] ?? "").trim() : "");
             const out = [];
-            for (const r of cells) {
-              // A data row names a person and a category, and carries dates at the end.
-              if (r.length < 19) continue;
-              const [company, person, category, type, buyQty, , buyVal, sellQty, , sellVal,
-                     pledgeQty, , pledgeVal, , , , , fromDate] = r;
-              if (!person || !category || /NAME OF PERSON/i.test(person)) continue;
-              const num = (v) => (v && v !== "-" ? v : "");
-              const isBuy = Boolean(num(buyQty));
-              const isSell = Boolean(num(sellQty));
-              const isPledge = Boolean(num(pledgeQty));
-              const qty = num(buyQty) || num(sellQty) || num(pledgeQty);
-              const val = num(buyVal) || num(sellVal) || num(pledgeVal);
-              if (!qty) continue;
+            for (let i = headerAt + 1; i < rows.length; i++) {
+              const r = rows[i];
+              const person = cell(r, "person");
+              if (!person) continue;
+              // The quantity must be an actual number. This is the check that keeps a
+              // repeated header — or any row that has drifted out of alignment — from
+              // being stored as a filing.
+              const qtyRaw = cell(r, "qty").replace(/,/g, "");
+              const qty = Number(qtyRaw);
+              if (!Number.isFinite(qty) || qty <= 0) continue;
+
+              const tx = cell(r, "txType") || cell(r, "mode");
               out.push({
-                symbol,
-                company,
+                symbol: cell(r, "symbol") || symbol,
+                company: cell(r, "company"),
                 acqName: person,
-                personCategory: category,
-                tdpTransactionType: isBuy ? "Buy" : isSell ? "Sell" : isPledge ? "Pledge" : "",
-                secType: type || "Equity Shares",
-                secAcq: qty,
-                secVal: val,
-                date: fromDate,
+                personCategory: cell(r, "category"),
+                tdpTransactionType: tx,
+                secType: cell(r, "secType") || "Equity Shares",
+                secAcq: String(qty),
+                secVal: cell(r, "value"),
+                date: cell(r, "fromDate") || cell(r, "intimation"),
               });
             }
             return out;
@@ -524,6 +582,40 @@ jobs:
 
             console.log(`→ ${rows.length} filings across ${bySymbol.size} companies (window ${wonWith})`);
 
+            // Print one finished row. The last run wrote 30,361 filings and reported
+            // success while every field was in the wrong column — a count alone cannot
+            // tell you the data is right, and nothing here was showing the data. One
+            // sample makes a misparse obvious at a glance instead of after it ships.
+            const [sampleSym, sampleRows] = bySymbol.entries().next().value ?? [];
+            if (sampleRows?.length) {
+              const s = sampleRows[0];
+              console.log(
+                `   sample ${sampleSym}: person="${s.person ?? ""}" role="${s.category}" ` +
+                  `side="${s.action ?? ""}" shares="${s.sharesText ?? ""}" value="${s.valueText ?? ""}" date="${s.date}"`
+              );
+            }
+
+            // A run that stored bad rows cannot be repaired by merging good ones on top —
+            // the bad rows have their own ids, so they survive the dedupe and stay on the
+            // page forever. INSIDER_RESET=1 drops every stored symbol first, so the run
+            // rewrites the store from scratch. Use it after fixing a parser; leave it off
+            // for normal daily runs, where accumulating history is the point.
+            const reset = process.env.INSIDER_RESET === "1";
+            if (reset) {
+              let cursor = "0";
+              let dropped = 0;
+              do {
+                const page = await kv(["SCAN", cursor, "MATCH", "insider:in:*", "COUNT", "500"]);
+                cursor = page?.[0] ?? "0";
+                const keys = (page?.[1] ?? []).filter((k) => k !== "insider:in:_meta");
+                for (let i = 0; i < keys.length; i += 100) {
+                  await kv(["DEL", ...keys.slice(i, i + 100)]);
+                }
+                dropped += keys.length;
+              } while (cursor !== "0");
+              console.log(`→ INSIDER_RESET: cleared ${dropped} stored symbol(s) before writing.`);
+            }
+
             let written = 0;
             for (const [symbol, fresh] of bySymbol) {
               const key = `insider:in:${symbol.toUpperCase()}`;
@@ -531,7 +623,7 @@ jobs:
               // as mergeStoredInsider does in the app.
               let existing = [];
               try {
-                const raw = await kv(["GET", key]);
+                const raw = reset ? null : await kv(["GET", key]);
                 if (raw) existing = JSON.parse(raw) ?? [];
               } catch {
                 /* treat an unreadable key as empty rather than losing the run */
@@ -559,6 +651,5 @@ jobs:
           }
 
           main().catch((e) => die(String(e)));
-
           QUANTIFI_INGEST_EOF
           node "$RUNNER_TEMP/ingest.mjs"
