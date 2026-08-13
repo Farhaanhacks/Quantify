@@ -135,5 +135,43 @@ check("name-only is NOT worth a card", !M.isSubstantive(bare));
 check("a long extract alone is enough", M.isSubstantive(bare, "x".repeat(200)));
 check("a short extract is not", !M.isSubstantive(bare, "Short."));
 
+console.log("\n[name drift between filings and encyclopaedias]");
+check("Jen-Hsun Huang is Jensen Huang", M.samePerson("Mr. Jen-Hsun Huang", "Jensen Huang"));
+check("honorific ignored", M.samePerson("Ms. Colette M. Kress", "Colette Kress"));
+check("middle initial ignored", M.samePerson("Colette Kress", "Colette M. Kress"));
+check("post-nominals ignored", M.samePerson("Prof. William J. Dally Ph.D.", "William Dally"));
+check("first initial matches a full given name", M.samePerson("J. Huang", "Jensen Huang"));
+check("a different surname is a different person", !M.samePerson("Jensen Huang", "Jensen Wang"));
+check("a different given name is a different person", !M.samePerson("Michael Huang", "Jensen Huang"));
+check("prefix rule is not a free pass", !M.samePerson("Ajay Puri", "Sanjay Puri"));
+check("a single name never matches", !M.samePerson("Huang", "Jensen Huang"));
+
+console.log("\n[reading leadership off the COMPANY item]");
+const NVIDIA = {
+  id: "Q182477",
+  labels: { en: { value: "Nvidia" } },
+  claims: {
+    P31: [item("P31", "Q4830453")],
+    P169: [item("P169", "Q92466")],       // chief executive officer
+    P112: [item("P112", "Q92466"), item("P112", "Q7676")], // founded by
+    P3320: [item("P3320", "Q555")],       // board member
+  },
+};
+const ids = M.leadershipIds(NVIDIA);
+check("collects the CEO", ids.includes("Q92466"), JSON.stringify(ids));
+check("collects founders and board", ids.includes("Q7676") && ids.includes("Q555"), JSON.stringify(ids));
+check("deduplicates a person listed twice", ids.filter((x) => x === "Q92466").length === 1);
+check("a company with no leadership claims yields none", M.leadershipIds({ id: "Q1", claims: {} }).length === 0);
+
+console.log("\n[aliases are where the filed spelling lives]");
+const HUANG = {
+  id: "Q92466",
+  labels: { en: { value: "Jensen Huang" } },
+  aliases: { en: [{ value: "Jen-Hsun Huang" }, { value: "Huang Jen-hsun" }] },
+};
+const names = M.allNames(HUANG);
+check("label and aliases returned", names.length === 3, JSON.stringify(names));
+check("the filed name matches through an alias", names.some((n) => M.samePerson("Mr. Jen-Hsun Huang", n)));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

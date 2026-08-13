@@ -31,23 +31,51 @@ export default function StockSectionNav({ sections }: { sections: NavSection[] }
     return () => timers.forEach(clearTimeout);
   }, [sections]);
 
-  // Scroll-spy: highlight the topmost section within the reading band.
+  // Scroll-spy: which section is the reader actually in?
+  //
+  // This used an IntersectionObserver over a narrow band (15%–25% of the
+  // viewport) and highlighted the topmost entry in the callback. Two faults,
+  // both of which showed as the wrong item staying lit:
+  //
+  //   - The callback only receives entries whose intersection CHANGED, not
+  //     everything currently visible. Picking the topmost of those picks the
+  //     topmost of a partial list.
+  //   - A section taller than the band never intersects it once its top has
+  //     scrolled past. Nothing fires, so whichever section last touched the
+  //     band stays highlighted — which is how reading Valuation left "My notes"
+  //     lit from an earlier scroll.
+  //
+  // Position is what the question was always about, so it is now measured
+  // directly: the active section is the LAST one whose top has passed the
+  // reading line. That holds for sections of any height and has no dependence
+  // on event history.
   useEffect(() => {
     if (!present.length) return;
-    const els = present
-      .map((s) => document.getElementById(s.id))
-      .filter((e): e is HTMLElement => e != null);
-    const obs = new IntersectionObserver(
-      (entries) => {
-        const vis = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        if (vis[0]) setActive(vis[0].target.id);
-      },
-      { rootMargin: "-15% 0px -75% 0px", threshold: 0 }
-    );
-    els.forEach((el) => obs.observe(el));
-    return () => obs.disconnect();
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      const line = window.innerHeight * 0.25;
+      let current = "";
+      for (const s of present) {
+        const el = document.getElementById(s.id);
+        if (!el) continue;
+        if (el.getBoundingClientRect().top <= line) current = s.id;
+      }
+      // Before the first section reaches the line, the reader is at the top of
+      // the page — highlight the first section rather than nothing.
+      setActive(current || present[0].id);
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(measure);
+    };
+    measure();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
   }, [present]);
 
   const jump = (id: string) =>

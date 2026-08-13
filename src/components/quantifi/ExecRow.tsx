@@ -172,9 +172,11 @@ export default function ExecRow({
                       , CC BY-SA
                     </>
                   ) : null}
-                  {p?.matchedOn === "summary-mentions-company"
-                    ? " · matched because the article names this company"
-                    : " · matched on a recorded link to this company"}
+                  {p?.matchedOn === "company-names-them"
+                    ? " · matched because this company's own record names them"
+                    : p?.matchedOn === "summary-mentions-company"
+                      ? " · matched because the article names this company"
+                      : " · matched on a recorded link to this company"}
                   . Not filed by the company; treat as background, not disclosure.
                 </p>
               </div>

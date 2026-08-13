@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { kvGet, kvSet, kvConfigured } from "@/lib/kv";
 import {
+  allNames,
   buildProfile,
   isSubstantive,
+  leadershipIds,
   referencedIds,
+  samePerson,
   verifyMatch,
   type ExecProfile,
   type WikidataEntity,
@@ -42,6 +45,8 @@ interface Payload {
   source?: string;
   /** Why nothing is shown, so the UI never has to guess. */
   reason?: "no-candidate" | "unverified" | "too-thin" | "upstream-error";
+  /** Only with ?debug=1 — which step ran and what it saw. */
+  debug?: Record<string, unknown>;
 }
 
 async function getJson(url: string): Promise<Record<string, unknown> | null> {
@@ -70,9 +75,9 @@ async function companyQids(company: string): Promise<string[]> {
 
 async function entitiesById(ids: string[]): Promise<Record<string, WikidataEntity>> {
   if (!ids.length) return {};
-  const url = `${WD_API}?action=wbgetentities&ids=${ids.join(
+  const url = `${WD_API}?action=wbgetentities&ids=${ids.slice(0, 40).join(
     "|"
-  )}&props=labels|descriptions|claims|sitelinks&languages=en&sitefilter=enwiki&format=json&origin=*`;
+  )}&props=labels|aliases|descriptions|claims|sitelinks&languages=en&sitefilter=enwiki&format=json&origin=*`;
   const j = await getJson(url);
   const ents = (j?.entities ?? {}) as Record<string, WikidataEntity>;
   return ents;
@@ -132,17 +137,64 @@ export async function GET(req: Request) {
 
   // Yahoo writes names as "Mr. Eee Boss" / "Ms. A. B. Sharma"; Wikidata does not.
   const cleaned = person.replace(/^(mr|mrs|ms|dr|prof|shri|smt)\.?\s+/i, "").trim();
+  const debug: Record<string, unknown> = {};
+  const wantDebug = sp.get("debug") === "1";
+  const done = (p: Payload) => finish(wantDebug ? { ...p, debug } : p);
 
+  const orgIds = await companyQids(company);
+  debug.companyQids = orgIds;
+
+  // ── 1. Ask the COMPANY who its people are ────────────────────────────────
+  //
+  // This is the path that matters and the one that was missing. Wikidata
+  // records corporate leadership on the company's item — NVIDIA holds
+  // "chief executive officer → Jensen Huang" — and very often the person's own
+  // item has no employer claim at all. Searching by name and then looking for a
+  // link back to the company therefore fails for exactly the best-documented
+  // executives.
+  //
+  // Starting here also settles the name problem for free: NVIDIA files its CEO
+  // as "Jen-Hsun Huang" and Wikidata labels him "Jensen Huang", so no string
+  // search on the filed name reliably finds him. Reading the company's own
+  // claim and matching surnames does.
+  const orgEntities = await entitiesById(orgIds);
+  const peopleIds = new Set<string>();
+  for (const qid of orgIds) {
+    const org = orgEntities[qid];
+    if (org) for (const pid of leadershipIds(org)) peopleIds.add(pid);
+  }
+  debug.leadershipCandidates = [...peopleIds];
+
+  if (peopleIds.size) {
+    const people = await entitiesById([...peopleIds]);
+    for (const pid of peopleIds) {
+      const ent = people[pid];
+      if (!ent) continue;
+      const names = allNames(ent);
+      if (!names.some((n) => samePerson(person, n))) continue;
+
+      debug.matchedVia = "company-names-them";
+      debug.matchedNames = names;
+      const labels = await labelsFor(referencedIds(ent));
+      const profile = buildProfile(ent, "company-names-them", labels);
+      const summary = profile.wikiTitle ? await wikiSummary(profile.wikiTitle) : null;
+      if (!isSubstantive(profile, summary?.extract)) return done({ found: false, reason: "too-thin" });
+      return done({ found: true, profile, extract: summary?.extract, source: summary?.url });
+    }
+  }
+
+  // ── 2. Fall back to searching by name ────────────────────────────────────
   const searchUrl = `${WD_API}?action=wbsearchentities&search=${encodeURIComponent(
     cleaned
   )}&language=en&type=item&limit=5&format=json&origin=*`;
   const search = await getJson(searchUrl);
-  if (!search) return finish({ found: false, reason: "upstream-error" });
+  if (!search) return done({ found: false, reason: "upstream-error" });
   const candidates = (Array.isArray(search.search) ? search.search : []) as { id?: string }[];
   const ids = candidates.map((c) => c.id).filter((x): x is string => Boolean(x));
-  if (!ids.length) return finish({ found: false, reason: "no-candidate" });
+  debug.nameSearchCandidates = ids;
+  if (!ids.length) return done({ found: false, reason: "no-candidate" });
 
-  const [entities, orgIds] = await Promise.all([entitiesById(ids), companyQids(company)]);
+  const entities = await entitiesById(ids);
 
   // Try each candidate in the order Wikidata ranked them, but accept only a
   // corroborated one.
@@ -161,14 +213,15 @@ export async function GET(req: Request) {
     }
     if (!matched) continue;
 
+    debug.matchedVia = matched;
     const labels = await labelsFor(referencedIds(ent));
     const profile = buildProfile(ent, matched, labels);
     if (!summary && profile.wikiTitle) summary = await wikiSummary(profile.wikiTitle);
 
     if (!isSubstantive(profile, summary?.extract)) {
-      return finish({ found: false, reason: "too-thin" });
+      return done({ found: false, reason: "too-thin" });
     }
-    return finish({
+    return done({
       found: true,
       profile,
       extract: summary?.extract,
@@ -176,5 +229,5 @@ export async function GET(req: Request) {
     });
   }
 
-  return finish({ found: false, reason: "unverified" });
+  return done({ found: false, reason: "unverified" });
 }

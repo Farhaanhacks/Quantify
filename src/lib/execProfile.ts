@@ -33,7 +33,24 @@ export const WD = {
   CHAIRPERSON_OF: "P488",
   FOUNDER_OF: "P112",
   OF: "P642", // qualifier: "<position> of <organisation>"
+  // Held by the COMPANY, pointing at people. This is how Wikidata actually
+  // records corporate leadership — the person's own item frequently has no
+  // employer claim at all.
+  CEO: "P169",
+  CHAIRPERSON: "P488",
+  DIRECTOR_MANAGER: "P1037",
+  BOARD_MEMBER: "P3320",
+  FOUNDED_BY: "P112",
 } as const;
+
+/** Properties on a COMPANY item that name its people. */
+export const LEADERSHIP_PROPS = [
+  WD.CEO,
+  WD.CHAIRPERSON,
+  WD.DIRECTOR_MANAGER,
+  WD.BOARD_MEMBER,
+  WD.FOUNDED_BY,
+];
 
 /** Claim-holding properties that can tie a person to an organisation. */
 const ORG_LINK_PROPS = [WD.EMPLOYER, WD.MEMBER_OF_BOARD, WD.CHAIRPERSON_OF, WD.FOUNDER_OF];
@@ -61,7 +78,11 @@ export interface ExecProfile {
   /** Wikipedia article title, for the extract and the attribution link. */
   wikiTitle?: string;
   /** Which rule accepted this match. Shown to the reader, not just logged. */
-  matchedOn: "employer-claim" | "position-claim" | "summary-mentions-company";
+  matchedOn:
+    | "company-names-them"
+    | "employer-claim"
+    | "position-claim"
+    | "summary-mentions-company";
 }
 
 const claimList = (e: WikidataEntity, prop: string): Record<string, unknown>[] =>
@@ -113,6 +134,63 @@ export function normaliseOrg(s: string): string {
 /** The distinctive words of a company name — what a summary would actually say. */
 export function orgTokens(company: string): string[] {
   return normaliseOrg(company).split(" ").filter((t) => t.length >= 3);
+}
+
+/** Strip honorifics and punctuation; lowercase. */
+export function nameTokens(name: string): string[] {
+  return name
+    .replace(/^(mr|mrs|ms|dr|prof|shri|smt)\.?\s+/i, "")
+    .replace(/\b(jr|sr|ph\.?d|j\.?d|m\.?d|cfa)\b\.?/gi, " ")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+/**
+ * Is this Wikidata label the same person as this roster name?
+ *
+ * Filings and encyclopaedias disagree about given names more often than you
+ * would expect: NVIDIA files its chief executive as "Jen-Hsun Huang" and
+ * Wikidata calls him "Jensen Huang". Requiring the strings to match loses him.
+ *
+ * The surname must match exactly — that is the part that does not drift. The
+ * given name only has to be consistent: identical, a prefix of the other
+ * ("Jen" / "Jensen"), or an initial. Middle names and initials are ignored on
+ * both sides.
+ */
+export function samePerson(rosterName: string, candidate: string): boolean {
+  const a = nameTokens(rosterName);
+  const b = nameTokens(candidate);
+  if (a.length < 2 || b.length < 2) return false;
+  if (a[a.length - 1] !== b[b.length - 1]) return false; // surname must agree
+
+  const fa = a[0];
+  const fb = b[0];
+  if (fa === fb) return true;
+  if (fa.length === 1 || fb.length === 1) return fa[0] === fb[0]; // initial
+  return fa.startsWith(fb) || fb.startsWith(fa);
+}
+
+/** Every person QID a company item names as leadership. */
+export function leadershipIds(company: WikidataEntity): string[] {
+  const ids = new Set<string>();
+  for (const prop of LEADERSHIP_PROPS) {
+    for (const c of claimList(company, prop)) {
+      const id = claimId(c);
+      if (id) ids.add(id);
+    }
+  }
+  return [...ids];
+}
+
+/** Labels plus aliases, which is where "Jen-Hsun" usually lives. */
+export function allNames(e: WikidataEntity & { aliases?: Record<string, { value: string }[]> }, lang = "en"): string[] {
+  const out: string[] = [];
+  const label = e.labels?.[lang]?.value;
+  if (label) out.push(label);
+  for (const a of e.aliases?.[lang] ?? []) if (a?.value) out.push(a.value);
+  return out;
 }
 
 /**

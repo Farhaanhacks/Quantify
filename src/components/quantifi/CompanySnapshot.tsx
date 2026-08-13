@@ -65,7 +65,6 @@ export default function CompanySnapshot({
   const radarLabels = SCORE_AXES.map((axis) => axis.short);
 
   const gap = ((a.fairValue.estimate - resolvedPrice) / resolvedPrice) * 100;
-  const under = gap > 0;
 
   // --- Synthesis: strongest / weakest axis, a risk lens and a one-line read ---
   const ranked = [...SCORE_AXES]
@@ -131,16 +130,16 @@ export default function CompanySnapshot({
 
   const analystCard = (
     <GlassCard className="mt-4 p-5 sm:p-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <div className="text-[0.7rem] uppercase tracking-[0.16em] text-slate-500">
-            Fair value estimate · {a.fairValue.method}
-          </div>
-          <p className="mt-1 max-w-md text-xs text-slate-500">{a.fairValue.note}</p>
+      {/* No summary pill here. It said the same thing as the figure directly
+          beneath it, and said it differently: the pill measured the gap against
+          the PRICE and the bars measure it against the FAIR VALUE, so ₹271.10
+          against ₹314.89 produced "16%" in one line and "13.9%" in the next. One number, in the place that
+          explains itself. */}
+      <div>
+        <div className="text-[0.7rem] uppercase tracking-[0.16em] text-slate-500">
+          Fair value estimate · {a.fairValue.method}
         </div>
-        <Tag tone={under ? "up" : "down"}>
-          {under ? "Below" : "Above"} fair value · {Math.abs(gap).toFixed(0)}%
-        </Tag>
+        <p className="mt-1 max-w-md text-xs text-slate-500">{a.fairValue.note}</p>
       </div>
       <div className="mt-5">
         <FairValueBars
