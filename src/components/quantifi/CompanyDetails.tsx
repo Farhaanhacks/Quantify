@@ -163,6 +163,55 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
         </GlassCard>
       </section>
 
+      {/* ── Leadership ────────────────────────────────────────────────────── */}
+      {data.officers?.length ? (
+        <section className="mx-auto max-w-7xl px-4 pb-4 sm:px-6 lg:px-8">
+          <SectionHeading
+            eyebrow="Leadership"
+            title="Who runs the company"
+            subtitle="Named executives as disclosed in the company's filings, most senior first. Pay is total reported compensation for the stated fiscal year."
+          />
+          <GlassCard className="mt-6 overflow-hidden">
+            <div className="hidden grid-cols-[1.3fr_1.6fr_0.5fr_0.8fr] gap-3 border-b border-white/[0.06] px-5 py-3 text-[0.62rem] uppercase tracking-[0.16em] text-slate-500 sm:grid">
+              <span>Name</span>
+              <span>Role</span>
+              <span className="text-right">Age</span>
+              <span className="text-right">Total pay</span>
+            </div>
+            <ul className="divide-y divide-white/[0.05]">
+              {data.officers.map((o) => (
+                <li
+                  key={`${o.name}-${o.title}`}
+                  className="grid grid-cols-1 gap-1 px-5 py-3.5 sm:grid-cols-[1.3fr_1.6fr_0.5fr_0.8fr] sm:items-center sm:gap-3"
+                >
+                  <span className="font-display text-sm font-semibold text-white">{o.name}</span>
+                  <span className="text-xs text-slate-400">{o.title}</span>
+                  <span className="text-xs text-slate-400 sm:text-right">
+                    <span className="text-slate-600 sm:hidden">Age · </span>
+                    {o.age != null ? o.age : "—"}
+                  </span>
+                  <span className="font-mono text-xs tnum text-slate-300 sm:text-right">
+                    <span className="font-sans text-slate-600 sm:hidden">Pay · </span>
+                    {o.totalPay != null ? compact(o.totalPay) : "—"}
+                    {o.totalPay != null && o.fiscalYear ? (
+                      <span className="ml-1 font-sans text-[0.65rem] text-slate-600">FY{o.fiscalYear}</span>
+                    ) : null}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {/* Said plainly, because the gap is the first thing a reader will
+                notice. Yahoo's profile carries the roster and the pay, and no
+                biography at all — so rather than leave an empty "Profile"
+                column implying we lost it, the section states what it is. */}
+            <p className="border-t border-white/[0.06] px-5 py-3 text-[0.72rem] leading-relaxed text-slate-500">
+              Roster and compensation only — this source carries no biographies, so no career history or
+              qualifications are shown. Figures are as last filed and can lag a recent appointment.
+            </p>
+          </GlassCard>
+        </section>
+      ) : null}
+
       {/* ── Financials ────────────────────────────────────────────────────── */}
       <section className="mx-auto max-w-7xl px-4 pb-4 sm:px-6 lg:px-8">
         <SectionHeading

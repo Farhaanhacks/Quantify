@@ -3,6 +3,7 @@
 // Yahoo Finance's public endpoints, for personal non-commercial use. Every field
 // is optional; callers render "n/a" when something is missing.
 import { yahooQuoteSummary } from "@/lib/yahooCrumb";
+import { parseOfficers, type Officer } from "@/lib/officers";
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
@@ -125,6 +126,8 @@ export interface CompanyData {
   cashflowStatements?: FinRow[];
   // news
   news?: CompanyNews[];
+  // Named executives, from Yahoo's assetProfile.
+  officers?: Officer[];
   resolvedFrom?: string;
 }
 
@@ -466,6 +469,7 @@ export async function getYahooCompany(input: string): Promise<CompanyData | null
     sector: str(ap.sector),
     industry: str(ap.industry),
     website: str(ap.website),
+    officers: parseOfficers(ap.companyOfficers),
     employees: num(ap.fullTimeEmployees),
     country: str(ap.country),
     currency: str(pr.currency) ?? str(sd.currency),

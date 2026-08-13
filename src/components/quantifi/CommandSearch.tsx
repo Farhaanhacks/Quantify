@@ -112,12 +112,38 @@ function fmtWhen(iso: string): string {
   return new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-/** Monogram standing in for a company logo. */
-function Monogram({ text }: { text: string }) {
-  const letter = (text || "?").trim().charAt(0).toUpperCase();
+/**
+ * The company's logo, with its initial as the fallback.
+ *
+ * /api/logo answers 404 for anything it cannot find a real logo for, and that
+ * 404 is the signal to draw the letter instead. Rendering both and hiding one
+ * with CSS would still cost the request and still flash; this swaps on the
+ * image's own error event, so a company without a logo simply looks like it was
+ * always meant to be a letter tile.
+ */
+function CompanyMark({ symbol, name }: { symbol?: string; name: string }) {
+  const [failed, setFailed] = useState(false);
+  const letter = (name || symbol || "?").trim().charAt(0).toUpperCase();
+  const box =
+    "flex h-9 w-9 flex-none items-center justify-center overflow-hidden rounded-md border border-white/10 bg-white/[0.05]";
+
+  if (!symbol || failed) {
+    return <span className={`${box} font-display text-sm font-semibold text-slate-300`}>{letter}</span>;
+  }
   return (
-    <span className="flex h-9 w-9 flex-none items-center justify-center rounded-md border border-white/10 bg-white/[0.05] font-display text-sm font-semibold text-slate-300">
-      {letter}
+    <span className={box}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- next/image would
+          route this through the optimiser for a 64px icon that is already
+          cached at the edge by /api/logo. */}
+      <img
+        src={`/api/logo/${encodeURIComponent(symbol)}`}
+        alt=""
+        width={36}
+        height={36}
+        loading="lazy"
+        onError={() => setFailed(true)}
+        className="h-full w-full object-contain p-1"
+      />
     </span>
   );
 }
@@ -481,7 +507,7 @@ export default function CommandSearch({ className = "" }: { className?: string }
                             }
                             className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-white/[0.05]"
                           >
-                            <Monogram text={p.n} />
+                            <CompanyMark symbol={p.s} name={p.n} />
                             <span className="min-w-0 flex-1">
                               <span className="block truncate text-sm font-medium text-white">{p.n}</span>
                               <span className="block truncate text-[0.7rem] text-slate-500">{p.s}</span>
@@ -516,7 +542,7 @@ export default function CommandSearch({ className = "" }: { className?: string }
                             i === active ? "bg-white/[0.07]" : "hover:bg-white/[0.05]"
                           }`}
                         >
-                          <Monogram text={m.name} />
+                          <CompanyMark symbol={m.symbol} name={m.name} />
                           <span className="min-w-0 flex-1">
                             <span className="flex items-center gap-1.5">
                               <span className="min-w-0 truncate text-sm font-medium text-white">{m.name}</span>
