@@ -10,6 +10,10 @@
   --text: #f2f5fa;
   --text-dim: #94a3b8;
   --text-mute: #64748b;
+  /* Amber used for text ON the light background of a chart chip. Plain
+     amber-400 is fine on the dark canvas and near-invisible on the light one,
+     so the two themes need different inks rather than one compromise. */
+  --amber-ink: #fbbf24;
 }
 
 html {
@@ -40,6 +44,7 @@ html.light {
   --text: #0b0f1a;
   --text-dim: #475569;
   --text-mute: #64748b;
+  --amber-ink: #7a5406;
 }
 html.light body::before {
   background:

@@ -160,21 +160,42 @@ export default function PeRatioChart({ symbol, name }: { symbol: string; name?: 
                 </text>
               </g>
             ))}
-            {/* Median P/E reference — label sits in a chip lifted above the line
-                so neither the dashed line nor the price line overwrites it. */}
+            {/* Median P/E reference line. The LINE belongs under the data — it
+                is a backdrop, not a series. Its LABEL does not: see below. */}
             {medY != null ? (
-              <>
-                <line x1={padL} x2={W - padR} y1={medY} y2={medY} stroke="rgba(245,158,11,0.55)" strokeWidth="1.5" strokeDasharray="6 4" />
-                <rect x={padL + 3} y={medY - 17} width={74} height={14} rx={3} fill="rgba(9,13,20,0.92)" stroke="rgba(245,158,11,0.35)" strokeWidth="0.75" />
-                <text x={padL + 8} y={medY - 7} className="fill-amber-400" style={{ fontSize: 10, fontWeight: 600 }}>
-                  median {median.toFixed(0)}×
-                </text>
-              </>
+              <line x1={padL} x2={W - padR} y1={medY} y2={medY} stroke="rgba(245,158,11,0.55)" strokeWidth="1.5" strokeDasharray="6 4" />
             ) : null}
             {/* Price line */}
             <polyline fill="none" stroke="#4F93F7" strokeWidth="2" vectorEffect="non-scaling-stroke" points={priceLine} />
             {/* P/E line */}
             <polyline fill="none" stroke="#F59E0B" strokeWidth="2.25" vectorEffect="non-scaling-stroke" points={peLine} />
+            {/* Median LABEL, drawn last so it sits on top of everything.
+                Lifting it above the dashed line was not enough: SVG paints in
+                document order, so both polylines were drawn after it and the
+                P/E curve ran straight through the text wherever it happened to
+                cross this height. A chip is only opaque against what precedes
+                it. Placed here, nothing can overwrite it. */}
+            {medY != null ? (
+              <g>
+                <rect
+                  x={padL + 3}
+                  y={medY - 18}
+                  width={78}
+                  height={15}
+                  rx={3}
+                  /* The page background, so the chip reads as a hole punched
+                     through the lines rather than a black sticker — which is
+                     what a hard-coded dark fill became in light mode. */
+                  fill="var(--bg)"
+                  fillOpacity={0.97}
+                  stroke="rgba(245,158,11,0.45)"
+                  strokeWidth="0.75"
+                />
+                <text x={padL + 9} y={medY - 7} style={{ fontSize: 10, fontWeight: 600, fill: "var(--amber-ink)" }}>
+                  median {median.toFixed(0)}×
+                </text>
+              </g>
+            ) : null}
             {/* x-axis endpoints */}
             <text x={padL} y={H - 8} className="fill-slate-500" style={{ fontSize: 10 }}>{series[0].t}</text>
             <text x={W - padR} y={H - 8} textAnchor="end" className="fill-slate-500" style={{ fontSize: 10 }}>
