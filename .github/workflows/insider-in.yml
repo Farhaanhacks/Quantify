@@ -223,6 +223,65 @@ jobs:
             return best;
           }
 
+
+          /**
+           * Parse NSE's PIT CSV export into the same row shape its JSON returns.
+           *
+           * The JSON API returns nothing for some companies that its own CSV export
+           * covers fully — Lenskart is one, with 90-odd filings in the export and zero in
+           * every JSON form tried. Where the CSV is the only thing carrying the data, the
+           * CSV is what we read.
+           *
+           * The export's header spans several physical lines, so rows are located by
+           * their own shape rather than by counting header lines.
+           */
+          function parsePitCsv(text, symbol) {
+            const cells = [];
+            let cur = "";
+            let row = [];
+            let inQuotes = false;
+            for (let i = 0; i < text.length; i++) {
+              const c = text[i];
+              if (inQuotes) {
+                if (c === '"' && text[i + 1] === '"') { cur += '"'; i++; }
+                else if (c === '"') inQuotes = false;
+                else cur += c;
+              } else if (c === '"') inQuotes = true;
+              else if (c === ",") { row.push(cur.trim()); cur = ""; }
+              else if (c === "\n") { row.push(cur.trim()); cells.push(row); row = []; cur = ""; }
+              else if (c !== "\r") cur += c;
+            }
+            if (cur || row.length) { row.push(cur.trim()); cells.push(row); }
+
+            const out = [];
+            for (const r of cells) {
+              // A data row names a person and a category, and carries dates at the end.
+              if (r.length < 19) continue;
+              const [company, person, category, type, buyQty, , buyVal, sellQty, , sellVal,
+                     pledgeQty, , pledgeVal, , , , , fromDate] = r;
+              if (!person || !category || /NAME OF PERSON/i.test(person)) continue;
+              const num = (v) => (v && v !== "-" ? v : "");
+              const isBuy = Boolean(num(buyQty));
+              const isSell = Boolean(num(sellQty));
+              const isPledge = Boolean(num(pledgeQty));
+              const qty = num(buyQty) || num(sellQty) || num(pledgeQty);
+              const val = num(buyVal) || num(sellVal) || num(pledgeVal);
+              if (!qty) continue;
+              out.push({
+                symbol,
+                company,
+                acqName: person,
+                personCategory: category,
+                tdpTransactionType: isBuy ? "Buy" : isSell ? "Sell" : isPledge ? "Pledge" : "",
+                secType: type || "Equity Shares",
+                secAcq: qty,
+                secVal: val,
+                date: fromDate,
+              });
+            }
+            return out;
+          }
+
           /**
            * Every symbol listed on NSE, from NSE's own equity list.
            *
@@ -363,11 +422,16 @@ jobs:
                   name: "dated(1y)",
                   make: (x) => `${base}&symbol=${encodeURIComponent(x)}&from_date=${yearAgo}&to_date=${todayStr}`,
                 },
-                { name: "period=1Y", make: (x) => `${base}&symbol=${encodeURIComponent(x)}&period=1Y` },
                 { name: "period=Annual", make: (x) => `${base}&symbol=${encodeURIComponent(x)}&period=Annual` },
+                // NSE's own CSV export carries this company's filings — that export is
+                // where the evidence came from — while every JSON form returns nothing.
+                // So ask for the CSV. `csv=true` is what the Download button on the
+                // filings page appends.
+                { name: "csv", csv: true, make: (x) => `${base}&symbol=${encodeURIComponent(x)}&csv=true` },
                 {
-                  name: "iso-dated(1y)",
-                  make: (x) => `${base}&symbol=${encodeURIComponent(x)}&from_date=${iso(ago(365))}&to_date=${iso(new Date())}`,
+                  name: "csv+Annual",
+                  csv: true,
+                  make: (x) => `${base}&symbol=${encodeURIComponent(x)}&period=Annual&csv=true`,
                 },
               ];
               let form = forms[0];
@@ -377,14 +441,18 @@ jobs:
               for (const f of forms) {
                 let n = 0;
                 let status = "err";
+                let snippet = "";
                 try {
-                  const r = await nseGet(f.make(probeSym));
+                  const r = await nseGet(f.make(probeSym), f.csv ? "text/csv,*/*" : undefined);
                   status = r.status;
-                  n = extractRows(r.json).length;
+                  n = f.csv ? parsePitCsv(r.text, probeSym).length : extractRows(r.json).length;
+                  snippet = r.text.slice(0, 120).replace(/\s+/g, " ");
                 } catch (e) {
                   status = String(e).slice(0, 40);
                 }
-                console.log(`   ${f.name}: HTTP ${status}, ${n} rows`);
+                // Print what came back, not just the count. A zero with no body is what
+                // sent this round in circles.
+                console.log(`   ${f.name}: HTTP ${status}, ${n} rows — ${snippet}`);
                 // Keep the BEST, not the first: a form returning a year of filings beats
                 // one returning only this week's.
                 if (n > best) {
@@ -418,8 +486,8 @@ jobs:
                 // job: one timeout at symbol 2250 of 2401 threw away 26,350 rows already
                 // fetched. Nothing about one company should cost the other two thousand.
                 try {
-                  const res = await nseGet(form.make(sym));
-                  const data = extractRows(res.json);
+                  const res = await nseGet(form.make(sym), form.csv ? "text/csv,*/*" : undefined);
+                  const data = form.csv ? parsePitCsv(res.text, sym) : extractRows(res.json);
                   if (data.length) {
                     hit++;
                     rows.push(...data);
