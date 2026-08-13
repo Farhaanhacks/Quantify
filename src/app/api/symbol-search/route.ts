@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { COUNTRY_ISO, countryForSymbol } from "@/lib/listingCountry";
+import { type SearchHit, tokensOf, coversAllTokens, rank } from "@/lib/searchRank";
 
 export const dynamic = "force-dynamic";
 
@@ -8,18 +9,6 @@ const UA =
 
 const str = (v: unknown): string | undefined =>
   typeof v === "string" && v.trim() ? v.trim() : undefined;
-
-export interface SearchHit {
-  symbol: string;
-  name: string;
-  type: string;
-  exchange: string;
-  flag: string;
-  /** ISO-3166 alpha-2, so the client can draw a flag rather than rely on emoji. */
-  country?: string;
-  /** Normalised class: what this listing actually is. */
-  kind?: "Stock" | "ETF" | "Fund" | "Index";
-}
 
 // Yahoo and EODHD each describe the same thing several ways ("Common Stock",
 // "EQUITY", "FUND", "Mutual Fund", "ETF"). One label, so the UI can say what a
@@ -33,48 +22,6 @@ function kindOf(type: string, symbol: string): SearchHit["kind"] {
   // sort among real companies unless they're recognised for what they are.
   if (/fund|mutual|oeic|sicav|unit trust/.test(t) || /^0P[0-9A-Z]{6,}/i.test(symbol)) return "Fund";
   return "Stock";
-}
-
-// Rank so a search for a company finds the company.
-//
-// EODHD returns matches in its own order, which put six Morningstar fund codes
-// above Kotak Mahindra Bank for the query "kotak". Nothing was sorting them;
-// the route simply truncated whatever arrived. Ordering, most significant
-// first: what the thing is, how squarely the name matches, and whether the
-// symbol is one a human would recognise.
-function rank(hit: SearchHit, q: string): number {
-  const name = hit.name.toLowerCase();
-  const sym = hit.symbol.toUpperCase();
-  const query = q.toLowerCase().trim();
-  let score = 0;
-
-  // 1. Companies first, then ETFs, then funds. This is the whole complaint.
-  score += { Stock: 0, ETF: 300, Fund: 600, Index: 450 }[hit.kind ?? "Stock"];
-
-  // 2. A name that starts with the query beats one that merely contains it.
-  if (name === query) score -= 120;
-  else if (name.startsWith(query)) score -= 80;
-  else if (new RegExp(`\\b${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(name)) score -= 40;
-
-  // 3. An exact ticker match is almost always what was meant.
-  if (sym === query.toUpperCase() || sym.split(".")[0] === query.toUpperCase()) score -= 150;
-
-  // 4. A row whose name is just its own code tells the reader nothing —
-  //    "0P0000GBDS.BO" is not a search result, it is an identifier. These sink
-  //    below anything with a real name, including other funds.
-  const nameIsJustTheCode =
-    name.replace(/\.[a-z]{1,4}$/, "") === sym.replace(/\.[A-Z]{1,4}$/, "").toLowerCase();
-  if (nameIsJustTheCode) score += 400;
-  else if (/^0P[0-9A-Z]{6,}/i.test(sym)) score += 60; // named, but still an opaque ticker
-
-  // 5. Primary listings over OTC/pink-sheet cross-listings. Kept well below the
-  //    no-name penalty, so a named OTC fund still beats an unnamed local one.
-  if (/otc|pink|grey/i.test(hit.exchange)) score += 50;
-
-  // 6. Shorter names are usually the parent company rather than a share class.
-  score += Math.min(40, name.length / 4);
-
-  return score;
 }
 
 // Map a Yahoo symbol's exchange suffix to a country flag so users can eyeball the
@@ -255,6 +202,42 @@ export async function GET(req: Request) {
     seen.add(dedupeKey);
     merged.push(hit);
   }
+  // A multi-word query that the phrase indexes could not answer.
+  //
+  // Both upstreams match roughly left-to-right, so "HDFC insurance" returns
+  // nothing at all — the company is registered as "HDFC Life Insurance Company
+  // Limited", and unless you type those words in that order you get an empty
+  // panel. Nobody searching knows a company's registered word order; that is
+  // the thing they are searching to find out.
+  //
+  // So when the words are not all covered by what came back, ask again for a
+  // SINGLE word and keep only the rows containing every other word too. The
+  // brand word is usually first and the longest word is usually the most
+  // distinctive, so both are tried — in parallel, and only on this path, so a
+  // query that already worked costs nothing extra.
+  const tokens = tokensOf(q);
+  if (tokens.length > 1 && merged.filter((h) => coversAllTokens(h, tokens)).length < 5) {
+    const longest = [...tokens].sort((a, b) => b.length - a.length)[0];
+    const seeds = [...new Set([tokens[0], longest])];
+    const widened = await Promise.all(
+      seeds.flatMap((seed) => [
+        yahooSearch(seed),
+        key ? eodhdSearch(seed, key) : Promise.resolve(null),
+      ])
+    );
+    for (const hit of widened.flat()) {
+      if (!hit) continue;
+      const dedupeKey = hit.symbol.toUpperCase();
+      if (seen.has(dedupeKey)) continue;
+      // Only rows that carry EVERY word. Without this, searching "hdfc
+      // insurance" would return every HDFC entity there is, which is a
+      // different kind of wrong answer.
+      if (!coversAllTokens(hit, tokens)) continue;
+      seen.add(dedupeKey);
+      merged.push(hit);
+    }
+  }
+
   merged.sort((a, b) => rank(a, q) - rank(b, q));
   return NextResponse.json({ results: merged.slice(0, 8) });
 }

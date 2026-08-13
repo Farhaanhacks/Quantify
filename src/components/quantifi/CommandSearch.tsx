@@ -80,20 +80,36 @@ function pushRecent(m: Match) {
   }
 }
 
-type Group = "all" | "companies" | "funds" | "indices" | "pages";
+/** A headline from /api/news-for. */
+interface NewsHit {
+  title: string;
+  link: string;
+  source: string;
+  published: string;
+}
+
+type Group = "all" | "companies" | "funds" | "indices" | "news" | "pages";
 
 const GROUP_LABEL: Record<Group, string> = {
   all: "All results",
   companies: "Companies",
   funds: "ETFs & funds",
   indices: "Indices",
+  news: "News",
   pages: "Pages",
 };
 
-function groupOf(m: Match): Exclude<Group, "all" | "pages"> {
+function groupOf(m: Match): Exclude<Group, "all" | "pages" | "news"> {
   if (m.kind === "Index") return "indices";
   if (m.kind === "ETF" || m.kind === "Fund") return "funds";
   return "companies";
+}
+
+/** "Nov 23, 2025" — the same shape the rest of the app prints dates in. */
+function fmtWhen(iso: string): string {
+  const t = Date.parse(iso);
+  if (isNaN(t)) return "";
+  return new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 /** Monogram standing in for a company logo. */
@@ -129,6 +145,7 @@ export default function CommandSearch({ className = "" }: { className?: string }
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Match[]>([]);
+  const [news, setNews] = useState<NewsHit[]>([]);
   const [recent, setRecent] = useState<Match[]>([]);
   const [loading, setLoading] = useState(false);
   const [group, setGroup] = useState<Group>("all");
@@ -179,6 +196,7 @@ export default function CommandSearch({ className = "" }: { className?: string }
   useEffect(() => {
     if (!open || term.length < 1) {
       setResults([]);
+      setNews([]);
       setLoading(false);
       return;
     }
@@ -201,6 +219,38 @@ export default function CommandSearch({ className = "" }: { className?: string }
     return () => clearTimeout(t);
   }, [term, open]);
 
+  // Headlines for whatever the search actually resolved to.
+  //
+  // Keyed off the TOP company hit rather than the raw text: /api/news-for takes
+  // a ticker and picks the right Google News edition from it, so a search that
+  // lands on HDFCLIFE.NS gets the Indian press rather than whatever a global
+  // edition makes of the words "hdfc insurance". With no company hit we fall
+  // back to searching the words themselves, which is better than nothing.
+  const topSymbol = results[0]?.symbol;
+  useEffect(() => {
+    if (!open || term.length < 2) {
+      setNews([]);
+      return;
+    }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const qs = topSymbol
+          ? `ticker=${encodeURIComponent(topSymbol)}`
+          : `name=${encodeURIComponent(term)}`;
+        const r = await fetch(`/api/news-for?${qs}`);
+        const d = await r.json();
+        if (!cancelled) setNews(Array.isArray(d.articles) ? d.articles.slice(0, 6) : []);
+      } catch {
+        if (!cancelled) setNews([]);
+      }
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [open, term, topSymbol]);
+
   // Pages match on label, description and their extra keywords.
   const pageHits = useMemo(() => {
     if (term.length < 1) return [];
@@ -214,19 +264,35 @@ export default function CommandSearch({ className = "" }: { className?: string }
   }, [term]);
 
   const counts = useMemo(() => {
-    const c: Record<Group, number> = { all: 0, companies: 0, funds: 0, indices: 0, pages: pageHits.length };
+    const c: Record<Group, number> = {
+      all: 0,
+      companies: 0,
+      funds: 0,
+      indices: 0,
+      news: news.length,
+      pages: pageHits.length,
+    };
     for (const m of results) c[groupOf(m)]++;
-    c.all = results.length + pageHits.length;
+    c.all = results.length + news.length + pageHits.length;
     return c;
-  }, [results, pageHits]);
+  }, [results, news, pageHits]);
 
   const visibleSymbols = useMemo(
-    () => (group === "all" ? results : group === "pages" ? [] : results.filter((m) => groupOf(m) === group)),
+    () =>
+      group === "all"
+        ? results
+        : group === "pages" || group === "news"
+          ? []
+          : results.filter((m) => groupOf(m) === group),
     [results, group]
   );
   const visiblePages = useMemo(
     () => (group === "all" || group === "pages" ? pageHits : []),
     [group, pageHits]
+  );
+  const visibleNews = useMemo(
+    () => (group === "all" || group === "news" ? news : []),
+    [group, news]
   );
 
   // One flat list for arrow-key traversal, symbols first then pages — the same
@@ -234,15 +300,17 @@ export default function CommandSearch({ className = "" }: { className?: string }
   const flat = useMemo(
     () => [
       ...visibleSymbols.map((m) => ({ kind: "symbol" as const, m })),
+      ...visibleNews.map((n) => ({ kind: "news" as const, n })),
       ...visiblePages.map((p) => ({ kind: "page" as const, p })),
     ],
-    [visibleSymbols, visiblePages]
+    [visibleSymbols, visibleNews, visiblePages]
   );
 
   const close = useCallback(() => {
     setOpen(false);
     setQ("");
     setResults([]);
+    setNews([]);
     setGroup("all");
   }, []);
 
@@ -253,6 +321,17 @@ export default function CommandSearch({ className = "" }: { className?: string }
       router.push(`/stock-analysis?symbol=${encodeURIComponent(m.symbol)}`);
     },
     [close, router]
+  );
+
+  // Headlines live on the publisher's site, so they open in a new tab and leave
+  // the app where it was. noopener/noreferrer because the destination is a
+  // third party we do not control.
+  const openArticle = useCallback(
+    (n: NewsHit) => {
+      close();
+      window.open(n.link, "_blank", "noopener,noreferrer");
+    },
+    [close]
   );
 
   const choosePage = useCallback(
@@ -275,6 +354,7 @@ export default function CommandSearch({ className = "" }: { className?: string }
       const item = flat[active];
       if (!item) return;
       if (item.kind === "symbol") chooseSymbol(item.m);
+      else if (item.kind === "news") openArticle(item.n);
       else choosePage(item.p);
     }
   };
@@ -458,13 +538,54 @@ export default function CommandSearch({ className = "" }: { className?: string }
                       </li>
                     ))}
 
+                    {visibleNews.length ? (
+                      <li className="px-2 pb-1 pt-4 text-[0.6rem] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                        News
+                      </li>
+                    ) : null}
+                    {visibleNews.map((n, j) => {
+                      const i = visibleSymbols.length + j;
+                      return (
+                        <li key={n.link}>
+                          <button
+                            type="button"
+                            data-idx={i}
+                            onMouseEnter={() => setActive(i)}
+                            onClick={() => openArticle(n)}
+                            className={`flex w-full items-start gap-3 rounded-lg px-2 py-2 text-left transition ${
+                              i === active ? "bg-white/[0.07]" : "hover:bg-white/[0.05]"
+                            }`}
+                          >
+                            {/* No thumbnail. The reference shows one per row,
+                                but each would be a third-party image request
+                                the CSP blocks — and a row of broken frames is
+                                worse than none. */}
+                            <span className="mt-0.5 flex h-9 w-9 flex-none items-center justify-center rounded-md border border-white/10 bg-white/[0.05] text-slate-400">
+                              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7">
+                                <path d="M4 5h13v14H5a1 1 0 0 1-1-1V5Z" strokeLinejoin="round" />
+                                <path d="M17 9h3v9a1 1 0 0 1-1 1h-2" strokeLinejoin="round" />
+                                <path d="M7 9h7M7 12.5h7M7 16h4" strokeLinecap="round" />
+                              </svg>
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="line-clamp-2 text-sm font-medium text-white">{n.title}</span>
+                              <span className="mt-0.5 block truncate text-[0.7rem] text-slate-500">
+                                {n.source}
+                                {n.published ? ` · ${fmtWhen(n.published)}` : ""}
+                              </span>
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+
                     {visiblePages.length ? (
                       <li className="px-2 pb-1 pt-4 text-[0.6rem] font-semibold uppercase tracking-[0.16em] text-slate-500">
                         Pages
                       </li>
                     ) : null}
                     {visiblePages.map((p, j) => {
-                      const i = visibleSymbols.length + j;
+                      const i = visibleSymbols.length + visibleNews.length + j;
                       return (
                         <li key={p.href}>
                           <button
