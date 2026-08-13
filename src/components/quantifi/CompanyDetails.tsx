@@ -186,6 +186,7 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
                   key={`${o.name}-${o.title}`}
                   officer={o}
                   company={data.name ?? data.symbol}
+                  symbol={data.symbol}
                   fmtPay={(n) => compact(n)}
                 />
               ))}

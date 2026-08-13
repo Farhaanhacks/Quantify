@@ -41,10 +41,13 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 export default function ExecRow({
   officer,
   company,
+  symbol,
   fmtPay,
 }: {
   officer: Officer;
   company: string;
+  /** The listing's ticker — an exact handle on the company where its filed name is an abbreviation. */
+  symbol?: string;
   fmtPay: (n: number) => string;
 }) {
   const [open, setOpen] = useState(false);
@@ -58,7 +61,9 @@ export default function ExecRow({
     setLoading(true);
     try {
       const r = await fetch(
-        `/api/exec-profile?name=${encodeURIComponent(officer.name)}&company=${encodeURIComponent(company)}`
+        `/api/exec-profile?name=${encodeURIComponent(officer.name)}&company=${encodeURIComponent(
+          company
+        )}${symbol ? `&symbol=${encodeURIComponent(symbol)}` : ""}`
       );
       setData((await r.json()) as Payload);
     } catch {

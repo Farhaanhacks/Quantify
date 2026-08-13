@@ -64,13 +64,38 @@ async function getJson(url: string): Promise<Record<string, unknown> | null> {
 }
 
 /** Wikidata QIDs for the company itself, so a person's claims can be matched to it. */
-async function companyQids(company: string): Promise<string[]> {
-  const url = `${WD_API}?action=wbsearchentities&search=${encodeURIComponent(
-    company
-  )}&language=en&type=item&limit=5&format=json&origin=*`;
-  const j = await getJson(url);
+async function companyQids(company: string, ticker?: string): Promise<string[]> {
+  const out = new Set<string>();
+
+  // By ticker first, because it is exact. Wikidata records a listing's symbol
+  // as P249, and CirrusSearch can filter on a statement directly — so HDFCLIFE
+  // resolves to the company even though the name we hold for it is the
+  // exchange's abbreviation, "HDFC LIFE INS CO LTD", which matches no article
+  // title anywhere. Name search alone therefore fails on precisely the Indian
+  // listings this app cares most about.
+  const root = (ticker ?? "").replace(/\.(NS|BO|TW|TWO|KS|KQ|HK|L|T|SS|SZ)$/i, "").trim();
+  if (/^[A-Za-z0-9&-]{2,20}$/.test(root)) {
+    const j = await getJson(
+      `${WD_API}?action=query&list=search&srsearch=${encodeURIComponent(
+        `haswbstatement:P249=${root}`
+      )}&srlimit=3&format=json&origin=*`
+    );
+    const hits = ((j?.query as { search?: { title?: string }[] } | undefined)?.search ?? []) as {
+      title?: string;
+    }[];
+    for (const h of hits) if (h.title && /^Q\d+$/.test(h.title)) out.add(h.title);
+  }
+
+  // Then by name, which still catches companies with no ticker statement.
+  const j = await getJson(
+    `${WD_API}?action=wbsearchentities&search=${encodeURIComponent(
+      company
+    )}&language=en&type=item&limit=5&format=json&origin=*`
+  );
   const list = Array.isArray(j?.search) ? (j.search as { id?: string }[]) : [];
-  return list.map((x) => x.id).filter((x): x is string => Boolean(x));
+  for (const x of list) if (x.id) out.add(x.id);
+
+  return [...out];
 }
 
 async function entitiesById(ids: string[]): Promise<Record<string, WikidataEntity>> {
@@ -112,11 +137,17 @@ export async function GET(req: Request) {
   const sp = new URL(req.url).searchParams;
   const person = (sp.get("name") || "").trim();
   const company = (sp.get("company") || "").trim();
+  const ticker = (sp.get("symbol") || "").trim();
   if (!person || person.length > 80 || !company || company.length > 120) {
     return NextResponse.json({ found: false, reason: "no-candidate" } as Payload);
   }
 
-  const key = `exec:${company.toLowerCase()}:${person.toLowerCase()}`.slice(0, 200);
+  // The version prefix is load-bearing. Cached answers are only as good as the
+  // code that produced them, and this lookup has been rewritten since the first
+  // version shipped — every entry written by the old one is a "not found" that
+  // the new one would answer. Bumping this retires them all at once. Bump it
+  // again whenever the matching changes.
+  const key = `exec:v2:${company.toLowerCase()}:${person.toLowerCase()}`.slice(0, 200);
   if (kvConfigured()) {
     const cached = await kvGet(key);
     if (cached) {
@@ -129,9 +160,15 @@ export async function GET(req: Request) {
   }
 
   const finish = async (p: Payload) => {
-    // Cache misses too. Most executives have no article, and re-asking
-    // Wikidata about them on every expand is a cost with a known answer.
-    if (kvConfigured()) await kvSet(key, JSON.stringify(p));
+    // Misses are cached, but NOT forever.
+    //
+    // A permanent negative is a promise that nothing will ever change: not the
+    // matching code, not Wikidata, not the article somebody writes next month.
+    // All three change. Ten days is long enough to stop re-asking about a CFO
+    // nobody has written up, short enough that the shelf life of a wrong "no"
+    // is bounded. Hits last far longer — a person's education does not move.
+    const ttl = p.found ? 60 * 60 * 24 * 60 : 60 * 60 * 24 * 10;
+    if (kvConfigured()) await kvSet(key, JSON.stringify(p), ttl);
     return NextResponse.json(p);
   };
 
@@ -141,8 +178,9 @@ export async function GET(req: Request) {
   const wantDebug = sp.get("debug") === "1";
   const done = (p: Payload) => finish(wantDebug ? { ...p, debug } : p);
 
-  const orgIds = await companyQids(company);
+  const orgIds = await companyQids(company, ticker);
   debug.companyQids = orgIds;
+  debug.ticker = ticker;
 
   // ── 1. Ask the COMPANY who its people are ────────────────────────────────
   //

@@ -34,9 +34,22 @@ export async function kvGet(key: string): Promise<string | null> {
   }
 }
 
-export async function kvSet(key: string, value: string): Promise<boolean> {
+/**
+ * Write a key, optionally with an expiry in seconds.
+ *
+ * The expiry matters most for NEGATIVE results. A cached "we found nothing"
+ * with no TTL is permanent, so every later improvement to the code that
+ * produced it is invisible: the lookup returns the old failure before doing any
+ * work. That is not a hypothetical — it is what happened to the executive
+ * profiles, where an early version's misses outlived three rounds of fixes.
+ */
+export async function kvSet(key: string, value: string, ttlSeconds?: number): Promise<boolean> {
   try {
-    const r = await command(["SET", key, value]);
+    const args =
+      ttlSeconds && ttlSeconds > 0
+        ? ["SET", key, value, "EX", String(Math.floor(ttlSeconds))]
+        : ["SET", key, value];
+    const r = await command(args);
     return r === "OK";
   } catch {
     return false;
