@@ -80,9 +80,17 @@ const notFound = () =>
     headers: { "Cache-Control": "public, max-age=3600, s-maxage=86400" },
   });
 
-export async function GET(_req: Request, { params }: { params: { symbol: string } }) {
+export async function GET(req: Request, { params }: { params: { symbol: string } }) {
   const symbol = aliasSymbol(decodeURIComponent(params.symbol || "").trim());
   if (!symbol || symbol.length > 24) return notFound();
+
+  // Ask for a size the DISPLAY can use, not the size the box is in CSS pixels.
+  // A 36px tile on a phone at 3x needs 108 real pixels; serving 64 and letting
+  // the browser stretch it is exactly the smudge that showed up on mobile.
+  // Google's favicon service only serves certain sizes, so the request is
+  // snapped up to the next one it supports rather than passed through.
+  const want = Number(new URL(req.url).searchParams.get("sz")) || 128;
+  const size = [16, 32, 64, 128, 256].find((s) => s >= want) ?? 256;
 
   const domain = await resolveDomain(symbol);
   if (!domain) return notFound();
@@ -90,7 +98,7 @@ export async function GET(_req: Request, { params }: { params: { symbol: string 
   // Google's favicon service, which serves a company's own site icon at a size
   // we ask for. The domain comes from Yahoo's profile, never from the caller,
   // so this cannot be pointed at an arbitrary host.
-  const url = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
+  const url = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=${size}`;
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(6000), cache: "no-store" });
     if (!res.ok) return notFound();
@@ -99,8 +107,10 @@ export async function GET(_req: Request, { params }: { params: { symbol: string 
     const body = await res.arrayBuffer();
     // Google answers an unknown domain with a tiny generic globe. Serving that
     // would put the same grey planet beside a dozen companies, which reads as a
-    // bug; below this size it is not a logo, so fall back to the monogram.
-    if (body.byteLength < 120) return notFound();
+    // bug; below this size it is not a logo, so fall back to the monogram. The
+    // floor scales with the size asked for — a real 128px logo is far heavier
+    // than a 128px placeholder.
+    if (body.byteLength < (size >= 128 ? 400 : 120)) return notFound();
     return new Response(body, {
       headers: {
         "Content-Type": type,

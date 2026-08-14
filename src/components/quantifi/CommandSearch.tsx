@@ -136,7 +136,7 @@ function CompanyMark({ symbol, name }: { symbol?: string; name: string }) {
           route this through the optimiser for a 64px icon that is already
           cached at the edge by /api/logo. */}
       <img
-        src={`/api/logo/${encodeURIComponent(symbol)}`}
+        src={`/api/logo/${encodeURIComponent(symbol)}?sz=128`}
         alt=""
         width={36}
         height={36}

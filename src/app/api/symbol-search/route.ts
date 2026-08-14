@@ -202,39 +202,55 @@ export async function GET(req: Request) {
     seen.add(dedupeKey);
     merged.push(hit);
   }
-  // A multi-word query that the phrase indexes could not answer.
+  // Multi-word queries are answered WORD BY WORD, always — not as a fallback.
   //
-  // Both upstreams match roughly left-to-right, so "HDFC insurance" returns
-  // nothing at all — the company is registered as "HDFC Life Insurance Company
-  // Limited", and unless you type those words in that order you get an empty
-  // panel. Nobody searching knows a company's registered word order; that is
-  // the thing they are searching to find out.
+  // Both upstream indexes match roughly left to right, so "hdfc insurance"
+  // returns nothing while "hdfc life" returns the company. Treating the phrase
+  // as the primary query and per-word search as a rescue meant the rescue was
+  // gated on the phrase having nearly worked, and that gate is unknowable from
+  // here: whether Yahoo happens to return HDFC Life inside its top handful for
+  // "hdfc" is not something this code can depend on.
   //
-  // So when the words are not all covered by what came back, ask again for a
-  // SINGLE word and keep only the rows containing every other word too. The
-  // brand word is usually first and the longest word is usually the most
-  // distinctive, so both are tried — in parallel, and only on this path, so a
-  // query that already worked costs nothing extra.
-  const tokens = tokensOf(q);
-  if (tokens.length > 1 && merged.filter((h) => coversAllTokens(h, tokens)).length < 5) {
-    const longest = [...tokens].sort((a, b) => b.length - a.length)[0];
-    const seeds = [...new Set([tokens[0], longest])];
-    const widened = await Promise.all(
-      seeds.flatMap((seed) => [
-        yahooSearch(seed),
-        key ? eodhdSearch(seed, key) : Promise.resolve(null),
+  // So every word is searched on its own, in parallel, alongside the phrase.
+  // A row is kept when it matches EVERY word, in any order, comparing word by
+  // word so an exchange abbreviation still counts ("insurance" ↔ "INS"). Word
+  // order stops mattering because the query is never sent as a phrase to
+  // something that cares about order.
+  const tokens = tokensOf(q).slice(0, 4); // bound the fan-out
+  if (tokens.length > 1) {
+    const perWord = await Promise.all(
+      tokens.flatMap((word) => [
+        yahooSearch(word),
+        key ? eodhdSearch(word, key) : Promise.resolve(null),
       ])
     );
-    for (const hit of widened.flat()) {
+    // Everything any word turned up, deduped, minus what we already have.
+    const candidates: SearchHit[] = [];
+    for (const hit of perWord.flat()) {
       if (!hit) continue;
       const dedupeKey = hit.symbol.toUpperCase();
       if (seen.has(dedupeKey)) continue;
-      // Only rows that carry EVERY word. Without this, searching "hdfc
-      // insurance" would return every HDFC entity there is, which is a
-      // different kind of wrong answer.
-      if (!coversAllTokens(hit, tokens)) continue;
       seen.add(dedupeKey);
-      merged.push(hit);
+      candidates.push(hit);
+    }
+
+    // Only rows carrying every word. Without this, "hdfc insurance" would
+    // return every HDFC entity and every insurer — a different wrong answer.
+    for (const hit of candidates) {
+      if (coversAllTokens(hit, tokens)) merged.push(hit);
+    }
+
+    // Nothing carried all of them? Rather than an empty panel, offer the rows
+    // that matched the most words — for a two-word query that is "one of the
+    // two", which is still a better answer than none, and ranking puts the
+    // closest first.
+    if (!merged.length) {
+      const scored = candidates
+        .map((h) => ({ h, n: tokens.filter((t) => coversAllTokens(h, [t])).length }))
+        .filter((x) => x.n > 0)
+        .sort((a, b) => b.n - a.n);
+      const best = scored[0]?.n ?? 0;
+      for (const x of scored) if (x.n === best) merged.push(x.h);
     }
   }
 
