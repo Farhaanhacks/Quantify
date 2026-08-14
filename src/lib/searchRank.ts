@@ -15,15 +15,60 @@ export interface SearchHit {
   kind?: "Stock" | "ETF" | "Fund" | "Index";
 }
 
-// Split a query into the words that matter. Punctuation is dropped and
-// one-letter fragments are ignored, so "HDFC Life Insurance Co." and
-// "hdfc, insurance" reduce to comparable word sets.
+/**
+ * Words that appear in half the company names on any exchange and therefore
+ * distinguish nothing. Requiring a row to contain "limited" is requiring it to
+ * be a company.
+ */
+const FILLER = new Set([
+  "the", "and", "of", "co", "company", "corp", "corporation", "inc", "ltd",
+  "limited", "plc", "holdings", "holding", "group", "india", "industries",
+]);
+
+// Split a query into the words that matter. Punctuation is dropped, one-letter
+// fragments are ignored, and filler words are removed — so "HDFC Life Insurance
+// Co." and "hdfc, insurance" reduce to comparable word sets.
 export function tokensOf(s: string): string[] {
-  return s
+  const all = s
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, " ")
     .split(/\s+/)
     .filter((t) => t.length >= 2);
+  const meaningful = all.filter((t) => !FILLER.has(t));
+  // Someone searching "the company" gets to search for those words rather than
+  // for nothing at all.
+  return meaningful.length ? meaningful : all;
+}
+
+/**
+ * Levenshtein distance, abandoned once it exceeds `max`.
+ *
+ * Bounded because the answer "at least three edits apart" is as useful as the
+ * exact number and far cheaper — this runs per word per candidate.
+ */
+export function editDistance(a: string, b: string, max = 2): number {
+  if (a === b) return 0;
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    let best = i;
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+      if (cur[j] < best) best = cur[j];
+    }
+    if (best > max) return max + 1; // no later row can bring it back down
+    prev = cur;
+  }
+  return prev[b.length];
+}
+
+/** How much misspelling a word of this length earns. */
+function typoBudget(token: string): number {
+  if (token.length >= 8) return 2;
+  if (token.length >= 5) return 1;
+  return 0; // short words are too easy to turn into other short words
 }
 
 /** The individual words of a name, punctuation removed. */
@@ -46,9 +91,17 @@ function wordsOf(s: string): string[] {
  * a two-letter fragment from matching most of the market.
  */
 export function wordMatches(words: string[], token: string): boolean {
-  return words.some(
-    (w) => w === token || w.startsWith(token) || (w.length >= 3 && token.startsWith(w))
-  );
+  if (
+    words.some((w) => w === token || w.startsWith(token) || (w.length >= 3 && token.startsWith(w)))
+  ) {
+    return true;
+  }
+  // Last resort: a misspelling. "insurence" should find an insurer, and the
+  // budget scales with length so "bank" cannot become "bond" but "insurence"
+  // can become "insurance".
+  const budget = typoBudget(token);
+  if (!budget) return false;
+  return words.some((w) => Math.abs(w.length - token.length) <= budget && editDistance(w, token, budget) <= budget);
 }
 
 /** Does this listing's name/symbol match EVERY word of the query, in any order? */

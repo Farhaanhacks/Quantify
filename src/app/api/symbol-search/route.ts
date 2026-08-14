@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { COUNTRY_ISO, countryForSymbol } from "@/lib/listingCountry";
 import { type SearchHit, tokensOf, coversAllTokens, rank } from "@/lib/searchRank";
+import { searchIndia } from "@/lib/indiaCompanies";
 
 export const dynamic = "force-dynamic";
 
@@ -217,6 +218,22 @@ export async function GET(req: Request) {
   // order stops mattering because the query is never sent as a phrase to
   // something that cares about order.
   const tokens = tokensOf(q).slice(0, 4); // bound the fan-out
+
+  // The LOCAL Indian list first, for any query.
+  //
+  // This is the retrieval fix. Every other source is asked a question and
+  // returns the rows it feels like returning; this one is held in full, so a
+  // company either carries the query's words or it does not, and no ranking
+  // decision made elsewhere can hide it. Yahoo and EODHD stay for global
+  // coverage, which the NSE list obviously does not have.
+  const local = await searchIndia(tokens.length ? tokens : tokensOf(q));
+  for (const hit of local) {
+    const dedupeKey = hit.symbol.toUpperCase();
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+    merged.push(hit);
+  }
+
   if (tokens.length > 1) {
     // Ask DEEPLY on each word. A single word is a broad query — "hdfc" matches
     // a bank, an AMC, an insurer and a dozen funds — so the company being
@@ -252,5 +269,23 @@ export async function GET(req: Request) {
   }
 
   merged.sort((a, b) => rank(a, q) - rank(b, q));
-  return NextResponse.json({ results: merged.slice(0, 8) });
+
+  // One row per company, not one per listing.
+  //
+  // HDFC Life appears twice — NSE and BSE — and the two rows carry the same
+  // company, the same chart and the same page. A reader scanning results has to
+  // notice they are duplicates and pick one, which is work the search should
+  // have done. The better-ranked listing survives (NSE first for Indian names,
+  // since that is what the rest of the app resolves most reliably).
+  const byCompany: SearchHit[] = [];
+  const claimed = new Set<string>();
+  for (const hit of merged) {
+    // The company, not the listing: drop the exchange suffix and normalise.
+    const root = `${hit.symbol.replace(/\.[A-Z]{1,4}$/i, "").toUpperCase()}|${hit.kind ?? "Stock"}`;
+    if (claimed.has(root)) continue;
+    claimed.add(root);
+    byCompany.push(hit);
+  }
+
+  return NextResponse.json({ results: byCompany.slice(0, 8) });
 }

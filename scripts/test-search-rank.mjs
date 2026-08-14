@@ -44,7 +44,10 @@ const order = (hits, q) => [...hits].sort((a, b) => rank(a, q) - rank(b, q)).map
 
 console.log("\n[tokenising]");
 check("splits on whitespace", JSON.stringify(tokensOf("hdfc insurance")) === '["hdfc","insurance"]');
-check("drops punctuation", JSON.stringify(tokensOf("HDFC Life Insurance Co.")) === '["hdfc","life","insurance","co"]');
+// "Co." is punctuation AND filler now: the dot goes, and so does the word,
+// because requiring a row to contain "co" is requiring it to be a company.
+check("drops punctuation", JSON.stringify(tokensOf("HDFC Life Insurance Co.")) === '["hdfc","life","insurance"]', JSON.stringify(tokensOf("HDFC Life Insurance Co.")));
+check("keeps punctuation-joined words", JSON.stringify(tokensOf("larsen & toubro")) === '["larsen","toubro"]', JSON.stringify(tokensOf("larsen & toubro")));
 check("ignores one-letter fragments", JSON.stringify(tokensOf("a hdfc")) === '["hdfc"]');
 check("case-insensitive", JSON.stringify(tokensOf("HDFC")) === '["hdfc"]');
 
