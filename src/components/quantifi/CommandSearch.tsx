@@ -123,9 +123,27 @@ function fmtWhen(iso: string): string {
  */
 function CompanyMark({ symbol, name }: { symbol?: string; name: string }) {
   const [failed, setFailed] = useState(false);
+  // Which background the logo will sit on. Logo.dev serves a variant per
+  // theme, and a dark wordmark on a dark row is invisible — so the theme has
+  // to travel with the request, and the request has to change when the reader
+  // switches. Watched rather than read once, for the same reason the theme
+  // toggle watches it: the account menu can change it from elsewhere.
+  const [light, setLight] = useState(false);
+  useEffect(() => {
+    const el = document.documentElement;
+    const sync = () => setLight(el.classList.contains("light"));
+    sync();
+    const mo = new MutationObserver(sync);
+    mo.observe(el, { attributes: true, attributeFilter: ["class"] });
+    return () => mo.disconnect();
+  }, []);
   const letter = (name || symbol || "?").trim().charAt(0).toUpperCase();
   const box =
     "flex h-9 w-9 flex-none items-center justify-center overflow-hidden rounded-md border border-white/10 bg-white/[0.05]";
+
+  // A theme switch means a different image, so the failure flag from the old
+  // one must not suppress the new one.
+  useEffect(() => setFailed(false), [symbol, light]);
 
   if (!symbol || failed) {
     return <span className={`${box} font-display text-sm font-semibold text-slate-300`}>{letter}</span>;
@@ -136,7 +154,7 @@ function CompanyMark({ symbol, name }: { symbol?: string; name: string }) {
           route this through the optimiser for a 64px icon that is already
           cached at the edge by /api/logo. */}
       <img
-        src={`/api/logo/${encodeURIComponent(symbol)}?sz=128`}
+        src={`/api/logo/${encodeURIComponent(symbol)}?sz=128&theme=${light ? "light" : "dark"}`}
         alt=""
         width={36}
         height={36}
