@@ -105,12 +105,17 @@ export async function GET(req: Request, { params }: { params: { symbol: string }
     const type = res.headers.get("content-type") ?? "";
     if (!type.startsWith("image/")) return notFound();
     const body = await res.arrayBuffer();
-    // Google answers an unknown domain with a tiny generic globe. Serving that
-    // would put the same grey planet beside a dozen companies, which reads as a
-    // bug; below this size it is not a logo, so fall back to the monogram. The
-    // floor scales with the size asked for — a real 128px logo is far heavier
-    // than a 128px placeholder.
-    if (body.byteLength < (size >= 128 ? 400 : 120)) return notFound();
+    // Google answers an unknown domain with a tiny generic globe, and this
+    // rejects it so the row falls back to a letter tile rather than showing the
+    // same grey planet beside a dozen companies.
+    //
+    // The floor is a flat 120 bytes and must stay low. It was briefly scaled
+    // with the requested size — 400 bytes at 128px — on the assumption that a
+    // real logo is always heavier than a placeholder. That is not true: a
+    // simple flat-colour mark like AMD's compresses to very little at any size,
+    // so raising the floor deleted real logos that had been showing. A stray
+    // globe is a cosmetic flaw; a missing logo is the thing that was reported.
+    if (body.byteLength < 120) return notFound();
     return new Response(body, {
       headers: {
         "Content-Type": type,

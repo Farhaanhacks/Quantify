@@ -113,12 +113,12 @@ async function eodhdSearch(q: string, key: string): Promise<SearchHit[] | null> 
 }
 
 // ─── Yahoo fallback ──────────────────────────────────────────────────────────
-async function yahooSearch(q: string): Promise<SearchHit[]> {
+async function yahooSearch(q: string, count = 12): Promise<SearchHit[]> {
   try {
     const r = await fetch(
       `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(
         q
-      )}&quotesCount=12&newsCount=0&enableFuzzyQuery=false`,
+      )}&quotesCount=${count}&newsCount=0&enableFuzzyQuery=false`,
       { headers: { "User-Agent": UA }, next: { revalidate: 3600 }, signal: AbortSignal.timeout(7000) }
     );
     if (!r.ok) return [];
@@ -218,13 +218,17 @@ export async function GET(req: Request) {
   // something that cares about order.
   const tokens = tokensOf(q).slice(0, 4); // bound the fan-out
   if (tokens.length > 1) {
+    // Ask DEEPLY on each word. A single word is a broad query — "hdfc" matches
+    // a bank, an AMC, an insurer and a dozen funds — so the company being
+    // looked for is often outside the first handful. Yahoo's default of twelve
+    // rows is why searching "hdfc" surfaced HDFC Bank twice and HDFC Life not
+    // at all; the row existed, we just never asked for enough of them.
     const perWord = await Promise.all(
       tokens.flatMap((word) => [
-        yahooSearch(word),
+        yahooSearch(word, 40),
         key ? eodhdSearch(word, key) : Promise.resolve(null),
       ])
     );
-    // Everything any word turned up, deduped, minus what we already have.
     const candidates: SearchHit[] = [];
     for (const hit of perWord.flat()) {
       if (!hit) continue;
@@ -234,23 +238,16 @@ export async function GET(req: Request) {
       candidates.push(hit);
     }
 
-    // Only rows carrying every word. Without this, "hdfc insurance" would
-    // return every HDFC entity and every insurer — a different wrong answer.
+    // EVERY word, or the row does not appear.
+    //
+    // There is no "closest match" consolation here, and there was: a previous
+    // version offered rows matching the most words when none matched all of
+    // them, which answered "hdfc insurance" with Zurich, UNIQA, Goosehead and
+    // The Hartford. Not one of them is an HDFC company. A list of plausible
+    // wrong answers is worse than an empty one, because the reader has to
+    // check each before concluding the search failed.
     for (const hit of candidates) {
       if (coversAllTokens(hit, tokens)) merged.push(hit);
-    }
-
-    // Nothing carried all of them? Rather than an empty panel, offer the rows
-    // that matched the most words — for a two-word query that is "one of the
-    // two", which is still a better answer than none, and ranking puts the
-    // closest first.
-    if (!merged.length) {
-      const scored = candidates
-        .map((h) => ({ h, n: tokens.filter((t) => coversAllTokens(h, [t])).length }))
-        .filter((x) => x.n > 0)
-        .sort((a, b) => b.n - a.n);
-      const best = scored[0]?.n ?? 0;
-      for (const x of scored) if (x.n === best) merged.push(x.h);
     }
   }
 

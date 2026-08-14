@@ -51,13 +51,8 @@ function route(q) {
       const k = hit.symbol.toUpperCase();
       if (!seen.has(k)) { seen.add(k); candidates.push(hit); }
     }
+    // EVERY word, or the row does not appear. No "closest match" consolation.
     for (const hit of candidates) if (coversAllTokens(hit, tokens)) merged.push(hit);
-    if (!merged.length) {
-      const scored = candidates.map((h) => ({ h, n: tokens.filter((t) => coversAllTokens(h, [t])).length }))
-        .filter((x) => x.n > 0).sort((a, b) => b.n - a.n);
-      const best = scored[0]?.n ?? 0;
-      for (const x of scored) if (x.n === best) merged.push(x.h);
-    }
   }
   merged.sort((a, b) => rank(a, q) - rank(b, q));
   return merged.slice(0, 8).map((h) => h.symbol);
@@ -81,10 +76,29 @@ check("'hdfc' returns the HDFC companies", route("hdfc").length === 3, JSON.stri
 check("'hdfc life' still works", route("hdfc life").some((s) => s.startsWith("HDFCLIFE")));
 check("'insurance' alone lists insurers", route("insurance").includes("SBILIFE.NS"));
 
-console.log("\n[a query matching nothing in full]");
+console.log("\n[a query matching nothing in full returns NOTHING]");
+// A previous version offered "rows matching the most words" here, which
+// answered "hdfc insurance" with Zurich, UNIQA, Goosehead and The Hartford.
+// A list of plausible wrong answers is worse than an empty one.
 const r2 = route("hdfc aviation");
-check("falls back to the closest rather than an empty panel", r2.length > 0, JSON.stringify(r2));
-check("and that fallback is the HDFC rows", r2.every((s) => s.startsWith("HDFC")), JSON.stringify(r2));
+check("no partial matches are offered", r2.length === 0, JSON.stringify(r2));
+
+console.log("\n[the wrong answers that were shipped]");
+INDEX.insurance = INDEX.insurance.concat([
+  S("ZURN.SW", "ZURICH INSURANCE N", "Stock", "Swiss"),
+  S("UQA.VI", "UNIQA Insurance Group AG", "Stock", "Vienna"),
+  S("GSHD", "Goosehead Insurance, Inc.", "Stock", "NASDAQ"),
+  S("HIG", "The Hartford Insurance Group, I", "Stock", "NYSE"),
+  S("LICI.NS", "LIFE INSURA CORP OF INDIA"),
+]);
+const r3 = route("hdfc insurance");
+check("no Zurich", !r3.includes("ZURN.SW"), JSON.stringify(r3));
+check("no UNIQA", !r3.includes("UQA.VI"), JSON.stringify(r3));
+check("no Goosehead", !r3.includes("GSHD"), JSON.stringify(r3));
+check("no Hartford", !r3.includes("HIG"), JSON.stringify(r3));
+check("no LIC", !r3.includes("LICI.NS"), JSON.stringify(r3));
+check("no HDFC Bank", !r3.includes("HDFCBANK.NS"), JSON.stringify(r3));
+check("still finds HDFC Life", r3.some((x) => x.startsWith("HDFCLIFE")), JSON.stringify(r3));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
