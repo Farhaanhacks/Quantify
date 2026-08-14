@@ -48,6 +48,9 @@ const NAV_SECTIONS: NavSection[] = [
   { id: "sec-score", label: "Snowflake score" },
   { id: "sec-etf", label: "Fund X-ray" },
   { id: "sec-overview", label: "Overview & financials" },
+  // Rendered inside CompanyDetails rather than as its own top-level block, but
+  // it carries its own anchor so the rail can reach it like any other section.
+  { id: "sec-management", label: "Management" },
   { id: "sec-health", label: "Financial health" },
   { id: "sec-stats", label: "Key statistics" },
   { id: "sec-valuation", label: "Valuation" },

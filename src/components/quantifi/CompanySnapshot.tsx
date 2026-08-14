@@ -1,6 +1,5 @@
 import {
   GlassCard,
-  SectionHeading,
   ScoreRadar,
   Tag,
 } from "@/components/quantifi/Cards";
@@ -34,7 +33,6 @@ const toTen = (score: number) => Math.round((score / 6) * 10);
 
 export default function CompanySnapshot({
   ticker,
-  heading = true,
   data,
   price,
   name,
@@ -42,7 +40,6 @@ export default function CompanySnapshot({
   live = false,
 }: {
   ticker: string;
-  heading?: boolean;
   data?: CompanyAnalytics;
   price?: number;
   name?: string;
@@ -238,14 +235,6 @@ export default function CompanySnapshot({
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-      {heading ? (
-        <SectionHeading
-          eyebrow="Stock Scorecard"
-          title="Thesis tests, not a tick-box"
-          subtitle="Five lenses — valuation comfort, growth durability, profitability quality, balance-sheet strength and capital allocation — each with what supports it, what worries us, and the question it turns on. A research summary, never a rating to act on."
-        />
-      ) : null}
-
       <div className="mt-6 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
         {/* Radar + overall */}
         <GlassCard className="p-5 sm:p-6">

@@ -166,12 +166,8 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
 
       {/* ── Leadership ────────────────────────────────────────────────────── */}
       {data.officers?.length ? (
-        <section className="mx-auto max-w-7xl px-4 pb-4 sm:px-6 lg:px-8">
-          <SectionHeading
-            eyebrow="Leadership"
-            title="Who runs the company"
-            subtitle="Named executives as disclosed in the company's filings, most senior first. Pay is total reported compensation for the stated fiscal year."
-          />
+        <section id="sec-management" className="mx-auto max-w-7xl scroll-mt-24 px-4 pb-4 sm:px-6 lg:px-8">
+          <SectionHeading title="Management" />
           <GlassCard className="mt-6 overflow-hidden">
             <div className="hidden grid-cols-[1.3fr_1.6fr_0.5fr_0.8fr_auto] gap-3 border-b border-white/[0.06] px-5 py-3 text-[0.62rem] uppercase tracking-[0.16em] text-slate-500 sm:grid">
               <span>Name</span>
