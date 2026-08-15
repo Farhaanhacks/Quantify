@@ -32,10 +32,14 @@ export async function GET(
       // every request after the first each day, and the score response is
       // edge-cached anyway. It can never fail the score — the helper swallows
       // its own errors and this catch is a backstop.
-      const cfv = y.analytics?.cashflowValue?.estimate;
-      if (cfv != null && y.price != null) {
+      //
+      // The METHOD-AWARE value, not the cash-flow one. A bank has no cash-flow
+      // value any more (by design), and recording only that field would leave
+      // every financial institution with a permanently empty chart.
+      const iv = y.analytics?.intrinsicValue;
+      if (iv?.estimate != null && y.price != null) {
         try {
-          await recordFairValue(symbol, cfv, y.price);
+          await recordFairValue(symbol, iv.estimate, y.price, iv.method, iv.modelVersion);
         } catch {
           /* the score matters more than the series */
         }

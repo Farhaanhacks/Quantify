@@ -19,12 +19,17 @@
 
 import type { CompanyData } from "@/lib/yahooCompany";
 import {
-  cashflowValuePerShare,
   pickBaseCashflow,
   cashflowGrowthFrom,
   throughCycleCashflow,
   earningsCashBase,
 } from "@/lib/yahooFundamentals";
+import {
+  cashflowValuePerShare,
+  financialValuePerShare,
+  isFinancialInstitution,
+  VALUATION_MODEL_VERSION,
+} from "@/lib/valuationModel";
 import type { FairValuePoint } from "@/lib/fairValueHistory";
 
 export interface BackfillPoint extends FairValuePoint {
@@ -108,34 +113,42 @@ export type BackfillReason =
   | "no-statements"
   | "no-prices"
   | "cash-negative"
+  | "no-book"
   | "too-few";
 
 export function backfillWithReason(
   data: CompanyData,
   closes: Close[]
 ): { points: BackfillPoint[]; reason: BackfillReason } {
-  if ((data.cashflowStatements ?? []).filter((r) => r.date).length < 2)
-    return { points: [], reason: "no-statements" };
+  // A lender is reconstructed from its balance sheet, not its cash-flow
+  // statement, so "no cash-flow statements" is the wrong thing to require of it
+  // and the wrong thing to tell the reader.
+  const financial = isFinancialInstitution(data.sector, data.industry);
+  const rowsNeeded = financial
+    ? (data.balanceSheets ?? []).filter((r) => r.date && r.values.totalEquity != null).length
+    : (data.cashflowStatements ?? []).filter((r) => r.date).length;
+  if (rowsNeeded < 2) return { points: [], reason: financial ? "no-book" : "no-statements" };
   if (!closes.length) return { points: [], reason: "no-prices" };
   const points = backfillFairValue(data, closes);
-  if (points.length === 0) return { points, reason: "cash-negative" };
+  if (points.length === 0) return { points, reason: financial ? "no-book" : "cash-negative" };
   if (points.length < 2) return { points, reason: "too-few" };
   return { points, reason: "ok" };
 }
 
 export function backfillFairValue(data: CompanyData, closes: Close[]): BackfillPoint[] {
-  const rows = (data.cashflowStatements ?? [])
-    .filter((r) => r.date)
-    .slice()
-    .sort((a, b) => (a.date! < b.date! ? -1 : 1)); // oldest → newest
-  if (rows.length < 2) return [];
-
   const shares = data.sharesOutstanding;
   const currency = data.financialCurrency ?? data.currency;
   const sector = (data.sector ?? "").toLowerCase();
   // Same carve-out the live model makes: commodity producers don't compound, so
   // valuing them off a peak year's growth is what invents a fantasy number.
   const cyclical = sector.includes("basic materials") || sector.includes("energy");
+  // And the same routing the live model makes: a lender is never valued on its
+  // cash flow, in any year. This file used to reconstruct a bank's history from
+  // profit-as-a-cash-proxy, which drew a line for HDFC Bank made of numbers the
+  // live model has now withdrawn — the chart and the headline figure would
+  // disagree with each other on the same page. Decided BEFORE the cash-flow
+  // statements are required, because a bank's reconstruction doesn't use them.
+  const financial = isFinancialInstitution(data.sector, data.industry);
 
   // Reported profit by fiscal year, keyed by date so it can be lined up with the
   // cash-flow statement for the same year.
@@ -147,6 +160,43 @@ export function backfillFairValue(data: CompanyData, closes: Close[]): BackfillP
     if (r.values.netIncome != null) netIncomeByDate.set(d, r.values.netIncome);
     if (r.values.revenue != null) revenueByDate.set(d, r.values.revenue);
   }
+  // Shareholders' equity by fiscal year — the base of the excess-return model,
+  // and the one balance-sheet line a bank's valuation actually rests on.
+  const equityByDate = new Map<string, number>();
+  for (const r of data.balanceSheets ?? []) {
+    if (!r.date) continue;
+    if (r.values.totalEquity != null) equityByDate.set(r.date.slice(0, 10), r.values.totalEquity);
+  }
+
+  // A financial institution's history is reconstructed from its own book value
+  // and return on equity, year by year — the same model the live score runs, so
+  // the line and the headline figure are the same method.
+  if (financial) {
+    const out: BackfillPoint[] = [];
+    for (const date of Array.from(equityByDate.keys()).sort()) {
+      const equity = equityByDate.get(date)!;
+      const ni = netIncomeByDate.get(date);
+      const price = priceOn(closes, date);
+      if (price == null || shares == null || !(shares > 0) || !(equity > 0)) continue;
+      const v = financialValuePerShare({
+        price,
+        bookValuePerShare: equity / shares,
+        roe: ni != null ? ni / equity : undefined,
+        currency,
+        beta: data.beta,
+        payoutRatio: data.payoutRatio,
+      });
+      if (v == null) continue;
+      out.push({ d: date, v: v.estimate, p: price, modelled: true, m: v.method, mv: v.modelVersion });
+    }
+    return out;
+  }
+
+  const rows = (data.cashflowStatements ?? [])
+    .filter((r) => r.date)
+    .slice()
+    .sort((a, b) => (a.date! < b.date! ? -1 : 1)); // oldest → newest
+  if (rows.length < 2) return [];
 
   const out: BackfillPoint[] = [];
   // Expanding windows: each year is valued on the cash-flow record available up
@@ -226,7 +276,7 @@ export function backfillFairValue(data: CompanyData, closes: Close[]): BackfillP
     // The same sanity band the live score applies — reject a unit mismatch
     // rather than plotting a value 100x the share price.
     if (!(v >= price * 0.02 && v <= price * 25)) continue;
-    out.push({ d: date, v, p: price, modelled: true });
+    out.push({ d: date, v, p: price, modelled: true, m: "dcf", mv: VALUATION_MODEL_VERSION });
   }
 
   return out;

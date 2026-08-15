@@ -61,10 +61,34 @@ export interface CompanyAnalytics {
   ticker: string;
   scores: Record<ScoreAxisKey, ScoreAxis>;
   fairValue: { estimate: number; method: string; note: string };
-  // Optional 2-stage discounted-cash-flow intrinsic value per share.
+  // The intrinsic value per share, and the model that produced it.
+  //
+  // Method-aware on purpose. A single "cashflowValue" field forced one model on
+  // every company, which is how a bank ended up with a discounted-cash-flow
+  // number: a lender's free cash flow is an accounting artefact (lending growth
+  // is an operating outflow), so the DCF was valuing something that doesn't
+  // exist. Financials are valued on excess returns over their cost of equity,
+  // with price-to-book as the fallback, and `method` says which ran.
+  //
   // `outOfRange` marks a company whose market multiple is far beyond anything a
-  // 10-year DCF can span (a hyper-growth compounder). The estimate is still shown,
-  // but as context rather than an over/under verdict — see CompanySnapshot.
+  // 10-year model can span (a hyper-growth compounder). The estimate is still
+  // shown, but as context rather than an over/under verdict — see CompanySnapshot.
+  intrinsicValue?: {
+    estimate: number;
+    method: "dcf" | "excess-returns" | "pb";
+    /** Display name of the model — shown on the card, stored with history. */
+    methodLabel: string;
+    /** Which revision of the models produced it, so stale points are findable. */
+    modelVersion: string;
+    note: string;
+    outOfRange?: boolean;
+    debug?: Record<string, unknown>;
+  };
+  // The DISCOUNTED-CASH-FLOW value specifically, and nothing else. Undefined for
+  // any company the cash-flow model doesn't apply to (every financial
+  // institution), which is what keeps screeners and rankings — all of which read
+  // this field — from ordering banks by a model that was never valid for them.
+  // Prefer `intrinsicValue` for display.
   cashflowValue?: {
     estimate: number;
     note: string;

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import StockActions from "@/components/quantifi/StockActions";
+import CompanyLogo from "@/components/quantifi/CompanyLogo";
 import type { CompanyData } from "@/lib/yahooCompany";
 import { fmtPrice, currencySymbol, fmtCompactCur, isIndianCurrency } from "@/data/demo";
 
@@ -70,11 +71,14 @@ export default function StockHero({
     <section className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
       <div className="overflow-hidden rounded-lg border border-white/[0.08] bg-gradient-to-br from-white/[0.055] via-white/[0.02] to-transparent">
         <div className="flex flex-wrap items-start justify-between gap-4 p-5 sm:p-6">
-          {/* Identity. No monogram tile — between it, the score pill and the
-              Portfolio button the header carried too much gold, and a two-letter
-              square derived from the ticker added no information the name and
-              listing line don't already give. */}
-          <div className="min-w-0">
+          {/* Identity: the company's actual logo, then its name.
+              Deliberately the real mark and nothing else — the monogram tile
+              that used to sit here was removed because a two-letter square
+              derived from the ticker restates the line beside it. So when there
+              is no logo for a listing, this renders nothing rather than falling
+              back to that square. */}
+          <div className="flex min-w-0 items-start gap-3">
+            <CompanyLogo symbol={ticker} name={name ?? data?.name} size={44} fallback="none" className="mt-0.5" />
             <div className="min-w-0">
               <h2 className="truncate font-display text-2xl font-semibold text-white sm:text-3xl">
                 {name ?? data?.name ?? ticker}

@@ -205,6 +205,8 @@ export function FairValueHistoryChart({
         "Price history isn't available for this listing, so past years can't be paired with what the shares actually cost.",
       "cash-negative":
         "This company's cash flow was negative through the cycle in every year on record — the model has no positive base to value those years on. Today's estimate comes from consensus forward earnings instead, which isn't available for past years.",
+      "no-book":
+        "This is a lender, so it's valued on book value and return on equity rather than cash flow — and fewer than two years of reported shareholders' equity are available to reconstruct from.",
       "too-few":
         "Only one past year could be valued, and a single point isn't a line.",
       unavailable:

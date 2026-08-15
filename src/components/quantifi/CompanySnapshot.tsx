@@ -96,8 +96,20 @@ export default function CompanySnapshot({
       ? `Screens strongly across the board — ${valuationHint}. The thesis test now is whether it can keep beating already-high expectations.`
       : `Strongest on ${strongest.axis.label.toLowerCase()}; the soft spot is ${weakest.axis.label.toLowerCase()} (${axisLabel(weakest.axis.key, weakest.score)}). Key thesis test: ${weakest.axis.question.toLowerCase()}`;
 
-  // Independent DCF (cash-flow) valuation, when available.
-  const cf = a.cashflowValue;
+  // The independent valuation, whichever model the company qualifies for: a
+  // discounted cash flow for an operating business, an excess-return (or P/B)
+  // read for a lender. `cashflowValue` is the older DCF-only field, kept as the
+  // fallback so a response from before the split still renders.
+  const cf =
+    a.intrinsicValue ??
+    (a.cashflowValue
+      ? {
+          ...a.cashflowValue,
+          method: "dcf" as const,
+          methodLabel: "Discounted cash flow",
+          modelVersion: "",
+        }
+      : undefined);
 
   // Sector-appropriate valuation (SaaS→EV/Sales, banks→P/B, telecom/infra→
   // EV/EBITDA, real-estate/commodities→NAV, else→P/E), when available.
@@ -152,8 +164,11 @@ export default function CompanySnapshot({
 
   const cashflowCard = cf ? (
     <GlassCard className="mt-4 p-5 sm:p-6">
+      {/* Name the model. The same card used to say "share price vs fair value"
+          over a number that could have come from any of three methods, which is
+          how a bank's book-value read was mistaken for a cash-flow one. */}
       <div className="text-[0.7rem] uppercase tracking-[0.16em] text-slate-500">
-        Share price vs fair value
+        Share price vs fair value · {cf.methodLabel}
       </div>
       <p className="mt-1 max-w-md text-xs text-slate-500">{cf.note}</p>
 
@@ -178,16 +193,29 @@ export default function CompanySnapshot({
   const cashflowUnavailableCard = cf ? null : (
     <GlassCard className="mt-4 p-5 sm:p-6">
       <div className="text-[0.7rem] uppercase tracking-[0.16em] text-slate-500">
-        Share price vs future cash flow value
+        {sv?.sector === "Banks & Financial Institutions"
+          ? "Share price vs intrinsic value"
+          : "Share price vs future cash flow value"}
       </div>
-      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-400">
-        A cash-flow value isn&apos;t available for {a.ticker} yet. This company
-        doesn&apos;t currently generate positive{" "}
-        <span className="text-slate-300">operating cash flow</span>, so a
-        cash-flow valuation would be negative or meaningless rather than useful —
-        common for early-stage or heavy-investment names still scaling toward
-        cash generation.
-      </p>
+      {sv?.sector === "Banks & Financial Institutions" ? (
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-400">
+          An intrinsic value isn&apos;t available for {a.ticker} yet. A lender is
+          valued on <span className="text-slate-300">book value and return on
+          equity</span>, not on cash flow — its cash flow swings with lending and
+          deposits and measures nothing an owner could take out — and those
+          figures aren&apos;t complete enough here to model. We show nothing
+          rather than run a cash-flow model that doesn&apos;t apply.
+        </p>
+      ) : (
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-400">
+          A cash-flow value isn&apos;t available for {a.ticker} yet. This company
+          doesn&apos;t currently generate positive{" "}
+          <span className="text-slate-300">operating cash flow</span>, so a
+          cash-flow valuation would be negative or meaningless rather than useful —
+          common for early-stage or heavy-investment names still scaling toward
+          cash generation.
+        </p>
+      )}
       <p className="mt-2 max-w-2xl text-[0.7rem] leading-relaxed text-slate-500">
         For this company the{" "}
         {sv ? (

@@ -7,6 +7,25 @@ import type {
 import { yahooQuoteSummary, resolveYahooSymbol, yahooQuotes } from "@/lib/yahooCrumb";
 import { getYahooStatements } from "@/lib/yahooCompany";
 import { knownFund } from "@/data/knownFunds";
+import {
+  intrinsicValuePerShare,
+  isFinancialInstitution,
+  costOfEquity,
+} from "@/lib/valuationModel";
+
+// The models themselves live in valuationModel.ts — pure, importless, and
+// therefore testable. Re-exported here so the existing call sites keep working.
+export {
+  cashflowValuePerShare,
+  excessReturnValuePerShare,
+  financialValuePerShare,
+  intrinsicValuePerShare,
+  isFinancialInstitution,
+  costOfEquity,
+  terminalGrowthFor,
+  VALUATION_MODEL_VERSION,
+} from "@/lib/valuationModel";
+export type { IntrinsicValue, ValuationMethod } from "@/lib/valuationModel";
 
 // Builds a Quantifi Score from Yahoo Finance fundamentals (keyless, personal
 // non-commercial use). The cookie/crumb handshake and retries live in
@@ -52,73 +71,6 @@ function axis(checks: ScoreCheck[]): ScoreAxis {
 const c = (label: string, pass: boolean): ScoreCheck => ({ label, pass });
 const fpct = (x: number | undefined): string =>
   x == null ? "—" : `${(x * 100).toFixed(0)}%`;
-
-// A deliberately simple 2-stage discounted free-cash-flow model: grow this
-// year's FCF for 10 years, add a Gordon-growth terminal value, discount it all
-// back at a flat cost of equity, then divide by shares. Returns undefined when
-// the inputs don't support a meaningful estimate (e.g. negative FCF).
-//
-// Crucially the high-growth phase FADES: a fast compounder doesn't grow at 40%
-// forever, but holding it flat at the revenue-growth rate (the old behaviour)
-// undervalued real compounders badly — a company whose cash flow has grown ~40%
-// a year read as if it grew ~13%. We start from the company's observed cash-flow
-// growth and decay it linearly toward the terminal rate, which is how a sane DCF
-// treats hyper-growth: rich near-term, normalising over time.
-function dcfPerShare(
-  fcf: number | undefined,
-  shares: number | undefined,
-  growth: number | undefined,
-  discount = 0.09,
-  termGrowth = 0.025, // callers pass the bond-linked rate; this is only a fallback
-  years = 10
-): number | undefined {
-  if (fcf == null || fcf <= 0 || shares == null || shares <= 0) return undefined;
-  // Cap the discount rate (cost of equity / WACC) to a sane 7–11% band. A raw
-  // WACC can drift too low for a low-beta defensive name (inflating value) or
-  // spike during a volatile quarter (crushing it); clamping keeps the estimate
-  // stable and comparable across names.
-  // Clamp to a sane 6–16% band: the low end for a defensive developed-market name,
-  // the high end for a higher-risk emerging market (India, LatAm) whose local
-  // risk-free rate alone can be ~7%. The old US-only 7–11% band understated the
-  // discount for those markets and inflated their valuations (a too-small
-  // rate − terminalGrowth spread blows up the terminal value).
-  const rate = Math.min(0.16, Math.max(0.06, discount));
-  // Initial growth: floor 3% so a sleepy name still gets a fair terminal, cap 25%
-  // so an optimistic read can't run away. The old 20% ceiling was arbitrarily
-  // punitive for genuine compounders — a retailer like Trent has grown earnings
-  // ~40%+ a year with analyst support, and forcing it to 20% capped the model at
-  // ~25x earnings no matter what the evidence said. 25% plus the two-stage fade and
-  // the terminal rate keeps it bounded without pretending real growth isn't there.
-  const g0 = Math.min(0.25, Math.max(0.03, growth ?? 0.05));
-  let cf = fcf;
-  let pv = 0;
-  // TRUE two-stage schedule.
-  //
-  // This model is described as 2-stage, but it used to fade growth linearly from
-  // YEAR ONE — so a company assessed at 20% growth was already modelled below 18%
-  // in year 2 and averaged barely 11% across the window. That is a 1-stage decay,
-  // not a 2-stage model, and it structurally undervalued every genuine compounder
-  // (a scaling retailer like Trent gets its growth taxed away before it has had a
-  // chance to compound).
-  //
-  // Correct behaviour: HOLD stage-1 growth for the first half of the window, then
-  // fade to the terminal rate across the second half. The terminal rate still
-  // binds at the final year, so nothing runs away — the cap and the fade both
-  // still do their job, they just stop firing prematurely.
-  const stage1 = Math.max(1, Math.floor(years / 2));
-  for (let t = 1; t <= years; t++) {
-    const g =
-      t <= stage1
-        ? g0
-        : g0 + ((termGrowth - g0) * (t - stage1)) / (years - stage1);
-    cf *= 1 + g;
-    pv += cf / Math.pow(1 + rate, t);
-  }
-  const terminal = (cf * (1 + termGrowth)) / (rate - termGrowth);
-  pv += terminal / Math.pow(1 + rate, years);
-  const perShare = pv / shares;
-  return isFinite(perShare) && perShare > 0 ? perShare : undefined;
-}
 
 // The through-cycle cash-flow base, extracted so the live score and the
 // historical reconstruction cannot drift apart. Raw free cash flow is the wrong
@@ -207,87 +159,6 @@ export function cashflowGrowthFrom(
   fcfSeries: number[]
 ): number | undefined {
   return cagr(ocfSeries) ?? cagr(fcfSeries);
-}
-
-// The same valuation the live score runs, exposed so a past year can be valued
-// on the cash flow that year actually reported. Everything market-level (the
-// bond rate, the equity risk premium, beta, the share count) is necessarily
-// today's — Yahoo does not serve a 2023 beta or a 2023 share register — so this
-// is "the model applied to the cash flow of the year", not a snapshot of what
-// the model would have printed at the time. Callers must label it as such.
-export function cashflowValuePerShare({
-  fcf,
-  shares,
-  growth,
-  currency,
-  beta,
-  cyclical = false,
-}: {
-  fcf: number | undefined;
-  shares: number | undefined;
-  growth: number | undefined;
-  currency: string | undefined;
-  beta?: number;
-  cyclical?: boolean;
-}): number | undefined {
-  const discount = costOfEquity(currency, beta);
-  const rate = cyclical ? Math.min(0.18, discount + 0.02) : discount;
-  const term = terminalGrowthFor(currency, rate);
-  return cyclical
-    ? dcfPerShare(fcf, shares, term, rate, term)
-    : dcfPerShare(fcf, shares, growth, rate, term);
-}
-
-// ── DCF rate inputs ──────────────────────────────────────────────────────────
-//
-// Two market-level constants drive the model, both keyed by the listing's home
-// currency because a US 9% discount applied to Indian cash flows understates the
-// risk and inflates the value.
-//
-// RISK_FREE is the local 10-year government bond yield. It does double duty: it
-// anchors the cost of equity, and it IS the terminal growth rate — a mature
-// company cannot compound faster than its economy forever, and the long bond is
-// the standard proxy for that ceiling.
-const RISK_FREE: Record<string, number> = {
-  USD: 0.043, CAD: 0.033, GBP: 0.042, EUR: 0.025, CHF: 0.005, JPY: 0.016,
-  AUD: 0.043, SGD: 0.028, HKD: 0.035, TWD: 0.015, KRW: 0.031, CNY: 0.018,
-  INR: 0.069, IDR: 0.068, THB: 0.026, PHP: 0.061, MYR: 0.038,
-  BRL: 0.113, MXN: 0.095, ZAR: 0.105, TRY: 0.27, AED: 0.043, SAR: 0.045,
-};
-
-// Equity risk premium — the excess return demanded over the local bond for
-// carrying equity risk. Developed markets sit near 5%, emerging markets higher.
-const EQUITY_RISK_PREMIUM: Record<string, number> = {
-  USD: 0.05, CAD: 0.05, GBP: 0.05, EUR: 0.055, CHF: 0.05, JPY: 0.055,
-  AUD: 0.05, SGD: 0.055, HKD: 0.06, TWD: 0.06, KRW: 0.065, CNY: 0.07,
-  INR: 0.07, IDR: 0.08, THB: 0.07, PHP: 0.08, MYR: 0.07,
-  BRL: 0.075, MXN: 0.07, ZAR: 0.08, TRY: 0.09, AED: 0.06, SAR: 0.06,
-};
-
-function riskFreeRate(currency: string | undefined): number {
-  return RISK_FREE[(currency ?? "USD").toUpperCase()] ?? 0.06;
-}
-
-// Cost of equity by CAPM: risk-free + beta x equity risk premium.
-//
-// Beta is the market's own measure of how much a name amplifies market moves, so
-// a defensive utility and a high-volatility small cap no longer get discounted
-// identically. It's clamped to 0.6–2.0: Yahoo's beta is noisy, and an unclamped
-// 0.1 or 3.5 swings the valuation more than the underlying business ever could.
-// The result is clamped again to 6–18% so neither a zero-rate market nor a
-// distressed one produces a nonsense discount.
-function costOfEquity(currency: string | undefined, beta?: number): number {
-  const rf = riskFreeRate(currency);
-  const erp = EQUITY_RISK_PREMIUM[(currency ?? "USD").toUpperCase()] ?? 0.07;
-  const b = beta != null && isFinite(beta) && beta > 0 ? Math.min(2.0, Math.max(0.6, beta)) : 1.0;
-  return Math.min(0.18, Math.max(0.06, rf + b * erp));
-}
-
-// Terminal growth for the Gordon step: the local 10-year bond rate, but never so
-// close to the discount rate that (rate - growth) collapses and the terminal
-// value explodes. A 3-point spread is the floor.
-function terminalGrowthFor(currency: string | undefined, discount: number): number {
-  return Math.max(0.005, Math.min(riskFreeRate(currency), discount - 0.03));
 }
 
 // Compound annual growth rate between the oldest and newest values in a series
@@ -946,8 +817,6 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
     usedForwardBase = true;
   }
 
-  const dcfComputable =
-    baseCashflow != null && baseCashflow > 0 && sharesOutstanding != null && sharesOutstanding > 0;
   // Deep-cyclical commodity producers (metals, mining, oil & gas) do NOT compound
   // their cash flows — those swing with commodity prices. Extrapolating a
   // historical growth rate off a cyclical peak is exactly what inflates a name
@@ -958,35 +827,46 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   const sectorLc = (str(ap.sector) ?? "").toLowerCase();
   const isCyclicalCommodity =
     sectorLc.includes("basic materials") || sectorLc.includes("energy");
-  // Discount at the listing's home-market cost of equity (Indian cash flows can't
-  // be discounted at a US 9%). Cyclical commodity producers get a further risk
-  // premium AND ~no real growth, so the estimate is a normalised mid-cycle read
-  // rather than an extrapolation of a peak year.
   const rateCurrency = financialCurrency ?? priceCurrency;
   const betaRaw = num(sd.beta) ?? num(ks.beta);
   const discountRate = costOfEquity(rateCurrency, betaRaw);
-  // Cyclical producers carry an extra premium on top of their CAPM rate.
-  const cyclicalRate = Math.min(0.18, discountRate + 0.02);
-  const effectiveRate = isCyclicalCommodity ? cyclicalRate : discountRate;
-  const terminalGrowth = terminalGrowthFor(rateCurrency, effectiveRate);
-  const cfRaw = dcfComputable
-    ? isCyclicalCommodity
-      // A commodity producer isn't compounding — value the through-cycle cash at
-      // the terminal rate only, discounted at the higher cyclical cost of equity.
-      ? dcfPerShare(baseCashflow, sharesOutstanding, terminalGrowth, cyclicalRate, terminalGrowth)
-      : dcfPerShare(baseCashflow, sharesOutstanding, cashflowGrowth, discountRate, terminalGrowth)
+
+  // ── Which valuation does this company get? ────────────────────────────────
+  //
+  // Banks, insurers and other lenders are routed AWAY from the cash-flow model
+  // before a cash-flow figure is consulted. A bank's free cash flow is an
+  // accounting artefact — lending growth is an operating outflow — and running a
+  // DCF on it is what produced HDFC Bank's ₹3,171.55 next to a P/B read of
+  // ₹472.58. They get an excess-return (residual-income) valuation instead, with
+  // P/B as the fallback; never bank operating cash flow.
+  //
+  // The rule lives in intrinsicValuePerShare, which is the ONLY place this file
+  // reaches a valuation model. Calling dcfPerShare from here would be a second
+  // door into the model with no lock on it.
+  const isFinancial = isFinancialInstitution(str(ap.sector), str(ap.industry));
+  const bookValuePerShare = num(ks.bookValue);
+  const roeRaw = num(fd.returnOnEquity);
+  const intrinsic = currencyOk
+    ? intrinsicValuePerShare({
+        sector: str(ap.sector),
+        industry: str(ap.industry),
+        price,
+        currency: rateCurrency,
+        beta: betaRaw,
+        baseCashflow,
+        shares: sharesOutstanding,
+        growth: cashflowGrowth,
+        cyclical: isCyclicalCommodity,
+        bookValuePerShare,
+        roe: roeRaw,
+        payoutRatio: num(sd.payoutRatio),
+      })
     : undefined;
-  // Sanity band only — reject clearly-broken data (e.g. a unit mismatch that
-  // slips past the currency check), NOT to second-guess a legitimate low/high
-  // estimate. Kept wide so a genuine value is essentially always shown.
-  const cfPerShare =
-    cfRaw != null &&
-    currencyOk &&
-    cfRaw > 0 &&
-    cfRaw >= price * 0.02 &&
-    cfRaw <= price * 25
-      ? cfRaw
-      : undefined;
+  // The DCF number, and only the DCF number. Watchlist, Rare Finds and the
+  // screeners rank on this field, so it has to stay strictly "the cash-flow
+  // model said so" — a bank appearing here is a bank being ranked on a valuation
+  // that doesn't apply to it.
+  const cfPerShare = intrinsic?.method === "dcf" ? intrinsic.estimate : undefined;
 
   // Is the market paying a multiple a 10-year DCF simply cannot reach?
   //
@@ -999,6 +879,27 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   // the over/under claim (same treatment as an off-scale sector benchmark).
   const cfOutOfRange =
     cfPerShare != null && pe != null && isFinite(pe) && pe > 45 && cfPerShare < price * 0.5;
+
+  // One short line per method, describing what the number actually is.
+  const intrinsicNote =
+    intrinsic == null
+      ? ""
+      : intrinsic.method === "excess-returns"
+      ? "A lender is worth its book value plus the returns it earns above its cost of equity — a bank's cash flow measures nothing here, so it isn't used. Model-based, not advice."
+      : intrinsic.method === "pb"
+      ? "Valued on book value at a typical sector multiple: the excess-return inputs (return on equity, book value) aren't complete enough to model the spread. Model-based, not advice."
+      : (cfOutOfRange
+          ? "Context, not a verdict: priced beyond what a 10-year model can span, so the gap is what the market pays for the years after that. "
+          : "") +
+        (isCyclicalCommodity
+          ? "Normalised mid-cycle cash flow, valued with no real growth and a cyclical cost of capital."
+          : usedForwardBase
+          ? "Built from consensus forward earnings, converted to cash at the company's own historical rate."
+          : baseIsOcf
+          ? "Built from operating cash flow less capex — reported free cash flow is negative through the cycle."
+          : "Built from the company's own free cash flow, weighted toward recent years.") +
+        (cashflowVolatile ? " Free cash flow has been negative in some years — read it as a range." : "") +
+        " Model-based, not advice.";
 
   // Sector-appropriate valuation: pick the right multiple for the company's
   // sector, apply a typical benchmark to its own figures, and read over/under.
@@ -1031,14 +932,64 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
       method: "Analyst mean target",
       note: "Analysts' average price target vs the current price — a research input, not advice.",
     },
-    cashflowValue:
-      cfPerShare != null
+    // The method-aware valuation — what the page shows. `method` names the model
+    // that produced it, so the card can never label an excess-return figure as a
+    // cash-flow one, and `modelVersion` stamps which revision of the models it
+    // came from (a stored point from an older version is identifiable, and
+    // purgeable, rather than silently mixed in with current ones).
+    intrinsicValue:
+      intrinsic != null
         ? {
-            estimate: cfPerShare,
+            estimate: intrinsic.estimate,
+            method: intrinsic.method,
+            methodLabel: intrinsic.methodLabel,
+            modelVersion: intrinsic.modelVersion,
             outOfRange: cfOutOfRange,
+            note: intrinsicNote,
             // The inputs that produced this number, so a surprising estimate can
             // be diagnosed from the actual figures instead of guesswork. Surfaced
             // by /api/score/<symbol>?debug=1.
+            debug: isFinancial
+              ? {
+                  method: intrinsic.method,
+                  bookValuePerShare,
+                  roe: roeRaw,
+                  payoutRatio: num(sd.payoutRatio),
+                  costOfEquity: discountRate,
+                  priceToBook: num(ks.priceToBook),
+                }
+              : {
+                  base: baseCashflow,
+                  baseKind: isCyclicalCommodity
+                    ? "cyclical-normalised"
+                    : usedForwardBase
+                    ? "forward-earnings"
+                    : baseIsOcf
+                    ? "owner-earnings"
+                    : "trailing-fcf",
+                  growthUsed: isCyclicalCommodity ? 0.025 : cashflowGrowth,
+                  analystGrowth,
+                  forwardEps: fwdEpsEstimate,
+                  forwardPE: fwdPe,
+                  discountRate,
+                  shares: sharesOutstanding,
+                  medianFcf: medFcf,
+                  trailingNetIncome: num(ks.netIncomeToCommon),
+                  fcfYears: fcfSeries.length,
+                },
+          }
+        : undefined,
+    // Kept as the DCF-only field it has always been, so every consumer that
+    // ranks or screens on "the cash-flow value" keeps meaning exactly that. It
+    // is undefined for a financial institution — which is the mechanism that
+    // stops Watchlist, Rare Finds and the screeners ranking a bank on a model
+    // that was never valid for it.
+    cashflowValue:
+      cfPerShare != null && intrinsic != null
+        ? {
+            estimate: cfPerShare,
+            outOfRange: cfOutOfRange,
+            note: intrinsicNote,
             debug: {
               base: baseCashflow,
               baseKind: isCyclicalCommodity
@@ -1058,23 +1009,6 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
               trailingNetIncome: num(ks.netIncomeToCommon),
               fcfYears: fcfSeries.length,
             },
-            // One short line per case. This note used to concatenate up to three
-            // long paragraphs, which produced an unreadable wall of text that also
-            // contradicted itself (claiming "forward-looking" next to a standing
-            // "built from trailing cash flows" footer). Keep it to a sentence.
-            note:
-              (cfOutOfRange
-                ? "Context, not a verdict: priced beyond what a 10-year model can span, so the gap is what the market pays for the years after that. "
-                : "") +
-              (isCyclicalCommodity
-                ? "Normalised mid-cycle cash flow, valued with no real growth and a cyclical cost of capital."
-                : usedForwardBase
-                ? "Built from consensus forward earnings, converted to cash at the company's own historical rate."
-                : baseIsOcf
-                ? "Built from operating cash flow less capex — reported free cash flow is negative through the cycle."
-                : "Built from the company's own free cash flow, weighted toward recent years.") +
-              (cashflowVolatile ? " Free cash flow has been negative in some years — read it as a range." : "") +
-              " Model-based, not advice.",
           }
         : undefined,
     sectorValuation,

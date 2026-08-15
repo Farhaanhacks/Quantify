@@ -22,10 +22,22 @@ export const fairValueHistoryConfigured = kvConfigured;
 export interface FairValuePoint {
   /** ISO date, YYYY-MM-DD. */
   d: string;
-  /** Cash-flow (DCF) value per share on that date. */
+  /** Intrinsic value per share on that date. */
   v: number;
   /** Share price on that date, so the two can be charted together. */
   p: number;
+  /**
+   * Which model produced it — "dcf", "excess-returns" or "pb".
+   *
+   * Stored per point because the model is no longer the same for every company.
+   * A series that silently mixes a bank's old discounted-cash-flow numbers with
+   * its new excess-return ones is a chart of our own bugs, not of the company:
+   * HDFC Bank's stored ₹3,171.55 came from a cash-flow model that should never
+   * have run on it. Absent on points written before methods were recorded.
+   */
+  m?: string;
+  /** Model revision, so an old point can be identified and dropped. */
+  mv?: string;
 }
 
 // Roughly two years of daily points. Beyond that the early history says more
@@ -71,7 +83,9 @@ export async function getFairValueHistory(ticker: string): Promise<FairValuePoin
 export async function recordFairValue(
   ticker: string,
   value: number,
-  price: number
+  price: number,
+  method?: string,
+  modelVersion?: string
 ): Promise<void> {
   if (!kvConfigured() || !isTicker(ticker)) return;
   if (!(value > 0) || !(price > 0)) return;
@@ -83,11 +97,55 @@ export async function recordFairValue(
     // Two days of TTL so a late-UTC write can't be re-run by an early one.
     const first = await kvClaim(`${key(ticker)}:${today}`, 2 * 24 * 60 * 60);
     if (!first) return; // already recorded today
-    await kvRPush(key(ticker), JSON.stringify({ d: today, v: value, p: price }));
+    // Once a day, and only for a company whose model has changed, drop what a
+    // superseded model wrote before adding to it.
+    if (method) await purgeSupersededFairValue(ticker, method);
+    await kvRPush(
+      key(ticker),
+      JSON.stringify({ d: today, v: value, p: price, m: method, mv: modelVersion })
+    );
     // Keeps the newest MAX_POINTS; a no-op while the list is shorter than that,
     // so it needs no separate length check.
     await kvLTrim(key(ticker), -MAX_POINTS, -1);
   } catch {
     /* history is best-effort */
+  }
+}
+
+/**
+ * Throw away a stored series that a superseded model wrote.
+ *
+ * Needed because the fix to the bank valuation does not fix what is already in
+ * the database. HDFC Bank has ₹3,171.55 recorded against real dates: leave those
+ * in and the chart still draws the wrong answer for as long as the points live,
+ * with today's correct value dropping onto the end of a line built from the bug.
+ *
+ * Deliberately narrow. It only fires when the CURRENT method for a company is
+ * not the one its stored points were written by, so a company whose model hasn't
+ * changed keeps every point it has accumulated — that history is real and cannot
+ * be rebuilt, and wiping every series to fix banks would be a far bigger loss
+ * than the bug. An unstamped point predates the stamping, when the only model
+ * that ran was the cash-flow one, so it counts as "dcf": a company still valued
+ * that way keeps its history, and a bank — now valued on excess returns — does
+ * not.
+ *
+ * Returns true if anything was cleared.
+ */
+export async function purgeSupersededFairValue(
+  ticker: string,
+  currentMethod: string
+): Promise<boolean> {
+  if (!kvConfigured() || !isTicker(ticker)) return false;
+  try {
+    const rows = parse(await kvLRange(key(ticker), 0, -1));
+    if (!rows.length) return false;
+    if (rows.every((p) => (p.m ?? "dcf") === currentMethod)) return false;
+    // LTRIM with start > stop empties the list — the only delete this KV
+    // wrapper exposes, and the right one here: a series written by a model we
+    // have withdrawn has no salvageable part.
+    await kvLTrim(key(ticker), 1, 0);
+    return true;
+  } catch {
+    return false;
   }
 }
