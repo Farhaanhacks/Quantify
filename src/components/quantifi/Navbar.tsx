@@ -9,18 +9,29 @@ import BrandLogo from "@/components/quantifi/BrandLogo";
 import NotificationBell from "@/components/quantifi/NotificationBell";
 import { useProStatus } from "@/lib/useProStatus";
 import CommandSearch from "@/components/quantifi/CommandSearch";
+import { DISCOVER_PATHS } from "@/components/quantifi/DiscoverNav";
 
-// Ideas, Rare Finds and Tools are no longer surfaced in the nav — their content
-// is moving to the community page. The routes still exist, so any saved/shared
-// link keeps working; they're just not advertised here any more.
+// Ideas and Rare Finds are reachable again, through Discover rather than as
+// nav items of their own — a top bar with six peers had no room for two more,
+// and they belong together anyway.
 //
 // Subscribe keeps the shape of every other nav item; only its colour differs.
 // `accent` marks it so it reads as the paid destination without turning into a
 // differently-shaped control.
-const links = [
+// Discover is a section, not a page: the screener and the ideas/rare-finds
+// library sit under it, and DiscoverNav draws the second row that switches
+// between them. `match` is how this row knows it is the active one — the
+// section's pages keep their own top-level URLs, so a startsWith test on
+// "/discover" alone would never fire.
+const links: {
+  href: string;
+  label: string;
+  accent?: boolean;
+  match?: string[];
+}[] = [
   { href: "/", label: "Home" },
   { href: "/news", label: "News" },
-  { href: "/screener", label: "Screener" },
+  { href: "/discover", label: "Discover", match: DISCOVER_PATHS },
   { href: "/portfolio", label: "Portfolio" },
   { href: "/watchlist", label: "Watchlist" },
   { href: "/pricing", label: "Subscribe", accent: true },
@@ -56,8 +67,11 @@ export default function Navbar() {
   const signedIn = ready && user != null;
   const navLinks = signedIn ? links : signedOutLinks;
 
-  const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname.startsWith(href);
+  const isActive = (l: { href: string; match?: string[] }) => {
+    if (l.href === "/") return pathname === "/";
+    if (l.match?.some((m) => pathname === m || pathname.startsWith(`${m}/`))) return true;
+    return pathname.startsWith(l.href);
+  };
 
   return (
     // Solid background, no backdrop-blur. The bar used to be bg-ink/70 +
@@ -80,8 +94,8 @@ export default function Navbar() {
               // whole row reads as a set of chips rather than bare text.
               className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-sm font-medium transition ${
                 l.accent
-                  ? `text-gold hover:bg-white/10 ${isActive(l.href) ? "bg-white/10" : ""}`
-                  : isActive(l.href)
+                  ? `text-gold hover:bg-white/10 ${isActive(l) ? "bg-white/10" : ""}`
+                  : isActive(l)
                   ? "bg-white/10 text-white"
                   : "text-slate-300 hover:bg-white/10 hover:text-white"
               }`}
@@ -128,8 +142,8 @@ export default function Navbar() {
                 onClick={() => setOpen(false)}
                 className={`rounded-lg px-3 py-2 text-sm transition ${
                   l.accent
-                    ? `text-gold hover:bg-white/10 ${isActive(l.href) ? "bg-white/10" : ""}`
-                    : isActive(l.href)
+                    ? `text-gold hover:bg-white/10 ${isActive(l) ? "bg-white/10" : ""}`
+                    : isActive(l)
                     ? "bg-white/10 text-white"
                     : "text-slate-300 hover:bg-white/10 hover:text-white"
                 }`}

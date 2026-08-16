@@ -1,5 +1,9 @@
 import Link from "next/link";
 import TradingIdeas from "@/components/quantifi/TradingIdeas";
+import DiscoverNav from "@/components/quantifi/DiscoverNav";
+import UndervaluedFinds from "@/components/quantifi/UndervaluedFinds";
+import RareFinds from "@/components/quantifi/RareFinds";
+import ProGate from "@/components/quantifi/ProGate";
 import { Eyebrow } from "@/components/quantifi/Cards";
 import { playbooks } from "@/data/playbooks";
 import { buildMetadata } from "@/lib/seo";
@@ -11,10 +15,15 @@ export const metadata = buildMetadata({
   path: "/ideas",
 });
 
+// Rare Finds is gated on the signed-in user's subscription, so this page is now
+// rendered per request rather than at build time.
+export const dynamic = "force-dynamic";
+
 export default function IdeasPage() {
   const pb = playbooks[0];
   return (
     <>
+      <DiscoverNav />
       {pb ? (
         <section className="mx-auto max-w-7xl px-4 pt-12 sm:px-6 lg:px-8">
           <Eyebrow>Featured research playbook</Eyebrow>
@@ -47,6 +56,16 @@ export default function IdeasPage() {
         </section>
       ) : null}
       <TradingIdeas showFilter limit={undefined} />
+
+      {/* Rare Finds lives here now rather than on a page of its own with no way
+          in. It is the same two sections /rare-finds still serves — that URL
+          keeps working — and the same Pro gate around them. */}
+      <div className="border-t border-white/[0.06]">
+        <ProGate feature="Rare Finds">
+          <UndervaluedFinds />
+          <RareFinds />
+        </ProGate>
+      </div>
     </>
   );
 }

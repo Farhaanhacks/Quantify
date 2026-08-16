@@ -392,10 +392,33 @@ export default function CommandSearch({ className = "" }: { className?: string }
 
       {/* ── Panel ───────────────────────────────────────────────────────── */}
       {open ? (
-        <div style={{ backgroundColor: "var(--bg)" }}
-          className="fixed inset-0 z-[100] flex flex-col backdrop-blur-xl" role="dialog" aria-modal="true" aria-label="Search">
+        // A dialog on top of the page, not a page of its own.
+        //
+        // This used to be `fixed inset-0` with an opaque background: the search
+        // took the entire viewport, so eight recent searches and a column of
+        // logos were spread across a 1400px-wide void, and the app you were
+        // searching from disappeared while you did it. Bounded and centred, the
+        // list reads as a list, and the page stays visible behind it so it's
+        // obvious the search is a layer you can dismiss rather than somewhere
+        // you have navigated to.
+        <div
+          className="fixed inset-0 z-[100] flex justify-center overflow-y-auto bg-black/60 px-4 py-[6vh] backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Search"
+          onMouseDown={(e) => {
+            // Only a press that both starts AND ends on the backdrop closes it,
+            // which is what onMouseDown on the container gives us: a drag that
+            // began on a result and released outside must not dismiss the panel.
+            if (e.target === e.currentTarget) close();
+          }}
+        >
+        <div
+          style={{ backgroundColor: "var(--bg)" }}
+          className="flex h-fit max-h-[88vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-white/10 shadow-2xl shadow-black/50"
+        >
           {/* Header: back arrow + the real input */}
-          <div className="flex items-center gap-3 border-b border-white/[0.07] px-4 py-3 sm:px-6">
+          <div className="flex flex-none items-center gap-3 border-b border-white/[0.07] px-4 py-3 sm:px-6">
             <button
               type="button"
               onClick={close}
@@ -436,9 +459,12 @@ export default function CommandSearch({ className = "" }: { className?: string }
             </div>
           </div>
 
-          <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 overflow-hidden px-4 py-5 sm:px-6 lg:flex-row lg:gap-10">
+          {/* min-h-0 is what lets the results column actually scroll: without it
+              a flex child refuses to shrink below its content, and the panel
+              grows past its own max height instead of the list scrolling. */}
+          <div className="flex min-h-0 w-full flex-1 flex-col gap-5 overflow-hidden px-4 py-5 sm:px-6 lg:flex-row lg:gap-8">
             {/* Results */}
-            <div ref={listRef} className="min-w-0 flex-1 overflow-y-auto lg:order-1">
+            <div ref={listRef} className="min-h-0 min-w-0 flex-1 overflow-y-auto lg:order-1">
               {term.length < 1 ? (
                 <>
                   {recent.length > 0 ? (
@@ -657,6 +683,7 @@ export default function CommandSearch({ className = "" }: { className?: string }
               </nav>
             ) : null}
           </div>
+        </div>
         </div>
       ) : null}
     </>

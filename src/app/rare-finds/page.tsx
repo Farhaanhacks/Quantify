@@ -1,6 +1,7 @@
 import UndervaluedFinds from "@/components/quantifi/UndervaluedFinds";
 import RareFinds from "@/components/quantifi/RareFinds";
 import ProGate from "@/components/quantifi/ProGate";
+import DiscoverNav from "@/components/quantifi/DiscoverNav";
 
 // Access depends on the signed-in user's subscription, so render per request.
 export const dynamic = "force-dynamic";
@@ -13,10 +14,16 @@ export const metadata = {
 };
 
 export default function RareFindsPage() {
+  // Kept as its own URL — the account menu and search both point here, and it
+  // has been shared — but it is part of Investing Ideas now, so it carries the
+  // same section navigation and lights up that tab.
   return (
-    <ProGate feature="Rare Finds">
-      <UndervaluedFinds />
-      <RareFinds />
-    </ProGate>
+    <>
+      <DiscoverNav />
+      <ProGate feature="Rare Finds">
+        <UndervaluedFinds />
+        <RareFinds />
+      </ProGate>
+    </>
   );
 }

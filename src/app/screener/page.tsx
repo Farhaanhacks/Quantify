@@ -1,4 +1,5 @@
 import Screener from "@/components/quantifi/Screener";
+import DiscoverNav from "@/components/quantifi/DiscoverNav";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
@@ -9,5 +10,10 @@ export const metadata = buildMetadata({
 });
 
 export default function ScreenerPage() {
-  return <Screener />;
+  return (
+    <>
+      <DiscoverNav />
+      <Screener />
+    </>
+  );
 }
