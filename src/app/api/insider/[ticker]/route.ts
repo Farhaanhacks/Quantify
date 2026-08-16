@@ -1,7 +1,8 @@
 import { getCompanyInsiderTrades } from "@/lib/insider";
 import { getIndiaInsiderWithDebug } from "@/lib/insiderIndia";
 import { getNSEInsiderWithDebug } from "@/lib/insiderIndiaNSE";
-import { getTaiwanInsiderWithDebug } from "@/lib/insiderTaiwan";
+import { lookupTaiwanInsider, getTaiwanIngestMeta } from "@/lib/taiwan/insiderStore";
+import { TAIWAN_ATTRIBUTION } from "@/lib/taiwan/attribution";
 import { getStoredInsider } from "@/lib/insiderStore";
 import { jsonCached } from "@/lib/httpCache";
 import { aliasSymbol } from "@/lib/symbolAlias";
@@ -141,26 +142,51 @@ export async function GET(req: Request, { params }: { params: { ticker: string }
     }
   }
 
-  // Taiwan (.TW / .TWO) → FinMind's open insider-shareholding dataset. Open data,
-  // so it carries none of the "personal use only" redistribution limits that
-  // retail market-data vendors put on their consumer tiers.
+  // Taiwan (.TW / .TWO) → the exchanges' own open data, read from the store the
+  // scheduled job fills. Never a live call to the exchange: these are
+  // market-wide files, so serving one from a page request would download every
+  // listed company's filings to show one company's.
+  //
+  // The status is the point. "We have nothing for this company" is FOUR
+  // different facts — it filed nothing, the source failed, the symbol isn't a
+  // Taiwan listing, or our copy has gone stale — and the previous version
+  // reported all four as "no insider disclosures found", which states something
+  // false about a real company in three cases out of four.
   if (/\.(TW|TWO)$/i.test(ticker)) {
     try {
-      const { disclosures, debug } = await getTaiwanInsiderWithDebug(ticker, 20);
-      const hit = disclosures.length > 0;
+      const { status, records, asOf, ageHours } = await lookupTaiwanInsider(ticker);
+      const has = records.length > 0;
       return jsonCached(
         {
-          available: hit,
+          available: status === "available" || status === "stale",
           market: "TW",
-          source: hit ? "finmind" : "none",
-          disclosures,
-          ...(wantDebug ? { debug } : {}),
+          status,
+          source: has ? "twse-tpex-open-data" : "none",
+          asOf,
+          attribution: TAIWAN_ATTRIBUTION,
+          records,
+          ...(wantDebug
+            ? { debug: { status, ageHours, count: records.length, meta: await getTaiwanIngestMeta() } }
+            : {}),
         },
-        hit ? 3600 : 300,
-        hit ? 7200 : 600
+        // A hit is stable for hours — the files are published daily. A miss is
+        // cached briefly so a recovered source reaches readers quickly rather
+        // than being frozen out for the rest of the day.
+        has ? 3600 : 120,
+        has ? 7200 : 240
       );
     } catch {
-      return jsonCached({ available: false, market: "TW", disclosures: [] }, 60);
+      // An exception here is our failure, not the company's silence.
+      return jsonCached(
+        {
+          available: false,
+          market: "TW",
+          status: "source_unavailable" as const,
+          attribution: TAIWAN_ATTRIBUTION,
+          records: [],
+        },
+        60
+      );
     }
   }
 

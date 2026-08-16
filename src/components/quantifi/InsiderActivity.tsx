@@ -3,6 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { GlassCard, SectionHeading, TickerChip, Tag, Skeleton } from "@/components/quantifi/Cards";
 import { fmtCompact } from "@/data/demo";
+import { TAIWAN_ATTRIBUTION_LINE } from "@/lib/taiwan/attribution";
+import {
+  describeTaiwanRecord,
+  EVENT_LABEL,
+  taiwanRecordId,
+  type TaiwanInsiderRecord as TaiwanRecord,
+} from "@/lib/taiwan/insiderParse";
+import type { TaiwanInsiderStatus as TaiwanStatus } from "@/lib/taiwan/insiderStore";
 
 interface ApiTrade {
   id: string;
@@ -135,7 +143,15 @@ export default function InsiderActivity({
 }) {
   const [trades, setTrades] = useState<ApiTrade[] | null>(null);
   const [disclosures, setDisclosures] = useState<ApiDisclosure[]>([]);
-  const [market, setMarket] = useState<"US" | "IN">("US");
+  const [market, setMarket] = useState<"US" | "IN" | "TW">("US");
+  // Taiwan is kept in its OWN shape rather than mapped into the Indian
+  // disclosure type. That mapping is what produced "Bought"/"Sold" labels for
+  // filings that report neither — a monthly holdings position, an intention to
+  // transfer, and the part of an intention that went unexecuted. Different
+  // facts need different fields, or the wording drifts back.
+  const [twRecords, setTwRecords] = useState<TaiwanRecord[]>([]);
+  const [twStatus, setTwStatus] = useState<TaiwanStatus | undefined>(undefined);
+  const [twAsOf, setTwAsOf] = useState<string | undefined>(undefined);
   const [exchange, setExchange] = useState<"NSE" | "BSE">("NSE");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -156,6 +172,7 @@ export default function InsiderActivity({
     setLoading(true);
     setError(false);
     setReason(undefined);
+    setTwStatus(undefined);
     const url = activeTicker
       ? `/api/insider/${encodeURIComponent(activeTicker)}`
       : "/api/insider-feed";
@@ -165,14 +182,24 @@ export default function InsiderActivity({
         if (!r.ok) throw new Error(`status ${r.status}`);
         const d = (await r.json()) as {
           available?: boolean;
-          market?: "US" | "IN";
+          market?: "US" | "IN" | "TW";
           source?: string;
           reason?: "unconfigured" | "blocked" | "empty";
+          status?: TaiwanStatus;
+          asOf?: string;
           trades?: ApiTrade[];
           disclosures?: ApiDisclosure[];
+          records?: TaiwanRecord[];
         };
         if (cancelled) return;
-        if (d.market === "IN") {
+        if (d.market === "TW") {
+          setMarket("TW");
+          setTwRecords(Array.isArray(d.records) ? d.records : []);
+          setTwStatus(d.status);
+          setTwAsOf(d.asOf);
+          setTrades([]);
+          setDisclosures([]);
+        } else if (d.market === "IN") {
           setMarket("IN");
           // "store"/"nse" → NSE; "bse" → BSE. Default NSE (the primary source now).
           setExchange(d.source === "bse" ? "BSE" : "NSE");
@@ -203,7 +230,15 @@ export default function InsiderActivity({
   // For an Indian symbol we lean on the fetched market flag, but also on the
   // ticker itself so the labels switch immediately (before the fetch resolves).
   const isIndia = market === "IN" || (!!activeTicker && /\.(NS|BO)$/i.test(activeTicker));
+  // Same trick as India: lean on the ticker too, so the labels switch before
+  // the fetch resolves rather than flashing the US layout first.
+  const isTaiwan = market === "TW" || (!!activeTicker && /\.(TW|TWO)$/i.test(activeTicker));
   const liveIN = disclosures.length > 0;
+  // Which exchange the rows actually came from, rather than a guess from the
+  // suffix: a .TW ticker is TWSE and .TWO is TPEx, and the records say so.
+  const twMarketLabel =
+    twRecords[0]?.market ??
+    (activeTicker && /\.TWO$/i.test(activeTicker) ? "TPEx" : "TWSE");
   // Live SEC EDGAR data only — never a demo fallback. An empty result is an
   // honest empty state, not a reason to show fabricated trades.
   const source: Row[] = useMemo(
@@ -249,8 +284,16 @@ export default function InsiderActivity({
   // like a feature that simply does not exist: the reader gets no data and no
   // explanation, and cannot tell the difference. Those cases keep the section
   // and say what happened.
-  const unexplained = reason === "blocked" || reason === "unconfigured";
-  if (ticker && !loading && !live && !liveIN && !unexplained) return null;
+  // A section hidden for emptiness must only be hidden when the emptiness is
+  // REAL. An unreachable source that renders as nothing at all leaves the reader
+  // with no data and no explanation, unable to tell which they are looking at.
+  const unexplained =
+    reason === "blocked" ||
+    reason === "unconfigured" ||
+    twStatus === "source_unavailable" ||
+    twStatus === "stale";
+  const liveTW = twRecords.length > 0;
+  if (ticker && !loading && !live && !liveIN && !liveTW && !unexplained) return null;
 
   const filters: Filter[] = ["All", "Buys", "Sells", "Planned"];
 
@@ -261,7 +304,9 @@ export default function InsiderActivity({
           eyebrow="Insider Activity"
           title={activeTicker ? `Insider trades · ${activeTicker}` : "Insider trades"}
           subtitle={
-            isIndia
+            isTaiwan
+              ? `Directors', supervisors', managers' and major shareholders' filings published by the ${twMarketLabel} — monthly holdings, transfers declared in advance, and the declared shares that were not transferred. These are positions and intentions, not executed trades.`
+              : isIndia
               ? `Insider / SAST disclosures filed with ${exchange} — promoters, directors and designated persons under SEBI (PIT) Regulation 7. Official filings shown as disclosed; never a signal on its own. Beta.`
               : "Real Form 4 filings from SEC EDGAR — directors and officers, with a 10b5-1 flag when the trade was pre-arranged. Disclosed after the fact; never a signal on its own."
           }
@@ -302,7 +347,10 @@ export default function InsiderActivity({
         </div>
       ) : null}
 
-      {showFilter && !isIndia ? (
+      {/* Buys / Sells / Planned are Form 4 concepts. Taiwan publishes
+          positions and intentions, so filtering by "side" would be filtering
+          on something these filings do not contain. */}
+      {showFilter && !isIndia && !isTaiwan ? (
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {filters.map((t) => (
             <button
@@ -333,7 +381,99 @@ export default function InsiderActivity({
         </div>
       ) : null}
 
-      {isIndia ? (
+      {isTaiwan ? (
+        <GlassCard className="mt-6 overflow-hidden">
+          <div className="hidden grid-cols-[1.6fr_1.1fr_0.9fr_1.6fr_0.8fr] gap-3 border-b border-white/[0.06] px-5 py-3 text-[0.62rem] uppercase tracking-[0.16em] text-slate-500 lg:grid">
+            <span>Person</span>
+            <span>Role</span>
+            <span>Filing</span>
+            <span>Detail</span>
+            <span className="text-right">When</span>
+          </div>
+          <ul className="divide-y divide-white/[0.05]">
+            {loading && twRecords.length === 0 ? (
+              <FilingSkeletonRows rows={limit ?? 5} cols={["1.6fr", "1.1fr", "0.9fr", "1.6fr", "0.8fr"]} />
+            ) : null}
+            {(limit ? twRecords.slice(0, limit) : twRecords).map((r) => (
+              <li
+                key={taiwanRecordId(r)}
+                className="grid grid-cols-2 gap-3 px-5 py-4 lg:grid-cols-[1.6fr_1.1fr_0.9fr_1.6fr_0.8fr] lg:items-center"
+              >
+                <div className="min-w-0 truncate font-display text-sm font-semibold text-white" title={r.person}>
+                  {r.person}
+                </div>
+                <div className="min-w-0 truncate text-xs text-slate-400" title={r.role}>
+                  <span className="text-slate-600 lg:hidden">Role · </span>
+                  {r.role}
+                </div>
+                <div>
+                  {/* The filing TYPE, never a side. None of these three datasets
+                      reports a purchase or a sale, so there is no "Buy"/"Sell"
+                      pill here to be read as one. */}
+                  <span className="inline-block rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[0.6rem] font-medium uppercase tracking-wide text-slate-300">
+                    {EVENT_LABEL[r.eventType]}
+                  </span>
+                </div>
+                <div className="text-xs leading-relaxed text-slate-300">
+                  <span className="text-slate-600 lg:hidden">Detail · </span>
+                  {describeTaiwanRecord(r)}
+                </div>
+                <div className="text-xs text-slate-500 lg:text-right">
+                  {fmtDate(r.filingDate)}
+                  {r.reportingMonth ? (
+                    <span className="block text-[0.68rem] text-slate-600">for {r.reportingMonth}</span>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          {!loading && twRecords.length === 0 ? (
+            <div className="px-5 py-10 text-center text-sm leading-relaxed text-slate-500">
+              {/* Four different facts, four different sentences. The version this
+                  replaces printed the last one for all of them, which told
+                  readers a company had disclosed nothing whenever the truth was
+                  that we had not heard from the exchange. */}
+              {twStatus === "source_unavailable" ? (
+                <>
+                  Source temporarily unavailable — we don&apos;t know what {activeTicker} has
+                  filed.
+                  <span className="mt-2 block text-[0.78rem] text-slate-600">
+                    The TWSE / TPEx open-data files haven&apos;t been ingested successfully yet.
+                    This is not a statement that there are no disclosures.
+                  </span>
+                </>
+              ) : twStatus === "unsupported" ? (
+                <>Insider disclosures aren&apos;t available for this listing.</>
+              ) : (
+                <>
+                  No insider disclosures on file for {activeTicker}.
+                  <span className="mt-2 block text-[0.78rem] text-slate-600">
+                    The exchange&apos;s latest holdings, planned-transfer and untransferred
+                    files were read in full and carry no rows for this company.
+                  </span>
+                </>
+              )}
+            </div>
+          ) : null}
+
+          {/* Required by the licence these files are published under, so it sits
+              with the data rather than in a policy page nobody opens. */}
+          <div className="border-t border-white/[0.06] px-5 py-3 text-[0.68rem] leading-relaxed text-slate-500">
+            {twStatus === "stale" && twAsOf ? (
+              <span className="mb-1 block text-gold/80">
+                Showing our last successful read ({fmtDate(twAsOf.slice(0, 10))}); a newer file
+                hasn&apos;t been ingested yet.
+              </span>
+            ) : twAsOf && twRecords.length ? (
+              <span className="mb-1 block text-slate-600">
+                Ingested {fmtDate(twAsOf.slice(0, 10))}
+              </span>
+            ) : null}
+            {TAIWAN_ATTRIBUTION_LINE}
+          </div>
+        </GlassCard>
+      ) : isIndia ? (
         <GlassCard className="mt-6 overflow-hidden">
           {/* Six columns rather than one paragraph. Name, role, side, size and
               value were being run together into a single "·"-joined line, so

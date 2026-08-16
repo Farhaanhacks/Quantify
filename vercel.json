@@ -1,1 +1,7 @@
-{"crons":[{"path":"/api/cron/insider-in","schedule":"30 13 * * *"}]}
+{
+  "crons": [
+    { "path": "/api/cron/insider-in", "schedule": "30 13 * * *" },
+    { "path": "/api/cron/insider-tw", "schedule": "0 1 * * *" },
+    { "path": "/api/cron/insider-tw", "schedule": "0 9 * * *" }
+  ]
+}
