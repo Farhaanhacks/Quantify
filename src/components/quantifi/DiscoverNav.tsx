@@ -20,6 +20,7 @@ import { usePathname } from "next/navigation";
 export const DISCOVER_TABS: { href: string; label: string; owns?: string[] }[] = [
   { href: "/ideas", label: "Investing Ideas", owns: ["/rare-finds"] },
   { href: "/screener", label: "Screener" },
+  { href: "/markets", label: "Markets" },
 ];
 
 /** Every path that lives under Discover, so the top bar can light up for them. */

@@ -1,0 +1,150 @@
+// The arithmetic behind the market pages, kept apart from the fetching.
+//
+// No imports, on purpose: everything here is numbers in, numbers out, so
+// scripts/test-market-math.mjs can compile and run it directly. The functions
+// that used to live inside the aggregator and inside the React component could
+// not be exercised at all — they sat behind a network call and a browser — and
+// the two things most likely to be silently wrong (a percentage in the wrong
+// unit, a window measured from the wrong day) are exactly the things that look
+// completely plausible on screen.
+
+export interface Point {
+  /** YYYY-MM-DD. */
+  time: string;
+  value: number;
+}
+
+/**
+ * Cap-weighted mean of a field, ignoring rows that don't report it.
+ *
+ * Returns the count as well as the value so a caller can refuse to publish an
+ * average that only two of forty companies actually contributed to.
+ */
+export function weightedMean<T>(
+  rows: T[],
+  value: (r: T) => number | undefined,
+  weight: (r: T) => number
+): { value: number | undefined; n: number } {
+  let num = 0;
+  let den = 0;
+  let n = 0;
+  for (const r of rows) {
+    const v = value(r);
+    const w = weight(r);
+    if (v == null || !isFinite(v) || !(w > 0)) continue;
+    num += v * w;
+    den += w;
+    n++;
+  }
+  return den > 0 ? { value: num / den, n } : { value: undefined, n: 0 };
+}
+
+/**
+ * Aggregate P/E, the way an index computes one: total market value over total
+ * earnings.
+ *
+ * NOT the average of the companies' P/E ratios. That average is dominated by
+ * whichever company is closest to breaking even — a name on 400x earnings adds
+ * 400 to the mean and a rounding error to the market's actual earnings — and it
+ * is how a market of ordinary businesses ends up reading as "60x". Loss-makers
+ * are excluded rather than counted as zero earnings, which would divide by zero
+ * and make the whole market's ratio infinite.
+ */
+export function aggregatePE(rows: { marketCap: number; pe?: number }[]): number | undefined {
+  let cap = 0;
+  let earnings = 0;
+  for (const r of rows) {
+    if (r.pe == null || !isFinite(r.pe) || r.pe <= 0 || !(r.marketCap > 0)) continue;
+    cap += r.marketCap;
+    earnings += r.marketCap / r.pe;
+  }
+  if (!(earnings > 0) || !(cap > 0)) return undefined;
+  const pe = cap / earnings;
+  return isFinite(pe) && pe > 0 && pe < 500 ? pe : undefined;
+}
+
+/**
+ * A company's 52-week return, in percent, derived rather than trusted.
+ *
+ * Yahoo's quote feed carries both an absolute 52-week change and a percentage
+ * one, and the percentage field's UNIT is not consistent across Yahoo's
+ * endpoints — some return 0.234, others 23.4. Reading it wrong is not a subtle
+ * error: it is a market shown as up 0.2% in a year it rose 23%, or up 2,340%.
+ *
+ * So the percentage is computed from the two absolute numbers, which cannot be
+ * misread — price minus change is the price a year ago, by definition. The
+ * reported percentage is only a fallback, and only when it is in a range a
+ * percentage could plausibly be.
+ */
+export function yearChangePct(q: {
+  price?: number;
+  fiftyTwoWeekChange?: number;
+  fiftyTwoWeekChangePercent?: number;
+}): number | undefined {
+  const { price, fiftyTwoWeekChange: abs, fiftyTwoWeekChangePercent: pctField } = q;
+  if (price != null && abs != null && isFinite(price) && isFinite(abs)) {
+    const before = price - abs;
+    if (before > 0) {
+      const v = (abs / before) * 100;
+      if (isFinite(v) && Math.abs(v) < 1000) return v;
+    }
+  }
+  if (pctField != null && isFinite(pctField)) {
+    // A bare fraction (|x| ≤ 3) would be a market that moved at most 300%, which
+    // is far likelier to be a fraction than a 3% year written as 3. Both
+    // readings are guesses at this point, which is why this branch is last.
+    const v = Math.abs(pctField) <= 3 ? pctField * 100 : pctField;
+    if (Math.abs(v) < 1000) return v;
+  }
+  return undefined;
+}
+
+const DAY_MS = 86400000;
+
+/**
+ * Return over a trailing window, as a percentage, or undefined when the series
+ * cannot honestly answer for that window.
+ *
+ * Two guards, and both have bitten:
+ *
+ *   • The start point is the first one ON OR AFTER the cutoff. Taking the last
+ *     point before it instead would quietly lengthen the window, because
+ *     markets are shut on plenty of the days you might ask about.
+ *   • If the series does not reach back far enough, there is no answer. A "1
+ *     year" figure computed from eight months of history is not a cautious
+ *     estimate, it is a different number with the wrong label on it.
+ *
+ * The second guard carries slack, scaled to the window. A one-year series from
+ * the upstream begins almost exactly 365 days ago, so demanding a point strictly
+ * on or before the cutoff blanks the 1Y reading whenever that day was a weekend
+ * — which is most weeks.
+ */
+export function returnOver(points: Point[], days: number): number | undefined {
+  if (points.length < 2 || days <= 0) return undefined;
+  const last = points[points.length - 1];
+  const end = Date.parse(last.time);
+  if (!isFinite(end)) return undefined;
+  const cutoff = end - days * DAY_MS;
+  const iso = new Date(cutoff).toISOString().slice(0, 10);
+
+  const start = points.find((p) => p.time >= iso);
+  if (!start || start === last || !(start.value > 0)) return undefined;
+
+  const slack = Math.max(3, days * 0.04) * DAY_MS;
+  if (Date.parse(points[0].time) > cutoff + slack) return undefined;
+
+  return ((last.value - start.value) / start.value) * 100;
+}
+
+/** Return since the first trading day of the last point's calendar year. */
+export function ytdReturn(points: Point[]): number | undefined {
+  if (points.length < 2) return undefined;
+  const last = points[points.length - 1];
+  const jan = `${last.time.slice(0, 4)}-01-01`;
+  // No slack here: the year's start is a fixed date, and a series that begins in
+  // March cannot report a year-to-date figure.
+  if (points[0].time > jan) return undefined;
+  const start = points.find((p) => p.time >= jan);
+  if (!start || start === last || !(start.value > 0)) return undefined;
+  return ((last.value - start.value) / start.value) * 100;
+}

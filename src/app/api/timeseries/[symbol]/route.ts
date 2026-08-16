@@ -254,7 +254,9 @@ export async function GET(
   { params }: { params: { symbol: string } }
 ) {
   const symbol = aliasSymbol(params.symbol);
-  const allowed = ["1d", "3mo", "6mo", "ytd", "1y", "5y", "max", "1mo"];
+  // "10y" was already handled below (weekly bars, like "max") but was missing
+  // from this list, so every request for it silently fell back to one year.
+  const allowed = ["1d", "3mo", "6mo", "ytd", "1y", "5y", "10y", "max", "1mo"];
   const reqRange = new URL(req.url).searchParams.get("range") ?? "1y";
   const range = allowed.includes(reqRange) ? reqRange : "1y";
 

@@ -145,6 +145,14 @@ export interface YahooQuote {
   // snapshot (which lags), so they're the freshest source for a company's size.
   marketCap?: number;
   sharesOutstanding?: number;
+  // Enough valuation and 1-year context to aggregate a market from the same
+  // single batched call. Both ride along on the v7 response already; reading
+  // them costs nothing and saves a per-company fundamentals request for every
+  // name in a 400-strong universe.
+  trailingPE?: number;
+  /** Absolute price change over 52 weeks, in the listing's currency. */
+  fiftyTwoWeekChange?: number;
+  fiftyTwoWeekChangePercent?: number;
 }
 
 // Batched authoritative quotes from Yahoo's v7 quote endpoint. We read Yahoo's
@@ -204,6 +212,9 @@ export async function yahooQuotes(
               undefined,
             marketCap: n(q.marketCap),
             sharesOutstanding: n(q.sharesOutstanding),
+            trailingPE: n(q.trailingPE),
+            fiftyTwoWeekChange: n(q.fiftyTwoWeekChange),
+            fiftyTwoWeekChangePercent: n(q.fiftyTwoWeekChangePercent),
           });
         }
         if (out.size) return out;

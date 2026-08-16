@@ -554,19 +554,45 @@ export function ScoreRadar({
     const a = angle(i);
     return [cx + radius * Math.cos(a), cy + radius * Math.sin(a)] as const;
   };
-  const ring = (frac: number) =>
-    values
-      .map((_, i) => point(i, r * frac).join(","))
-      .join(" ");
-  const shape = values
-    .map((v, i) => point(i, (Math.max(0, Math.min(max, v)) / max) * r).join(","))
-    .join(" ");
+  // A CLOSED CURVE through the five vertices, not a pentagon.
+  //
+  // Five straight edges make a company's profile read as a rigid geometric
+  // figure, and the eye compares the flat sides rather than the reach of each
+  // axis. Rounding it produces the petal shape this chart is named for: the
+  // radius on each axis still says exactly what it said before, but a strong
+  // axis now bulges and a weak one pinches, which is the thing you are meant to
+  // see from across the room.
+  //
+  // Catmull-Rom through the points, converted to cubic Béziers and wrapped
+  // around (i-1 … i+2 all taken modulo n), so there is no seam at the start.
+  const curve = (pts: (readonly [number, number])[]) => {
+    const m = pts.length;
+    const at = (i: number) => pts[((i % m) + m) % m];
+    let d = `M ${at(0)[0]},${at(0)[1]}`;
+    for (let i = 0; i < m; i++) {
+      const p0 = at(i - 1), p1 = at(i), p2 = at(i + 1), p3 = at(i + 2);
+      // 1/6 is the standard Catmull-Rom → Bézier tangent scale: enough curvature
+      // to look organic, not so much that the shape loops back on itself when
+      // one axis is near zero.
+      const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+      const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+      d += ` C ${c1[0]},${c1[1]} ${c2[0]},${c2[1]} ${p2[0]},${p2[1]}`;
+    }
+    return `${d} Z`;
+  };
 
-  // Stay in the gold family (brand palette) but vary the tone by average score:
-  // bright champagne for a strong company, deep antique gold for a weak one. Same
-  // rich gold-on-black look, still readable as a quality signal at a glance.
+  const ring = (frac: number) => curve(values.map((_, i) => point(i, r * frac)));
+  const shape = curve(
+    values.map((v, i) => point(i, (Math.max(0, Math.min(max, v)) / max) * r))
+  );
+
+  // Colour by quality, not by brand: green for a company that scores well across
+  // the board, amber for a mixed one, red for a weak one. The gold ramp this
+  // replaced was the same colour at three brightnesses, which is a distinction
+  // nobody reads — and the score is the one thing on this card that should be
+  // legible before any of the text is.
   const avg = values.length ? values.reduce((s, v) => s + v, 0) / values.length / max : 0;
-  const accent = color ?? (avg >= 0.66 ? "#E7C873" : avg >= 0.4 ? "#D4AF37" : "#8A6B2F");
+  const accent = color ?? (avg >= 0.66 ? "#8FD14F" : avg >= 0.4 ? "#E7B94F" : "#FB7185");
   // Unique gradient id per accent so two radars on one page can't collide.
   const gid = `radarFill-${accent.replace("#", "")}`;
 
@@ -578,24 +604,17 @@ export function ScoreRadar({
           <stop offset="100%" stopColor={accent} stopOpacity="0.5" />
         </radialGradient>
       </defs>
+      {/* The grid is drawn with the same curve as the shape, so the rings read
+          as the scale the petals are measured against rather than as a second,
+          differently-shaped chart underneath. */}
       {[0.25, 0.5, 0.75, 1].map((f) => (
-        <polygon
-          key={f}
-          points={ring(f)}
-          fill="none"
-          stroke="rgba(255,255,255,0.08)"
-          strokeWidth="1"
-        />
+        <path key={f} d={ring(f)} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
       ))}
       {values.map((_, i) => {
         const [x, y] = point(i, r);
         return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />;
       })}
-      <polygon points={shape} fill={`url(#${gid})`} stroke={accent} strokeWidth="2" strokeLinejoin="round" />
-      {values.map((v, i) => {
-        const [x, y] = point(i, (Math.max(0, Math.min(max, v)) / max) * r);
-        return <circle key={i} cx={x} cy={y} r="3" fill="#fff" stroke={accent} strokeWidth="1.5" />;
-      })}
+      <path d={shape} fill={`url(#${gid})`} stroke={accent} strokeWidth="2" strokeLinejoin="round" />
       {labels.map((label, i) => {
         const [x, y] = point(i, r + 16);
         const lines = wrapAxisLabel(label);
@@ -606,15 +625,19 @@ export function ScoreRadar({
             key={label}
             x={x}
             y={y}
-            fill="rgba(226,232,240,0.85)"
-            fontSize="10"
+            fill="rgba(226,232,240,0.75)"
+            fontSize="9.5"
             fontWeight="600"
+            letterSpacing="0.09em"
             textAnchor={x < cx - 4 ? "end" : x > cx + 4 ? "start" : "middle"}
             dominantBaseline="middle"
           >
+            {/* Set in capitals: the axis names ring the chart rather than
+                sitting in a column, and small caps read as labels at that size
+                where sentence case reads as stray words. */}
             {lines.map((ln, li) => (
               <tspan key={li} x={x} dy={li === 0 ? dy0 : lineH}>
-                {ln}
+                {ln.toUpperCase()}
               </tspan>
             ))}
           </text>

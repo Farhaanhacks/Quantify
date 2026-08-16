@@ -10,16 +10,11 @@ import {
   fmtPrice,
   currencySymbol,
   type ScoreAxisKey,
+  type ScoreCheck,
   type CompanyAnalytics,
 } from "@/data/demo";
 import { isAiBubbleStock } from "@/data/aiBubble";
 import { FairValueBars, FairValueHistoryChart } from "@/components/quantifi/FairValueBars";
-
-function axisColor(score: number): string {
-  if (score >= 5) return "#34D399";
-  if (score >= 3) return "#4F93F7";
-  return "#FB7185";
-}
 
 // Tone for an axis label chip.
 function labelTone(score: number): string {
@@ -30,6 +25,37 @@ function labelTone(score: number): string {
 
 // Score on a 0–10 feel (stored 0–6).
 const toTen = (score: number) => Math.round((score / 6) * 10);
+
+// One dot per check, filled green when it passes and red when it doesn't.
+//
+// The count above it ("Analysis Checks 5/6") and the dots say the same thing
+// twice on purpose: the number is what you read, the dots are what you see, and
+// the pattern of a single red among five greens registers before any of the
+// words do. The labels stay one click away rather than being dropped — knowing
+// WHICH check failed is the reason anyone opens this at all.
+function CheckDots({ checks }: { checks: ScoreCheck[] }) {
+  return (
+    <span className="flex flex-wrap items-center gap-1.5">
+      {checks.map((c, i) => (
+        <span
+          key={i}
+          title={`${c.pass ? "Pass" : "Fail"} — ${c.label}`}
+          className={`flex h-[18px] w-[18px] flex-none items-center justify-center rounded-full border ${
+            c.pass ? "border-up/50 bg-up/15 text-up" : "border-down/50 bg-down/15 text-down"
+          }`}
+        >
+          <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3.5">
+            {c.pass ? (
+              <path d="m5 13 4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+            ) : (
+              <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+            )}
+          </svg>
+        </span>
+      ))}
+    </span>
+  );
+}
 
 export default function CompanySnapshot({
   ticker,
@@ -83,6 +109,27 @@ export default function CompanySnapshot({
       : riskLens === "Medium"
       ? "border-gold/30 bg-gold/10 text-gold"
       : "border-down/30 bg-down/10 text-down";
+
+  // The caption under the snowflake: what the SHAPE says, in one line.
+  //
+  // Deliberately different from the Quantifi read below, which names the soft
+  // spot and the thesis test. This one describes the picture directly above it —
+  // which axes reach the edge and which pull in — because a caption that
+  // discussed something else would make the reader hunt for the connection.
+  const strengths = ranked.filter((r) => r.score >= 5).map((r) => r.axis.short.toLowerCase());
+  const softs = ranked.filter((r) => r.score <= 2).map((r) => r.axis.short.toLowerCase());
+  const list = (xs: string[]) =>
+    xs.length <= 1 ? xs[0] ?? "" : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
+  const snowflakeRead =
+    strengths.length >= 4
+      ? `Reaches the edge on almost every axis — a broadly strong profile with no obvious weak side.`
+      : strengths.length && softs.length
+      ? `Strong on ${list(strengths)}; pinched on ${list(softs)}.`
+      : strengths.length
+      ? `Strong on ${list(strengths)}, and steady elsewhere.`
+      : softs.length
+      ? `Pinched on ${list(softs)} — the shape is small on the axes that matter most there.`
+      : `A middling shape: nothing at the edge, nothing at the centre.`;
 
   // One-line read that names the soft spot rather than declaring perfection.
   const valuationHint =
@@ -281,35 +328,58 @@ export default function CompanySnapshot({
               </div>
             </div>
           </div>
-          <div className="mx-auto mt-2 max-w-[260px]">
+          <div className="mx-auto mt-2 max-w-[320px]">
             <ScoreRadar values={radarValues} labels={radarLabels} />
+          </div>
+          {/* The chart is not self-explanatory: five petals with no caption is a
+              shape, not a finding. This is the sentence it exists to support. */}
+          <div className="mt-3 border-t border-white/[0.06] pt-3">
+            <div className="text-[0.7rem] uppercase tracking-[0.16em] text-slate-500">Snowflake analysis</div>
+            <p className="mt-1 text-sm leading-relaxed text-slate-300">{snowflakeRead}</p>
           </div>
         </GlassCard>
 
-        {/* Per-axis with expandable checklist */}
+        {/* One numbered block per axis: the question it answers, how many of its
+            checks passed, and — one click in — which ones. */}
         <GlassCard className="p-5 sm:p-6">
           <div className="space-y-2.5">
-            {SCORE_AXES.map((axis) => {
+            {SCORE_AXES.map((axis, idx) => {
               const d = a.scores[axis.key as ScoreAxisKey];
-              const p = (d.score / 6) * 100;
               const supports = d.checks.filter((c) => c.pass);
               const worries = d.checks.filter((c) => !c.pass);
               return (
                 <details key={axis.key} className="group rounded-lg border border-white/[0.06] bg-white/[0.02] px-4 py-3">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
-                    <span className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm text-slate-200">{axis.label}</span>
-                      <span className={`rounded-full border px-1.5 py-px text-[0.6rem] font-medium ${labelTone(d.score)}`}>
-                        {axisLabel(axis.key, d.score)}
+                  <summary className="cursor-pointer list-none">
+                    <span className="flex items-start justify-between gap-3">
+                      <span className="min-w-0">
+                        <span className="flex flex-wrap items-center gap-2">
+                          <span className="font-display text-sm font-semibold text-white">
+                            <span className="text-slate-500">{idx + 1}</span>
+                            <span className="px-1.5 text-slate-700">|</span>
+                            {axis.label}
+                          </span>
+                          <span className={`rounded-full border px-1.5 py-px text-[0.6rem] font-medium ${labelTone(d.score)}`}>
+                            {axisLabel(axis.key, d.score)}
+                          </span>
+                        </span>
+                        <span className="mt-1 block text-xs leading-relaxed text-slate-400">{axis.question}</span>
+                      </span>
+                      <span className="flex flex-none items-center gap-2.5">
+                        <span className="font-mono text-sm tnum text-white">{toTen(d.score)}/10</span>
+                        <span className="text-slate-500 transition group-open:rotate-90" aria-hidden>›</span>
                       </span>
                     </span>
-                    <span className="flex items-center gap-3">
-                      <span className="hidden h-2 w-24 overflow-hidden rounded-full bg-white/[0.06] sm:block">
-                        <span className="block h-full rounded-full" style={{ width: `${p}%`, backgroundColor: axisColor(d.score) }} />
+                    {d.checks.length ? (
+                      <span className="mt-2.5 flex flex-wrap items-center gap-2.5">
+                        <span className="text-[0.68rem] text-slate-500">
+                          Analysis checks{" "}
+                          <span className="font-mono tnum text-slate-300">
+                            {supports.length}/{d.checks.length}
+                          </span>
+                        </span>
+                        <CheckDots checks={d.checks} />
                       </span>
-                      <span className="font-mono text-sm tnum text-white">{toTen(d.score)}/10</span>
-                      <span className="text-slate-500 transition group-open:rotate-90" aria-hidden>›</span>
-                    </span>
+                    ) : null}
                   </summary>
                   <div className="mt-3 space-y-2.5 border-t border-white/[0.05] pt-3">
                     {supports.length ? (
@@ -338,10 +408,6 @@ export default function CompanySnapshot({
                         </ul>
                       </div>
                     ) : null}
-                    <p className="text-[0.7rem] leading-relaxed text-slate-500">
-                      <span className="text-slate-400">Main question: </span>
-                      {axis.question}
-                    </p>
                   </div>
                 </details>
               );
