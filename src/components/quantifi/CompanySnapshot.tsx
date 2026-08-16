@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import {
   GlassCard,
   ScoreRadar,
@@ -72,6 +75,13 @@ export default function CompanySnapshot({
   currency?: string;
   live?: boolean;
 }) {
+  // Which axis the reader is pointing at, wherever they point at it: the chart
+  // and the five cards beside it drive the same value, so hovering either one
+  // lights up both. Without that link the chart is a shape with no legend and
+  // the cards are a list with no picture — the whole point is that they are the
+  // same five things.
+  const [activeAxis, setActiveAxis] = useState<number | null>(null);
+
   // Live data only — passed in from the score API. No demo fallback.
   const a = data;
   const resolvedPrice = price;
@@ -328,8 +338,55 @@ export default function CompanySnapshot({
               </div>
             </div>
           </div>
-          <div className="mx-auto mt-2 max-w-[320px]">
-            <ScoreRadar values={radarValues} labels={radarLabels} />
+          <div className="relative mx-auto mt-2 max-w-[320px]">
+            <ScoreRadar
+              values={radarValues}
+              labels={radarLabels}
+              activeIndex={activeAxis}
+              onHoverAxis={setActiveAxis}
+            />
+            {/* The axis under the pointer, answered in place. Anchored at the top
+                of the chart rather than following the cursor: a card that moves
+                with the pointer is a card you cannot read while your hand is
+                still on the thing you are reading about. */}
+            {activeAxis != null && SCORE_AXES[activeAxis] ? (
+              (() => {
+                const axis = SCORE_AXES[activeAxis];
+                const d = a.scores[axis.key as ScoreAxisKey];
+                const passed = d.checks.filter((c) => c.pass).length;
+                // Sit on the opposite side of the chart from the axis being
+                // pointed at. Five axes: 0, 1 and 4 are in the upper half, 2 and
+                // 3 in the lower — so the card drops to the bottom for the top
+                // ones and rises to the top for the bottom ones, and never
+                // covers the petal the reader is asking about.
+                const upperHalf = activeAxis === 0 || activeAxis === 1 || activeAxis === 4;
+                return (
+                  <div
+                    className={`pointer-events-none absolute inset-x-0 z-10 rounded-lg border border-white/10 bg-ink-900/95 p-3 shadow-xl ${
+                      upperHalf ? "bottom-0" : "top-0"
+                    }`}
+                  >
+                    <div className="font-display text-sm font-semibold text-white">
+                      <span className="text-slate-500">{activeAxis + 1}</span>
+                      <span className="px-1.5 text-slate-700">|</span>
+                      {axis.label}
+                    </div>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-400">{axis.question}</p>
+                    {d.checks.length ? (
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span className="text-[0.68rem] text-slate-500">
+                          Analysis checks{" "}
+                          <span className="font-mono tnum text-slate-300">
+                            {passed}/{d.checks.length}
+                          </span>
+                        </span>
+                        <CheckDots checks={d.checks} />
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })()
+            ) : null}
           </div>
           {/* The chart is not self-explanatory: five petals with no caption is a
               shape, not a finding. This is the sentence it exists to support. */}
@@ -347,8 +404,22 @@ export default function CompanySnapshot({
               const d = a.scores[axis.key as ScoreAxisKey];
               const supports = d.checks.filter((c) => c.pass);
               const worries = d.checks.filter((c) => !c.pass);
+              const active = activeAxis === idx;
               return (
-                <details key={axis.key} className="group rounded-lg border border-white/[0.06] bg-white/[0.02] px-4 py-3">
+                <details
+                  key={axis.key}
+                  // Both directions, from one piece of state: point at the chart
+                  // and the card lifts, point at the card and the wedge lights
+                  // up. A link you can only travel one way is a link most people
+                  // never find.
+                  onMouseEnter={() => setActiveAxis(idx)}
+                  onMouseLeave={() => setActiveAxis(null)}
+                  className={`group rounded-lg border px-4 py-3 transition ${
+                    active
+                      ? "border-white/20 bg-white/[0.06]"
+                      : "border-white/[0.06] bg-white/[0.02]"
+                  }`}
+                >
                   <summary className="cursor-pointer list-none">
                     <span className="flex items-start justify-between gap-3">
                       <span className="min-w-0">

@@ -535,6 +535,8 @@ export function ScoreRadar({
   size = 220,
   max = 6,
   color,
+  activeIndex = null,
+  onHoverAxis,
 }: {
   values: number[]; // length 5, each 0..max
   labels: string[]; // length 5
@@ -544,6 +546,12 @@ export function ScoreRadar({
    *  company reads green, a middling one amber, a weak one red — so the snowflake
    *  communicates quality at a glance instead of always looking the same. */
   color?: string;
+  /** Which axis to emphasise. Driven by the caller so hovering the chart and
+   *  hovering the axis's own card highlight the same thing. */
+  activeIndex?: number | null;
+  /** Provided → the chart becomes interactive and reports the axis under the
+   *  pointer. Omitted → it stays a picture, which is what a small one should be. */
+  onHoverAxis?: (i: number | null) => void;
 }) {
   const cx = size / 2;
   const cy = size / 2;
@@ -612,9 +620,30 @@ export function ScoreRadar({
       ))}
       {values.map((_, i) => {
         const [x, y] = point(i, r);
-        return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />;
+        return (
+          <line
+            key={i}
+            x1={cx}
+            y1={cy}
+            x2={x}
+            y2={y}
+            stroke={i === activeIndex ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.06)"}
+            strokeWidth="1"
+          />
+        );
       })}
       <path d={shape} fill={`url(#${gid})`} stroke={accent} strokeWidth="2" strokeLinejoin="round" />
+      {/* The active axis gets its own vertex marked. The shape alone can't show
+          which of five directions is being talked about — every petal is the
+          same colour — so the wedge, the spoke and this dot together say "this
+          one" while the card beside it says what "this one" means. */}
+      {activeIndex != null && values[activeIndex] != null ? (
+        (() => {
+          const v = Math.max(0, Math.min(max, values[activeIndex]));
+          const [x, y] = point(activeIndex, (v / max) * r);
+          return <circle cx={x} cy={y} r="3.5" fill="#fff" stroke={accent} strokeWidth="2" />;
+        })()
+      ) : null}
       {labels.map((label, i) => {
         const [x, y] = point(i, r + 16);
         const lines = wrapAxisLabel(label);
@@ -643,6 +672,41 @@ export function ScoreRadar({
           </text>
         );
       })}
+
+      {/* Hit areas, last so they sit above everything and nothing steals the
+          pointer from them.
+          One wedge per axis, centred on that axis and reaching past the label,
+          because "hover the petal" has to mean the whole direction — the filled
+          shape itself is a poor target when an axis scores badly and its petal
+          pinches to nothing. That is precisely the axis someone wants to read
+          about, so it cannot be the hardest one to point at. */}
+      {onHoverAxis
+        ? values.map((_, i) => {
+            const half = Math.PI / n;
+            const rOuter = r + 34;
+            const a0 = angle(i) - half;
+            const a1 = angle(i) + half;
+            const p0 = [cx + rOuter * Math.cos(a0), cy + rOuter * Math.sin(a0)];
+            const p1 = [cx + rOuter * Math.cos(a1), cy + rOuter * Math.sin(a1)];
+            // 72° is well under a half turn, so the arc is never the long way round.
+            const d = `M ${cx},${cy} L ${p0[0]},${p0[1]} A ${rOuter},${rOuter} 0 0 1 ${p1[0]},${p1[1]} Z`;
+            return (
+              <path
+                key={`hit-${i}`}
+                d={d}
+                fill={i === activeIndex ? "rgba(255,255,255,0.05)" : "transparent"}
+                onMouseEnter={() => onHoverAxis(i)}
+                onFocus={() => onHoverAxis(i)}
+                onMouseLeave={() => onHoverAxis(null)}
+                onBlur={() => onHoverAxis(null)}
+                tabIndex={0}
+                role="button"
+                aria-label={`${labels[i]}: ${values[i]} out of ${max}`}
+                style={{ cursor: "pointer", outline: "none" }}
+              />
+            );
+          })
+        : null}
     </svg>
   );
 }
