@@ -1,6 +1,14 @@
 import { yahooQuotes, yahooSparks } from "@/lib/yahooCrumb";
 import { universeFor, regionLabel, REGION_KEYS } from "@/data/heatmapUniverse";
-import { aggregatePE, weightedMean, yearChangePct, seriesReturnPct } from "@/lib/marketMath";
+import {
+  aggregatePE,
+  weightedMean,
+  yearChangePct,
+  seriesReturnPct,
+  chunk,
+  pooled,
+  SPARK_SYMBOL_LIMIT,
+} from "@/lib/marketMath";
 
 // A whole market, aggregated from the companies in it.
 //
@@ -128,7 +136,13 @@ export interface MarketReturns {
   market?: number;
   /** How many companies had a usable series. Zero means "say so", not "flat". */
   companies: number;
+  /** How many were asked for, so the caller can judge whether this is a market. */
+  requested: number;
 }
+
+// Symbols per spark request — see SPARK_SYMBOL_LIMIT for why it is this small.
+/** Spark requests in flight at once. Enough to be quick, few enough not to be limited. */
+const SPARK_CONCURRENCY = 4;
 
 export async function getMarketReturns(
   regionKey: string,
@@ -141,18 +155,12 @@ export async function getMarketReturns(
   const sectorOf = new Map(universe.map((u) => [u.symbol.toUpperCase(), u.sector]));
   const symbols = universe.map((u) => u.symbol);
 
-  const chunks: string[][] = [];
-  for (let i = 0; i < symbols.length; i += CHUNK) chunks.push(symbols.slice(i, i + CHUNK));
-
   // Caps come from the quote feed, which the overview has already warmed for
   // this region — weighting by size is the whole point, and an unweighted mean
   // would let the smallest listing in a sector count as much as its largest.
-  const [quoteMaps, sparkMaps] = await Promise.all([
-    Promise.all(chunks.map((c) => yahooQuotes(c, 300).catch(() => new Map()))),
-    // An hour: a one-month return does not move meaningfully within one, and
-    // this is the expensive half of the request.
-    Promise.all(chunks.map((c) => yahooSparks(c, range, interval, 3600).catch(() => new Map()))),
-  ]);
+  const quoteMaps = await Promise.all(
+    chunk(symbols, CHUNK).map((c) => yahooQuotes(c, 300).catch(() => new Map()))
+  );
 
   const caps = new Map<string, number>();
   for (const m of quoteMaps) {
@@ -161,6 +169,21 @@ export async function getMarketReturns(
       if (s && typeof q.marketCap === "number" && q.marketCap > 0) caps.set(s, q.marketCap);
     }
   }
+
+  const sparkChunks = chunk(symbols, SPARK_SYMBOL_LIMIT);
+
+  // An hour on the series: a one-month return does not move meaningfully within
+  // one, and this is the expensive half of the request. A chunk that comes back
+  // empty is retried once — the upstream rate-limits, and losing a chunk here
+  // loses whole sectors rather than a few companies.
+  const sparkMaps = await pooled(
+    sparkChunks.map((c) => async () => {
+      const first = await yahooSparks(c, range, interval, 3600).catch(() => new Map<string, number[]>());
+      if (first.size) return first;
+      return yahooSparks(c, range, interval, 3600).catch(() => new Map<string, number[]>());
+    }),
+    SPARK_CONCURRENCY
+  );
 
   const rows: { sector: string; change: number; cap: number }[] = [];
   for (const m of sparkMaps) {
@@ -196,6 +219,7 @@ export async function getMarketReturns(
     sectors,
     market: weightedMean(rows, (r) => r.change, (r) => r.cap).value,
     companies: rows.length,
+    requested: symbols.length,
   };
 }
 

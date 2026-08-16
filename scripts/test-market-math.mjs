@@ -37,6 +37,9 @@ const {
   ytdReturn,
   parseSparkPayload,
   seriesReturnPct,
+  chunk,
+  pooled,
+  SPARK_SYMBOL_LIMIT,
 } = await import(join(out, "marketMath.js"));
 rmSync(out, { recursive: true, force: true });
 
@@ -195,6 +198,52 @@ check("a single point has no return", seriesReturnPct([100]) === undefined);
 check("a zero start can't be divided by", seriesReturnPct([0, 100]) === undefined);
 check("an unadjusted split is rejected rather than shown as a 10,000% gain",
   seriesReturnPct([1, 5000]) === undefined);
+
+console.log("\n[batch size — the bug that showed two sectors as a market]");
+// India's universe is 56 companies. At a chunk of 50 that is one request of 50
+// and one of 6; the 6 came back, the 50 came back EMPTY, and the page drew the
+// two sectors that happened to sit in that tail — Health Care and Utilities —
+// as though they were the Indian market. The upstream caps the symbol list and
+// says nothing about it, so the only defence is never to approach the cap.
+check("the batch limit is small", SPARK_SYMBOL_LIMIT <= 10, String(SPARK_SYMBOL_LIMIT));
+
+const india = Array.from({ length: 56 }, (_, i) => `SYM${i}.NS`);
+const batches = chunk(india, SPARK_SYMBOL_LIMIT);
+check("no batch approaches the cap", batches.every((b) => b.length <= SPARK_SYMBOL_LIMIT),
+  JSON.stringify(batches.map((b) => b.length)));
+check("the 50/6 split cannot recur", !batches.some((b) => b.length > 10),
+  JSON.stringify(batches.map((b) => b.length)));
+check("every company is asked for exactly once",
+  batches.flat().length === india.length && new Set(batches.flat()).size === india.length);
+check("order is preserved", batches.flat().every((s, i) => s === india[i]));
+check("an exact multiple leaves no empty batch",
+  chunk(Array.from({ length: 20 }, (_, i) => i), 10).length === 2);
+check("an empty list needs no requests", chunk([], 10).length === 0);
+check("a nonsense size still makes progress rather than looping",
+  chunk([1, 2, 3], 0).length === 3);
+
+console.log("\n[the request pool]");
+{
+  let live = 0;
+  let peak = 0;
+  const order = [];
+  const tasks = Array.from({ length: 17 }, (_, i) => async () => {
+    live++;
+    peak = Math.max(peak, live);
+    await new Promise((r) => setTimeout(r, (i % 3) * 4));
+    order.push(i);
+    live--;
+    return i * 2;
+  });
+  const results = await pooled(tasks, 4);
+  check("every task ran", order.length === 17, String(order.length));
+  check("results come back in task order, not completion order",
+    results.every((v, i) => v === i * 2), JSON.stringify(results.slice(0, 5)));
+  check("never more than the limit in flight", peak <= 4, String(peak));
+  check("and it actually ran them concurrently", peak > 1, String(peak));
+  check("no tasks, no workers", (await pooled([], 4)).length === 0);
+  check("a limit below one still makes progress", (await pooled(tasks.slice(0, 3), 0)).length === 3);
+}
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

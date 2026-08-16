@@ -169,6 +169,48 @@ export function seriesReturnPct(closes: number[]): number | undefined {
   return isFinite(v) && Math.abs(v) < 10000 ? v : undefined;
 }
 
+/**
+ * Symbols per batched price-series request.
+ *
+ * TEN, and the number matters: the upstream answers a small symbol list and
+ * returns NOTHING for a large one — no error, no partial result, an empty body.
+ * India's 56 companies went out as chunks of 50 and 6, the 6 came back, and the
+ * page drew the two sectors that happened to fall in that tail as though they
+ * were the market. A silent cap is the worst kind, so this stays well under
+ * whatever it actually is.
+ */
+export const SPARK_SYMBOL_LIMIT = 10;
+
+/**
+ * Run async tasks with a bounded number in flight, returning results in the
+ * order the tasks were given.
+ *
+ * Written out rather than reached for from a library because the failure it
+ * guards against is the one this whole area keeps hitting: a batch that quietly
+ * does not run costs a whole sector, not a row.
+ */
+export async function pooled<T>(tasks: (() => Promise<T>)[], limit: number): Promise<T[]> {
+  const out: T[] = new Array(tasks.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.max(1, Math.min(limit, tasks.length)) }, async () => {
+    for (;;) {
+      const i = next++;
+      if (i >= tasks.length) return;
+      out[i] = await tasks[i]();
+    }
+  });
+  await Promise.all(workers);
+  return out;
+}
+
+/** Split a list into chunks of at most `size`, losing and duplicating nothing. */
+export function chunk<T>(list: T[], size: number): T[][] {
+  const n = Math.max(1, Math.floor(size));
+  const out: T[][] = [];
+  for (let i = 0; i < list.length; i += n) out.push(list.slice(i, i + n));
+  return out;
+}
+
 const DAY_MS = 86400000;
 
 /**

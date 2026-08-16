@@ -82,6 +82,14 @@ interface BarRow {
   pe?: number;
 }
 
+/** A fetched window, with the coverage it was built from. */
+interface WindowResult {
+  sectors: BarRow[];
+  /** Companies with usable history, and companies asked for. */
+  companies: number;
+  requested: number;
+}
+
 const RANGES = [
   { key: "1y", label: "1Y" },
   { key: "5y", label: "5Y" },
@@ -280,7 +288,7 @@ export default function Markets() {
   const [returnWindow, setReturnWindow] = useState<WindowKey>("day");
   // Fetched windows, kept per region+window so switching back is instant and
   // does not re-run a request that reads history for a few hundred companies.
-  const [windows, setWindows] = useState<Record<string, BarRow[] | null>>({});
+  const [windows, setWindows] = useState<Record<string, WindowResult | null>>({});
   const [windowState, setWindowState] = useState<"idle" | "loading">("idle");
   const [moverTab, setMoverTab] = useState<"gainers" | "losers">("gainers");
 
@@ -351,9 +359,15 @@ export default function Markets() {
     setWindowState("loading");
     fetch(`/api/markets/returns?region=${encodeURIComponent(region)}&window=${encodeURIComponent(returnWindow)}`)
       .then((r) => r.json())
-      .then((d: { ok?: boolean; sectors?: BarRow[] }) => {
+      .then((d: { ok?: boolean; sectors?: BarRow[]; companies?: number; requested?: number }) => {
         if (off) return;
-        setWindows((w) => ({ ...w, [windowCacheKey]: d?.ok && d.sectors?.length ? d.sectors : null }));
+        setWindows((w) => ({
+          ...w,
+          [windowCacheKey]:
+            d?.ok && d.sectors?.length
+              ? { sectors: d.sectors, companies: d.companies ?? 0, requested: d.requested ?? 0 }
+              : null,
+        }));
       })
       .catch(() => {
         if (!off) setWindows((w) => ({ ...w, [windowCacheKey]: null }));
@@ -371,6 +385,15 @@ export default function Markets() {
   // frame every time a window is clicked.
   const fetched = returnWindow === "day" ? undefined : windows[windowCacheKey];
   const windowRows = fetched ?? null;
+  // Coverage, stated whenever it is not effectively complete. The bug this
+  // replaces was invisible precisely because a 12%-coverage answer rendered
+  // exactly like a full one — two sectors, drawn confidently, labelled as the
+  // Indian market.
+  const coverageNote =
+    returnWindow !== "day" && windowRows && windowRows.requested > 0 &&
+    windowRows.companies < windowRows.requested * 0.9
+      ? `Built from ${windowRows.companies} of the ${windowRows.requested} companies we track in this market — the rest had no usable price history for this window.`
+      : null;
   const windowPending = returnWindow !== "day" && (fetched === undefined || windowState === "loading");
 
   const returns = useMemo(
@@ -623,17 +646,27 @@ export default function Markets() {
                 : `${WINDOW_LABEL[returnWindow]} of history isn't available for this market right now.`}
             </p>
           ) : (
-            <SectorBars
-              rows={
-                returnWindow === "day"
-                  ? (data?.sectors ?? []).map((r) => ({ ...r, change: r.day }))
-                  : windowRows ?? []
-              }
-              value={(r) => r.change}
-              format={(v) => pct(v)}
-              signed
-              emptyNote="No sector has enough companies with usable history for this window."
-            />
+            <>
+              <SectorBars
+                rows={
+                  returnWindow === "day"
+                    ? (data?.sectors ?? []).map((r) => ({ ...r, change: r.day }))
+                    : windowRows?.sectors ?? []
+                }
+                value={(r) => r.change}
+                format={(v) => pct(v)}
+                signed
+                emptyNote="No sector has enough companies with usable history for this window."
+              />
+              {/* Say what this was built from when it wasn't built from the
+                  market. A partial answer that looks complete is how two
+                  sectors got presented as the whole of India. */}
+              {coverageNote ? (
+                <p className="mt-3 border-t border-white/[0.06] pt-3 text-[0.7rem] leading-relaxed text-slate-500">
+                  {coverageNote}
+                </p>
+              ) : null}
+            </>
           )
         ) : (
           <SectorBars
