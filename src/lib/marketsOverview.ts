@@ -1,6 +1,6 @@
-import { yahooQuotes } from "@/lib/yahooCrumb";
+import { yahooQuotes, yahooSparks } from "@/lib/yahooCrumb";
 import { universeFor, regionLabel, REGION_KEYS } from "@/data/heatmapUniverse";
-import { aggregatePE, weightedMean, yearChangePct } from "@/lib/marketMath";
+import { aggregatePE, weightedMean, yearChangePct, seriesReturnPct } from "@/lib/marketMath";
 
 // A whole market, aggregated from the companies in it.
 //
@@ -27,8 +27,6 @@ export interface SectorRow {
   weight: number;
   /** Cap-weighted move today, %. */
   day: number;
-  /** Cap-weighted 52-week move, % — undefined when too few names report one. */
-  year?: number;
   /** Aggregate P/E: Σ market cap ÷ Σ earnings. */
   pe?: number;
 }
@@ -90,6 +88,117 @@ export function normaliseMarketRegion(raw: string | null | undefined): string {
   return REGION_KEYS.includes(k) ? k : "in";
 }
 
+// ── Sector returns over a chosen window ─────────────────────────────────────
+//
+// Today's move rides along on the quote feed. Every longer window needs actual
+// price history for every company in the market, which the quote feed does not
+// carry — so these come from Yahoo's batched "spark" series instead, one call
+// per chunk of symbols rather than one call per company.
+//
+// The interval is chosen to keep each series a sensible length: daily bars for a
+// month, weekly beyond that, monthly over five years. A five-year daily series
+// for four hundred companies is a megabyte of JSON to answer a question about
+// nine sectors.
+
+export const RETURN_WINDOWS: Record<string, { range: string; interval: string; label: string }> = {
+  "1mo": { range: "1mo", interval: "1d", label: "1 Month" },
+  "6mo": { range: "6mo", interval: "1wk", label: "6 Months" },
+  "1y": { range: "1y", interval: "1wk", label: "1 Year" },
+  "5y": { range: "5y", interval: "1mo", label: "5 Years" },
+};
+
+export function normaliseWindow(raw: string | null | undefined): string {
+  const k = (raw ?? "").toLowerCase().trim();
+  return k in RETURN_WINDOWS ? k : "1y";
+}
+
+export interface SectorReturn {
+  sector: string;
+  companies: number;
+  /** Cap-weighted return over the window, %. */
+  change: number;
+}
+
+export interface MarketReturns {
+  region: string;
+  window: string;
+  windowLabel: string;
+  sectors: SectorReturn[];
+  /** Cap-weighted return for the whole universe over the window, %. */
+  market?: number;
+  /** How many companies had a usable series. Zero means "say so", not "flat". */
+  companies: number;
+}
+
+export async function getMarketReturns(
+  regionKey: string,
+  windowKey: string
+): Promise<MarketReturns> {
+  const region = normaliseMarketRegion(regionKey);
+  const win = normaliseWindow(windowKey);
+  const { range, interval, label } = RETURN_WINDOWS[win];
+  const universe = universeFor(region);
+  const sectorOf = new Map(universe.map((u) => [u.symbol.toUpperCase(), u.sector]));
+  const symbols = universe.map((u) => u.symbol);
+
+  const chunks: string[][] = [];
+  for (let i = 0; i < symbols.length; i += CHUNK) chunks.push(symbols.slice(i, i + CHUNK));
+
+  // Caps come from the quote feed, which the overview has already warmed for
+  // this region — weighting by size is the whole point, and an unweighted mean
+  // would let the smallest listing in a sector count as much as its largest.
+  const [quoteMaps, sparkMaps] = await Promise.all([
+    Promise.all(chunks.map((c) => yahooQuotes(c, 300).catch(() => new Map()))),
+    // An hour: a one-month return does not move meaningfully within one, and
+    // this is the expensive half of the request.
+    Promise.all(chunks.map((c) => yahooSparks(c, range, interval, 3600).catch(() => new Map()))),
+  ]);
+
+  const caps = new Map<string, number>();
+  for (const m of quoteMaps) {
+    for (const [, q] of m) {
+      const s = q.symbol?.toUpperCase();
+      if (s && typeof q.marketCap === "number" && q.marketCap > 0) caps.set(s, q.marketCap);
+    }
+  }
+
+  const rows: { sector: string; change: number; cap: number }[] = [];
+  for (const m of sparkMaps) {
+    for (const [symbol, closes] of m) {
+      const sector = sectorOf.get(symbol);
+      const cap = caps.get(symbol);
+      const change = seriesReturnPct(closes);
+      if (!sector || cap == null || change == null) continue;
+      rows.push({ sector, change, cap });
+    }
+  }
+
+  const bySector = new Map<string, { sector: string; change: number; cap: number }[]>();
+  for (const r of rows) {
+    const list = bySector.get(r.sector);
+    if (list) list.push(r);
+    else bySector.set(r.sector, [r]);
+  }
+
+  const sectors: SectorReturn[] = [...bySector.entries()]
+    .filter(([, list]) => list.length >= MIN_SECTOR_COMPANIES)
+    .map(([sector, list]) => ({
+      sector,
+      companies: list.length,
+      change: weightedMean(list, (r) => r.change, (r) => r.cap).value ?? 0,
+    }))
+    .sort((a, b) => b.change - a.change);
+
+  return {
+    region,
+    window: win,
+    windowLabel: label,
+    sectors,
+    market: weightedMean(rows, (r) => r.change, (r) => r.cap).value,
+    companies: rows.length,
+  };
+}
+
 export async function getMarketsOverview(regionKey = "in"): Promise<MarketsOverview> {
   const region = normaliseMarketRegion(regionKey);
   const idx = INDEX[region] ?? INDEX.in;
@@ -144,15 +253,15 @@ export async function getMarketsOverview(regionKey = "in"): Promise<MarketsOverv
     .filter(([, list]) => list.length >= MIN_SECTOR_COMPANIES)
     .map(([sector, list]) => {
       const cap = list.reduce((s, r) => s + r.marketCap, 0);
-      const year = weightedMean(list, (r) => r.year, (r) => r.marketCap);
       return {
         sector,
         companies: list.length,
         weight: totalMarketCap > 0 ? cap / totalMarketCap : 0,
         day: weightedMean(list, (r) => r.day, (r) => r.marketCap).value ?? 0,
-        // Half the sector has to report a 52-week move before the sector gets
-        // one, or a two-name sample gets presented as the sector's year.
-        year: year.n >= Math.ceil(list.length / 2) ? year.value : undefined,
+        // No 52-week figure here: every window longer than a day is served by
+        // getMarketReturns from real price history, and two "1 year" numbers
+        // derived two ways is exactly the sort of quiet disagreement a reader
+        // has no way to resolve.
         pe: aggregatePE(list),
       };
     })

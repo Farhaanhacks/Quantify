@@ -29,9 +29,15 @@ execFileSync(
   ["tsc", join(root, "src/lib/marketMath.ts"), "--outDir", out, "--module", "esnext", "--target", "es2022", "--moduleResolution", "bundler"],
   { stdio: "pipe" }
 );
-const { aggregatePE, weightedMean, yearChangePct, returnOver, ytdReturn } = await import(
-  join(out, "marketMath.js")
-);
+const {
+  aggregatePE,
+  weightedMean,
+  yearChangePct,
+  returnOver,
+  ytdReturn,
+  parseSparkPayload,
+  seriesReturnPct,
+} = await import(join(out, "marketMath.js"));
 rmSync(out, { recursive: true, force: true });
 
 let pass = 0;
@@ -142,6 +148,53 @@ check("a series that starts mid-year has no year-to-date figure",
     { time: "2026-03-02", value: 100 },
     { time: "2026-08-16", value: 120 },
   ]) === undefined);
+
+console.log("\n[batched price series — both shapes Yahoo serves]");
+// The flat shape: a map keyed by symbol.
+const flat = {
+  "AAPL": { symbol: "AAPL", close: [100, 105, 110] },
+  "MSFT": { symbol: "MSFT", close: [200, 190] },
+};
+const flatParsed = parseSparkPayload(flat);
+check("reads the flat shape", flatParsed.size === 2, String(flatParsed.size));
+check("keeps the closes in order", JSON.stringify(flatParsed.get("AAPL")) === "[100,105,110]");
+
+// The envelope shape: chart-style, closes nested under indicators.
+const envelope = {
+  spark: {
+    result: [
+      {
+        symbol: "RELIANCE.NS",
+        response: [{ indicators: { quote: [{ close: [1000, 1100] }] } }],
+      },
+    ],
+  },
+};
+const envParsed = parseSparkPayload(envelope);
+check("reads the envelope shape", envParsed.size === 1, String(envParsed.size));
+check("and finds the nested closes",
+  JSON.stringify(envParsed.get("RELIANCE.NS")) === "[1000,1100]",
+  JSON.stringify([...envParsed]));
+
+check("symbols are upper-cased so lookups match the universe",
+  parseSparkPayload({ "aapl": { symbol: "aapl", close: [1, 2] } }).has("AAPL"));
+check("a null close is dropped, not read as zero",
+  JSON.stringify(parseSparkPayload({ A: { symbol: "A", close: [10, null, 12] } }).get("A")) === "[10,12]");
+check("a one-point series is no series at all",
+  parseSparkPayload({ A: { symbol: "A", close: [10] } }).size === 0);
+check("an unrecognised payload yields nothing rather than something wrong",
+  parseSparkPayload({ nonsense: true }).size === 0);
+check("garbage in, empty out", parseSparkPayload(null).size === 0 && parseSparkPayload("x").size === 0);
+
+console.log("\n[series returns]");
+check("first to last", near(seriesReturnPct([100, 150]), 50, 1e-9));
+check("a fall is negative", near(seriesReturnPct([200, 150]), -25, 1e-9));
+check("intermediate points don't change the answer",
+  near(seriesReturnPct([100, 5, 900, 150]), 50, 1e-9));
+check("a single point has no return", seriesReturnPct([100]) === undefined);
+check("a zero start can't be divided by", seriesReturnPct([0, 100]) === undefined);
+check("an unadjusted split is rejected rather than shown as a 10,000% gain",
+  seriesReturnPct([1, 5000]) === undefined);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

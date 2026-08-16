@@ -11,6 +11,8 @@
 // Yahoo answers 401/403/429. Net effect: far fewer handshakes, far fewer false
 // "not available" results. Keyless, for personal non-commercial use.
 
+import { parseSparkPayload } from "@/lib/marketMath";
+
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
@@ -223,6 +225,62 @@ export async function yahooQuotes(
       }
     }
     if (!authFailed) break; // only loop again to recover from an auth failure
+  }
+  return out;
+}
+
+/**
+ * Closing-price series for MANY symbols in one request.
+ *
+ * The chart endpoint takes one symbol per call, which is fine for a company page
+ * and impossible for a market page — a few hundred names per period would be a
+ * few hundred requests. "spark" is the batched form of the same data (it is what
+ * feeds Yahoo's own screener sparklines), so a whole market costs a handful of
+ * calls instead.
+ *
+ * Same crumb handling and same two-host retry as yahooQuotes. Returns whatever
+ * parsed; a symbol Yahoo has no history for is simply absent, so callers must
+ * treat a missing series as "no answer for this company" rather than as zero.
+ */
+export async function yahooSparks(
+  symbols: string[],
+  range: string,
+  interval: string,
+  revalidate = 3600
+): Promise<Map<string, number[]>> {
+  const out = new Map<string, number[]>();
+  if (!symbols.length) return out;
+  const list = symbols.map((s) => encodeURIComponent(s)).join(",");
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const cc = await getYahooCrumb(attempt > 0);
+    if (!cc) continue;
+    let authFailed = false;
+    for (const host of ["query1", "query2"]) {
+      try {
+        const url =
+          `https://${host}.finance.yahoo.com/v7/finance/spark?symbols=${list}` +
+          `&range=${encodeURIComponent(range)}&interval=${encodeURIComponent(interval)}` +
+          `&crumb=${encodeURIComponent(cc.crumb)}`;
+        const res = await fetch(url, {
+          headers: { "User-Agent": UA, Cookie: cc.cookie },
+          next: { revalidate },
+          signal: AbortSignal.timeout(12000),
+        });
+        if (res.status === 401 || res.status === 403 || res.status === 429) {
+          invalidateYahooCrumb();
+          authFailed = true;
+          break;
+        }
+        if (!res.ok) continue;
+        const parsed = parseSparkPayload(await res.json());
+        for (const [k, v] of parsed) out.set(k, v);
+        if (out.size) return out;
+      } catch {
+        invalidateYahooCrumb();
+      }
+    }
+    if (!authFailed) break;
   }
   return out;
 }

@@ -21,7 +21,6 @@ interface SectorRow {
   companies: number;
   weight: number;
   day: number;
-  year?: number;
   pe?: number;
 }
 
@@ -55,6 +54,32 @@ interface Overview {
   losers: MoverRow[];
   asOf: string;
   live: boolean;
+}
+
+/** The sector windows offered. "day" comes from the quote feed; the rest need
+ *  price history, so they are fetched only when chosen. */
+const WINDOWS = [
+  { key: "day", label: "Today" },
+  { key: "1mo", label: "1M" },
+  { key: "6mo", label: "6M" },
+  { key: "1y", label: "1Y" },
+  { key: "5y", label: "5Y" },
+] as const;
+type WindowKey = (typeof WINDOWS)[number]["key"];
+const WINDOW_LABEL: Record<WindowKey, string> = {
+  day: "Today",
+  "1mo": "A month",
+  "6mo": "Six months",
+  "1y": "A year",
+  "5y": "Five years",
+};
+
+/** What a bar row needs, whichever source it came from. */
+interface BarRow {
+  sector: string;
+  companies: number;
+  change?: number;
+  pe?: number;
 }
 
 const RANGES = [
@@ -176,8 +201,8 @@ function SectorBars({
   emptyNote,
   signed,
 }: {
-  rows: SectorRow[];
-  value: (r: SectorRow) => number | undefined;
+  rows: BarRow[];
+  value: (r: BarRow) => number | undefined;
   format: (n: number) => string;
   emptyNote: string;
   /**
@@ -252,7 +277,11 @@ export default function Markets() {
   const [series, setSeries] = useState<Point[]>([]);
   const [yearSeries, setYearSeries] = useState<Point[]>([]);
   const [sectorTab, setSectorTab] = useState<"returns" | "valuation">("returns");
-  const [returnWindow, setReturnWindow] = useState<"day" | "year">("day");
+  const [returnWindow, setReturnWindow] = useState<WindowKey>("day");
+  // Fetched windows, kept per region+window so switching back is instant and
+  // does not re-run a request that reads history for a few hundred companies.
+  const [windows, setWindows] = useState<Record<string, BarRow[] | null>>({});
+  const [windowState, setWindowState] = useState<"idle" | "loading">("idle");
   const [moverTab, setMoverTab] = useState<"gainers" | "losers">("gainers");
 
   useEffect(() => {
@@ -309,6 +338,40 @@ export default function Markets() {
       off = true;
     };
   }, [indexSymbol]);
+
+  // Sector returns for anything longer than today. Fetched on demand, once per
+  // region and window: the request reads price history for every company in the
+  // market, so loading all four up front would pay that cost four times for the
+  // three nobody asked for.
+  const windowCacheKey = `${region}:${returnWindow}`;
+  useEffect(() => {
+    if (returnWindow === "day") return;
+    if (windows[windowCacheKey] !== undefined) return; // already fetched, or known empty
+    let off = false;
+    setWindowState("loading");
+    fetch(`/api/markets/returns?region=${encodeURIComponent(region)}&window=${encodeURIComponent(returnWindow)}`)
+      .then((r) => r.json())
+      .then((d: { ok?: boolean; sectors?: BarRow[] }) => {
+        if (off) return;
+        setWindows((w) => ({ ...w, [windowCacheKey]: d?.ok && d.sectors?.length ? d.sectors : null }));
+      })
+      .catch(() => {
+        if (!off) setWindows((w) => ({ ...w, [windowCacheKey]: null }));
+      })
+      .finally(() => {
+        if (!off) setWindowState("idle");
+      });
+    return () => {
+      off = true;
+    };
+  }, [region, returnWindow, windowCacheKey, windows]);
+
+  // `undefined` means "not asked yet", which is a loading state; `null` means
+  // "asked, nothing came back". Collapsing the two flashes "not available" for a
+  // frame every time a window is clicked.
+  const fetched = returnWindow === "day" ? undefined : windows[windowCacheKey];
+  const windowRows = fetched ?? null;
+  const windowPending = returnWindow !== "day" && (fetched === undefined || windowState === "loading");
 
   const returns = useMemo(
     () => ({
@@ -492,8 +555,9 @@ export default function Markets() {
           {data?.year != null ? (
             <li>
               • Its companies are{" "}
-              <span className={`font-mono tnum ${tone(data.year)}`}>{pct(data.year)}</span> over the last year,
-              weighted by size.
+              <span className={`font-mono tnum ${tone(data.year)}`}>{pct(data.year)}</span> over the last 52
+              weeks, weighted by size. (The sector bars below measure a window of price history instead, so the
+              two are close rather than identical.)
             </li>
           ) : null}
           <li className="text-slate-500">
@@ -532,17 +596,16 @@ export default function Markets() {
             ))}
           </div>
           {sectorTab === "returns" ? (
-            <div className="flex gap-1 rounded-lg border border-white/10 bg-white/[0.03] p-1">
-              {([
-                ["day", "Today"],
-                ["year", "1 Year"],
-              ] as const).map(([k, label]) => (
+            <div className="flex flex-wrap gap-1 rounded-lg border border-white/10 bg-white/[0.03] p-1">
+              {WINDOWS.map(({ key, label }) => (
                 <button
-                  key={k}
+                  key={key}
                   type="button"
-                  onClick={() => setReturnWindow(k)}
+                  onClick={() => setReturnWindow(key)}
                   className={`rounded-md px-2.5 py-1 text-xs transition ${
-                    returnWindow === k ? "bg-white/10 font-semibold text-white" : "text-slate-400 hover:text-white"
+                    returnWindow === key
+                      ? "bg-white/10 font-semibold text-white"
+                      : "text-slate-400 hover:text-white"
                   }`}
                 >
                   {label}
@@ -553,17 +616,25 @@ export default function Markets() {
         </div>
 
         {sectorTab === "returns" ? (
-          <SectorBars
-            rows={data?.sectors ?? []}
-            value={(r) => (returnWindow === "day" ? r.day : r.year)}
-            format={(v) => pct(v)}
-            signed
-            emptyNote={
-              returnWindow === "year"
-                ? "One-year moves aren't being reported for enough companies in this market to aggregate a sector."
-                : "No live sector moves right now."
-            }
-          />
+          returnWindow !== "day" && windowRows == null ? (
+            <p className="py-6 text-sm text-slate-500">
+              {windowPending
+                ? `Reading ${WINDOW_LABEL[returnWindow]} of price history for every company…`
+                : `${WINDOW_LABEL[returnWindow]} of history isn't available for this market right now.`}
+            </p>
+          ) : (
+            <SectorBars
+              rows={
+                returnWindow === "day"
+                  ? (data?.sectors ?? []).map((r) => ({ ...r, change: r.day }))
+                  : windowRows ?? []
+              }
+              value={(r) => r.change}
+              format={(v) => pct(v)}
+              signed
+              emptyNote="No sector has enough companies with usable history for this window."
+            />
+          )
         ) : (
           <SectorBars
             rows={data?.sectors ?? []}

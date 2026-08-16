@@ -99,6 +99,76 @@ export function yearChangePct(q: {
   return undefined;
 }
 
+/**
+ * Closing prices per symbol from Yahoo's batched "spark" response.
+ *
+ * Two shapes exist in the wild for the same data and Yahoo serves either
+ * depending on the endpoint version: a flat map keyed by symbol, and a
+ * chart-style envelope with the closes nested under indicators. Both are
+ * accepted, because guessing wrong here does not fail loudly — it returns
+ * nothing for every company and the page quietly reports a market with no
+ * sectors in it.
+ *
+ * Anything unrecognised yields an empty map rather than a partial one, so a
+ * caller can tell "the shape changed" from "these companies have no history".
+ */
+export function parseSparkPayload(json: unknown): Map<string, number[]> {
+  const out = new Map<string, number[]>();
+  if (!json || typeof json !== "object") return out;
+
+  const closesOf = (v: unknown): number[] => {
+    if (!v || typeof v !== "object") return [];
+    const o = v as Record<string, unknown>;
+    // Flat shape: { close: [...] }
+    if (Array.isArray(o.close)) {
+      return (o.close as unknown[]).filter((c): c is number => typeof c === "number" && isFinite(c));
+    }
+    // Envelope shape: { response: [ { indicators: { quote: [ { close: [...] } ] } } ] }
+    const response = Array.isArray(o.response) ? (o.response[0] as Record<string, unknown>) : undefined;
+    const indicators = response?.indicators as { quote?: { close?: unknown[] }[] } | undefined;
+    const close = indicators?.quote?.[0]?.close;
+    if (Array.isArray(close)) {
+      return close.filter((c): c is number => typeof c === "number" && isFinite(c));
+    }
+    return [];
+  };
+
+  const root = json as Record<string, unknown>;
+  const spark = root.spark as { result?: unknown[] } | undefined;
+  const rows = Array.isArray(spark?.result) ? (spark!.result as Record<string, unknown>[]) : null;
+
+  if (rows) {
+    for (const r of rows) {
+      const symbol = typeof r.symbol === "string" ? r.symbol.toUpperCase() : undefined;
+      if (!symbol) continue;
+      const closes = closesOf(r);
+      if (closes.length >= 2) out.set(symbol, closes);
+    }
+    return out;
+  }
+
+  for (const [key, v] of Object.entries(root)) {
+    if (!v || typeof v !== "object") continue;
+    const o = v as Record<string, unknown>;
+    const symbol = (typeof o.symbol === "string" ? o.symbol : key).toUpperCase();
+    const closes = closesOf(o);
+    if (closes.length >= 2) out.set(symbol, closes);
+  }
+  return out;
+}
+
+/** Return across a whole close series, in percent. */
+export function seriesReturnPct(closes: number[]): number | undefined {
+  if (closes.length < 2) return undefined;
+  const first = closes[0];
+  const last = closes[closes.length - 1];
+  if (!(first > 0) || !(last > 0)) return undefined;
+  const v = ((last - first) / first) * 100;
+  // A price series that implies a 100x move over the window is a split the feed
+  // hasn't adjusted, not a return anyone should be shown.
+  return isFinite(v) && Math.abs(v) < 10000 ? v : undefined;
+}
+
 const DAY_MS = 86400000;
 
 /**
