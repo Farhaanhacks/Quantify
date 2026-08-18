@@ -5,6 +5,7 @@ import { GlassCard } from "@/components/quantifi/Cards";
 import SupportResistanceChart from "@/components/quantifi/SupportResistanceChart";
 import type { CompanyData } from "@/lib/yahooCompany";
 import { toneOf } from "@/lib/newsImpact";
+import { InteractiveDonut, OWNERSHIP_PALETTE } from "@/components/quantifi/Donut";
 import { fmtCompactCur, isIndianCurrency, currencySymbol } from "@/data/demo";
 
 const cur = (c?: string, ticker?: string) => currencySymbol(c, ticker);
@@ -98,6 +99,31 @@ export default function CompanyVitals({ symbol }: { symbol: string }) {
 
   const c = cur(data.currency, symbol);
   const indian = isIndianCurrency(data.currency, symbol);
+
+
+  // The fund ring. Funds hold a few percent each, so unlike the ownership split
+  // these slices do not sum to anything meaningful on their own: the remainder
+  // is every other holder on the register, and it is drawn as such rather than
+  // left as an invisible gap that makes six small stakes look like the whole
+  // company. Sorted largest first so the ring reads clockwise by size.
+  const fundRows = (data.topFundHolders ?? [])
+    .filter((h) => h.pctHeld != null && h.pctHeld > 0)
+    .sort((a, b) => (b.pctHeld ?? 0) - (a.pctHeld ?? 0));
+  const fundSegs = fundRows.length
+    ? (() => {
+        const segs = fundRows.map((h, i) => ({
+          name: h.name,
+          pct: Math.round((h.pctHeld ?? 0) * 10000) / 100,
+          color: OWNERSHIP_PALETTE[i % OWNERSHIP_PALETTE.length],
+        }));
+        const named = segs.reduce((sum, x) => sum + x.pct, 0);
+        if (named < 100) {
+          segs.push({ name: "All other holders", pct: Math.round((100 - named) * 100) / 100, color: "#475569" });
+        }
+        return segs;
+      })()
+    : null;
+
   const price = data.price ?? 0;
   const rating = RATING[(data.recommendationKey || "").toLowerCase()];
   const upside = data.targetMean && price ? ((data.targetMean - price) / price) * 100 : null;
@@ -249,17 +275,14 @@ export default function CompanyVitals({ symbol }: { symbol: string }) {
         {/* Top fund / ETF holders */}
         <GlassCard className="p-5">
           <h3 className="font-display text-base font-semibold text-white">Top fund &amp; ETF holders</h3>
-          {data.topFundHolders?.length ? (
-            <ul className="mt-3 space-y-2">
-              {data.topFundHolders.map((h) => (
-                <li key={h.name} className="flex items-center justify-between gap-2 text-xs">
-                  <span className="truncate text-slate-300">{h.name}</span>
-                  <span className="flex-none font-mono tnum text-slate-400">
-                    {h.pctHeld != null ? `${(h.pctHeld * 100).toFixed(2)}%` : "n/a"}
-                  </span>
-                </li>
-              ))}
-            </ul>
+          {fundSegs ? (
+            <div className="mt-4">
+              <InteractiveDonut
+                segments={fundSegs}
+                idleValue={`${fundSegs[0].pct.toFixed(2)}%`}
+                idleLabel="largest fund"
+              />
+            </div>
           ) : indian ? (
             <p className="mt-3 text-sm text-slate-500">
               Named mutual-fund &amp; ETF holders aren&apos;t published for Indian
