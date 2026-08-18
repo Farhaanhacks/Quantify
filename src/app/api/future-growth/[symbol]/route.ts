@@ -64,10 +64,14 @@ async function pastActuals(symbol: string) {
   try {
     const { income } = await getYahooStatements(symbol);
     return income
+      // getYahooStatements returns its own field names, not Yahoo's type codes.
+      // Reading `annualTotalRevenue` here yielded undefined for every row, so
+      // `past` was always empty and the card permanently showed "no reported
+      // history to chart against the estimates" for companies that have plenty.
       .map((r) => ({
         date: r.date,
-        revenue: r.values.annualTotalRevenue,
-        earnings: r.values.annualNetIncome,
+        revenue: r.values.revenue,
+        earnings: r.values.netIncome,
       }))
       .filter((r) => r.date && (r.revenue != null || r.earnings != null))
       .sort((a, b) => (a.date! < b.date! ? -1 : 1))
