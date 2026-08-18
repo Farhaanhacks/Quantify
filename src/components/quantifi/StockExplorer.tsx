@@ -20,6 +20,7 @@ import StockHero from "@/components/quantifi/StockHero";
 import KeyValuationMetric from "@/components/quantifi/KeyValuationMetric";
 import AnalystConsensus from "@/components/quantifi/AnalystConsensus";
 import FutureGrowth from "@/components/quantifi/FutureGrowth";
+import RevenueBreakdown from "@/components/quantifi/RevenueBreakdown";
 import DebtEquityHistory from "@/components/quantifi/DebtEquityHistory";
 import StockSectionNav, { type NavSection } from "@/components/quantifi/StockSectionNav";
 import SignUpModal from "@/components/quantifi/SignUpModal";
@@ -57,6 +58,7 @@ const NAV_SECTIONS: NavSection[] = [
   { id: "sec-valuation", label: "Valuation" },
   { id: "sec-analyst", label: "Analyst view" },
   { id: "sec-future", label: "Future growth" },
+  { id: "sec-breakdown", label: "Revenue & expenses" },
   { id: "sec-ownership", label: "Ownership" },
   { id: "sec-competitors", label: "Competitors" },
   { id: "sec-peers", label: "Peers" },
@@ -449,6 +451,9 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
                 </div>
                 <div className="scroll-mt-24">
                   <FutureGrowth symbol={ticker} name={score.name} />
+                </div>
+                <div id="sec-breakdown" className="scroll-mt-24">
+                  <RevenueBreakdown symbol={ticker} name={score.name} />
                 </div>
                 <div id="sec-ownership" className="scroll-mt-24">
                   <ShareholdingStats symbol={ticker} />
