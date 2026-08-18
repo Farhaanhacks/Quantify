@@ -1,5 +1,5 @@
 import { kvGet, kvSet, kvConfigured } from "@/lib/kv";
-import type { TaiwanInsiderRecord } from "@/lib/taiwan/insiderParse";
+import type { TaiwanInsiderRecord, TaiwanMarket } from "@/lib/taiwan/insiderParse";
 
 // Redis store for the Taiwan insider datasets, and the vocabulary the API uses
 // to describe what it found.
@@ -40,8 +40,16 @@ const KEY_PREFIX = "insider:tw:v1:";
 const META_KEY = "insider:tw:v1:_meta";
 const MAX_PER_COMPANY = 60;
 
-/** Companies present in the last successful ingest — the set we can say "no filings" about. */
-const ROSTER_KEY = "insider:tw:v1:_roster";
+/**
+ * Companies present in the last successful ingest, per market: the set we are
+ * entitled to say "no filings" about.
+ *
+ * Per market because the two exchanges are separate publishers and fail
+ * separately. One shared flag meant TWSE's 27,528 rows counted for nothing
+ * while TPEx was down: the roster was never written, so every TWSE company with
+ * no filings reported "source unavailable" indefinitely.
+ */
+const rosterKey = (market: TaiwanMarket) => `insider:tw:v1:_roster:${market}`;
 
 /** How old the store may be before it is called stale rather than current. */
 export const STALE_AFTER_HOURS = 48;
@@ -50,6 +58,8 @@ export interface TaiwanIngestMeta {
   lastRun: string; // ISO
   /** Only set when EVERY dataset answered — a partial run must not look complete. */
   lastCompleteRun?: string;
+  /** Per market, so one exchange's outage does not mute the other. */
+  lastCompleteByMarket?: Partial<Record<TaiwanMarket, string>>;
   companies: number;
   records: number;
   datasets: {
@@ -67,6 +77,13 @@ export interface TaiwanIngestMeta {
 export function taiwanCompanyId(ticker: string): string | null {
   const m = ticker.toUpperCase().trim().match(/^(\d{4,6})\.(TW|TWO)$/);
   return m ? m[1] : null;
+}
+
+/** Which exchange a ticker belongs to. .TW is the main board, .TWO is TPEx. */
+export function taiwanMarketOf(ticker: string): TaiwanMarket | null {
+  const m = ticker.toUpperCase().trim().match(/^\d{4,6}\.(TW|TWO)$/);
+  if (!m) return null;
+  return m[1] === "TWO" ? "TPEx" : "TWSE";
 }
 
 const keyFor = (companyId: string) => `${KEY_PREFIX}${companyId}`;
@@ -115,13 +132,13 @@ export async function setTaiwanIngestMeta(meta: TaiwanIngestMeta): Promise<void>
  * is how the previous version came to tell people a company had disclosed
  * nothing when the truth was that the fetch had failed.
  */
-export async function setTaiwanRoster(companyIds: string[]): Promise<void> {
-  await kvSet(ROSTER_KEY, JSON.stringify(companyIds));
+export async function setTaiwanRoster(market: TaiwanMarket, companyIds: string[]): Promise<void> {
+  await kvSet(rosterKey(market), JSON.stringify(companyIds));
 }
 
-export async function getTaiwanRoster(): Promise<Set<string> | null> {
+export async function getTaiwanRoster(market: TaiwanMarket): Promise<Set<string> | null> {
   if (!kvConfigured()) return null;
-  const raw = await kvGet(ROSTER_KEY);
+  const raw = await kvGet(rosterKey(market));
   if (!raw) return null;
   try {
     const arr = JSON.parse(raw);
@@ -152,13 +169,16 @@ export async function lookupTaiwanInsider(ticker: string): Promise<TaiwanLookup>
   // not a company that filed nothing.
   if (!kvConfigured()) return { status: "source_unavailable", records: [] };
 
+  const market = taiwanMarketOf(ticker) ?? "TWSE";
   const [records, meta, roster] = await Promise.all([
     getStoredTaiwanInsider(companyId),
     getTaiwanIngestMeta(),
-    getTaiwanRoster(),
+    getTaiwanRoster(market),
   ]);
 
-  const asOf = meta?.lastCompleteRun ?? meta?.lastRun;
+  // Dated by this market's own last complete run. Using the global one would
+  // date TWSE's fresh data by TPEx's failure.
+  const asOf = meta?.lastCompleteByMarket?.[market] ?? meta?.lastCompleteRun ?? meta?.lastRun;
   const ageHours =
     asOf != null ? (Date.now() - new Date(asOf).getTime()) / 3_600_000 : undefined;
   const stale = ageHours != null && ageHours > STALE_AFTER_HOURS;
