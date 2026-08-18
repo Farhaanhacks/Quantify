@@ -13,6 +13,9 @@ interface DatasetRow {
   rowsIn: number;
   httpStatus?: number;
   error?: string;
+  // Returned by the API and deliberately NOT rendered: forty Chinese headers
+  // per dataset, wrapped over three lines, buried every number on the card.
+  // They stay in the JSON, where a renamed column is still one look away.
   seenColumns?: string[];
 }
 
@@ -65,6 +68,12 @@ interface Ops {
   ok: boolean;
   you: string;
   env: Record<string, boolean>;
+  protection?: {
+    cronSecretSet: boolean;
+    guardedRoutes: string[];
+    method: string;
+    adminRoutesUseSession: boolean;
+  };
   ingest: {
     india: { lastRun: string; symbols: number; rows: number; source: string } | null;
     taiwan: {
@@ -160,12 +169,71 @@ export default function AdminOps() {
 
   return (
     <div className="mt-6 space-y-4">
+      {/* Health first, because a red line here is worth more than every green
+          dot below it. */}
+      <GlassCard
+        className={`p-5 sm:p-6 ${
+          ops.protection && !ops.protection.cronSecretSet ? "border-down/40 bg-down/[0.06]" : ""
+        }`}
+      >
+        <h2 className="font-display text-lg font-semibold text-white">Health</h2>
+        {ops.protection ? (
+          <div className="mt-3 space-y-3 text-sm">
+            {ops.protection.cronSecretSet ? (
+              <p className="text-slate-300">
+                <span className="mr-2 inline-block h-2 w-2 rounded-full bg-up align-middle" />
+                Background jobs are protected. {ops.protection.guardedRoutes.length} routes require{" "}
+                <span className="font-mono text-xs text-slate-400">{ops.protection.method}</span>, and a
+                request without it is refused before any work starts.
+              </p>
+            ) : (
+              <div>
+                <p className="font-medium text-down">
+                  <span className="mr-2 inline-block h-2 w-2 rounded-full bg-down align-middle" />
+                  Background jobs are unprotected.
+                </p>
+                <p className="mt-2 max-w-3xl text-xs leading-relaxed text-slate-400">
+                  CRON_SECRET is not set, so the ingest routes run for anyone who requests them.
+                  Each one fans out over hundreds of upstream requests and rewrites the store, so a
+                  path that gets discovered is a scrape and a bill that anybody can trigger on
+                  repeat. Set CRON_SECRET in the deployment&apos;s environment; the code already
+                  checks it and starts refusing unauthenticated calls the moment it exists.
+                </p>
+              </div>
+            )}
+            <ul className="space-y-1 text-xs text-slate-500">
+              {ops.protection.guardedRoutes.map((r) => (
+                <li key={r} className="flex items-center gap-2">
+                  <span
+                    className={`h-1.5 w-1.5 flex-none rounded-full ${
+                      r.startsWith("/api/admin") || ops.protection!.cronSecretSet ? "bg-up" : "bg-down"
+                    }`}
+                  />
+                  <span className="font-mono">{r}</span>
+                  <span className="text-slate-600">
+                    {r.startsWith("/api/admin")
+                      ? "staff session"
+                      : ops.protection!.cronSecretSet
+                        ? "secret required"
+                        : "open"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-xs text-slate-600">
+              The admin routes check the signed session against the staff allowlist rather than the
+              cron secret, so they stay closed either way.
+            </p>
+          </div>
+        ) : null}
+      </GlassCard>
+
       {u?.configured ? (
         <>
           <GlassCard className="p-5 sm:p-6">
             <h2 className="font-display text-lg font-semibold text-white">The funnel</h2>
             <p className="mt-1 text-xs text-slate-500">
-              Last 30 days. Visitors are DISTINCT people, counted once however many days they came not the sum of the daily figures.
+              Last 30 days. Visitors are DISTINCT people, counted once however many days they came, rather than the sum of the daily figures.
             </p>
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
               {[
@@ -470,15 +538,6 @@ export default function AdminOps() {
                     <td className="py-2 text-right font-mono tnum text-slate-300">{d.rowsIn}</td>
                     <td className="py-2 text-slate-500">
                       {d.error ?? ""}
-                      {/* The payload's real column names. This is what turns a
-                          schema change from an invisible outage into a one-line
-                          fix — the parser refuses to guess, and this is where
-                          the truth shows up. */}
-                      {d.seenColumns?.length ? (
-                        <span className="mt-1 block font-mono text-[0.6rem] text-slate-600">
-                          {d.seenColumns.join(" · ")}
-                        </span>
-                      ) : null}
                     </td>
                   </tr>
                 ))}
