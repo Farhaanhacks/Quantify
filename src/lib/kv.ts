@@ -95,3 +95,103 @@ export async function kvLTrim(key: string, start: number, stop: number): Promise
   }
 }
 
+
+// ── Counters and sets, for the usage analytics on /admin ────────────────────
+//
+// The REST wrapper takes arbitrary Redis commands, so these need no new
+// transport — only the small surface the analytics actually uses. Every one is
+// wrapped like the rest of this file: a failure is silent and the caller
+// carries on, because a metric is never worth failing a page over.
+
+export async function kvIncr(key: string): Promise<number | null> {
+  try {
+    const r = await command(["INCR", key]);
+    return typeof r === "number" ? r : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function kvExpire(key: string, seconds: number): Promise<void> {
+  try {
+    await command(["EXPIRE", key, String(Math.floor(seconds))]);
+  } catch {
+    /* best effort */
+  }
+}
+
+export async function kvMGet(keys: string[]): Promise<(string | null)[]> {
+  if (!keys.length) return [];
+  try {
+    const r = await command(["MGET", ...keys]);
+    return Array.isArray(r) ? (r as (string | null)[]) : keys.map(() => null);
+  } catch {
+    return keys.map(() => null);
+  }
+}
+
+/**
+ * HyperLogLog — counts DISTINCT values without storing them.
+ *
+ * The right structure for "how many people visited today": it answers the
+ * question to within ~1% while keeping no record of who any of them were, which
+ * a set of identifiers would.
+ */
+export async function kvPfAdd(key: string, value: string): Promise<void> {
+  try {
+    await command(["PFADD", key, value]);
+  } catch {
+    /* best effort */
+  }
+}
+
+export async function kvPfCount(keys: string[]): Promise<number> {
+  if (!keys.length) return 0;
+  try {
+    const r = await command(["PFCOUNT", ...keys]);
+    return typeof r === "number" ? r : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** A capped, expiring set — used for "which accounts were active today". */
+export async function kvSAdd(key: string, value: string): Promise<void> {
+  try {
+    await command(["SADD", key, value]);
+  } catch {
+    /* best effort */
+  }
+}
+
+export async function kvSMembers(key: string): Promise<string[]> {
+  try {
+    const r = await command(["SMEMBERS", key]);
+    return Array.isArray(r) ? (r as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function kvZIncrBy(key: string, member: string, by = 1): Promise<void> {
+  try {
+    await command(["ZINCRBY", key, String(by), member]);
+  } catch {
+    /* best effort */
+  }
+}
+
+/** Highest-scoring members of a sorted set, with their scores. */
+export async function kvZTop(key: string, count: number): Promise<{ member: string; score: number }[]> {
+  try {
+    const r = await command(["ZRANGE", key, "0", String(Math.max(0, count - 1)), "REV", "WITHSCORES"]);
+    if (!Array.isArray(r)) return [];
+    const out: { member: string; score: number }[] = [];
+    for (let i = 0; i < r.length; i += 2) {
+      out.push({ member: String(r[i]), score: Number(r[i + 1]) || 0 });
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}

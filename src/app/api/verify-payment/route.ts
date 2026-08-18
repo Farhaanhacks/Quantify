@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { kvSet } from "@/lib/kv";
+import { recordEvent } from "@/lib/analytics";
 import { isRazorpayConfigured, verifyOrderSignature } from "@/lib/razorpay";
 import type { ProRecord } from "@/lib/access";
 
@@ -45,6 +46,9 @@ export async function POST(req: Request) {
     current_end: Math.floor(Date.now() / 1000) + 31 * 24 * 60 * 60,
   };
   await kvSet(`pro:${user.email.toLowerCase()}`, JSON.stringify(record));
+  // The conversion. Counted here rather than inferred from the pro:* keys,
+  // because a count of current subscribers cannot tell you WHEN anyone joined.
+  await recordEvent({ kind: "pro", email: user.email }).catch(() => {});
 
   return NextResponse.json({ ok: true });
 }

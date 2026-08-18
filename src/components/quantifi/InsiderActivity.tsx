@@ -159,6 +159,12 @@ export default function InsiderActivity({
   // the page cannot tell "this company filed nothing" from "the exchange never
   // answered us", and it used to state the first for both.
   const [reason, setReason] = useState<"unconfigured" | "blocked" | "empty" | undefined>(undefined);
+  // Why a US lookup came back empty. Same principle as India and Taiwan: EDGAR
+  // being unreachable and a company whose officers have not traded are
+  // different facts, and the section used to render identically for both — a
+  // company with real Form 4 filings simply had no Insider Activity section.
+  const [usStatus, setUsStatus] = useState<"available" | "no_filings" | "source_unavailable" | "unsupported" | undefined>(undefined);
+  const [usReason, setUsReason] = useState<string | undefined>(undefined);
   const [filter, setFilter] = useState<Filter>("All");
 
   // Standalone (no fixed ticker) page lets the user search a company. `query`
@@ -184,8 +190,8 @@ export default function InsiderActivity({
           available?: boolean;
           market?: "US" | "IN" | "TW";
           source?: string;
-          reason?: "unconfigured" | "blocked" | "empty";
-          status?: TaiwanStatus;
+          reason?: string;
+          status?: TaiwanStatus | "no_filings" | "source_unavailable" | "unsupported" | "available";
           asOf?: string;
           trades?: ApiTrade[];
           disclosures?: ApiDisclosure[];
@@ -204,12 +210,14 @@ export default function InsiderActivity({
           // "store"/"nse" → NSE; "bse" → BSE. Default NSE (the primary source now).
           setExchange(d.source === "bse" ? "BSE" : "NSE");
           setDisclosures(d.available && Array.isArray(d.disclosures) ? d.disclosures : []);
-          setReason(d.reason);
+          setReason(d.reason as "unconfigured" | "blocked" | "empty" | undefined);
           setTrades([]);
         } else {
           setMarket("US");
           setTrades(d.available && Array.isArray(d.trades) ? d.trades : []);
           setDisclosures([]);
+          setUsStatus(d.status as typeof usStatus);
+          setUsReason(typeof d.reason === "string" ? d.reason : undefined);
         }
       } catch {
         if (!cancelled) {
@@ -291,7 +299,8 @@ export default function InsiderActivity({
     reason === "blocked" ||
     reason === "unconfigured" ||
     twStatus === "source_unavailable" ||
-    twStatus === "stale";
+    twStatus === "stale" ||
+    usStatus === "source_unavailable";
   const liveTW = twRecords.length > 0;
   if (ticker && !loading && !live && !liveIN && !liveTW && !unexplained) return null;
 
@@ -661,13 +670,28 @@ export default function InsiderActivity({
 
         {!loading && filtered.length === 0 ? (
           <div className="px-5 py-10 text-center text-sm text-slate-500">
-            {error
-              ? "Couldn't reach SEC EDGAR right now — Form 4 data is fetched live and may be rate-limited. Please try again shortly."
-              : activeTicker
-              ? `No recent insider activity found for ${activeTicker}. This is US-listed Form 4 data — non-US tickers (e.g. .NS) won't appear.`
-              : source.length === 0
-              ? "No recent insider activity found right now."
-              : "No activity matches this filter."}
+            {error || usStatus === "source_unavailable" ? (
+              <>
+                Source temporarily unavailable — we don&apos;t know what{" "}
+                {activeTicker ?? "these companies"} filed.
+                <span className="mt-2 block text-[0.78rem] text-slate-600">
+                  {/* The actual reason, not a general apology. SEC asks every
+                      automated client to declare a contact address and throttles
+                      those that don't, which is the usual answer and is fixed by
+                      setting EDGAR_USER_AGENT. */}
+                  {usReason
+                    ? `SEC EDGAR: ${usReason}.`
+                    : "Form 4 filings are fetched live from SEC EDGAR and the request didn't complete."}{" "}
+                  This is not a statement that there are none.
+                </span>
+              </>
+            ) : activeTicker ? (
+              `No Form 4 filings on record for ${activeTicker} in the recent EDGAR index. This is US-listed data — non-US tickers (e.g. .NS) won't appear.`
+            ) : source.length === 0 ? (
+              "No recent insider activity found right now."
+            ) : (
+              "No activity matches this filter."
+            )}
           </div>
         ) : null}
 

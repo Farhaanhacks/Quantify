@@ -16,6 +16,34 @@ interface DatasetRow {
   seenColumns?: string[];
 }
 
+interface DayPoint {
+  date: string;
+  visitors: number;
+  known: number;
+  anon: number;
+  visits: number;
+  signins: number;
+  pro: number;
+}
+
+interface Usage {
+  configured: boolean;
+  days: DayPoint[];
+  totals: {
+    visitors7: number;
+    visitors30: number;
+    known30: number;
+    signins30: number;
+    pro30: number;
+    proAllTime: number;
+    signupAllTime: number;
+  };
+  activeToday: string[];
+  activeWeek: string[];
+  topPaths: { member: string; score: number }[];
+  topTickers: { member: string; score: number }[];
+}
+
 interface Ops {
   ok: boolean;
   you: string;
@@ -31,6 +59,7 @@ interface Ops {
     } | null;
   };
   search: { indiaCompanies: number };
+  usage: Usage | null;
   now: string;
 }
 
@@ -108,8 +137,132 @@ export default function AdminOps() {
   const tw = ops.ingest.taiwan;
   const inMeta = ops.ingest.india;
 
+  const u = ops.usage;
+  const maxVisitors = Math.max(1, ...(u?.days ?? []).map((d) => d.visitors));
+
   return (
     <div className="mt-6 space-y-4">
+      {u?.configured ? (
+        <>
+          <GlassCard className="p-5 sm:p-6">
+            <h2 className="font-display text-lg font-semibold text-white">The funnel</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Last 30 days. Visitors are DISTINCT people, counted once however many days they came —
+              not the sum of the daily figures.
+            </p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              {[
+                ["Visitors · 30d", u.totals.visitors30],
+                ["Visitors · 7d", u.totals.visitors7],
+                ["Signed in · 30d", u.totals.known30],
+                ["New accounts · all time", u.totals.signupAllTime],
+                ["Went Pro · all time", u.totals.proAllTime],
+              ].map(([label, value]) => (
+                <div key={String(label)}>
+                  <div className="text-[0.66rem] uppercase tracking-[0.14em] text-slate-500">{label}</div>
+                  <div className="font-mono text-2xl tnum text-white">{Number(value).toLocaleString()}</div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-4 text-xs leading-relaxed text-slate-500">
+              {u.totals.visitors30 > 0
+                ? `${((u.totals.known30 / u.totals.visitors30) * 100).toFixed(1)}% of visitors signed in; ${
+                    u.totals.known30 > 0
+                      ? ((u.totals.pro30 / u.totals.known30) * 100).toFixed(1)
+                      : "0.0"
+                  }% of those went Pro this month.`
+                : "No visits recorded yet — the counters start from the first page view after this deploys."}
+            </p>
+          </GlassCard>
+
+          <GlassCard className="p-5 sm:p-6">
+            <h2 className="font-display text-lg font-semibold text-white">Daily</h2>
+            <div className="mt-3 flex items-end gap-1" style={{ height: 120 }}>
+              {[...u.days].reverse().map((d) => (
+                <div key={d.date} className="group relative flex-1" title={`${d.date} · ${d.visitors} visitors (${d.known} signed in)`}>
+                  <div
+                    className="w-full rounded-t bg-white/10"
+                    style={{ height: `${(d.visitors / maxVisitors) * 110}px` }}
+                  />
+                  {/* Signed-in share drawn inside the same bar, so the gap
+                      between the two is the funnel rather than two charts to
+                      compare by eye. */}
+                  <div
+                    className="absolute bottom-0 w-full rounded-t bg-gold/70"
+                    style={{ height: `${(d.known / maxVisitors) * 110}px` }}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="mt-2 flex justify-between font-mono text-[0.62rem] text-slate-600">
+              <span>{u.days[u.days.length - 1]?.date}</span>
+              <span>
+                <span className="text-gold/80">signed in</span> · <span className="text-slate-400">all visitors</span>
+              </span>
+              <span>{u.days[0]?.date}</span>
+            </div>
+          </GlassCard>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <GlassCard className="p-5 sm:p-6">
+              <h2 className="font-display text-lg font-semibold text-white">Who is using it</h2>
+              <p className="mt-1 text-xs text-slate-500">
+                Accounts active today, then this week. Kept {90} days, then dropped.
+              </p>
+              <div className="mt-3 space-y-1 text-xs">
+                {(u.activeToday.length ? u.activeToday : u.activeWeek).slice(0, 20).map((e) => (
+                  <div key={e} className="flex items-center justify-between gap-3">
+                    <span className="truncate text-slate-300">{e}</span>
+                    <span className="flex-none text-[0.62rem] text-slate-600">
+                      {u.activeToday.includes(e) ? "today" : "this week"}
+                    </span>
+                  </div>
+                ))}
+                {!u.activeToday.length && !u.activeWeek.length ? (
+                  <p className="text-slate-500">No signed-in activity recorded yet.</p>
+                ) : null}
+              </div>
+            </GlassCard>
+
+            <GlassCard className="p-5 sm:p-6">
+              <h2 className="font-display text-lg font-semibold text-white">What they open</h2>
+              <p className="mt-1 text-xs text-slate-500">Today, by page and by company.</p>
+              <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1 text-xs">
+                  {u.topPaths.length ? (
+                    u.topPaths.map((p) => (
+                      <div key={p.member} className="flex items-center justify-between gap-3">
+                        <span className="truncate font-mono text-slate-400">{p.member}</span>
+                        <span className="flex-none font-mono tnum text-slate-300">{p.score}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-slate-500">No page views yet today.</p>
+                  )}
+                </div>
+                <div className="space-y-1 text-xs">
+                  {u.topTickers.length ? (
+                    u.topTickers.map((p) => (
+                      <div key={p.member} className="flex items-center justify-between gap-3">
+                        <span className="truncate font-mono text-slate-300">{p.member}</span>
+                        <span className="flex-none font-mono tnum text-slate-400">{p.score}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-slate-500">No company pages opened yet today.</p>
+                  )}
+                </div>
+              </div>
+            </GlassCard>
+          </div>
+        </>
+      ) : (
+        <GlassCard className="p-5 text-sm text-slate-400">
+          Usage analytics need Redis (KV_REST_API_URL / KV_REST_API_TOKEN). Without it nothing is
+          recorded — and nothing is lost either, since no events are buffered anywhere else.
+        </GlassCard>
+      )}
+
       <GlassCard className="p-5 sm:p-6">
         <h2 className="font-display text-lg font-semibold text-white">Configuration</h2>
         <p className="mt-1 text-xs text-slate-500">

@@ -6,6 +6,7 @@ import { getIngestMeta } from "@/lib/insiderStore";
 import { getTaiwanIngestMeta } from "@/lib/taiwan/insiderStore";
 import { indiaIndexSize } from "@/lib/indiaCompanies";
 import { fairValueHistoryConfigured } from "@/lib/fairValueHistory";
+import { getUsageReport } from "@/lib/analytics";
 
 // What the team sees that a user does not: the state of the machinery.
 //
@@ -24,10 +25,11 @@ export async function GET() {
   const guard = adminOr404();
   if (isNextResponse(guard)) return guard;
 
-  const [india, taiwan, indexSize] = await Promise.all([
+  const [india, taiwan, indexSize, usage] = await Promise.all([
     getIngestMeta().catch(() => null),
     getTaiwanIngestMeta().catch(() => null),
     indiaIndexSize().catch(() => 0),
+    getUsageReport().catch(() => null),
   ]);
 
   return NextResponse.json(
@@ -51,6 +53,7 @@ export async function GET() {
       },
       ingest: { india, taiwan },
       search: { indiaCompanies: indexSize },
+      usage,
       now: new Date().toISOString(),
     },
     { headers: { "Cache-Control": "no-store" } }

@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { recordEvent } from "@/lib/analytics";
+import { kvClaim } from "@/lib/kv";
 import {
   authConfig,
   originFromRequest,
@@ -56,6 +58,21 @@ export async function GET(req: Request) {
       { sub: u.sub, name: u.name, email: u.email, picture: u.picture },
       secret
     );
+    // A completed sign-in, and whether it is this account's FIRST — which is
+    // the difference between "logged in again" and "signed up", and the only
+    // point at which that distinction is observable.
+    try {
+      const email = u.email?.toLowerCase();
+      if (email) {
+        const seenKey = `user:first-seen:${email}`;
+        const isNew = await kvClaim(seenKey, 10 * 365 * 24 * 60 * 60);
+        await recordEvent({ kind: "signin", email });
+        if (isNew) await recordEvent({ kind: "signup", email });
+      }
+    } catch {
+      /* never let a metric block a sign-in */
+    }
+
     const res = NextResponse.redirect(`${origin}/?auth=ok`);
     res.cookies.set(SESSION_COOKIE, sessionToken, {
       httpOnly: true,

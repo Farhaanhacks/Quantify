@@ -145,37 +145,109 @@ interface Submissions {
   };
 }
 
-export async function getCompanyInsiderTrades(ticker: string, limit = 15): Promise<InsiderTrade[]> {
+export interface EdgarDebug {
+  /** Whether the ticker resolved to a CIK at all. */
+  cik?: string;
+  /** HTTP status of the submissions request — the usual point of failure. */
+  submissionsStatus?: number;
+  /** Form 4 filings found in the submissions index. */
+  form4Found?: number;
+  /** Filings actually fetched and parsed. */
+  fetched?: number;
+  /** Non-200s while fetching the individual filings. */
+  filingErrors?: number;
+  reason?: string;
+  /** True when SEC has no declared contact for us and may be throttling. */
+  userAgentDeclared?: boolean;
+  /**
+   * The source failed, as opposed to answering that there is nothing.
+   *
+   * Set explicitly rather than inferred downstream from which debug fields
+   * happen to be populated: the ticker-map failure sets none of them, so an
+   * inference read it as "this company has no filings" — the exact confusion
+   * this whole object exists to prevent.
+   */
+  sourceFailed?: boolean;
+}
+
+/**
+ * Company trades, WITH the reason when there are none.
+ *
+ * Home Depot is the case that forced this. It has Form 4 filings — a CFO sale
+ * in March 2026 among them — and the page showed nothing at all, because every
+ * failure in here returned the same empty array that a genuinely quiet company
+ * would, and the section then hid itself. An unreachable EDGAR and a company
+ * whose officers have not traded are not the same fact, and the reader could
+ * not tell which they were looking at.
+ *
+ * The likeliest cause of an empty result is the first line of this debug
+ * object: SEC asks every automated client to declare a real contact address in
+ * its User-Agent and throttles or refuses those that do not. Set
+ * EDGAR_USER_AGENT.
+ */
+export async function getCompanyInsiderTradesWithDebug(
+  ticker: string,
+  limit = 15
+): Promise<{ trades: InsiderTrade[]; debug: EdgarDebug }> {
+  const debug: EdgarDebug = {
+    userAgentDeclared: Boolean(process.env.EDGAR_USER_AGENT?.trim()),
+  };
   try {
     const t = ticker.toUpperCase();
-    // Any exchange-suffixed symbol is a non-US listing and cannot be in EDGAR.
-    // The old list named only a handful of suffixes, so Korean (.KS/.KQ), Taiwanese
-    // (.TW/.TWO), Chinese (.SS/.SZ) and Japanese (.T) tickers fell through and paid
-    // for a pointless CIK lookup on every request. Anything with a suffix is out.
-    if (/\.[A-Z]{1,4}$/i.test(t)) return [];
-    const map = await loadCikMap();
+    if (/\.[A-Z]{1,4}$/i.test(t)) {
+      debug.reason = "not a US listing";
+      return { trades: [], debug };
+    }
+    const map = await loadCikMap().catch(() => null);
+    if (!map) {
+      debug.sourceFailed = true;
+      debug.reason = "EDGAR ticker map unavailable";
+      return { trades: [], debug };
+    }
     const entry = map[t];
-    if (!entry) return [];
+    if (!entry) {
+      debug.reason = "ticker not in EDGAR's company list";
+      return { trades: [], debug };
+    }
+    debug.cik = entry.cik;
     const cikInt = String(parseInt(entry.cik, 10));
 
     const subRes = await politeFetch(`https://data.sec.gov/submissions/CIK${entry.cik}.json`, {
       userAgent: UA,
       revalidateSeconds: 3600,
     });
-    if (!subRes.ok) return [];
+    debug.submissionsStatus = subRes.status;
+    if (!subRes.ok) {
+      debug.sourceFailed = true;
+      debug.reason = `SEC responded ${subRes.status} to the submissions request`;
+      return { trades: [], debug };
+    }
     const sub = (await subRes.json()) as Submissions;
     const rec = sub?.filings?.recent;
     const forms = rec?.form;
     const accs = rec?.accessionNumber;
     const docs = rec?.primaryDocument;
-    if (!forms || !accs || !docs) return [];
+    if (!forms || !accs || !docs) {
+      debug.sourceFailed = true;
+      debug.reason = "submissions payload had no filing index";
+      return { trades: [], debug };
+    }
     const companyName = sub.name || t;
 
     const idxs: number[] = [];
-    for (let i = 0; i < forms.length && idxs.length < 10; i++) {
-      if (forms[i] === "4") idxs.push(i);
+    // "4" and "4/A": an amendment is still the disclosure, and skipping them
+    // dropped corrected filings entirely.
+    for (let i = 0; i < forms.length && idxs.length < 12; i++) {
+      if (forms[i] === "4" || forms[i] === "4/A") idxs.push(i);
+    }
+    debug.form4Found = idxs.length;
+    if (!idxs.length) {
+      debug.reason = "no Form 4 filings in the recent index";
+      return { trades: [], debug };
     }
 
+    let fetched = 0;
+    let filingErrors = 0;
     const trades: InsiderTrade[] = [];
     for (const i of idxs) {
       const accNo = accs[i];
@@ -190,18 +262,33 @@ export async function getCompanyInsiderTrades(ticker: string, limit = 15): Promi
           revalidateSeconds: 86400,
           accept: "application/xml",
         });
-        if (!xr.ok) continue;
-        const xml = await xr.text();
-        trades.push(...parseForm4(xml, t, companyName, accNo));
+        if (!xr.ok) {
+          filingErrors++;
+          continue;
+        }
+        fetched++;
+        trades.push(...parseForm4(await xr.text(), t, companyName, accNo));
       } catch {
-        /* skip this filing */
+        filingErrors++;
       }
       if (trades.length >= limit) break;
     }
-    return trades.slice(0, limit);
-  } catch {
-    return [];
+    debug.fetched = fetched;
+    debug.filingErrors = filingErrors;
+    if (!trades.length && filingErrors > 0) {
+      debug.sourceFailed = true;
+      debug.reason = `every Form 4 fetch failed (${filingErrors} of them)`;
+    }
+    return { trades: trades.slice(0, limit), debug };
+  } catch (e) {
+    debug.sourceFailed = true;
+    debug.reason = e instanceof Error ? e.message : "request failed";
+    return { trades: [], debug };
   }
+}
+
+export async function getCompanyInsiderTrades(ticker: string, limit = 15): Promise<InsiderTrade[]> {
+  return (await getCompanyInsiderTradesWithDebug(ticker, limit)).trades;
 }
 
 const FEED_TICKERS = ["NVDA", "MSFT", "AAPL", "TSLA", "AMD", "META", "AMZN", "NFLX"];

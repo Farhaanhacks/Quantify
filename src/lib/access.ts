@@ -46,7 +46,19 @@ export function isOwnerEmail(email?: string | null): boolean {
 // admin surface 404s for everyone, which is the right default for a var that
 // might never be added.
 function adminEmailRaw(): string {
-  return process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || "";
+  // ADMIN_EMAILS when it is set, otherwise the PRO_EMAILS owner allowlist.
+  //
+  // The fallback is what makes the admin page work on a deployment that never
+  // added a new variable — which is the state it shipped in, and why it 404'd
+  // for its own author.
+  //
+  // Note WHICH Pro this means: the PRO_EMAILS *allowlist*, i.e. the owner and
+  // anyone comped by hand. NOT isEmailPro(), which is also true for every
+  // paying subscriber — gating operations on "has paid" would hand the
+  // infrastructure page to customers.
+  const explicit = process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || "";
+  if (explicit.trim()) return explicit;
+  return process.env.PRO_EMAILS || process.env.PRO_EMAIL || "";
 }
 
 /**

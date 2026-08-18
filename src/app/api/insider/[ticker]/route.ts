@@ -1,4 +1,4 @@
-import { getCompanyInsiderTrades } from "@/lib/insider";
+import { getCompanyInsiderTradesWithDebug } from "@/lib/insider";
 import { getIndiaInsiderWithDebug } from "@/lib/insiderIndia";
 import { getNSEInsiderWithDebug } from "@/lib/insiderIndiaNSE";
 import { lookupTaiwanInsider, getTaiwanIngestMeta } from "@/lib/taiwan/insiderStore";
@@ -214,10 +214,41 @@ export async function GET(req: Request, { params }: { params: { ticker: string }
   }
 
   try {
-    const trades = await getCompanyInsiderTrades(ticker, 15);
-    // SEC Form 4 filings update slowly — cache 15 min.
-    return jsonCached({ available: trades.length > 0, market: "US", trades }, 900, 1800);
+    const { trades, debug } = await getCompanyInsiderTradesWithDebug(ticker, 15);
+    const hit = trades.length > 0;
+    // WHY there is nothing, on the same principle as the Indian and Taiwanese
+    // branches: an unreachable EDGAR and a company whose officers have not
+    // traded both arrive here as an empty array, and reporting the second for
+    // both is the app asserting something it does not know. Home Depot was the
+    // case — real Form 4 filings, an empty section, and no way to tell.
+    const status = hit
+      ? "available"
+      : debug.sourceFailed
+      ? "source_unavailable"
+      : debug.reason === "ticker not in EDGAR's company list" || debug.reason === "not a US listing"
+      ? "unsupported"
+      : "no_filings";
+    return jsonCached(
+      {
+        available: hit,
+        market: "US",
+        status,
+        trades,
+        // Always present, not only under ?debug=1: this is the one field that
+        // explains an empty section, and needing a query parameter to see it is
+        // how it went unnoticed for Home Depot.
+        reason: hit ? undefined : debug.reason,
+        ...(wantDebug ? { debug } : {}),
+      },
+      // A miss is cached briefly so a throttled SEC clears in minutes, not the
+      // 15 minutes a real answer is held for.
+      hit ? 900 : 120,
+      hit ? 1800 : 240
+    );
   } catch {
-    return jsonCached({ available: false, market: "US", trades: [] }, 60);
+    return jsonCached(
+      { available: false, market: "US", status: "source_unavailable" as const, trades: [] },
+      60
+    );
   }
 }
