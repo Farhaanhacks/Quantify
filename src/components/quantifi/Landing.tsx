@@ -334,7 +334,7 @@ export default function Landing() {
               ].map(([x, y]) => (
                 <g key={x}>
                   <line x1={x} y1={y} x2={x} y2={140} stroke="rgba(212,175,55,0.28)" strokeWidth="1" />
-                  <circle cx={x} cy={y} r="4.5" fill="#05070D" stroke="#D4AF37" strokeWidth="2" />
+                  <circle cx={x} cy={y} r="4.5" fill="#16181D" stroke="#D4AF37" strokeWidth="2" />
                 </g>
               ))}
             </svg>

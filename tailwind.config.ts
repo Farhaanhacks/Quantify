@@ -6,13 +6,18 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Deep "ink" base — a blue-black, not pure black
+        // The "ink" base. A soft charcoal rather than near-black: at #05070D
+        // the canvas was darker than the panels sitting on it by so little that
+        // the page read as one flat void, and every card edge had to do the work
+        // of separating content. A lighter base gives the panels something to sit
+        // ON, which is what makes a dense data page feel built rather than
+        // printed on black.
         ink: {
-          DEFAULT: "#05070D",
-          900: "#070A12",
-          800: "#0B0F1A",
-          700: "#111726",
-          600: "#1A2234",
+          DEFAULT: "#16181D",
+          900: "#1B1E24",
+          800: "#22262E",
+          700: "#2B303A",
+          600: "#363C48",
         },
         // Signature accent — rich metallic gold on the deep-ink base, matching the
         // Quantifi mark. 400 is a light champagne (gradient top), 600 a deep

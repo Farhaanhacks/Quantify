@@ -35,7 +35,7 @@ function Gauge({ value, color, label, sub }: { value: number; color: string; lab
           strokeLinecap="round"
           strokeDasharray={`${v * LEN} ${LEN}`}
         />
-        <circle cx={dotX} cy={dotY} r="6" fill={color} stroke="#05070D" strokeWidth="2" />
+        <circle cx={dotX} cy={dotY} r="6" fill={color} stroke="#16181D" strokeWidth="2" />
       </svg>
       <div className="-mt-6 text-center">
         <div className="font-display text-lg font-semibold" style={{ color }}>{label}</div>

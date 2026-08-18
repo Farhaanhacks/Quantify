@@ -4,7 +4,7 @@
 
 :root {
   color-scheme: dark;
-  --bg: #05070d;
+  --bg: #16181d;
   --panel: rgba(255, 255, 255, 0.04);
   --panel-border: rgba(255, 255, 255, 0.08);
   --text: #f2f5fa;
@@ -32,6 +32,23 @@ body {
   overflow-x: clip;
   max-width: 100%;
 }
+
+/* ── Dim text, lifted for the charcoal canvas ─────────────────────────────
+   Raising the background from near-black costs contrast on the greyest text,
+   and two of those tokens were already thin: slate-500 measured 4.23:1 against
+   the old canvas, under the 4.5:1 needed for body text, and slate-600 measured
+   2.66:1. Rather than ship a background that made an existing problem worse,
+   the dim end of the scale moves up with it. Measured on #16181D:
+
+     slate-400  7.61:1   (was 7.86 on the old canvas)
+     slate-500  5.06:1   (was 4.23, now passes AA)
+     slate-600  3.65:1   (was 2.66)
+
+   Scoped to :not(.light) so the light theme's own remapping below still wins. */
+html:not(.light) .text-slate-400 { color: #9dabbd; }
+html:not(.light) .text-slate-500 { color: #7c8a9e; }
+html:not(.light) .text-slate-600 { color: #64728a; }
+html:not(.light) .placeholder\:text-slate-500::placeholder { color: #7c8a9e; }
 
 /* ── Light theme (opt-in via .light on <html>) ─────────────────────────────
    Components use hard-coded dark utilities, so we remap the common ones here

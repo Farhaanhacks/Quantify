@@ -259,7 +259,7 @@ export default function PriceChart({
             lineWidth: 2,
             priceLineVisible: false,
             crosshairMarkerRadius: 4,
-            crosshairMarkerBorderColor: "#05070D",
+            crosshairMarkerBorderColor: "#16181D",
             crosshairMarkerBackgroundColor: "#E7C873",
             autoscaleInfoProvider: clampToZero,
           });

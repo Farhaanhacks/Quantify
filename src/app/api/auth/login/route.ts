@@ -31,14 +31,14 @@ function webviewPage(origin: string, nonce: string): string {
 <title>Open in your browser · Quantifi</title>
 <style>
   :root { color-scheme: dark; }
-  html, body { background:#05070D !important; }
+  html, body { background:#16181D !important; }
   body { margin:0; color:#E5E7EB; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
   .wrap { max-width:520px; margin:0 auto; padding:48px 24px; }
   h1 { font-size:1.4rem; line-height:1.3; margin:0 0 12px; }
   p { color:#9CA3AF; line-height:1.6; font-size:0.95rem; }
   .card { margin-top:24px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.03); border-radius:16px; padding:18px; }
   .url { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:8px; font-family:ui-monospace,Menlo,monospace; font-size:0.95rem; color:#fff; }
-  button { background:linear-gradient(90deg,#F2C879,#D9A441); color:#0B0F1A; border:0; border-radius:999px; padding:10px 16px; font-weight:600; font-size:0.85rem; cursor:pointer; }
+  button { background:linear-gradient(90deg,#F2C879,#D9A441); color:#22262E; border:0; border-radius:999px; padding:10px 16px; font-weight:600; font-size:0.85rem; cursor:pointer; }
   ol { color:#9CA3AF; line-height:1.7; font-size:0.92rem; padding-left:20px; }
   .ok { color:#34D399; font-size:0.8rem; margin-top:8px; min-height:1em; }
   .brand { font-size:0.7rem; letter-spacing:0.18em; text-transform:uppercase; color:#D9A441; }
