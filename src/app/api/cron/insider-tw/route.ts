@@ -98,14 +98,25 @@ export async function GET(req: Request) {
   const written = await writeAll(entries);
 
   // The roster is what licenses "this company filed nothing", so it is only
-  // rewritten when every dataset answered. A partial run leaves the previous
-  // roster in place rather than shrinking the set of companies we can speak
-  // about — a company missing from a partial run has not stopped existing.
-  if (result.complete) await setTaiwanRoster(entries.map(([id]) => id));
+  // rewritten for a market whose datasets ALL answered. Per market, because one
+  // exchange failing says nothing about the other: with a single flag, TWSE's
+  // three files could ingest 27,528 rows and still leave every TWSE company
+  // reporting "source unavailable" because TPEx was down.
+  const now = new Date().toISOString();
+  const lastCompleteByMarket: Record<string, string> = {};
+  for (const market of ["TWSE", "TPEx"] as const) {
+    if (!result.completeByMarket[market]) continue;
+    const ids = result.outcomes
+      .filter((o) => o.market === market)
+      .flatMap((o) => o.records.map((r) => r.companyId));
+    await setTaiwanRoster(market, [...new Set(ids)]);
+    lastCompleteByMarket[market] = now;
+  }
 
   const meta: TaiwanIngestMeta = {
     lastRun: new Date().toISOString(),
-    lastCompleteRun: result.complete ? new Date().toISOString() : undefined,
+    lastCompleteRun: result.complete ? now : undefined,
+    lastCompleteByMarket,
     companies: entries.length,
     records: result.totalRecords,
     datasets,
@@ -115,6 +126,7 @@ export async function GET(req: Request) {
   return NextResponse.json({
     ok: true,
     complete: result.complete,
+    completeByMarket: result.completeByMarket,
     companies: entries.length,
     written,
     records: result.totalRecords,
