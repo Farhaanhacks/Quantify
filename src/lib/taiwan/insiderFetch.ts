@@ -40,6 +40,11 @@ const TWSE_OPENAPI = "https://openapi.twse.com.tw/v1/opendata";
 const TPEX_HOSTS = [
   "https://www.tpex.org.tw/openapi/v1",
   "https://wwwo.tpex.org.tw/openapi/v1",
+  // The site was rebuilt and the old host still answers, so both shapes are
+  // tried. A 200 that is not JSON now records what it actually was, which is
+  // what will settle which of these is right.
+  "https://www.tpex.org.tw/web/openapi/v1",
+  "https://www.tpex.org.tw/openapi/v1/tpex",
 ];
 
 export const DATASETS: DatasetSpec[] = [
@@ -131,10 +136,21 @@ export async function fetchDataset(spec: DatasetSpec): Promise<DatasetOutcome> {
       out.httpStatus = res.status;
       if (!res.ok) continue;
 
-      const json: unknown = await res.json();
+      // Read as TEXT first, then parse. res.json() on an HTML error page throws
+      // a parse error with no clue what arrived, which is how three datasets
+      // came to report "fetch failed" against an HTTP 200. The body's first
+      // line names the problem: a redirect page, a WAF challenge, a rename.
+      const body = await res.text();
+      let json: unknown;
+      try {
+        json = JSON.parse(body);
+      } catch {
+        out.error = `200 but not JSON: ${body.slice(0, 160).replace(/\s+/g, " ")}`;
+        continue;
+      }
       const rows = Array.isArray(json) ? (json as Record<string, unknown>[]) : null;
       if (!rows) {
-        out.error = "payload was not an array";
+        out.error = `payload was not an array: ${body.slice(0, 120).replace(/\s+/g, " ")}`;
         continue;
       }
 
@@ -214,6 +230,16 @@ export interface MarketWideResult {
   outcomes: DatasetOutcome[];
   /** True when EVERY dataset answered. A partial run must not overwrite good data. */
   complete: boolean;
+  /**
+   * Completeness per market.
+   *
+   * One flag for both exchanges was wrong: TWSE's three files ingested 27,528
+   * rows and TPEx's three failed, so `complete` was false, the roster was never
+   * written, and every TWSE company without filings was reported as "source
+   * unavailable" indefinitely. One exchange being down says nothing about the
+   * other, and the two are separate files from separate publishers.
+   */
+  completeByMarket: Record<TaiwanMarket, boolean>;
   /** True when at least one dataset answered. */
   any: boolean;
   totalRecords: number;
@@ -241,9 +267,15 @@ export async function fetchTaiwanInsiderMarketWide(): Promise<MarketWideResult> 
     list.sort((a, b) => (a.filingDate < b.filingDate ? 1 : a.filingDate > b.filingDate ? -1 : 0));
   }
 
+  const completeByMarket = {
+    TWSE: outcomes.filter((o) => o.market === "TWSE").every((o) => o.ok),
+    TPEx: outcomes.filter((o) => o.market === "TPEx").every((o) => o.ok),
+  };
+
   return {
     byCompany,
     outcomes,
+    completeByMarket,
     complete: outcomes.every((o) => o.ok),
     any: outcomes.some((o) => o.ok),
     totalRecords: total,
