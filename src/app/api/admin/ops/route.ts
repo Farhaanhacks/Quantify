@@ -51,6 +51,28 @@ export async function GET() {
         razorpay: isSet(process.env.RAZORPAY_KEY_ID) && isSet(process.env.RAZORPAY_KEY_SECRET),
         googleAuth: isSet(process.env.GOOGLE_CLIENT_ID),
       },
+      // Safety: the background routes and whether a caller without the secret is
+      // turned away. These endpoints run market-wide scrapes and write to the
+      // store, so an unprotected one is a button anyone who guesses the path can
+      // press, repeatedly, at our expense.
+      protection: {
+        cronSecretSet: isSet(process.env.CRON_SECRET),
+        // Every route that does real work on a GET, and the header/param it
+        // checks. Listed explicitly so a new job added without a guard is
+        // visible by its absence here.
+        guardedRoutes: [
+          "/api/cron/insider-in",
+          "/api/cron/insider-tw",
+          "/api/insider/status",
+          "/api/admin/ops",
+          "/api/admin/run/[job]",
+        ],
+        method: "Authorization: Bearer <CRON_SECRET>, or ?key=<CRON_SECRET>",
+        // The admin routes do not depend on the cron secret at all: they check
+        // the signed session against the staff allowlist, so they stay closed
+        // even while CRON_SECRET is unset.
+        adminRoutesUseSession: true,
+      },
       ingest: { india, taiwan },
       search: { indiaCompanies: indexSize },
       usage,
