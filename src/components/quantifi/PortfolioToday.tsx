@@ -240,7 +240,7 @@ export default function PortfolioToday({ heading = true }: { heading?: boolean }
         <SectionHeading
           eyebrow="Daily Snapshot"
           title="How your portfolio did today"
-          subtitle="Today's move across your holdings, from live prices vs the previous close. Educational only — not advice."
+          subtitle="Today's move across your holdings, from live prices vs the previous close. Educational only; not advice."
           href="/portfolio"
           cta="Open command center"
         />

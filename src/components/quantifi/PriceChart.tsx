@@ -489,14 +489,14 @@ export default function PriceChart({
       {err ? <p className="mt-2 text-xs text-down">{err}</p> : null}
       {partial && !err ? (
         <p className="mt-2 text-xs text-slate-500">
-          This company hasn&apos;t traded for the full {range.toUpperCase()} window — the chart shows its
+          This company hasn&apos;t traded for the full {range.toUpperCase()} window, the chart shows its
           entire price history to date.
         </p>
       ) : null}
       {noCandles && !err ? (
         <p className="mt-2 text-xs text-slate-500">
           Candles need open/high/low data, which our backup price source doesn&apos;t publish for this
-          symbol — showing the closing line instead.
+          symbol; showing the closing line instead.
         </p>
       ) : null}
 

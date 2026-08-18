@@ -82,7 +82,7 @@ export default function CommunityThesisModal({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={`${thesis.company} — ${thesis.title}`}
+      aria-label={`${thesis.company}; ${thesis.title}`}
       className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto p-3 sm:p-6"
     >
       <button aria-label="Close" onClick={onClose} className="fixed inset-0 bg-ink/80 backdrop-blur-sm" />
@@ -114,13 +114,13 @@ export default function CommunityThesisModal({
             <div>
               <div className="text-[0.7rem] uppercase tracking-wide text-slate-500">Fair value</div>
               <div className="font-display text-2xl font-semibold text-white">
-                {fair ? fmt(fair, sym) : "—"}
+                {fair ? fmt(fair, sym) : "n/a"}
               </div>
             </div>
             <div>
               <div className="text-[0.7rem] uppercase tracking-wide text-slate-500">Share price</div>
               <div className="font-display text-2xl font-semibold text-white">
-                {price ? fmt(price, sym) : "—"}
+                {price ? fmt(price, sym) : "n/a"}
               </div>
             </div>
             {upside !== undefined ? (
@@ -180,7 +180,7 @@ export default function CommunityThesisModal({
               Open full {thesis.ticker} analysis →
             </Link>
             <p className="mt-3 text-[0.7rem] leading-relaxed text-slate-600">
-              Community theses are the contributor&apos;s own educational views — not advice from
+              Community theses are the contributor&apos;s own educational views, not advice from
               Quantifi, and never a recommendation to buy, sell or hold.
             </p>
           </div>

@@ -10,7 +10,7 @@ import { fmtCompactCur, isIndianCurrency, currencySymbol } from "@/data/demo";
 const cur = (c?: string, ticker?: string) => currencySymbol(c, ticker);
 
 function fmtDate(d?: string): string {
-  if (!d) return "—";
+  if (!d) return "n/a";
   const t = Date.parse(d);
   if (isNaN(t)) return d;
   return new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -167,7 +167,7 @@ export default function CompanyVitals({ symbol }: { symbol: string }) {
           <div className="flex items-center justify-between">
             <h3 className="font-display text-base font-semibold text-white">Analyst Rating</h3>
             <span className="text-[0.65rem] text-slate-500">
-              {data.numberOfAnalysts ? `${data.numberOfAnalysts} analysts` : "—"}
+              {data.numberOfAnalysts ? `${data.numberOfAnalysts} analysts` : "n/a"}
             </span>
           </div>
           <div className="mt-3">
@@ -177,7 +177,7 @@ export default function CompanyVitals({ symbol }: { symbol: string }) {
               <p className="py-6 text-center text-sm leading-relaxed text-slate-500">
                 {data.targetMean != null
                   ? "Analysts publish a price target for this listing but no consensus buy/hold/sell rating."
-                  : "No brokerage coverage is published for this listing by our data source — common for smaller non-US names."}
+                  : "No brokerage coverage is published for this listing by our data source, common for smaller non-US names."}
               </p>
             )}
           </div>
@@ -185,13 +185,13 @@ export default function CompanyVitals({ symbol }: { symbol: string }) {
             <div>
               <div className="text-[0.58rem] uppercase tracking-[0.14em] text-slate-500">Target price</div>
               <div className="mt-0.5 font-mono text-sm tnum text-white">
-                {data.targetMean ? `${c}${data.targetMean.toFixed(2)}` : "—"}
+                {data.targetMean ? `${c}${data.targetMean.toFixed(2)}` : "n/a"}
               </div>
             </div>
             <div>
               <div className="text-[0.58rem] uppercase tracking-[0.14em] text-slate-500">Upside</div>
               <div className={`mt-0.5 font-mono text-sm tnum ${upside == null ? "text-slate-500" : upside >= 0 ? "text-up" : "text-down"}`}>
-                {upside == null ? "—" : `${upside >= 0 ? "+" : ""}${upside.toFixed(1)}%`}
+                {upside == null ? "n/a" : `${upside >= 0 ? "+" : ""}${upside.toFixed(1)}%`}
               </div>
             </div>
           </div>
@@ -230,7 +230,7 @@ export default function CompanyVitals({ symbol }: { symbol: string }) {
             <Gauge value={coverageScore} color={coverageColor} label={coverageLabel} sub="headline tone" />
           </div>
           <p className="mt-2 text-[0.65rem] leading-relaxed text-slate-500">
-            Derived from the tone of recent headlines — context, not a sentiment score to trade on.
+            Derived from the tone of recent headlines. It is context, not a sentiment score to trade on.
           </p>
         </GlassCard>
 
@@ -255,7 +255,7 @@ export default function CompanyVitals({ symbol }: { symbol: string }) {
                 <li key={h.name} className="flex items-center justify-between gap-2 text-xs">
                   <span className="truncate text-slate-300">{h.name}</span>
                   <span className="flex-none font-mono tnum text-slate-400">
-                    {h.pctHeld != null ? `${(h.pctHeld * 100).toFixed(2)}%` : "—"}
+                    {h.pctHeld != null ? `${(h.pctHeld * 100).toFixed(2)}%` : "n/a"}
                   </span>
                 </li>
               ))}

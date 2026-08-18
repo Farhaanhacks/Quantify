@@ -70,12 +70,12 @@ function computeBook(items: ResolvedItem[]) {
     },
     {
       label: "Sector concentration",
-      detail: sectorSegs[0] ? `${sectorSegs[0].name} leads your portfolio at ${sectorSegs[0].pct}%.` : "—",
+      detail: sectorSegs[0] ? `${sectorSegs[0].name} leads your portfolio at ${sectorSegs[0].pct}%.` : "n/a",
       level: toneFor(sectorSegs[0]?.pct ?? 0),
     },
     {
       label: "Regional mix",
-      detail: regionSegs[0] ? `${regionSegs[0].name} is your largest region at ${regionSegs[0].pct}%.` : "—",
+      detail: regionSegs[0] ? `${regionSegs[0].name} is your largest region at ${regionSegs[0].pct}%.` : "n/a",
       level: toneFor(regionSegs[0]?.pct ?? 0),
     },
   ];
@@ -333,7 +333,7 @@ export default function Diversification({ heading = true }: { heading?: boolean 
         <SectionHeading
           eyebrow="Diversification & Risk"
           title="How concentrated is your Portfolio?"
-          subtitle="A risk lens across sectors, individual holdings and where they're listed — computed from your real holdings."
+          subtitle="A risk lens across sectors, individual holdings and where they're listed; computed from your real holdings."
         />
       ) : null}
 

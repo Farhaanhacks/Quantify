@@ -15,7 +15,7 @@ export default function RefundPolicyPage() {
 
       <H2>Cancelling</H2>
       <ul className="list-disc space-y-1.5 pl-5">
-        <li>You can cancel Quantifi Pro at any time — there is no lock-in.</li>
+        <li>You can cancel Quantifi Pro at any time. There is no lock-in.</li>
         <li>To cancel, email{" "}
           <a href="mailto:quantifiapp@gmail.com" className="text-gold hover:underline">quantifiapp@gmail.com</a>{" "}
           from your account email, and we&apos;ll cancel the subscription. (We&apos;re adding in-app

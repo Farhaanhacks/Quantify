@@ -48,7 +48,11 @@ export async function POST(req: Request) {
   await kvSet(`pro:${user.email.toLowerCase()}`, JSON.stringify(record));
   // The conversion. Counted here rather than inferred from the pro:* keys,
   // because a count of current subscribers cannot tell you WHEN anyone joined.
-  await recordEvent({ kind: "pro", email: user.email }).catch(() => {});
+  // With the VISITOR id, not only the email: every earlier funnel step is
+  // counted by visitor, and a last step counted by account would be a different
+  // unit silently divided by the first.
+  const vid = (req.headers.get("cookie") || "").match(/quantifi_vid=([a-f0-9]{32})/)?.[1];
+  await recordEvent({ kind: "pro", email: user.email, visitorId: vid }).catch(() => {});
 
   return NextResponse.json({ ok: true });
 }

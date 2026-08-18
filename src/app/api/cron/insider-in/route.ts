@@ -29,7 +29,7 @@ export async function GET(req: Request) {
   }
   if (!kvConfigured()) {
     return NextResponse.json(
-      { ok: false, error: "KV (Upstash Redis) not configured — set KV_REST_API_URL / KV_REST_API_TOKEN" },
+      { ok: false, error: "KV (Upstash Redis) not configured. Set KV_REST_API_URL / KV_REST_API_TOKEN" },
       { status: 500 }
     );
   }

@@ -2,18 +2,18 @@ import LegalShell, { H2 } from "@/components/quantifi/LegalShell";
 
 export const metadata = {
   title: "Terms of Service · Quantifi",
-  description: "The terms for using Quantifi — an educational research platform. Not investment advice.",
+  description: "The terms for using Quantifi; an educational research platform. Not investment advice.",
 };
 
 export default function TermsPage() {
   return (
     <LegalShell eyebrow="Terms" title="Terms of Service" updated="26 June 2026">
       <p>
-        By using Quantifi (quantifiapp.com) you agree to these terms. Please read them — especially the
+        By using Quantifi (quantifiapp.com) you agree to these terms. Please read them; especially the
         parts about education-only use and the limitation of liability.
       </p>
 
-      <H2>1. Educational use only — not advice</H2>
+      <H2>1. Educational use only; not advice</H2>
       <p>
         Quantifi is an educational research and analytics tool. Everything on it is for information and
         education only and is <strong className="text-slate-200">not financial, investment, legal or tax

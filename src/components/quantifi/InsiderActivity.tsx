@@ -98,8 +98,8 @@ function tradeToRow(t: ApiTrade): Row {
     acquired: t.acquired,
     planned: t.planned,
     planDate: t.planDate,
-    valueText: t.value ? `$${fmtCompact(t.value)}` : t.price ? `$${t.price.toFixed(2)}` : "—",
-    sharesText: t.shares ? t.shares.toLocaleString() : "—",
+    valueText: t.value ? `$${fmtCompact(t.value)}` : t.price ? `$${t.price.toFixed(2)}` : "n/a",
+    sharesText: t.shares ? t.shares.toLocaleString() : "n/a",
     dateText: fmtDate(t.date),
   };
 }
@@ -314,10 +314,10 @@ export default function InsiderActivity({
           title={activeTicker ? `Insider trades · ${activeTicker}` : "Insider trades"}
           subtitle={
             isTaiwan
-              ? `Directors', supervisors', managers' and major shareholders' filings published by the ${twMarketLabel} — monthly holdings, transfers declared in advance, and the declared shares that were not transferred. These are positions and intentions, not executed trades.`
+              ? `Directors', supervisors', managers' and major shareholders' filings published by the ${twMarketLabel}; monthly holdings, transfers declared in advance, and the declared shares that were not transferred. These are positions and intentions, not executed trades.`
               : isIndia
-              ? `Insider / SAST disclosures filed with ${exchange} — promoters, directors and designated persons under SEBI (PIT) Regulation 7. Official filings shown as disclosed; never a signal on its own. Beta.`
-              : "Real Form 4 filings from SEC EDGAR — directors and officers, with a 10b5-1 flag when the trade was pre-arranged. Disclosed after the fact; never a signal on its own."
+              ? `Insider / SAST disclosures filed with ${exchange}; promoters, directors and designated persons under SEBI (PIT) Regulation 7. Official filings shown as disclosed; never a signal on its own. Beta.`
+              : "Real Form 4 filings from SEC EDGAR; directors and officers, with a 10b5-1 flag when the trade was pre-arranged. Disclosed after the fact; never a signal on its own."
           }
           href={ticker ? undefined : "/insider-activity"}
           cta={ticker ? undefined : "All activity"}
@@ -331,7 +331,7 @@ export default function InsiderActivity({
             value={queryInput}
             onChange={(e) => setQueryInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && runSearch()}
-            placeholder="Search a company's insider trades — e.g. AAPL, NVDA, TSLA"
+            placeholder="Search a company's insider trades, e.g. AAPL, NVDA, TSLA"
             className="min-w-[16rem] flex-1 rounded-lg border border-white/10 bg-ink-800 px-3 py-2.5 text-sm text-white outline-none focus:border-gold/40"
           />
           <button
@@ -445,7 +445,7 @@ export default function InsiderActivity({
                   that we had not heard from the exchange. */}
               {twStatus === "source_unavailable" ? (
                 <>
-                  Source temporarily unavailable — we don&apos;t know what {activeTicker} has
+                  Source temporarily unavailable. We don&apos;t know what {activeTicker} has
                   filed.
                   <span className="mt-2 block text-[0.78rem] text-slate-600">
                     The TWSE / TPEx open-data files haven&apos;t been ingested successfully yet.
@@ -557,7 +557,7 @@ export default function InsiderActivity({
                   {/* Role */}
                   <div className="min-w-0 truncate text-xs text-slate-400" title={d.category}>
                     <span className="text-slate-600 lg:hidden">Role · </span>
-                    {d.category || "—"}
+                    {d.category || "n/a"}
                   </div>
 
                   {/* Side — its own column on desktop; shown beside the name on mobile */}
@@ -569,20 +569,20 @@ export default function InsiderActivity({
                         {d.action}
                       </span>
                     ) : (
-                      <span className="text-slate-600">—</span>
+                      <span className="text-slate-600"></span>
                     )}
                   </div>
 
                   {/* Shares */}
                   <div className="text-xs text-slate-300 lg:text-right" title={d.sharesText}>
                     <span className="text-slate-600 lg:hidden">Shares · </span>
-                    <span className="font-mono tnum">{sharesNum || "—"}</span>
+                    <span className="font-mono tnum">{sharesNum || "n/a"}</span>
                   </div>
 
                   {/* Value */}
                   <div className="text-xs text-slate-300 lg:text-right" title={d.valueText}>
                     <span className="text-slate-600 lg:hidden">Value · </span>
-                    <span className="font-mono tnum">{d.valueText || "—"}</span>
+                    <span className="font-mono tnum">{d.valueText || "n/a"}</span>
                   </div>
 
                   {/* When */}
@@ -601,7 +601,7 @@ export default function InsiderActivity({
                   Indian insider disclosures aren&apos;t switched on for this deployment.
                   <span className="mt-2 block text-[0.78rem] text-slate-600">
                     SEBI PIT filings are published by NSE and BSE, and both refuse requests
-                    from datacenter IPs — so this needs either a data vendor or a residential
+                    from datacenter IPs, so this needs either a data vendor or a residential
                     proxy configured before any company will show them. Nothing is wrong with{" "}
                     {activeTicker}.
                   </span>
@@ -659,7 +659,7 @@ export default function InsiderActivity({
                   </span>
                 ) : null}
                 <p className="mt-1 hidden w-full text-[0.7rem] text-slate-500 lg:block">
-                  {r.sharesText !== "—" ? `${r.sharesText} sh` : ""}
+                  {r.sharesText !== "n/a" ? `${r.sharesText} sh` : ""}
                 </p>
               </div>
               <div className="text-right font-mono text-sm tnum text-white">{r.valueText}</div>
@@ -672,7 +672,7 @@ export default function InsiderActivity({
           <div className="px-5 py-10 text-center text-sm text-slate-500">
             {error || usStatus === "source_unavailable" ? (
               <>
-                Source temporarily unavailable — we don&apos;t know what{" "}
+                Source temporarily unavailable. We don&apos;t know what{" "}
                 {activeTicker ?? "these companies"} filed.
                 <span className="mt-2 block text-[0.78rem] text-slate-600">
                   {/* The actual reason, not a general apology. SEC asks every
@@ -686,7 +686,7 @@ export default function InsiderActivity({
                 </span>
               </>
             ) : activeTicker ? (
-              `No Form 4 filings on record for ${activeTicker} in the recent EDGAR index. This is US-listed data — non-US tickers (e.g. .NS) won't appear.`
+              `No Form 4 filings on record for ${activeTicker} in the recent EDGAR index. This is US-listed data, non-US tickers (e.g. .NS) won't appear.`
             ) : source.length === 0 ? (
               "No recent insider activity found right now."
             ) : (

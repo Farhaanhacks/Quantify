@@ -14,7 +14,7 @@ export default function BillingSuccessPage() {
           You&apos;re all set
         </h1>
         <p className="mt-3 text-sm leading-relaxed text-slate-400">
-          Your subscription is confirmed. Thanks for supporting Quantifi — every
+          Your subscription is confirmed. Thanks for supporting Quantifi; every
           tool is now unlocked for your research.
         </p>
         <Link

@@ -229,7 +229,7 @@ export default function NewsImpact({
           />
         ) : null}
         <GlassCard className="mt-6 p-10 text-center text-sm text-slate-400">
-          Live news is unavailable right now — the feed refreshes automatically, so check back shortly.
+          Live news is unavailable right now; the feed refreshes automatically, so check back shortly.
         </GlassCard>
       </section>
     );
@@ -240,7 +240,7 @@ export default function NewsImpact({
       {heading ? (
         <SectionHeading
           eyebrow="News Impact"
-          subtitle="Live market news, not a summary. Each story is traced into what changed, why it matters, the chain of names affected, linked research themes and what to watch — so you can tell signal from noise."
+          subtitle="Live market news, not a summary. Each story is traced into what changed, why it matters, the chain of names affected, linked research themes and what to watch; so you can tell signal from noise."
           href="/news"
           cta="All news"
         />

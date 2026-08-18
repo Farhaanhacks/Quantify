@@ -27,9 +27,9 @@ export async function generateMetadata({ params }: { params: { ticker: string } 
   const named = company?.name ? `${t} (${company.name})` : t;
   return buildMetadata({
     title: company?.name
-      ? `${company.name} (${t}) Stock — Price, Valuation, Insider Activity & Financials`
-      : `${t} Stock Analysis — Price, Valuation, Financials & Research`,
-    description: `${named} stock analysis on Quantifi${company?.sector ? ` · ${company.sector}` : ""} — live price, valuation vs analyst targets, financial summary, ownership, insider activity and SEC-filing context. Research only, not investment advice.`,
+      ? `${company.name} (${t}) Stock. Price, Valuation, Insider Activity & Financials`
+      : `${t} Stock Analysis. Price, Valuation, Financials & Research`,
+    description: `${named} stock analysis on Quantifi${company?.sector ? ` · ${company.sector}` : ""}. Live price, valuation vs analyst targets, financial summary, ownership, insider activity and SEC-filing context. Research only, not investment advice.`,
     path: `/stocks/${t}`,
     type: "article",
     noindex: !company, // no real data → don't let Google index a thin page
@@ -58,7 +58,7 @@ export default async function StockSeoPage({ params }: { params: { ticker: strin
     },
     {
       q: `Is ${ticker} a good investment?`,
-      a: `Quantifi does not say whether any stock is a buy. It gives you the data — valuation vs analyst targets, financial health, ownership and risks — so you can do your own research. Research only, not investment advice.`,
+      a: `Quantifi does not say whether any stock is a buy. It gives you the data; valuation vs analyst targets, financial health, ownership and risks; so you can do your own research. Research only, not investment advice.`,
     },
     {
       q: `How is ${ticker} valued?`,
@@ -71,8 +71,8 @@ export default async function StockSeoPage({ params }: { params: { ticker: strin
       // comes from SEC Form 4 is simply false — the SEC has no jurisdiction
       // over it — and this text is indexed by search engines as well as read.
       a: isIndian
-        ? `Quantifi surfaces ${ticker} insider and SAST disclosures filed with NSE and BSE under SEBI (PIT) Regulation 7 — promoters, directors and designated persons, as disclosed. Insider transactions are one signal among many, not a recommendation.`
-        : `Quantifi surfaces ${ticker} insider activity from SEC Form 4 filings — who bought or sold, how many shares and at what price — as research context. Open the Insider Activity page for the latest filings. Insider transactions are one signal among many, not a recommendation.`,
+        ? `Quantifi surfaces ${ticker} insider and SAST disclosures filed with NSE and BSE under SEBI (PIT) Regulation 7, promoters, directors and designated persons, as disclosed. Insider transactions are one signal among many, not a recommendation.`
+        : `Quantifi surfaces ${ticker} insider activity from SEC Form 4 filings; who bought or sold, how many shares and at what price; as research context. Open the Insider Activity page for the latest filings. Insider transactions are one signal among many, not a recommendation.`,
     },
     {
       q: `Where can I see ${ticker} SEC filings and financials?`,
@@ -105,11 +105,11 @@ export default async function StockSeoPage({ params }: { params: { ticker: strin
           <Link href="/stock-analysis" className="hover:text-gold">Stocks</Link> › <span className="text-slate-400">{ticker}</span>
         </nav>
         <h1 className="mt-3 font-display text-3xl font-semibold leading-tight text-white sm:text-4xl">
-          {ticker}{name ? ` — ${name}` : ""} Stock Analysis
+          {ticker}{name ? `: ${name}` : ""} Stock Analysis
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-400">
           Live price, valuation snapshot, analyst targets, financial summary, ownership and risks for{" "}
-          {name ?? ticker}{sector ? ` · ${sector}` : ""}. Research only — not investment advice.
+          {name ?? ticker}{sector ? ` · ${sector}` : ""}. Research only, not investment advice.
         </p>
         {company ? (
           <div className="mt-4 flex flex-wrap gap-2 text-xs">
@@ -128,7 +128,7 @@ export default async function StockSeoPage({ params }: { params: { ticker: strin
 
       {/* FAQ + links + disclaimer */}
       <section className="mx-auto max-w-3xl px-4 pb-12 sm:px-6 lg:px-8">
-        <h2 className="font-display text-xl font-semibold text-white">{ticker} — frequently asked</h2>
+        <h2 className="font-display text-xl font-semibold text-white">{ticker}, frequently asked</h2>
         <div className="mt-3 space-y-4">
           {faqs.map((f) => (
             <div key={f.q}>

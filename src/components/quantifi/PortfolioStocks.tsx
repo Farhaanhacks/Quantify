@@ -87,7 +87,7 @@ function HoldingsBody({ rows }: { rows: Row[] }) {
                     {h.dayPct != null ? (
                       <ChangePill value={h.dayPct} size="xs" />
                     ) : (
-                      <span className="text-xs text-slate-600">—</span>
+                      <span className="text-xs text-slate-600"></span>
                     )}
                   </div>
                   <div className={`text-right font-mono text-sm tnum ${pl >= 0 ? "text-up" : "text-down"}`}>
@@ -107,7 +107,7 @@ function HoldingsBody({ rows }: { rows: Row[] }) {
             <TickerChip ticker={selected.ticker} active />
             <h3 className="mt-2 font-display text-lg font-semibold text-white">{selected.name}</h3>
             <p className="text-xs text-slate-500">
-              {[selected.sector, selected.geo].filter(Boolean).join(" · ") || "—"}
+              {[selected.sector, selected.geo].filter(Boolean).join(" · ") || "n/a"}
             </p>
           </div>
           <div className="text-right">
@@ -119,7 +119,7 @@ function HoldingsBody({ rows }: { rows: Row[] }) {
               {selected.dayPct != null ? (
                 <ChangePill value={selected.dayPct} />
               ) : (
-                <span className="text-xs text-slate-600">—</span>
+                <span className="text-xs text-slate-600"></span>
               )}
             </div>
           </div>
@@ -150,7 +150,7 @@ function HoldingsBody({ rows }: { rows: Row[] }) {
         </div>
 
         <p className="mt-4 text-[0.7rem] leading-relaxed text-slate-600">
-          Position detail is illustrative. Quantifi highlights weight and risk context — it does
+          Position detail is illustrative. Quantifi highlights weight and risk context. It does
           not recommend buying, selling or holding.
         </p>
       </GlassCard>
@@ -289,7 +289,7 @@ export default function PortfolioStocks({
           subtitle={
             hasHoldings
               ? "Your saved holdings, live. Edit them in the command center and they update here."
-              : "Weight, day move and unrealized gain/loss for every position — here's how it looks with a portfolio in it."
+              : "Weight, day move and unrealized gain/loss for every position; here's how it looks with a portfolio in it."
           }
           href="/portfolio"
           cta="Open command center"

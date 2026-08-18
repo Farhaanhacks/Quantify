@@ -100,7 +100,7 @@ export default function KeyValuationMetric({ symbol, name }: { symbol: string; n
   const label = name ?? data.name ?? symbol;
   const cur = data.financialCurrency ?? data.currency;
   const indian = isIndianCurrency(cur, symbol);
-  const money = (n?: number) => fmtCompactCur(n, indian, "—");
+  const money = (n?: number) => fmtCompactCur(n, indian, "n/a");
   const mc = data.marketCap;
 
   // Book equity from the latest balance sheet, else derived from P/B.
@@ -127,7 +127,7 @@ export default function KeyValuationMetric({ symbol, name }: { symbol: string; n
       full: forward ? "Forward Price-To-Earnings Ratio" : "Price-To-Earnings Ratio",
       why: profitable
         ? `As ${label} is profitable we use its Price-To-Earnings Ratio for relative valuation analysis.`
-        : `${label} isn't currently profitable, so an earnings multiple is less meaningful — check the PS tab instead.`,
+        : `${label} isn't currently profitable, so an earnings multiple is less meaningful; check the PS tab instead.`,
     },
     ps: {
       ratio: data.priceToSales,
@@ -145,7 +145,7 @@ export default function KeyValuationMetric({ symbol, name }: { symbol: string; n
       denom: equity,
       denomLabel: "Book value",
       full: "Price-To-Book Ratio",
-      why: `Price-To-Book compares the market value against the company's net assets — the standard lens for banks, insurers and asset-heavy businesses.`,
+      why: `Price-To-Book compares the market value against the company's net assets; the standard lens for banks, insurers and asset-heavy businesses.`,
     },
   };
 
@@ -186,7 +186,7 @@ export default function KeyValuationMetric({ symbol, name }: { symbol: string; n
         fcf == null
           ? "free cash flow not reported"
           : fcf <= 0
-          ? `negative free cash flow (${money(fcf)}) — the multiple isn't meaningful`
+          ? `negative free cash flow (${money(fcf)}); the multiple isn't meaningful`
           : undefined,
     },
   ];
@@ -199,7 +199,7 @@ export default function KeyValuationMetric({ symbol, name }: { symbol: string; n
       <SectionHeading
         eyebrow="Valuation"
         title="Key valuation metric"
-        subtitle={`Which multiple is the right lens for ${label} — and what sits underneath it.`}
+        subtitle={`Which multiple is the right lens for ${label}; and what sits underneath it.`}
       />
 
       <GlassCard className="mt-6 p-5 sm:p-6">
@@ -225,7 +225,7 @@ export default function KeyValuationMetric({ symbol, name }: { symbol: string; n
               <div key={o.label} className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4">
                 <div className="text-[0.62rem] uppercase tracking-[0.14em] text-slate-500">{o.label}</div>
                 <div className="mt-2 font-display text-2xl font-semibold text-white">
-                  {o.value != null && isFinite(o.value) ? `${o.value.toFixed(1)}${o.unit}` : "—"}
+                  {o.value != null && isFinite(o.value) ? `${o.value.toFixed(1)}${o.unit}` : "n/a"}
                 </div>
                 {o.note ? (
                   <div className="mt-1 text-[0.68rem] leading-snug text-slate-500">{o.note}</div>
@@ -262,7 +262,7 @@ export default function KeyValuationMetric({ symbol, name }: { symbol: string; n
             {/* The ratio */}
             <div className="text-center lg:text-left">
               <div className="font-display text-5xl font-semibold text-white">
-                {v!.ratio != null && isFinite(v!.ratio) ? `${v!.ratio.toFixed(1)}${v!.unit}` : "—"}
+                {v!.ratio != null && isFinite(v!.ratio) ? `${v!.ratio.toFixed(1)}${v!.unit}` : "n/a"}
               </div>
               <div className="mt-1 text-sm text-slate-400">{v!.full}</div>
               {/* A bare dash next to a populated donut looks broken. If we still
@@ -272,7 +272,7 @@ export default function KeyValuationMetric({ symbol, name }: { symbol: string; n
                   {v!.denom == null
                     ? `${v!.denomLabel} not reported for this listing.`
                     : v!.denom <= 0
-                    ? `${v!.denomLabel} is negative (${money(v!.denom)}) — this multiple isn't meaningful.`
+                    ? `${v!.denomLabel} is negative (${money(v!.denom)}). This multiple isn't meaningful.`
                     : "Market capitalisation not reported for this listing."}
                 </div>
               ) : null}
@@ -301,7 +301,7 @@ export default function KeyValuationMetric({ symbol, name }: { symbol: string; n
         )}
 
         <p className="mt-5 text-xs leading-relaxed text-slate-500">
-          The ring is market capitalisation; the gold slice is what the multiple divides by — a thin slice means you
+          The ring is market capitalisation; the gold slice is what the multiple divides by, a thin slice means you
           are paying a lot per unit of earnings, sales or book value. Figures in {cur ?? "the listed currency"}.
           Research context, not advice.
         </p>

@@ -385,7 +385,7 @@ export default function MarketHeatmap({ initial }: { initial: HeatmapData }) {
                     setHover({ tile, x: e.clientX, y: e.clientY })
                   }
                   onMouseMove={(e) => setHover({ tile, x: e.clientX, y: e.clientY })}
-                  title={`${tile.name} — open analysis`}
+                  title={`${tile.name}; open analysis`}
                   aria-label={`${tile.name}, ${fmtPct(tile.changePct)}, open analysis`}
                   className="absolute flex flex-col items-center justify-center overflow-hidden rounded-[2px] leading-none transition hover:z-10 hover:ring-2 hover:ring-white/70"
                   style={{

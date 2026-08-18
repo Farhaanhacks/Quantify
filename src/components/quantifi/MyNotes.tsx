@@ -46,7 +46,7 @@ export default function MyNotes({ ticker }: { ticker: string }) {
         </span>
       </div>
       <p className="mt-1 text-xs text-slate-500">
-        Private to this device — your thesis, target price, or risks to track on {ticker}.
+        Private to this device, your thesis, target price, or risks to track on {ticker}.
       </p>
       <GlassCard className="mt-4 p-4">
         <textarea

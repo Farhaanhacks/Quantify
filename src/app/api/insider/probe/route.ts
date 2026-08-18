@@ -52,7 +52,7 @@ const TARGETS: Target[] = [
   {
     id: "egress-ip",
     url: "https://api.ipify.org?format=json",
-    meaning: "The public IP this deployment goes out from — tells you the region and provider.",
+    meaning: "The public IP this deployment goes out from, which tells you the region and provider.",
   },
   {
     id: "nse-home",
@@ -84,7 +84,7 @@ const TARGETS: Target[] = [
     url: `https://api.bseindia.com/BseIndiaAPI/api/AnnGetData/w?pageno=1&strCat=-1&strPrevDate=${yyyymmdd(
       weekAgo
     )}&strScrip=500325&strSearch=P&strToDate=${yyyymmdd(today)}&strType=C`,
-    meaning: "BSE's announcements feed — the current fallback source.",
+    meaning: "BSE's announcements feed, the current fallback source.",
     headers: {
       Referer: "https://www.bseindia.com/corporates/ann.html",
       Origin: "https://www.bseindia.com",
@@ -156,7 +156,7 @@ export async function GET(req: Request) {
 
   if (home?.ok && !api?.ok) {
     verdict.push(
-      "NSE serves this IP but refuses the API cold — the blocker is the cookie handshake, not the address. A session-aware fetch from this deployment can work without any proxy."
+      "NSE serves this IP but refuses the API cold. The blocker is the cookie handshake, not the address. A session-aware fetch from this deployment can work without any proxy."
     );
   } else if (home && !home.ok) {
     verdict.push(
@@ -173,7 +173,7 @@ export async function GET(req: Request) {
       "Nothing Indian answers this deployment at all. The scraping route is closed from here; a vendor API is the only path."
     );
   }
-  if (!verdict.length) verdict.push("Mixed results — read the individual probes below.");
+  if (!verdict.length) verdict.push("Mixed results. Read the individual probes below.");
 
   return NextResponse.json({ ok: true, verdict, results });
 }

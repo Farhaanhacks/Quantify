@@ -160,7 +160,7 @@ function EventBlock({ event, first }: { event: CompanyEvent; first: boolean }) {
 
           {state === "empty" ? (
             <p className="mt-4 text-xs leading-relaxed text-slate-500">
-              This filing&apos;s text couldn&apos;t be read inline — the announcement itself is often
+              This filing&apos;s text couldn&apos;t be read inline, the announcement itself is often
               an exhibit attached to the 8-K. Open it on SEC.gov to read the full document.
             </p>
           ) : null}
@@ -186,7 +186,7 @@ function EventBlock({ event, first }: { event: CompanyEvent; first: boolean }) {
         </>
       ) : (
         <p className="mt-3 text-xs text-slate-500">
-          Reported as a corporate action on the price feed — there is no filing document for it.
+          Reported as a corporate action on the price feed. There is no filing document for it.
         </p>
       )}
     </section>

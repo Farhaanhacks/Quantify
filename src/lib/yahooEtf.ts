@@ -431,11 +431,11 @@ export async function getYahooEtf(input: string): Promise<EtfData | null> {
   const rewards: string[] = [];
   const riskFlags: string[] = [];
   if (expenseRatio != null && expenseRatio <= 0.001)
-    rewards.push(`Very low cost — ${pct(expenseRatio)} expense ratio.`);
+    rewards.push(`Very low cost, ${pct(expenseRatio)} expense ratio.`);
   if (totalAssets != null && totalAssets >= 10e9)
     rewards.push(`Large, liquid fund (${aum(totalAssets)} in assets).`);
   if (topHoldingsWeight != null && topHoldingsWeight <= 0.3)
-    rewards.push("Broadly spread — no single holding dominates.");
+    rewards.push("Broadly spread; no single holding dominates.");
   if (sectorWeights.length >= 6)
     rewards.push(`Diversified across ${sectorWeights.length} sectors.`);
   if (fundYield != null && fundYield >= 0.02)
@@ -444,15 +444,15 @@ export async function getYahooEtf(input: string): Promise<EtfData | null> {
     rewards.push("Strong recent performance.");
 
   if (expenseRatio != null && expenseRatio >= 0.005)
-    riskFlags.push(`Higher cost — ${pct(expenseRatio)} expense ratio eats returns over time.`);
+    riskFlags.push(`Higher cost; ${pct(expenseRatio)} expense ratio eats returns over time.`);
   if (topHoldingsWeight != null && topHoldingsWeight >= 0.5)
-    riskFlags.push(`Concentrated — the top holdings are ${pct1(topHoldingsWeight)} of the fund.`);
+    riskFlags.push(`Concentrated; the top holdings are ${pct1(topHoldingsWeight)} of the fund.`);
   if (sectorWeights.length && sectorWeights[0].weight >= 0.4)
     riskFlags.push(`Heavy tilt to ${sectorWeights[0].sector} (${pct1(sectorWeights[0].weight)}).`);
   if (totalAssets != null && totalAssets < 100e6)
-    riskFlags.push("Small fund — thinner liquidity and higher closure risk.");
+    riskFlags.push("Small fund; thinner liquidity and higher closure risk.");
   if ((fundYield ?? 0) === 0)
-    riskFlags.push("No income — returns rely entirely on price appreciation.");
+    riskFlags.push("No income; returns rely entirely on price appreciation.");
 
   if (rewards.length === 0) rewards.push("No standout strengths in the available fund data.");
   if (riskFlags.length === 0) riskFlags.push("No major red flags in the available fund data.");

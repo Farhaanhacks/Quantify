@@ -230,7 +230,7 @@ export default function NotificationBell() {
             </button>
           ) : perm === "granted" ? (
             <div className="border-b border-white/[0.06] px-4 py-2 text-[0.7rem] text-slate-500">
-              ✓ Browser alerts on — you&apos;ll be pinged about big moves &amp; news while Quantifi is open.
+              ✓ Browser alerts on, you&apos;ll be pinged about big moves &amp; news while Quantifi is open.
             </div>
           ) : perm === "denied" ? (
             <div className="border-b border-white/[0.06] px-4 py-2 text-[0.7rem] text-slate-500">
@@ -247,7 +247,7 @@ export default function NotificationBell() {
               </p>
             ) : notifs.length === 0 ? (
               <p className="px-4 py-8 text-center text-sm text-slate-500">
-                You&apos;re all caught up — no recent news or outsized moves on your{" "}
+                You&apos;re all caught up, no recent news or outsized moves on your{" "}
                 {tickers.length} tracked {tickers.length === 1 ? "name" : "names"}.
               </p>
             ) : (

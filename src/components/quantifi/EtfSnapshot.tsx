@@ -20,10 +20,10 @@ function axisColor(score: number): string {
 const cur = (c?: string) => currencySymbol(c);
 
 const pct = (x: number | undefined, dp = 1): string =>
-  x == null ? "—" : `${(x * 100).toFixed(dp)}%`;
+  x == null ? "n/a" : `${(x * 100).toFixed(dp)}%`;
 
 const aum = (n: number | undefined): string => {
-  if (n == null || n <= 0) return "—";
+  if (n == null || n <= 0) return "n/a";
   if (n >= 1e12) return `$${(n / 1e12).toFixed(1)}T`;
   if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;
   if (n >= 1e6) return `$${(n / 1e6).toFixed(0)}M`;
@@ -31,7 +31,7 @@ const aum = (n: number | undefined): string => {
 };
 
 const money = (n: number | undefined, c?: string): string =>
-  n == null ? "—" : `${cur(c)}${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+  n == null ? "n/a" : `${cur(c)}${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
 export default function EtfSnapshot({
   etf,
@@ -65,7 +65,7 @@ export default function EtfSnapshot({
         <SectionHeading
           eyebrow="ETF X-ray"
           title="What this fund actually holds"
-          subtitle="An ETF isn't a company — it's a basket. So we rate it on what matters for a fund: what it holds, how concentrated it is, what it costs, its size, momentum and income. Educational research view — not advice."
+          subtitle="An ETF isn't a company. It's a basket. So we rate it on what matters for a fund: what it holds, how concentrated it is, what it costs, its size, momentum and income. Educational research view; not advice."
         />
       ) : null}
 
@@ -173,7 +173,7 @@ export default function EtfSnapshot({
                     </Link>
                   ) : (
                     <>
-                      <span className="w-16 flex-none font-mono text-xs text-gold">—</span>
+                      <span className="w-16 flex-none font-mono text-xs text-gold"></span>
                       <span className="min-w-0 flex-1 truncate text-sm text-slate-300">
                         {h.name}
                       </span>

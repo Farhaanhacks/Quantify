@@ -209,8 +209,8 @@ const RAW: RawIdea[] = [
       { label: "Balance-sheet strength", score: 6 },
       { label: "Cycle resilience", score: 3 },
     ],
-    verdict: "Attractive structural theme, but valuation-sensitive. The cleanest research angle is no longer 'AI chips' — it's whether power, cooling and grid bottlenecks create real pricing power.",
-    sources: ["IEA — Electricity 2024 / data-centre demand outlook", "Hyperscaler quarterly earnings calls & capex guidance", "Company investor presentations & 10-Ks"],
+    verdict: "Attractive structural theme, but valuation-sensitive. The cleanest research angle is no longer 'AI chips'. It's whether power, cooling and grid bottlenecks create real pricing power.",
+    sources: ["IEA. Electricity 2024 / data-centre demand outlook", "Hyperscaler quarterly earnings calls & capex guidance", "Company investor presentations & 10-Ks"],
   },
   {
     id: "spacex-orbital-internet",
@@ -220,13 +220,13 @@ const RAW: RawIdea[] = [
     description:
       "With SpaceX now public, space becomes a flagship theme: launch cadence, satellite broadband, earth observation, defence-space and the Indian space-industrial base scaling together.",
     whyNow:
-      "Reuters reported SpaceX priced a record IPO in June 2026 and moved quickly into index-inclusion discussions — so SPCX is still a fresh listing to judge, anchoring a broader orbital-infrastructure basket.",
+      "Reuters reported SpaceX priced a record IPO in June 2026 and moved quickly into index-inclusion discussions; so SPCX is still a fresh listing to judge, anchoring a broader orbital-infrastructure basket.",
     regions: ["US", "China", "India"],
     timeHorizon: "3–10 years",
     maturity: "Early",
     valuationRisk: "High",
     bullCase:
-      "Space becomes mainstream infrastructure — launch, broadband, defence, earth observation and satellite services scale together.",
+      "Space becomes mainstream infrastructure; launch, broadband, defence, earth observation and satellite services scale together.",
     bearCase:
       "Space stays capital-intensive; launch delays, weak Starlink margins or stretched valuations hurt the basket.",
     watch: ["Launch cadence", "Starlink subscriber & margin trend", "Defence-space contract awards", "Indian space-policy & ISRO commercial orders"],
@@ -236,7 +236,7 @@ const RAW: RawIdea[] = [
       {
         label: "Launch & broadband leaders",
         names: [
-          { symbol: "SPCX", role: "Launch + Starlink leader (fresh IPO)", why: "Dominant launch cadence and the largest satellite-broadband network", risk: "Newly public — valuation and public-market discipline still untested", watch: "Launch rate, Starlink subs & ARPU, lock-ups" },
+          { symbol: "SPCX", role: "Launch + Starlink leader (fresh IPO)", why: "Dominant launch cadence and the largest satellite-broadband network", risk: "Newly public; valuation and public-market discipline still untested", watch: "Launch rate, Starlink subs & ARPU, lock-ups" },
           { symbol: "RKLB", role: "Small-launch & space systems", why: "Vertically integrating from launch into space systems", risk: "Neutron timeline, cash burn", watch: "Neutron progress, space-systems backlog" },
           { symbol: "ASTS", role: "Direct-to-cell satellites", why: "Space-based cellular broadband to standard phones", risk: "Capex and deployment timeline", watch: "Satellite launches, carrier deals" },
         ],
@@ -268,7 +268,7 @@ const RAW: RawIdea[] = [
       },
     ],
     scenarios: [
-      { kind: "Best case", what: "Space becomes mainstream infrastructure — launch, broadband, defence and observation scale together.", wins: "SPCX · RKLB · ASTS · defence-space" },
+      { kind: "Best case", what: "Space becomes mainstream infrastructure; launch, broadband, defence and observation scale together.", wins: "SPCX · RKLB · ASTS · defence-space" },
       { kind: "Base case", what: "Leaders progress but timelines slip; the basket is volatile and execution-driven.", wins: "Diversified, stock-specific winners" },
       { kind: "Worst case", what: "Launch delays, weak Starlink margins or stretched valuations hit the basket.", wins: "Defence-backed primes; capital-intensive names de-rate" },
     ],
@@ -287,7 +287,7 @@ const RAW: RawIdea[] = [
       { label: "Execution certainty", score: 4 },
     ],
     verdict: "High-conviction long-term theme, early and richly priced. Study, don't chase.",
-    sources: ["Reuters — SpaceX IPO & Russell addition coverage", "SEC — SpaceX S-1/A filings", "Company filings & defence budget documents"],
+    sources: ["Reuters. SpaceX IPO & Russell addition coverage", "SEC. SpaceX S-1/A filings", "Company filings & defence budget documents"],
   },
   {
     id: "sovereign-ai-stacks",
@@ -297,7 +297,7 @@ const RAW: RawIdea[] = [
     description:
       "AI is becoming a matter of national strategy: the US protects its lead, China pursues domestic substitution, and India builds sovereign compute, local-language models and digital infrastructure.",
     whyNow:
-      "Government AI funding, export controls and domestic-compute mandates are reshaping who can buy what — turning AI into a geopolitical capex cycle, not just a corporate one.",
+      "Government AI funding, export controls and domestic-compute mandates are reshaping who can buy what; turning AI into a geopolitical capex cycle, not just a corporate one.",
     regions: ["US", "China", "India"],
     timeHorizon: "3–7 years",
     maturity: "Early-mid",
@@ -365,7 +365,7 @@ const RAW: RawIdea[] = [
     category: "China",
     tagline: "China is exporting the EV supply chain to the world",
     description:
-      "Not just 'EVs' — this is China's manufacturing scale, battery dominance, domestic price war and export power, set against legacy automakers and the Indian auto-component chain.",
+      "Not just 'EVs'. This is China's manufacturing scale, battery dominance, domestic price war and export power, set against legacy automakers and the Indian auto-component chain.",
     whyNow:
       "The IEA estimates China accounted for ~70% of electric-car production and over 80% of battery-cell production in 2025. That scale is now being exported.",
     regions: ["China", "US", "India"],
@@ -383,7 +383,7 @@ const RAW: RawIdea[] = [
         names: [
           { symbol: "BYDDF", role: "Vertically integrated EV + battery leader" },
           { symbol: "1211.HK", role: "BYD (HK listing)" },
-          { symbol: "300750.SZ", role: "CATL — battery-cell dominance" },
+          { symbol: "300750.SZ", role: "CATL; battery-cell dominance" },
           { symbol: "LI", role: "China premium EV (range-extender)" },
           { symbol: "NIO", role: "China premium EV / battery-swap" },
           { symbol: "XPEV", role: "China EV / ADAS" },
@@ -428,7 +428,7 @@ const RAW: RawIdea[] = [
       { label: "Trade-policy resilience", score: 4 },
     ],
     verdict: "Structural scale story with cyclical, policy-driven swings. Watch margins, not just volume.",
-    sources: ["IEA — Global EV Outlook", "Company filings", "Trade-policy / tariff announcements"],
+    sources: ["IEA. Global EV Outlook", "Company filings", "Trade-policy / tariff announcements"],
   },
   {
     id: "global-defence-rearmament",
@@ -436,7 +436,7 @@ const RAW: RawIdea[] = [
     category: "Defence",
     tagline: "The new military capex cycle",
     description:
-      "Defence is a multi-year global capex theme: missiles, drones, shipbuilding, radar, space-defence, cyber and AI-enabled warfare — across US primes and India's defence-industrial base.",
+      "Defence is a multi-year global capex theme: missiles, drones, shipbuilding, radar, space-defence, cyber and AI-enabled warfare; across US primes and India's defence-industrial base.",
     whyNow:
       "SIPRI reported world military expenditure reached ~$2.9 trillion in 2025, an 11th consecutive year of growth. Order books are lengthening.",
     regions: ["US", "China", "India", "Europe"],
@@ -452,10 +452,10 @@ const RAW: RawIdea[] = [
       {
         label: "US primes & defence tech",
         names: [
-          { symbol: "LMT", role: "US prime — missiles & aircraft" },
-          { symbol: "RTX", role: "US prime — missiles & defence systems" },
-          { symbol: "NOC", role: "US prime — space & strategic" },
-          { symbol: "GD", role: "US prime — shipbuilding & land" },
+          { symbol: "LMT", role: "US prime; missiles & aircraft" },
+          { symbol: "RTX", role: "US prime; missiles & defence systems" },
+          { symbol: "NOC", role: "US prime; space & strategic" },
+          { symbol: "GD", role: "US prime; shipbuilding & land" },
           { symbol: "PLTR", role: "Defence/AI software & targeting" },
           { symbol: "AVAV", role: "Drones & unmanned systems" },
         ],
@@ -492,7 +492,7 @@ const RAW: RawIdea[] = [
       { label: "Execution certainty", score: 5 },
     ],
     verdict: "Strong order-book visibility, but Indian names especially price in a lot. Mind execution.",
-    sources: ["SIPRI — Trends in World Military Expenditure", "Government defence budgets", "Company order-book disclosures"],
+    sources: ["SIPRI. Trends in World Military Expenditure", "Government defence budgets", "Company order-book disclosures"],
   },
   {
     id: "physical-ai-robotics",
@@ -502,7 +502,7 @@ const RAW: RawIdea[] = [
     description:
       "Bigger than self-driving cars: robotaxis, humanoid robots, warehouse automation, industrial robotics, surgical robots, drones and AI-enabled machines across the US, China, Japan and India.",
     whyNow:
-      "Foundation-model progress is spilling into the physical world — robotics, automation and autonomy are where the next capability step is being demonstrated.",
+      "Foundation-model progress is spilling into the physical world; robotics, automation and autonomy are where the next capability step is being demonstrated.",
     regions: ["US", "China", "Japan", "India"],
     timeHorizon: "3–10 years",
     maturity: "Early",
@@ -535,7 +535,7 @@ const RAW: RawIdea[] = [
         label: "China robotics & scale",
         names: [
           { symbol: "BYDDF", role: "EV + automation scale (China)" },
-          { symbol: "1810.HK", role: "Xiaomi — robotics & EV (China)" },
+          { symbol: "1810.HK", role: "Xiaomi; robotics & EV (China)" },
         ],
       },
       {
@@ -548,7 +548,7 @@ const RAW: RawIdea[] = [
       },
     ],
     scenarios: [
-      { kind: "Best case", what: "AI moves into the physical world — factories, logistics, surgery, robotaxis and drones.", wins: "NVDA · ISRG · automation leaders" },
+      { kind: "Best case", what: "AI moves into the physical world; factories, logistics, surgery, robotaxis and drones.", wins: "NVDA · ISRG · automation leaders" },
       { kind: "Base case", what: "Adoption is real but slow; industrial automation compounds, humanoids stay early.", wins: "Proven industrial-robotics names" },
       { kind: "Worst case", what: "Hardware is hard; costs stay high, regulation delays adoption, margins disappoint.", wins: "Proven industrial robotics; speculative names de-rate" },
     ],
@@ -575,7 +575,7 @@ const RAW: RawIdea[] = [
     category: "Hard Tech",
     tagline: "The capex cycle behind factories, grids, chips and hard assets",
     description:
-      "Reindustrialisation, supply-chain localisation, grid capex, semiconductor equipment, defence manufacturing and India's capex cycle — the physical economy re-rating.",
+      "Reindustrialisation, supply-chain localisation, grid capex, semiconductor equipment, defence manufacturing and India's capex cycle; the physical economy re-rating.",
     whyNow:
       "Localisation, energy transition and AI-driven grid demand are converging into a sustained capex up-cycle across developed and emerging markets.",
     regions: ["US", "China", "India", "Europe"],
@@ -623,12 +623,12 @@ const RAW: RawIdea[] = [
       },
       {
         label: "China manufacturing scale",
-        note: "Regional lens — factory automation, EV/battery & solar supply chain and robotics; overcapacity is the key risk. Some China-listed tickers may have limited data on Quantifi.",
+        note: "Regional lens; factory automation, EV/battery & solar supply chain and robotics; overcapacity is the key risk. Some China-listed tickers may have limited data on Quantifi.",
         names: [
-          { symbol: "600031.SS", role: "SANY — construction machinery", tag: "Direct", watch: "domestic demand, export share" },
-          { symbol: "300124.SZ", role: "Inovance — factory automation", tag: "Direct", watch: "automation orders, share gains" },
-          { symbol: "300750.SZ", role: "CATL — battery supply chain", tag: "Commodity-linked", watch: "cell pricing, utilisation" },
-          { symbol: "BYDDF", role: "BYD — EV supply-chain scale", tag: "Indirect", watch: "volumes, vertical-integration" },
+          { symbol: "600031.SS", role: "SANY; construction machinery", tag: "Direct", watch: "domestic demand, export share" },
+          { symbol: "300124.SZ", role: "Inovance; factory automation", tag: "Direct", watch: "automation orders, share gains" },
+          { symbol: "300750.SZ", role: "CATL; battery supply chain", tag: "Commodity-linked", watch: "cell pricing, utilisation" },
+          { symbol: "BYDDF", role: "BYD; EV supply-chain scale", tag: "Indirect", watch: "volumes, vertical-integration" },
         ],
       },
     ],
@@ -662,7 +662,7 @@ const RAW: RawIdea[] = [
     description:
       "EV demand is only one part of the battery story. Grid storage, renewable balancing and AI/data-centre backup power are becoming major demand drivers in their own right.",
     whyNow:
-      "Reuters has reported lithium producers increasingly betting on stationary battery-storage demand beyond EVs — a second growth curve for cells.",
+      "Reuters has reported lithium producers increasingly betting on stationary battery-storage demand beyond EVs; a second growth curve for cells.",
     regions: ["China", "US", "India"],
     timeHorizon: "3–7 years",
     maturity: "Early-mid",
@@ -687,7 +687,7 @@ const RAW: RawIdea[] = [
         names: [
           { symbol: "ALB", role: "Lithium producer" },
           { symbol: "BYDDF", role: "Battery + EV scale (China)" },
-          { symbol: "300750.SZ", role: "CATL — cells for EV & storage" },
+          { symbol: "300750.SZ", role: "CATL; cells for EV & storage" },
         ],
       },
       {
@@ -719,8 +719,8 @@ const RAW: RawIdea[] = [
       { label: "Balance-sheet strength", score: 5 },
       { label: "Commodity resilience", score: 4 },
     ],
-    verdict: "More nuanced than 'EV stocks' — a real second demand curve, but commodity-exposed.",
-    sources: ["Reuters — lithium / storage demand coverage", "IEA storage data", "Company project pipelines"],
+    verdict: "More nuanced than 'EV stocks'; a real second demand curve, but commodity-exposed.",
+    sources: ["Reuters; lithium / storage demand coverage", "IEA storage data", "Company project pipelines"],
   },
   {
     id: "glp1-health-repricing",
@@ -728,7 +728,7 @@ const RAW: RawIdea[] = [
     category: "Healthcare",
     tagline: "Weight-loss drugs are changing healthcare, food, fitness and insurance",
     description:
-      "GLP-1 adoption ripples across pharma, medtech, diagnostics, food, insurers, hospitals and consumer behaviour — a rare theme that reprices multiple sectors at once.",
+      "GLP-1 adoption ripples across pharma, medtech, diagnostics, food, insurers, hospitals and consumer behaviour; a rare theme that reprices multiple sectors at once.",
     whyNow:
       "Obesity/diabetes treatment is scaling into one of the largest drug markets ever, with second-order effects only beginning to be priced across adjacent industries.",
     regions: ["US", "Europe", "China", "India"],
@@ -801,11 +801,11 @@ const RAW: RawIdea[] = [
     id: "market-toll-booths",
     title: "Market Toll Booths",
     category: "Financialisation",
-    tagline: "Global exchanges, data, depositories and payment rails — plus India's financialisation",
+    tagline: "Global exchanges, data, depositories and payment rails; plus India's financialisation",
     description:
-      "Toll-booth businesses: exchanges, depositories, index providers, rating agencies, payment networks and asset managers that earn recurring fees as activity grows. Includes India's financialisation sub-theme — households shifting from cash, gold and property into funds, equities and insurance.",
+      "Toll-booth businesses: exchanges, depositories, index providers, rating agencies, payment networks and asset managers that earn recurring fees as activity grows. Includes India's financialisation sub-theme; households shifting from cash, gold and property into funds, equities and insurance.",
     whyNow:
-      "More trading, more ETFs, more SIPs and more data usage compound recurring revenue — a quieter, higher-quality way to play financialisation, with India adding a long structural growth leg.",
+      "More trading, more ETFs, more SIPs and more data usage compound recurring revenue; a quieter, higher-quality way to play financialisation, with India adding a long structural growth leg.",
     regions: ["US", "China/HK", "India"],
     timeHorizon: "3–10 years",
     maturity: "Mature",
@@ -881,7 +881,7 @@ const RAW: RawIdea[] = [
       { label: "Balance-sheet strength", score: 8 },
       { label: "Regulatory resilience", score: 6 },
     ],
-    verdict: "High-quality 'boring compounders' — recurring and defensive, but rarely cheap.",
+    verdict: "High-quality 'boring compounders'; recurring and defensive, but rarely cheap.",
     sources: ["Exchange volume disclosures", "Company annual reports", "Regulatory fee filings"],
   },
   {
@@ -890,14 +890,14 @@ const RAW: RawIdea[] = [
     category: "Valuation",
     tagline: "When the business is excellent but the valuation may already know it",
     description:
-      "A study of wonderful businesses whose valuations may already price perfection — the difference between a great company and a great investment.",
+      "A study of wonderful businesses whose valuations may already price perfection; the difference between a great company and a great investment.",
     whyNow:
       "After a strong run in quality and AI winners, several best-in-class businesses trade at multiples that leave little room for disappointment.",
     regions: ["US", "China", "India"],
     timeHorizon: "1–3 years",
     maturity: "Mature",
     valuationRisk: "Very high",
-    bullCase: "The company keeps compounding fast enough to grow into — and justify — the valuation.",
+    bullCase: "The company keeps compounding fast enough to grow into; and justify; the valuation.",
     bearCase: "The business performs well, but the stock disappoints because expectations were already too high.",
     watch: ["Forward multiple vs growth", "Estimate revisions", "Margin trajectory", "What's priced in vs delivered"],
     bestFor: "Valuation-disciplined investors",
@@ -931,7 +931,7 @@ const RAW: RawIdea[] = [
       },
     ],
     scenarios: [
-      { kind: "Best case", what: "The company compounds fast enough to grow into — and justify — the valuation.", wins: "The genuine super-compounders" },
+      { kind: "Best case", what: "The company compounds fast enough to grow into; and justify the valuation.", wins: "The genuine super-compounders" },
       { kind: "Base case", what: "Solid results, but the multiple slowly de-rates; returns lag the business.", wins: "Patience; reinvestment compounding" },
       { kind: "Worst case", what: "Good business, disappointing stock as too-high expectations reset.", wins: "Cash-rich quality; the most-priced names fall hardest" },
     ],
@@ -983,7 +983,7 @@ const RAW: RawIdea[] = [
     groups: [
       {
         label: "Fresh IPO / still too early",
-        note: "Newly public — public-market discipline not yet tested.",
+        note: "Newly public public-market discipline not yet tested.",
         names: [
           { symbol: "SPCX", role: "Space leader, newly public", why: "Dominant launch + Starlink franchise", risk: "Valuation and public-market discipline still untested", watch: "Lock-ups, Starlink margins, cadence" },
           { symbol: "ARM", role: "Chip-IP leader, premium valuation", why: "Royalty model with broad reach", risk: "Expectations are high", watch: "Royalty growth, AI/datacentre design wins" },
@@ -1015,9 +1015,9 @@ const RAW: RawIdea[] = [
         label: "Valuation discipline cases",
         note: "Quality businesses, but the debate is price, not survival.",
         names: [
-          { symbol: "CAVA", role: "Restaurant growth story — quality IPO, valuation-discipline case", why: "Strong unit economics and growth", risk: "Valuation, not survival, is the question", watch: "Unit growth, same-store sales, multiple" },
-          { symbol: "ARM", role: "Chip-IP leader — premium multiple" },
-          { symbol: "RDDT", role: "Social platform — profitability inflection priced in" },
+          { symbol: "CAVA", role: "Restaurant growth story quality IPO, valuation-discipline case", why: "Strong unit economics and growth", risk: "Valuation, not survival, is the question", watch: "Unit growth, same-store sales, multiple" },
+          { symbol: "ARM", role: "Chip-IP leader premium multiple" },
+          { symbol: "RDDT", role: "Social platform profitability inflection priced in" },
         ],
       },
     ],
@@ -1044,7 +1044,7 @@ const RAW: RawIdea[] = [
       { label: "Valuation reset", score: 7 },
     ],
     verdict:
-      "A survivorship screen, not a momentum chase. The goal is to identify which IPOs moved from story to self-funding business — and which are still surviving on narrative, dilution or market cycles.",
+      "A survivorship screen, not a momentum chase. The goal is to identify which IPOs moved from story to self-funding business and which are still surviving on narrative, dilution or market cycles.",
     sources: [
       "IPO prospectuses and S-1 filings",
       "Quarterly filings and shareholder letters",
@@ -1061,7 +1061,7 @@ const RAW: RawIdea[] = [
     category: "Hard Tech",
     tagline: "Copper, uranium, lithium, rare earths and the new supply-chain race",
     description:
-      "The hard-asset backbone of AI power, EVs, defence and batteries — and the geopolitics of reducing China dependency across critical minerals.",
+      "The hard-asset backbone of AI power, EVs, defence and batteries and the geopolitics of reducing China dependency across critical minerals.",
     whyNow:
       "Electrification, defence and data-centre buildouts are lifting demand for scarce resources at the same time supply chains are being re-shored.",
     regions: ["US", "China", "India", "Canada/Australia"],
@@ -1167,7 +1167,7 @@ const RAW: RawIdea[] = [
           { symbol: "TCEHY", role: "China superapp & gaming" },
           { symbol: "PDD", role: "China discount commerce" },
           { symbol: "JD", role: "China commerce & logistics" },
-          { symbol: "3690.HK", role: "Meituan — China local services" },
+          { symbol: "3690.HK", role: "Meituan China local services" },
         ],
       },
       {
@@ -1223,8 +1223,8 @@ interface DashboardExtra {
 
 const DASHBOARD: Record<string, DashboardExtra> = {
   "ai-power-bottleneck": {
-    question: "Can the power, cooling and grid chain keep up with — and get paid for — AI's electricity demand?",
-    themeWeather: "Hot — capex-driven, priced for growth",
+    question: "Can the power, cooling and grid chain keep up with; and get paid for. AI's electricity demand?",
+    themeWeather: "Hot; capex-driven, priced for growth",
     swingFactor: "Whether power becomes scarce enough to give the grid & cooling chain real pricing power.",
     themeMap: [
       { layer: "AI demand layer", symbols: ["NVDA", "AVGO"] },
@@ -1240,7 +1240,7 @@ const DASHBOARD: Record<string, DashboardExtra> = {
   },
   "spacex-orbital-internet": {
     question: "Is space becoming real infrastructure, or still a capital-hungry promise?",
-    themeWeather: "Early & speculative — scarcity premium",
+    themeWeather: "Early & speculative; scarcity premium",
     swingFactor: "Whether Starlink margins and launch cadence scale before the cash runs.",
     themeMap: [
       { layer: "Launch", symbols: ["SPCX", "RKLB"] },
@@ -1256,8 +1256,8 @@ const DASHBOARD: Record<string, DashboardExtra> = {
     redFlags: ["Launch cadence rises but Starlink margins don't improve", "Timeline slippage on key vehicles", "Funding gaps / mission failures"],
   },
   "sovereign-ai-stacks": {
-    question: "Will governments keep funding domestic AI fast enough to matter — despite export controls?",
-    themeWeather: "Warm — policy-fuelled, uneven",
+    question: "Will governments keep funding domestic AI fast enough to matter; despite export controls?",
+    themeWeather: "Warm; policy-fuelled, uneven",
     swingFactor: "Whether AI ROI shows up before policy or chip constraints bite.",
     themeMap: [
       { layer: "Chips & foundry", symbols: ["NVDA", "AMD", "SMICY"] },
@@ -1273,7 +1273,7 @@ const DASHBOARD: Record<string, DashboardExtra> = {
   },
   "china-ev-shockwave": {
     question: "Can China's EV scale turn into profit, or does the price war eat the margin?",
-    themeWeather: "Cooling — scale up, margins down",
+    themeWeather: "Cooling; scale up, margins down",
     swingFactor: "Whether scale lowers cost faster than the price war destroys margin.",
     themeMap: [
       { layer: "Batteries & cells", symbols: ["300750.SZ", "BYDDF"] },
@@ -1289,7 +1289,7 @@ const DASHBOARD: Record<string, DashboardExtra> = {
   },
   "global-defence-rearmament": {
     question: "Is the global re-armament cycle durable enough to justify the re-rating?",
-    themeWeather: "Hot — re-rated on strong order books",
+    themeWeather: "Hot; re-rated on strong order books",
     swingFactor: "Whether order books convert to delivered, paid-for revenue.",
     themeMap: [
       { layer: "US primes", symbols: ["LMT", "RTX", "NOC", "GD"] },
@@ -1305,7 +1305,7 @@ const DASHBOARD: Record<string, DashboardExtra> = {
   },
   "physical-ai-robotics": {
     question: "Can AI move from screens into machines at an economic unit cost?",
-    themeWeather: "Early — hype ahead of economics",
+    themeWeather: "Early; hype ahead of economics",
     swingFactor: "Whether robot unit economics reach payback at scale.",
     themeMap: [
       { layer: "Brains & compute", symbols: ["NVDA", "TSLA"] },
@@ -1321,7 +1321,7 @@ const DASHBOARD: Record<string, DashboardExtra> = {
   },
   "global-industrial-rebuild": {
     question: "Is the reindustrialisation capex cycle long enough to reward today's multiples?",
-    themeWeather: "Warm — late-cycle capex",
+    themeWeather: "Warm; late-cycle capex",
     swingFactor: "Whether the capex cycle outlasts the current multiples.",
     themeMap: [
       { layer: "Machinery", symbols: ["CAT", "DE"] },
@@ -1345,7 +1345,7 @@ const DASHBOARD: Record<string, DashboardExtra> = {
   },
   "battery-storage-beyond-evs": {
     question: "Will grid and data-centre storage become a second demand curve beyond EVs?",
-    themeWeather: "Mixed — demand up, prices soft",
+    themeWeather: "Mixed; demand up, prices soft",
     swingFactor: "Whether project IRRs hold as cell supply expands.",
     themeMap: [
       { layer: "Cells & lithium", symbols: ["300750.SZ", "BYDDF", "ALB"] },
@@ -1359,8 +1359,8 @@ const DASHBOARD: Record<string, DashboardExtra> = {
     redFlags: ["Deployments rise but project IRRs thin out", "IRR compression on soft pricing", "Oversupply / negative project economics"],
   },
   "glp1-health-repricing": {
-    question: "How far do weight-loss drugs reprice healthcare — and who beyond the makers wins?",
-    themeWeather: "Hot — priced for success",
+    question: "How far do weight-loss drugs reprice healthcare; and who beyond the makers wins?",
+    themeWeather: "Hot; priced for success",
     swingFactor: "Whether pricing holds as competition and oral GLP-1s arrive.",
     themeMap: [
       { layer: "Drug makers", symbols: ["LLY", "NVO", "AZN"] },
@@ -1375,8 +1375,8 @@ const DASHBOARD: Record<string, DashboardExtra> = {
     redFlags: ["Demand stays strong but pricing starts to crack", "Competition entering the market", "Pricing pressure / reimbursement cuts"],
   },
   "market-toll-booths": {
-    question: "Will rising trading, ETFs, SIPs and insurance keep compounding recurring fee revenue — in the US and India?",
-    themeWeather: "Steady — quality, fully valued",
+    question: "Will rising trading, ETFs, SIPs and insurance keep compounding recurring fee revenue; in the US and India?",
+    themeWeather: "Steady; quality, fully valued",
     swingFactor: "Whether fee compression offsets volume, data and India flow growth.",
     themeMap: [
       { layer: "Exchanges", symbols: ["CME", "ICE", "NDAQ", "HKXCY", "BSE.NS"] },
@@ -1393,7 +1393,7 @@ const DASHBOARD: Record<string, DashboardExtra> = {
   },
   "great-company-dangerous-price": {
     question: "Is the business great enough to justify a price that already assumes greatness?",
-    themeWeather: "Overheated — perfection priced in",
+    themeWeather: "Overheated; perfection priced in",
     swingFactor: "Whether growth compounds fast enough to grow into the multiple.",
     themeMap: [
       { layer: "US quality at a price", symbols: ["NVDA", "COST", "LLY", "TSLA"] },
@@ -1408,7 +1408,7 @@ const DASHBOARD: Record<string, DashboardExtra> = {
   },
   "post-hype-ipo-survivors": {
     question: "Which IPO stories became real, self-funding businesses after the hype faded?",
-    themeWeather: "Thawing — survivors emerging",
+    themeWeather: "Thawing; survivors emerging",
     swingFactor: "Whether the business turns self-funding before dilution and cycles bite.",
     themeMap: [
       { layer: "Fresh IPO / too early", symbols: ["SPCX", "ARM", "RDDT", "CART"] },
@@ -1424,7 +1424,7 @@ const DASHBOARD: Record<string, DashboardExtra> = {
   },
   "critical-minerals": {
     question: "Does the AI-and-electrification build create durable demand for scarce resources?",
-    themeWeather: "Cyclical — commodity-led",
+    themeWeather: "Cyclical; commodity-led",
     swingFactor: "Whether demand growth outpaces China supply and new mine capacity.",
     themeMap: [
       { layer: "Copper & diversified", symbols: ["FCX", "SCCO", "TECK", "BHP", "RIO"] },
@@ -1470,7 +1470,7 @@ const TESTS: Record<string, { thesisTests: ThesisTest[]; sourcePack: SourceItem[
     sourcePack: [
       { type: "Hyperscaler earnings calls & filings", checks: "capex guidance · AI-infrastructure spend · data-centre demand", linked: ["MSFT", "AMZN", "GOOGL", "META", "ORCL"], usedIn: "Hyperscaler capex guidance", href: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=MSFT&type=10-K" },
       { type: "Power & cooling company filings", checks: "backlog · book-to-bill · gross margin · inventory", linked: ["VRT", "ETN", "GEV"], usedIn: "Power & cooling backlog", href: "https://www.sec.gov/edgar/search/" },
-      { type: "Industry data — IEA Energy & AI", checks: "data-centre electricity demand · grid bottlenecks · power-demand projections", usedIn: "Grid & interconnection", href: "https://www.iea.org/reports/energy-and-ai" },
+      { type: "Industry data; IEA Energy & AI", checks: "data-centre electricity demand · grid bottlenecks · power-demand projections", usedIn: "Grid & interconnection", href: "https://www.iea.org/reports/energy-and-ai" },
       { type: "Policy / grid updates", checks: "permitting · interconnection queues · grid investment · data-centre regulation", usedIn: "Grid & interconnection", href: "https://www.ferc.gov/" },
     ],
   },

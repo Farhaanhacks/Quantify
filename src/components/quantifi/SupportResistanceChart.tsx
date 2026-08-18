@@ -90,7 +90,7 @@ export default function SupportResistanceChart({ symbol, currency }: { symbol: s
         </span>
       </div>
       <p className="mt-2 text-[0.65rem] text-slate-500">
-        Short-term levels from the last ~6 months of price action — where the price has tended to find a
+        Short-term levels from the last ~6 months of price action; where the price has tended to find a
         ceiling and a floor. Not a forecast.
       </p>
     </div>

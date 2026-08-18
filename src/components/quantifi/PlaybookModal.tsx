@@ -182,7 +182,7 @@ export default function PlaybookModal({ playbook, onClose }: { playbook: Playboo
 
           {/* E — Market map */}
           <div id="market-map" className="mt-6 scroll-mt-2">
-            <SectionLabel>Market map — how the framework connects to Quantifi Ideas</SectionLabel>
+            <SectionLabel>Market map, how the framework connects to Quantifi Ideas</SectionLabel>
             <div className="mt-2.5">
               <div className="rounded-lg border border-teal/20 bg-teal/[0.06] px-3.5 py-2.5 text-center text-sm font-semibold text-teal">
                 Situational Awareness
@@ -301,7 +301,7 @@ export default function PlaybookModal({ playbook, onClose }: { playbook: Playboo
           {/* J — Source pack — inspectable evidence, one card per source */}
           <div id="sources" className="mt-6 scroll-mt-2">
             <SectionLabel>Source pack</SectionLabel>
-            <p className="mt-1 text-xs text-slate-500">External and reference sources — what each one checks, and the thesis test it informs.</p>
+            <p className="mt-1 text-xs text-slate-500">External and reference sources, what each one checks, and the thesis test it informs.</p>
             <div className="mt-2.5 space-y-2">
               {playbook.sourcePack.map((s) => (
                 <div key={s.title} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3.5">
@@ -394,7 +394,7 @@ export default function PlaybookModal({ playbook, onClose }: { playbook: Playboo
           </div>
 
           <p className="mt-6 border-t border-white/[0.06] pt-4 text-xs text-slate-500">
-            Framework analysis only — a research decoder, not a recommendation. Not investment advice.
+            Framework analysis only; a research decoder, not a recommendation. Not investment advice.
           </p>
         </div>
       </div>

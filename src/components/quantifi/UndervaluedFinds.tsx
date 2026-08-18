@@ -52,7 +52,7 @@ function AnalystRange({ row }: { row: Row }) {
       <div className="flex items-center justify-between text-[0.62rem] uppercase tracking-[0.14em] text-slate-500">
         <span>Analyst {realRange ? "price-target range" : "price target"}</span>
         <span className="text-slate-600">
-          {row.numAnalysts ?? "—"} analyst{row.numAnalysts === 1 ? "" : "s"}
+          {row.numAnalysts ?? "n/a"} analyst{row.numAnalysts === 1 ? "" : "s"}
         </span>
       </div>
 
@@ -122,13 +122,13 @@ function AnalystRange({ row }: { row: Row }) {
       {!realRange ? (
         <p className="mt-3 text-[0.7rem] text-slate-500">
           {(row.numAnalysts ?? 0) <= 1
-            ? "Only one analyst covers this name — a single target, so there's no high/low range to plot."
+            ? "Only one analyst covers this name; a single target, so there's no high/low range to plot."
             : "The published high and low targets match, so there's no meaningful range to show."}
         </p>
       ) : null}
 
       <p className="mt-3 text-[0.7rem] leading-relaxed text-slate-600">
-        Upside/downside here is the spread of Wall-Street analyst price targets vs the current price — a
+        Upside/downside here is the spread of Wall-Street analyst price targets vs the current price; a
         gauge of expectations, not a forecast or advice.
       </p>
     </div>
@@ -136,7 +136,7 @@ function AnalystRange({ row }: { row: Row }) {
 }
 
 function fmtCap(n?: number): string {
-  if (!n || !isFinite(n)) return "—";
+  if (!n || !isFinite(n)) return "n/a";
   if (n >= 1e12) return `${(n / 1e12).toFixed(2)}T`;
   if (n >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
   if (n >= 1e6) return `${(n / 1e6).toFixed(0)}M`;
@@ -156,7 +156,7 @@ function ratingLabel(r?: string): string {
     case "sell":
       return "Sell";
     default:
-      return "—";
+      return "n/a";
   }
 }
 
@@ -200,7 +200,7 @@ function ScanRow({
         <span>
           <Tag tone={ratingTone(r.recommendation)}>{ratingLabel(r.recommendation)}</Tag>
         </span>
-        <span className="text-right font-mono text-sm tnum text-slate-400">{r.numAnalysts ?? "—"}</span>
+        <span className="text-right font-mono text-sm tnum text-slate-400">{r.numAnalysts ?? "n/a"}</span>
         <span className="text-right font-mono text-sm tnum text-white">{r.target.toFixed(2)}</span>
         <span
           className={`text-right font-mono text-sm font-semibold tnum ${
@@ -310,7 +310,7 @@ export default function UndervaluedFinds() {
       <SectionHeading
         eyebrow="Undervalued Finds"
         title="Biggest gaps to analyst fair value, by sector"
-        subtitle="A live scan of a curated universe, grouped by sector and ranked by how far each trades below the analysts' average price target. Each sector opens with how it tends to behave if the AI-bubble debate turns — starting with gold miners as the classic safe haven. Tap any row for the analyst bear / base / bull range. Real data — a research starting point, not advice."
+        subtitle="A live scan of a curated universe, grouped by sector and ranked by how far each trades below the analysts' average price target. Each sector opens with how it tends to behave if the AI-bubble debate turns; starting with gold miners as the classic safe haven. Tap any row for the analyst bear / base / bull range. Real data; a research starting point, not advice."
       />
 
       {loading ? (
@@ -329,7 +329,7 @@ export default function UndervaluedFinds() {
 
       {sections.length === 0 && !loading ? (
         <GlassCard className="mt-5 px-5 py-10 text-center text-sm text-slate-500">
-          Couldn&apos;t pull analyst data right now — try refreshing in a moment.
+          Couldn&apos;t pull analyst data right now; try refreshing in a moment.
         </GlassCard>
       ) : (
         <div className="mt-6 space-y-10">
@@ -367,7 +367,7 @@ export default function UndervaluedFinds() {
         &quot;Upside&quot; is the analysts&apos; average price target versus the current price, pulled
         live from public data. It reflects a curated watch-universe, not the entire market, and a high
         target gap is not a recommendation. The sector framings describe general tendencies, not
-        forecasts — always do your own research.
+        forecasts; always do your own research.
       </p>
     </section>
   );

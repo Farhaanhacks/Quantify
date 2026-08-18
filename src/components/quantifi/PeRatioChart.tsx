@@ -110,8 +110,8 @@ export default function PeRatioChart({ symbol, name }: { symbol: string; name?: 
     <section className="mx-auto max-w-7xl px-4 pb-4 sm:px-6 lg:px-8">
       <SectionHeading
         eyebrow="Valuation over time"
-        title={`${name ?? symbol} — P/E vs price`}
-        subtitle="How the price (blue) and the trailing P/E (amber) have moved over ~5 years, so you can see whether today's valuation is high or low against the company's own history. P/E is built from reported EPS and anchored to the current trailing P/E — research context, not advice."
+        title={`${name ?? symbol}; P/E vs price`}
+        subtitle="How the price (blue) and the trailing P/E (amber) have moved over ~5 years, so you can see whether today's valuation is high or low against the company's own history. P/E is built from reported EPS and anchored to the current trailing P/E; research context, not advice."
       />
 
       <GlassCard className="mt-6 p-5 sm:p-6">
@@ -211,8 +211,8 @@ export default function PeRatioChart({ symbol, name }: { symbol: string; name?: 
           {richVsHistory != null ? (
             <span className={richVsHistory ? "text-amber-400/90" : "text-up/90"}>
               {richVsHistory
-                ? "Trading above its 5-year median P/E — richer than usual."
-                : "Trading below its 5-year median P/E — cheaper than usual."}
+                ? "Trading above its 5-year median P/E, richer than usual."
+                : "Trading below its 5-year median P/E, cheaper than usual."}
             </span>
           ) : null}
         </div>

@@ -39,7 +39,7 @@ function ExposureRow({ item }: { item: ExposureItem }) {
           <Ticker symbol={item.ticker as string} />
         ) : (
           <span className="rounded-md border border-white/10 bg-white/[0.02] px-2 py-0.5 font-mono text-sm text-slate-400">
-            {item.ticker ?? "—"}
+            {item.ticker ?? "n/a"}
           </span>
         )}
         <span className="text-sm font-medium text-white">{item.name}</span>
@@ -214,7 +214,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
             </div>
 
             <p className="text-xs text-slate-500">
-              Want the full positioning — long vs bearish vs private vs proxy vs ETF? Open the{" "}
+              Want the full positioning, long vs bearish vs private vs proxy vs ETF? Open the{" "}
               <button type="button" onClick={() => setTab("map")} className="text-gold underline-offset-2 hover:underline">
                 Investment Map
               </button>
@@ -227,7 +227,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
           <div className="space-y-5">
             <p className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3.5 text-[0.78rem] leading-relaxed text-slate-400">
               Thematic exposure, not recommendations or fund holdings. Bullish, bearish, private and proxy
-              exposure are shown separately on purpose — a name central to the theme is not automatically a
+              exposure are shown separately on purpose; a name central to the theme is not automatically a
               long.
             </p>
 
@@ -271,7 +271,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-display text-base font-semibold text-white">{privateG.items[0].name}</span>
                       <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[0.58rem] text-amber-300">
-                        Private — not directly tradable
+                        Private, not directly tradable
                       </span>
                     </div>
                     <p className="mt-2 text-[0.82rem] leading-relaxed text-slate-300">{privateG.items[0].explanation}</p>
@@ -403,7 +403,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
           <section className="space-y-5">
             <div>
               <SectionLabel>Source pack</SectionLabel>
-              <p className="mt-1 text-xs text-slate-500">External and reference sources — what each checks, and the thesis test it informs.</p>
+              <p className="mt-1 text-xs text-slate-500">External and reference sources; what each checks, and the thesis test it informs.</p>
               <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
                 {playbook.sourcePack.map((s) => (
                   <div key={s.title} className="rounded-lg border border-white/[0.07] bg-white/[0.02] p-4">
@@ -440,7 +440,7 @@ export default function PlaybookPage({ playbook }: { playbook: Playbook }) {
         ) : null}
 
         <p className="mt-8 border-t border-white/[0.06] pt-5 text-xs text-slate-500">
-          Curated research / editorial — a framework decoder, not a recommendation or a live market signal.
+          Curated research / editorial; a framework decoder, not a recommendation or a live market signal.
           Exposure types (beneficiary, bearish, private, proxy, ETF) are research classifications, not advice.
           Not investment advice.
         </p>

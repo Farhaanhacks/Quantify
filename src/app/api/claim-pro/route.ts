@@ -31,7 +31,7 @@ export async function POST(req: Request) {
   // rather than pretend it worked.
   if (!kvConfigured()) {
     return NextResponse.json(
-      { error: "Account storage isn't configured yet — please try again shortly." },
+      { error: "Account storage isn't configured yet, please try again shortly." },
       { status: 503 }
     );
   }
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
   const ok = await kvSet(`pro:${email}`, JSON.stringify(record));
   if (!ok) {
     return NextResponse.json(
-      { error: "Couldn't activate Pro right now — please try again." },
+      { error: "Couldn't activate Pro right now. Please try again." },
       { status: 500 }
     );
   }

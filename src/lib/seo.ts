@@ -41,7 +41,7 @@ export function buildMetadata({
       url,
       siteName: SITE.name,
       type,
-      images: [{ url: img, width: 1200, height: 630, alt: `${SITE.name} — ${title}` }],
+      images: [{ url: img, width: 1200, height: 630, alt: `${SITE.name}; ${title}` }],
     },
     twitter: {
       card: "summary_large_image",

@@ -151,7 +151,7 @@ function CashFlowValueLine({ ticker }: { ticker: string }) {
         })()
       ) : (
         <p className="mt-1.5 text-xs leading-relaxed text-slate-400">
-          A cash-flow (DCF) valuation isn&apos;t available for this name yet — its cash flows don&apos;t
+          A cash-flow (DCF) valuation isn&apos;t available for this name yet. Its cash flows don&apos;t
           support a reliable estimate (e.g. lossmaking or highly cyclical). We show nothing rather than
           a made-up number.
         </p>
@@ -298,7 +298,7 @@ function PlanModal({ plan, onClose }: { plan: InvestmentPlan; onClose: () => voi
         </div>
 
         <p className="mt-6 border-t border-white/[0.06] pt-4 text-xs leading-relaxed text-slate-500">
-          Educational research only — not investment advice, and not personalized to your situation.
+          Educational research only; not investment advice, and not personalized to your situation.
           Valuations and fair-value estimates move daily, and the AI-bubble scenario is one view among
           many. Do your own work before acting on anything.
         </p>
@@ -317,19 +317,18 @@ export default function RareFinds() {
       <SectionHeading
         eyebrow="Rare Finds"
         title="Undervalued, with room to run"
-        subtitle="Names screening below fair value or with outsized potential — tap any card for why it's a rare find and an illustrative upside / base / downside range."
+        subtitle="Names screening below fair value or with outsized potential; tap any card for why it's a rare find and an illustrative upside / base / downside range."
       />
 
       {/* AI bubble framing */}
       <GlassCard className="mt-6 border-gold/20 bg-gold/[0.05] p-5">
         <div className="text-[0.62rem] uppercase tracking-[0.16em] text-gold/80">The backdrop · AI bubble watch</div>
         <p className="mt-2 text-sm leading-relaxed text-slate-200">
-          Heading into 2026, an AI-driven valuation crash is the single most-cited market risk —
-          roughly half to a majority of surveyed fund managers now call AI the market&apos;s biggest tail
+          Heading into 2026, an AI-driven valuation crash is the single most-cited market risk roughly half to a majority of surveyed fund managers now call AI the market&apos;s biggest tail
           risk, with the mega-cap leaders seen as the most exposed. At the same time, value and
           small-cap names sit well below fair value. The plans below lean into that split: stay
           exposed to the real AI build-out, but with ballast underneath if the froth comes off.
-          It&apos;s a debate, not a forecast — timing a bubble is notoriously hard.
+          It&apos;s a debate, not a forecast; timing a bubble is notoriously hard.
         </p>
       </GlassCard>
 
@@ -462,7 +461,7 @@ export default function RareFinds() {
       {activePlan ? <PlanModal plan={activePlan} onClose={() => setOpenPlan(null)} /> : null}
 
       <p className="mt-8 text-xs leading-relaxed text-slate-500">
-        Educational research only — not investment advice, and not personalized to your situation.
+        Educational research only, not investment advice, and not personalized to your situation.
         The scenario ranges are illustrative study cases, not price targets or forecasts. Every name
         here carries real risk, valuations and fair-value estimates move daily, and the AI-bubble
         scenario is one view among many. Do your own work before acting on anything.

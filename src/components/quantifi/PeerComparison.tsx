@@ -41,7 +41,7 @@ function fmtMoney(n: number, cur = "USD") {
 }
 
 function cmpCap(n?: number): string {
-  if (!n || !isFinite(n)) return "—";
+  if (!n || !isFinite(n)) return "n/a";
   if (n >= 1e12) return `$${(n / 1e12).toFixed(2)}T`;
   if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;
   if (n >= 1e6) return `$${(n / 1e6).toFixed(0)}M`;
@@ -142,7 +142,7 @@ export default function PeerComparison({ symbol, name }: { symbol: string; name?
   }[] = [
     { key: "ret", label: `Total Return · ${range.toUpperCase()}`, get: (r) => r.totalReturn, fmt: (v) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`, better: "high", hint: "Price change over the window" },
     { key: "rev", label: "Revenue Growth · 1Y", get: (r) => (r.revGrowth != null ? r.revGrowth * 100 : undefined), fmt: (v) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`, better: "high", hint: "Top-line growth, last twelve months" },
-    { key: "pe", label: "P/E · trailing", get: (r) => r.pe, fmt: (v) => `${v.toFixed(1)}x`, better: "low", hint: "Lower is cheaper — for profitable names" },
+    { key: "pe", label: "P/E · trailing", get: (r) => r.pe, fmt: (v) => `${v.toFixed(1)}x`, better: "low", hint: "Lower is cheaper; for profitable names" },
     { key: "score", label: "Quantifi Score", get: (r) => r.score, fmt: (v) => `${v.toFixed(0)} / 30`, max: 30, better: "high", hint: "Value, growth, past, health, dividends" },
   ];
 
@@ -182,7 +182,7 @@ export default function PeerComparison({ symbol, name }: { symbol: string; name?
       <SectionHeading
         eyebrow="Head to head"
         title={`${name ?? symbol} vs peers`}
-        subtitle="An automatic side-by-side of this company and its competitors — an overall snapshot of the key metrics, and a price chart rebased to % return so different-priced names compare on one scale. Live data, research only."
+        subtitle="An automatic side-by-side of this company and its competitors, an overall snapshot of the key metrics, and a price chart rebased to % return so different-priced names compare on one scale. Live data, research only."
       />
 
       <GlassCard className="mt-6 p-5 sm:p-6">
@@ -296,7 +296,7 @@ export default function PeerComparison({ symbol, name }: { symbol: string; name?
                                   />
                                 </div>
                                 <span className={`w-16 flex-none text-right font-mono text-[0.7rem] ${isLeader ? "font-semibold text-white" : "text-slate-400"}`}>
-                                  {typeof v === "number" ? m.fmt(v) : "—"}
+                                  {typeof v === "number" ? m.fmt(v) : "n/a"}
                                 </span>
                                 <span className="w-4 flex-none text-center text-[0.6rem] text-up" title={isLeader ? "Best of this group" : undefined}>
                                   {isLeader ? "▲" : ""}
@@ -323,11 +323,11 @@ export default function PeerComparison({ symbol, name }: { symbol: string; name?
                     <tbody>
                       <tr className="border-b border-white/[0.06]">
                         <td className="py-2 pr-4 text-slate-400">Name</td>
-                        {rows.map((r) => <td key={r.symbol} className="py-2 pr-4 text-slate-200">{r.name ?? "—"}</td>)}
+                        {rows.map((r) => <td key={r.symbol} className="py-2 pr-4 text-slate-200">{r.name ?? "n/a"}</td>)}
                       </tr>
                       <tr className="border-b border-white/[0.06]">
                         <td className="py-2 pr-4 text-slate-400">Price</td>
-                        {rows.map((r) => <td key={r.symbol} className="py-2 pr-4 font-mono text-slate-200">{typeof r.price === "number" ? fmtMoney(r.price, r.currency) : "—"}</td>)}
+                        {rows.map((r) => <td key={r.symbol} className="py-2 pr-4 font-mono text-slate-200">{typeof r.price === "number" ? fmtMoney(r.price, r.currency) : "n/a"}</td>)}
                       </tr>
                       <tr className="border-b border-white/[0.06]">
                         <td className="py-2 pr-4 text-slate-400">Market cap</td>
@@ -348,7 +348,7 @@ export default function PeerComparison({ symbol, name }: { symbol: string; name?
                                   key={r.symbol}
                                   className={`py-2 pr-4 font-mono ${isLeader ? "font-semibold text-up" : "text-slate-200"}`}
                                 >
-                                  {typeof v === "number" ? m.fmt(v) : "—"}
+                                  {typeof v === "number" ? m.fmt(v) : "n/a"}
                                   {isLeader ? <span className="ml-1 text-[0.6rem]">▲</span> : null}
                                 </td>
                               );
@@ -370,7 +370,7 @@ export default function PeerComparison({ symbol, name }: { symbol: string; name?
                     </tbody>
                   </table>
                   {rows.some((r) => !r.scoreAvailable) ? (
-                    <p className="mt-3 text-xs text-slate-500">A &quot;—&quot; score usually means an ETF or index, which has no company fundamentals to score.</p>
+                    <p className="mt-3 text-xs text-slate-500">A &quot;&quot; score usually means an ETF or index, which has no company fundamentals to score.</p>
                   ) : null}
                 </div>
               </div>
@@ -496,7 +496,7 @@ function HistoricalChart({ rows, range }: { rows: CmpRow[]; range: string }) {
 
       <p className="mt-3 text-xs text-slate-500">
         Each line is rebased to its % change from the start of the window, so names at very
-        different prices compare on one scale. Live prices, best-effort — research only, not advice.
+        different prices compare on one scale. Live prices, best-effort; research only, not advice.
       </p>
     </>
   );

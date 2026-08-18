@@ -82,7 +82,7 @@ export async function GET(
         reason: fund ? "no_fundamentals_fund" : "no_fundamentals",
         message: fund
           ? `${symbol} is a fund/ETF, so it has no company income statement or cash flow to score. Open it for its holdings and exposure instead.`
-          : `Live fundamentals aren't available for ${symbol}. This is normal for ETFs and funds, crypto, currencies and very recent listings — there's no company income statement or cash flow to build a score from.`,
+          : `Live fundamentals aren't available for ${symbol}. This is normal for ETFs and funds, crypto, currencies and very recent listings, which have no company income statement or cash flow to build a score from.`,
       },
       300,
       900
@@ -95,7 +95,7 @@ export async function GET(
       {
         available: false,
         reason: "source_unavailable",
-        message: `Couldn't reach live fundamentals for ${symbol} right now — the market-data source may be rate-limiting. Please try again shortly.`,
+        message: `Couldn't reach live fundamentals for ${symbol} right now. The market-data source may be rate-limiting. Please try again shortly.`,
       },
       60,
       120

@@ -23,12 +23,12 @@ export default function PrivacyPage() {
         <li>
           <strong className="text-slate-200">Your portfolio:</strong> any holdings you add (ticker,
           quantity, average price) are stored in your browser and in our database keyed to your account,
-          so your portfolio is there when you return. You enter these yourself — we never connect to or
+          so your portfolio is there when you return. You enter these yourself. We never connect to or
           import from your broker.
         </li>
         <li>
           <strong className="text-slate-200">Payment:</strong> Quantifi Pro is billed by Razorpay. Card,
-          UPI, bank and mandate details are entered on Razorpay&apos;s secure checkout — <strong className="text-slate-200">Quantifi never sees or stores them.</strong> We only receive a payment/subscription
+          UPI, bank and mandate details are entered on Razorpay&apos;s secure checkout; <strong className="text-slate-200">Quantifi never sees or stores them.</strong> We only receive a payment/subscription
           reference so we can grant your access.
         </li>
         <li>

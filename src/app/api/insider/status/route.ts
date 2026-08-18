@@ -94,7 +94,7 @@ export async function GET(req: Request) {
     );
   } else if (!meta) {
     verdict.push(
-      "Redis is configured but the ingest cron has never completed a run — no stored disclosures exist yet. Trigger /api/cron/insider-in once."
+      "Redis is configured but the ingest cron has never completed a run, no stored disclosures exist yet. Trigger /api/cron/insider-in once."
     );
   }
   if (!config.vendorApi && !config.scraperApiKey) {
@@ -123,7 +123,7 @@ export async function GET(req: Request) {
     verdict.push(
       `A Taiwan dataset's columns are not the ones the parser knows (${schemaMiss
         .map((p) => p.dataset)
-        .join(", ")}). Its real column names are in taiwanProbe[].seenColumns — add them to COLUMNS in src/lib/taiwan/insiderParse.ts.`
+        .join(", ")}). Its real column names are in taiwanProbe[].seenColumns. Add them to COLUMNS in src/lib/taiwan/insiderParse.ts.`
     );
   }
   if (!config.edgarUserAgent) {

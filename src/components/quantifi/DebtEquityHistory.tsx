@@ -8,7 +8,7 @@ import { currencySymbol } from "@/data/demo";
 type Tone = "good" | "warn" | "bad";
 
 function compactCur(n: number | undefined, sym: string): string {
-  if (n == null || !isFinite(n)) return "—";
+  if (n == null || !isFinite(n)) return "n/a";
   const a = Math.abs(n);
   const s = n < 0 ? "-" : "";
   if (a >= 1e12) return `${s}${sym}${(a / 1e12).toFixed(2)}T`;
@@ -37,7 +37,7 @@ function Seesaw({
   const angle = Math.max(-16, Math.min(16, ((equity - debt) / total) * 22));
   const ratio = equity > 0 ? debt / equity : undefined;
   const verdict =
-    ratio == null ? "—" : ratio <= 0.5 ? "Healthy" : ratio <= 1 ? "Manageable" : "Stretched";
+    ratio == null ? "n/a" : ratio <= 0.5 ? "Healthy" : ratio <= 1 ? "Manageable" : "Stretched";
   const tone = ratio == null ? "text-slate-400" : ratio <= 0.5 ? "text-up" : ratio <= 1 ? "text-gold" : "text-down";
 
   return (
@@ -275,7 +275,7 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
   if (last.equity != null && last.equity < 0) {
     insights.push({
       title: "Negative shareholder equity",
-      detail: `${label}'s reported equity is ${compactCur(last.equity, sym)} — its liabilities exceed its assets, so a debt-to-equity ratio isn't meaningful here.`,
+      detail: `${label}'s reported equity is ${compactCur(last.equity, sym)}. Its liabilities exceed its assets, so a debt-to-equity ratio isn't meaningful here.`,
       tone: "bad",
     });
   }
@@ -351,7 +351,7 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
       <SectionHeading
         eyebrow="Financial health"
         title="Debt to equity history and analysis"
-        subtitle="How the company's borrowings compare with shareholder equity over time — and whether that debt is comfortably covered."
+        subtitle="How the company's borrowings compare with shareholder equity over time, and whether that debt is comfortably covered."
       />
 
       <GlassCard className="mt-6 p-5 sm:p-6">
@@ -455,7 +455,7 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
         ) : null}
 
         <p className="mt-4 text-xs leading-relaxed text-slate-500">
-          Debt is interest-bearing borrowings; equity is total shareholder equity — both from the last few reported
+          Debt is interest-bearing borrowings; equity is total shareholder equity, both from the last few reported
           annual balance sheets. Research context, not advice.
         </p>
       </GlassCard>

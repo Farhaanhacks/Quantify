@@ -26,8 +26,25 @@ interface DayPoint {
   pro: number;
 }
 
+interface FunnelStep {
+  kind: string;
+  label: string;
+  users: number;
+  ofStart: number;
+  ofPrevious: number;
+}
+
+interface CohortRow {
+  week: string;
+  size: number;
+  retention: number[];
+}
+
 interface Usage {
   configured: boolean;
+  funnel30: FunnelStep[];
+  funnel7: FunnelStep[];
+  cohorts: CohortRow[];
   days: DayPoint[];
   totals: {
     visitors7: number;
@@ -89,6 +106,7 @@ export default function AdminOps() {
   const [ops, setOps] = useState<Ops | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState<string | null>(null);
+  const [funnelWindow, setFunnelWindow] = useState<"30" | "7">("30");
   const [result, setResult] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -147,8 +165,7 @@ export default function AdminOps() {
           <GlassCard className="p-5 sm:p-6">
             <h2 className="font-display text-lg font-semibold text-white">The funnel</h2>
             <p className="mt-1 text-xs text-slate-500">
-              Last 30 days. Visitors are DISTINCT people, counted once however many days they came —
-              not the sum of the daily figures.
+              Last 30 days. Visitors are DISTINCT people, counted once however many days they came not the sum of the daily figures.
             </p>
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
               {[
@@ -171,8 +188,128 @@ export default function AdminOps() {
                       ? ((u.totals.pro30 / u.totals.known30) * 100).toFixed(1)
                       : "0.0"
                   }% of those went Pro this month.`
-                : "No visits recorded yet — the counters start from the first page view after this deploys."}
+                : "No visits recorded yet; the counters start from the first page view after this deploys."}
             </p>
+          </GlassCard>
+
+          <GlassCard className="p-5 sm:p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="font-display text-lg font-semibold text-white">Workflow</h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  Where people stop. Each bar is distinct visitors who reached that step, so a drop
+                  is people rather than page views.
+                </p>
+              </div>
+              <div className="flex gap-1 rounded-lg border border-white/10 bg-white/[0.03] p-1">
+                {([
+                  ["30", "30 days"],
+                  ["7", "7 days"],
+                ] as const).map(([k, label]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => setFunnelWindow(k)}
+                    className={`rounded-md px-2.5 py-1 text-xs transition ${
+                      funnelWindow === k
+                        ? "bg-white/10 font-semibold text-white"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <ul className="mt-4 space-y-2">
+              {(funnelWindow === "30" ? u.funnel30 : u.funnel7).map((step, i, all) => (
+                <li key={step.kind} className="flex items-center gap-3">
+                  <span className="w-40 flex-none text-xs text-slate-300">{step.label}</span>
+                  <span className="relative h-6 flex-1 overflow-hidden rounded bg-white/[0.04]">
+                    <span
+                      className="absolute inset-y-0 left-0 rounded bg-gold/40"
+                      style={{ width: `${Math.max(step.ofStart * 100, step.users > 0 ? 1.5 : 0)}%` }}
+                    />
+                  </span>
+                  <span className="w-16 flex-none text-right font-mono text-xs tnum text-white">
+                    {step.users.toLocaleString()}
+                  </span>
+                  <span className="w-28 flex-none text-right font-mono text-[0.68rem] tnum text-slate-500">
+                    {i === 0
+                      ? "start"
+                      : `${(step.ofStart * 100).toFixed(1)}% of start`}
+                  </span>
+                  <span
+                    className={`w-24 flex-none text-right font-mono text-[0.68rem] tnum ${
+                      i > 0 && step.ofPrevious < 0.1 ? "text-down" : "text-slate-500"
+                    }`}
+                    title="Share of the previous step, which is where the drop-off actually is"
+                  >
+                    {i === 0 ? "" : `${(step.ofPrevious * 100).toFixed(1)}% of prev`}
+                  </span>
+                  {void all}
+                </li>
+              ))}
+            </ul>
+          </GlassCard>
+
+          <GlassCard className="p-5 sm:p-6">
+            <h2 className="font-display text-lg font-semibold text-white">Retention</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Weekly cohorts. Each row is everyone first seen that week, and each cell is how many of
+              them came back in a later week. Weeks rather than days, because a daily cohort of a
+              small site is a handful of people and a 20% return rate that is one person is noise.
+            </p>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full min-w-[520px] text-xs">
+                <thead>
+                  <tr className="text-left text-[0.62rem] uppercase tracking-[0.14em] text-slate-500">
+                    <th className="py-2 font-normal">Cohort</th>
+                    <th className="py-2 text-right font-normal">People</th>
+                    {[0, 1, 2, 3, 4, 5].map((k) => (
+                      <th key={k} className="py-2 text-right font-normal">
+                        W+{k}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {u.cohorts.map((c) => (
+                    <tr key={c.week} className="border-t border-white/[0.05]">
+                      <td className="py-2 font-mono text-slate-300">{c.week}</td>
+                      <td className="py-2 text-right font-mono tnum text-slate-300">{c.size}</td>
+                      {[0, 1, 2, 3, 4, 5].map((k) => {
+                        const v = c.retention[k];
+                        return (
+                          <td key={k} className="py-2 text-right font-mono tnum">
+                            {v == null ? (
+                              <span className="text-slate-700">n/a</span>
+                            ) : (
+                              <span
+                                className="rounded px-1.5 py-0.5"
+                                style={{
+                                  backgroundColor: `rgba(231, 185, 79, ${Math.min(0.5, v * 0.5)})`,
+                                  color: v > 0.4 ? "#fff" : "#cbd5e1",
+                                }}
+                              >
+                                {(v * 100).toFixed(0)}%
+                              </span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                  {!u.cohorts.length ? (
+                    <tr>
+                      <td colSpan={8} className="py-4 text-center text-slate-500">
+                        No cohorts yet. The first one starts this week.
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
           </GlassCard>
 
           <GlassCard className="p-5 sm:p-6">
@@ -259,14 +396,14 @@ export default function AdminOps() {
       ) : (
         <GlassCard className="p-5 text-sm text-slate-400">
           Usage analytics need Redis (KV_REST_API_URL / KV_REST_API_TOKEN). Without it nothing is
-          recorded — and nothing is lost either, since no events are buffered anywhere else.
+          recorded; and nothing is lost either, since no events are buffered anywhere else.
         </GlassCard>
       )}
 
       <GlassCard className="p-5 sm:p-6">
         <h2 className="font-display text-lg font-semibold text-white">Configuration</h2>
         <p className="mt-1 text-xs text-slate-500">
-          Whether each integration has credentials — never what they are.
+          Whether each integration has credentials; never what they are.
         </p>
         <div className="mt-3 grid gap-x-8 sm:grid-cols-2 lg:grid-cols-3">
           {Object.entries(ops.env).map(([k, v]) => (
@@ -382,7 +519,7 @@ export default function AdminOps() {
           </div>
           <div>
             <dt className="text-[0.68rem] uppercase tracking-[0.14em] text-slate-500">Source</dt>
-            <dd className="font-mono text-sm text-slate-200">{inMeta?.source ?? "—"}</dd>
+            <dd className="font-mono text-sm text-slate-200">{inMeta?.source ?? "n/a"}</dd>
           </div>
         </dl>
       </GlassCard>
@@ -393,7 +530,7 @@ export default function AdminOps() {
           <span className="font-mono tnum">{ops.search.indiaCompanies.toLocaleString()}</span>{" "}
           Indian listings held locally.{" "}
           {ops.search.indiaCompanies === 0 ? (
-            <span className="text-down">Empty — NSE&apos;s list could not be fetched.</span>
+            <span className="text-down">Empty. NSE&apos;s list could not be fetched.</span>
           ) : null}
         </p>
       </GlassCard>

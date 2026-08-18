@@ -90,7 +90,7 @@ function Xirr() {
   return (
     <div>
       <p className="text-sm text-slate-400">
-        XIRR — the annualised return of your actual cash flows, whenever they happened. Enter each
+        XIRR; the annualised return of your actual cash flows, whenever they happened. Enter each
         contribution as a <span className="text-down">negative</span> amount and each withdrawal /
         current value as a <span className="text-up">positive</span> amount, with its date.
       </p>
@@ -198,7 +198,7 @@ function Dividend() {
 
   return (
     <div>
-      <p className="text-sm text-slate-400">Estimate dividend income over time, with optional annual dividend growth and reinvestment. An estimate — it assumes a steady yield and flat share price.</p>
+      <p className="text-sm text-slate-400">Estimate dividend income over time, with optional annual dividend growth and reinvestment. An estimate. It assumes a steady yield and flat share price.</p>
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {field("Investment", amount, setAmount)}
         {field("Dividend yield %", yieldPct, setYieldPct)}
@@ -280,7 +280,7 @@ export default function ToolsSuite() {
         <Tag tone="teal">More</Tag>
         <Link href="/screener" className="text-sm text-slate-300 underline-offset-2 hover:text-white hover:underline">Stock Screener</Link>
         <span className="text-sm text-slate-600">·</span>
-        <span className="text-sm text-slate-500">IPO calendar &amp; screener — coming next</span>
+        <span className="text-sm text-slate-500">IPO calendar &amp; screener; coming next</span>
       </div>
     </section>
   );

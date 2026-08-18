@@ -239,7 +239,7 @@ function SectorBars({
           <li key={r.sector} className="flex items-center gap-3 py-1">
             <span
               className="w-44 flex-none truncate text-xs text-slate-300"
-              title={`${r.sector} — ${r.companies} companies`}
+              title={`${r.sector}, ${r.companies} companies`}
             >
               {r.sector}
             </span>
@@ -392,7 +392,7 @@ export default function Markets() {
   const coverageNote =
     returnWindow !== "day" && windowRows && windowRows.requested > 0 &&
     windowRows.companies < windowRows.requested * 0.9
-      ? `Built from ${windowRows.companies} of the ${windowRows.requested} companies we track in this market — the rest had no usable price history for this window.`
+      ? `Built from ${windowRows.companies} of the ${windowRows.requested} companies we track in this market, the rest had no usable price history for this window.`
       : null;
   const windowPending = returnWindow !== "day" && (fetched === undefined || windowState === "loading");
 
@@ -409,7 +409,7 @@ export default function Markets() {
   const indian = isIndianCurrency(data?.currency);
   const updated = data?.asOf
     ? new Date(data.asOf).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
-    : "—";
+    : "n/a";
 
   // The one-line read at the top, built from the windows that actually resolved.
   const week = returns["7D"];
@@ -453,7 +453,7 @@ export default function Markets() {
                   Data <span className="text-slate-300">Aggregated company quotes</span>
                 </span>
                 <span>
-                  Companies <span className="font-mono tnum text-slate-300">{data?.companies ?? "—"}</span>
+                  Companies <span className="font-mono tnum text-slate-300">{data?.companies ?? "n/a"}</span>
                 </span>
               </div>
             </div>
@@ -482,7 +482,7 @@ export default function Markets() {
                 <div key={k}>
                   <div className="text-[0.68rem] uppercase tracking-[0.14em] text-slate-500">{k}</div>
                   <div className={`font-mono text-lg tnum ${v == null ? "text-slate-600" : tone(v)}`}>
-                    {v == null ? "—" : pct(v)}
+                    {v == null ? "n/a" : pct(v)}
                   </div>
                 </div>
               );
@@ -507,7 +507,7 @@ export default function Markets() {
           {loading ? <p className="mt-4 text-sm text-slate-500">Aggregating live quotes…</p> : null}
           {!loading && !data ? (
             <p className="mt-4 text-sm text-slate-400">
-              Live market data isn&apos;t available right now — the quote source may be rate-limiting.
+              Live market data isn&apos;t available right now; the quote source may be rate-limiting.
               Nothing is shown rather than a stale picture of the market.
             </p>
           ) : null}
@@ -545,13 +545,13 @@ export default function Markets() {
               Aggregate price to earnings
             </div>
             <div className="font-mono text-3xl tnum text-white">
-              {data?.pe != null ? `${data.pe.toFixed(1)}x` : "—"}
+              {data?.pe != null ? `${data.pe.toFixed(1)}x` : "n/a"}
             </div>
           </div>
           <div>
             <div className="text-[0.68rem] uppercase tracking-[0.14em] text-slate-500">Total market value</div>
             <div className="font-mono text-xl tnum text-slate-300">
-              {data ? fmtCompactCur(data.totalMarketCap, indian, "—") : "—"}
+              {data ? fmtCompactCur(data.totalMarketCap, indian, "n/a") : "n/a"}
             </div>
           </div>
         </div>
@@ -570,7 +570,7 @@ export default function Markets() {
           {data?.pe != null ? (
             <li>
               • The {data.demonym} market trades on an aggregate{" "}
-              <span className="font-mono tnum text-white">{data.pe.toFixed(1)}x</span> earnings — total market
+              <span className="font-mono tnum text-white">{data.pe.toFixed(1)}x</span> earnings; total market
               value over total earnings across {data.companies} companies, not an average of their individual
               ratios.
             </li>
@@ -690,7 +690,7 @@ export default function Markets() {
               at <span className="font-mono tnum">{cheapest[cheapest.length - 1].pe!.toFixed(1)}x</span>.
             </li>
             <li className="text-slate-500">
-              • A sector P/E is total value over total earnings for its companies here — loss-makers are left
+              • A sector P/E is total value over total earnings for its companies here, loss-makers are left
               out rather than counted as zero earnings, which would make the ratio infinite.
             </li>
           </ul>
@@ -744,14 +744,14 @@ export default function Markets() {
                     </Link>
                   </td>
                   <td className="py-2.5 text-right font-mono tnum text-slate-300">
-                    {m.price ? m.price.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "—"}
+                    {m.price ? m.price.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "n/a"}
                   </td>
                   <td className={`py-2.5 text-right font-mono tnum ${tone(m.day)}`}>{pct(m.day)}</td>
                   <td className={`py-2.5 text-right font-mono tnum ${m.year == null ? "text-slate-600" : tone(m.year)}`}>
-                    {m.year == null ? "—" : pct(m.year)}
+                    {m.year == null ? "n/a" : pct(m.year)}
                   </td>
                   <td className="py-2.5 text-right font-mono tnum text-slate-400">
-                    {m.pe != null && m.pe > 0 ? `${m.pe.toFixed(1)}x` : "—"}
+                    {m.pe != null && m.pe > 0 ? `${m.pe.toFixed(1)}x` : "n/a"}
                   </td>
                   <td className="py-2.5 text-right text-xs text-slate-400">{m.sector}</td>
                 </tr>
@@ -769,8 +769,7 @@ export default function Markets() {
       </GlassCard>
 
       <p className="mt-4 text-[0.7rem] leading-relaxed text-slate-500">
-        Aggregated from live quotes for the {data?.companies ?? 0} largest listings we track in this market —
-        not every listed company. Research only, not advice.
+        Aggregated from live quotes for the {data?.companies ?? 0} largest listings we track in this market not every listed company. Research only, not advice.
       </p>
     </section>
   );

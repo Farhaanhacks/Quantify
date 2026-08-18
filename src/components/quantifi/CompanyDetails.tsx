@@ -43,7 +43,7 @@ function StatementTable({ rows, labels, indian }: { rows?: FinRow[]; labels: { k
           <tr className="border-b border-white/10 text-left text-slate-400">
             <th className="py-2 pr-4 font-medium">Item</th>
             {rows.map((r, i) => (
-              <th key={i} className="py-2 pr-4 font-mono text-xs text-slate-300">{r.date ?? "—"}</th>
+              <th key={i} className="py-2 pr-4 font-mono text-xs text-slate-300">{r.date ?? "n/a"}</th>
             ))}
           </tr>
         </thead>
@@ -92,7 +92,7 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
       <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
         <GlassCard className="p-6">
           <p className="text-sm text-slate-400">
-            Detailed company data isn&apos;t available for {symbol} right now — it may be an ETF/index, or Yahoo may be rate-limiting. The chart and score above still work.
+            Detailed company data isn&apos;t available for {symbol} right now. It may be an ETF/index, or Yahoo may be rate-limiting. The chart and score above still work.
           </p>
         </GlassCard>
       </section>
@@ -184,11 +184,11 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
                   <span className="text-xs text-slate-400">{o.title}</span>
                   <span className="text-xs text-slate-400 sm:text-right">
                     <span className="text-slate-600 sm:hidden">Age · </span>
-                    {o.age != null ? o.age : "—"}
+                    {o.age != null ? o.age : "n/a"}
                   </span>
                   <span className="font-mono text-xs tnum text-slate-300 sm:text-right">
                     <span className="font-sans text-slate-600 sm:hidden">Pay · </span>
-                    {o.totalPay != null ? compact(o.totalPay) : "—"}
+                    {o.totalPay != null ? compact(o.totalPay) : "n/a"}
                     {o.totalPay != null && o.fiscalYear ? (
                       <span className="ml-1 font-sans text-[0.65rem] text-slate-600">FY{o.fiscalYear}</span>
                     ) : null}
@@ -212,7 +212,7 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
         <SectionHeading
           eyebrow="Financials"
           title="Financial statements"
-          subtitle="Income statement, balance sheet and cash flow — the last few reported annual periods."
+          subtitle="Income statement, balance sheet and cash flow, the last few reported annual periods."
         />
         <GlassCard className="mt-6 p-6 sm:p-8">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
@@ -257,7 +257,7 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
             <p className="text-xs leading-relaxed text-slate-500">
               Source: Yahoo Finance · most recent reported annual periods, in {stmtCur === "INR" ? "Indian rupees (lakh / crore)" : stmtCur}.
               Figures may be reported on a standalone or consolidated basis and can differ slightly from a
-              company&apos;s official filings or be revised later — always verify against the latest annual
+              company&apos;s official filings or be revised later; always verify against the latest annual
               report or exchange (e.g. NSE/BSE, SEC) filing before relying on them.
             </p>
           </div>
@@ -269,7 +269,7 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
         <SectionHeading
           eyebrow="Statistics"
           title="Key statistics"
-          subtitle="Valuation, financial position, efficiency and returns — the full ratio picture."
+          subtitle="Valuation, financial position, efficiency and returns; the full ratio picture."
         />
         <GlassCard className="mt-6 p-6 sm:p-8">
           <div className="grid grid-cols-1 gap-x-10 gap-y-6 md:grid-cols-2">

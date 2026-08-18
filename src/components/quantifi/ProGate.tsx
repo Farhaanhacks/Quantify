@@ -39,7 +39,7 @@ export default async function ProGate({
         {FREE_LAUNCH_OFFER ? (
           <>
             <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-400">
-              Unlock {feature} along with the rest of the Pro research suite —{" "}
+              Unlock {feature} along with the rest of the Pro research suite{" "}
               <span className="font-semibold text-gold">free</span> for your first{" "}
               {FREE_LAUNCH_DAYS} days, no card needed.
             </p>
@@ -64,7 +64,7 @@ export default async function ProGate({
         {signedIn ? (
           <p className="mx-auto mt-3 max-w-md text-xs leading-relaxed text-slate-500">
             Signed in as <span className="text-slate-300">{user!.email}</span>. If you
-            just upgraded (or were granted Pro), refresh this page — it can take a
+            just upgraded (or were granted Pro), refresh this page. It can take a
             moment. Still locked? Make sure this is the exact email on your Pro plan.
           </p>
         ) : null}

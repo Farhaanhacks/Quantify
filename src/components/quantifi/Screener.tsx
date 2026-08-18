@@ -416,7 +416,7 @@ export default function Screener({ heading = true }: { heading?: boolean }) {
                 </div>
                 <div className="text-xs text-slate-400">{r.sector}</div>
                 <div className="text-right font-mono text-sm tnum text-white">
-                  {r.price !== null ? fmtPrice(r.price) : "—"}
+                  {r.price !== null ? fmtPrice(r.price) : "n/a"}
                 </div>
                 <div className="text-right font-mono text-sm tnum text-gradient-gold">{r.total}/30</div>
                 <div className="flex items-end justify-center gap-[3px]" title="Value · Future · Past · Health · Dividends">
@@ -441,7 +441,7 @@ export default function Screener({ heading = true }: { heading?: boolean }) {
                       {under ? "Below" : "Above"} · {Math.abs(r.gap).toFixed(0)}%
                     </Tag>
                   ) : (
-                    <span className="text-xs text-slate-600">—</span>
+                    <span className="text-xs text-slate-600"></span>
                   )}
                 </div>
 

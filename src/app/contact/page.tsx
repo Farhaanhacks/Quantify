@@ -2,7 +2,7 @@ import LegalShell, { H2 } from "@/components/quantifi/LegalShell";
 
 export const metadata = {
   title: "Contact · Quantifi",
-  description: "Get in touch with Quantifi — support, billing, privacy and data-deletion requests.",
+  description: "Get in touch with Quantifi; support, billing, privacy and data-deletion requests.",
 };
 
 export default function ContactPage() {
@@ -31,7 +31,7 @@ export default function ContactPage() {
 
       <p className="text-slate-400">
         Quantifi never asks for your broker login, bank password, card PIN or OTP. All payments are
-        handled on Razorpay&apos;s secure checkout — we will never ask you to send card or UPI details by
+        handled on Razorpay&apos;s secure checkout. We will never ask you to send card or UPI details by
         email or message.
       </p>
     </LegalShell>

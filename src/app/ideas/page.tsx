@@ -11,7 +11,7 @@ import { buildMetadata } from "@/lib/seo";
 export const metadata = buildMetadata({
   title: "Research Ideas & Market Themes",
   description:
-    "Global market-theme research from Quantifi — the investment question, value chain, key stocks, bull/base/bear case, thesis tests and sources. Research only, not investment advice.",
+    "Global market-theme research from Quantifi, the investment question, value chain, key stocks, bull/base/bear case, thesis tests and sources. Research only, not investment advice.",
   path: "/ideas",
 });
 

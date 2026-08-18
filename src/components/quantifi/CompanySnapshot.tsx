@@ -42,7 +42,7 @@ function CheckDots({ checks }: { checks: ScoreCheck[] }) {
       {checks.map((c, i) => (
         <span
           key={i}
-          title={`${c.pass ? "Pass" : "Fail"} — ${c.label}`}
+          title={`${c.pass ? "Pass" : "Fail"}, ${c.label}`}
           className={`flex h-[18px] w-[18px] flex-none items-center justify-center rounded-full border ${
             c.pass ? "border-up/50 bg-up/15 text-up" : "border-down/50 bg-down/15 text-down"
           }`}
@@ -132,13 +132,13 @@ export default function CompanySnapshot({
     xs.length <= 1 ? xs[0] ?? "" : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
   const snowflakeRead =
     strengths.length >= 4
-      ? `Reaches the edge on almost every axis — a broadly strong profile with no obvious weak side.`
+      ? `Reaches the edge on almost every axis; a broadly strong profile with no obvious weak side.`
       : strengths.length && softs.length
       ? `Strong on ${list(strengths)}; pinched on ${list(softs)}.`
       : strengths.length
       ? `Strong on ${list(strengths)}, and steady elsewhere.`
       : softs.length
-      ? `Pinched on ${list(softs)} — the shape is small on the axes that matter most there.`
+      ? `Pinched on ${list(softs)}; the shape is small on the axes that matter most there.`
       : `A middling shape: nothing at the edge, nothing at the centre.`;
 
   // One-line read that names the soft spot rather than declaring perfection.
@@ -150,7 +150,7 @@ export default function CompanySnapshot({
       : "with a fair, not cheap, valuation";
   const quantifiRead =
     weakest.score >= 5
-      ? `Screens strongly across the board — ${valuationHint}. The thesis test now is whether it can keep beating already-high expectations.`
+      ? `Screens strongly across the board; ${valuationHint}. The thesis test now is whether it can keep beating already-high expectations.`
       : `Strongest on ${strongest.axis.label.toLowerCase()}; the soft spot is ${weakest.axis.label.toLowerCase()} (${axisLabel(weakest.axis.key, weakest.score)}). Key thesis test: ${weakest.axis.question.toLowerCase()}`;
 
   // The independent valuation, whichever model the company qualifies for: a
@@ -213,7 +213,7 @@ export default function CompanySnapshot({
           fair={a.fairValue.estimate}
           cur={cur}
           fairLabel="Fair Value"
-          note="Analysts' average price target vs the current price — a research input, not advice."
+          note="Analysts' average price target vs the current price, a research input, not advice."
         />
       </div>
     </GlassCard>
@@ -258,8 +258,8 @@ export default function CompanySnapshot({
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-400">
           An intrinsic value isn&apos;t available for {a.ticker} yet. A lender is
           valued on <span className="text-slate-300">book value and return on
-          equity</span>, not on cash flow — its cash flow swings with lending and
-          deposits and measures nothing an owner could take out — and those
+          equity</span>, not on cash flow. Its cash flow swings with lending and
+          deposits and measures nothing an owner could take out, and those
           figures aren&apos;t complete enough here to model. We show nothing
           rather than run a cash-flow model that doesn&apos;t apply.
         </p>
@@ -268,8 +268,7 @@ export default function CompanySnapshot({
           A cash-flow value isn&apos;t available for {a.ticker} yet. This company
           doesn&apos;t currently generate positive{" "}
           <span className="text-slate-300">operating cash flow</span>, so a
-          cash-flow valuation would be negative or meaningless rather than useful —
-          common for early-stage or heavy-investment names still scaling toward
+          cash-flow valuation would be negative or meaningless rather than useful common for early-stage or heavy-investment names still scaling toward
           cash generation.
         </p>
       )}
@@ -283,7 +282,7 @@ export default function CompanySnapshot({
         ) : (
           <>analyst mean target</>
         )}{" "}
-        {sv ? "carry" : "carries"} the valuation view instead — shown{" "}
+        {sv ? "carry" : "carries"} the valuation view instead; shown{" "}
         {featureCashflow ? "below" : "above"}. We show nothing here rather than
         publish a number we don&apos;t trust.
       </p>
@@ -311,7 +310,7 @@ export default function CompanySnapshot({
             fair={sv.estimate}
             cur={cur}
             fairLabel={sv.valueLabel}
-            note={`A ${sv.method} benchmark applied to this company's own figures — a sector heuristic, not a precise target.`}
+            note={`A ${sv.method} benchmark applied to this company's own figures; a sector heuristic, not a precise target.`}
           />
         </div>
       ) : null}
@@ -520,13 +519,13 @@ export default function CompanySnapshot({
               Analysts&apos; mean target is{" "}
               <span className="font-mono text-white">{cur}{fmtPrice(a.fairValue.estimate)}</span>,
               while the future-cash-flow value is{" "}
-              <span className="font-mono text-white">{cur}{fmtPrice(cf!.estimate)}</span> — a gap
+              <span className="font-mono text-white">{cur}{fmtPrice(cf!.estimate)}</span>, a gap
               of {Math.abs(((a.fairValue.estimate - cf!.estimate) / resolvedPrice) * 100).toFixed(0)}%
               of the share price.{" "}
               {cfRicher
-                ? "The market is pricing in growth beyond what today's cash flows justify — typical of a company reinvesting heavily, or one the market expects to earn well above its current run-rate."
+                ? "The market is pricing in growth beyond what today's cash flows justify; typical of a company reinvesting heavily, or one the market expects to earn well above its current run-rate."
                 : "Analysts are more cautious than today's cash generation implies."}{" "}
-              Weigh both — neither is advice.
+              Weigh both; neither is advice.
             </p>
           </div>
         </GlassCard>
@@ -553,7 +552,7 @@ export default function CompanySnapshot({
       <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
         <GlassCard className="p-5 sm:p-6">
           <h4 className="font-display text-base font-semibold text-up">Pros</h4>
-          <p className="mt-1 text-[0.7rem] text-slate-500">The case for — from the fundamentals.</p>
+          <p className="mt-1 text-[0.7rem] text-slate-500">The case for, from the fundamentals.</p>
           <ul className="mt-3 space-y-2">
             {a.rewards.map((r, i) => (
               <li
@@ -572,7 +571,7 @@ export default function CompanySnapshot({
         </GlassCard>
         <GlassCard className="p-5 sm:p-6">
           <h4 className="font-display text-base font-semibold text-down">Cons</h4>
-          <p className="mt-1 text-[0.7rem] text-slate-500">The case against — what to weigh first.</p>
+          <p className="mt-1 text-[0.7rem] text-slate-500">The case against; what to weigh first.</p>
           <ul className="mt-3 space-y-2">
             {a.riskFlags.map((r, i) => (
               <li

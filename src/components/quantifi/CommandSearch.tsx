@@ -322,6 +322,16 @@ export default function CommandSearch({ className = "" }: { className?: string }
 
   const chooseSymbol = useCallback(
     (m: Match) => {
+      // Searching is a funnel step, counted when a result is CHOSEN rather than
+      // on every keystroke: opening the panel and typing two letters is not the
+      // same act as finding a company. Only the fact is reported, never the
+      // query, which is the user's.
+      void fetch("/api/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: "search" }),
+        keepalive: true,
+      }).catch(() => {});
       pushRecent(m);
       close();
       router.push(`/stock-analysis?symbol=${encodeURIComponent(m.symbol)}`);
@@ -528,8 +538,8 @@ export default function CommandSearch({ className = "" }: { className?: string }
                 <>
                   {flat.length === 0 && !loading ? (
                     <p className="px-2 py-8 text-sm text-slate-500">
-                      Nothing matched &ldquo;{term}&rdquo;. Try the company&apos;s full name — &ldquo;Reliance&rdquo;,
-                      &ldquo;Trent&rdquo; — or a ticker.
+                      Nothing matched &ldquo;{term}&rdquo;. Try the company&apos;s full name; &ldquo;Reliance&rdquo;,
+                      &ldquo;Trent&rdquo; or a ticker.
                     </p>
                   ) : null}
                   {flat.length === 0 && loading ? (

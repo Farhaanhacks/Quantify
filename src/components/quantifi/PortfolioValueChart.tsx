@@ -260,7 +260,7 @@ export default function PortfolioValueChart() {
         {err ? <p className="mt-2 text-xs text-slate-500">{err}</p> : null}
         {mixedCurrency && !err ? (
           <p className="mt-2 text-[0.7rem] text-slate-500">
-            This portfolio mixes currencies — all values are converted to USD at current exchange rates (historical FX drift isn&apos;t modelled).
+            This portfolio mixes currencies, all values are converted to USD at current exchange rates (historical FX drift isn&apos;t modelled).
           </p>
         ) : null}
       </GlassCard>

@@ -122,7 +122,7 @@ export async function getPulse(): Promise<{
       return idx[i] as PulseEntry;
     }
     // No live value for this symbol — show a dash, never a stale/fabricated one.
-    return { label: s.label, value: "—", changePct: 0 };
+    return { label: s.label, value: "n/a", changePct: 0 };
   });
 
   const moverResults = await Promise.all(

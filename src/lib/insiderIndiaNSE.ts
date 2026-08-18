@@ -337,7 +337,7 @@ export async function getNSEInsiderWithDebug(
     else if (debug.httpStatus >= 400)
       debug.note = `NSE returned HTTP ${debug.httpStatus} on every attempt (cookie handshake still failing or IP not accepted). See snippet.`;
     else
-      debug.note = `NSE responded (HTTP ${debug.httpStatus}) but had no insider rows for ${symbol} across ${debug.attempts} sessions — likely a genuine empty window, or the symbol differs on NSE.`;
+      debug.note = `NSE responded (HTTP ${debug.httpStatus}) but had no insider rows for ${symbol} across ${debug.attempts} sessions, likely a genuine empty window, or the symbol differs on NSE.`;
     return { disclosures: [], debug };
   } catch (err) {
     debug.note = `error: ${err instanceof Error ? err.message : "unknown"}`;

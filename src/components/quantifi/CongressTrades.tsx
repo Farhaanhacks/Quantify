@@ -22,7 +22,7 @@ type Filter = "All" | "Buys" | "Sells" | "Senate" | "House";
 
 function fmtDate(d: string): string {
   const t = Date.parse(d);
-  if (isNaN(t)) return d || "—";
+  if (isNaN(t)) return d || "n/a";
   return new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
@@ -85,7 +85,7 @@ export default function CongressTrades({ limit, heading = true }: { limit?: numb
         <SectionHeading
           eyebrow="Congressional Trades"
           title="What U.S. politicians are trading"
-          subtitle="Stock transactions disclosed by members of the U.S. House and Senate under the STOCK Act. Disclosed weeks after the fact and shown for research context — never a signal on its own."
+          subtitle="Stock transactions disclosed by members of the U.S. House and Senate under the STOCK Act. Disclosed weeks after the fact and shown for research context; never a signal on its own."
         />
       ) : null}
 
@@ -116,7 +116,7 @@ export default function CongressTrades({ limit, heading = true }: { limit?: numb
             value={queryInput}
             onChange={(e) => setQueryInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && runSearch()}
-            placeholder="Search a ticker — e.g. MSFT, NVDA"
+            placeholder="Search a ticker; e.g. MSFT, NVDA"
             className="w-full max-w-[14rem] rounded-lg border border-white/10 bg-ink-800 px-3 py-2 text-sm text-white outline-none focus:border-gold/40"
           />
           <button
@@ -186,7 +186,7 @@ export default function CongressTrades({ limit, heading = true }: { limit?: numb
         {!loading && filtered.length === 0 ? (
           <div className="px-5 py-10 text-center text-sm text-slate-500">
             {error
-              ? "Couldn't reach the congressional-disclosure data right now — it's fetched live from public House/Senate filings and may be temporarily unavailable. Please try again shortly."
+              ? "Couldn't reach the congressional-disclosure data right now. It's fetched live from public House/Senate filings and may be temporarily unavailable. Please try again shortly."
               : searchTicker
               ? `No disclosed House/Senate trades found for ${searchTicker} in the available filings.`
               : filter !== "All"
@@ -202,8 +202,7 @@ export default function CongressTrades({ limit, heading = true }: { limit?: numb
 
       <p className="mt-3 text-xs leading-relaxed text-slate-600">
         Source: public U.S. House &amp; Senate financial-disclosure filings (STOCK Act). Amounts are
-        disclosed as ranges, and filings appear weeks after the trade. For research and education only —
-        not investment advice, and not a signal to follow any individual&apos;s trades.
+        disclosed as ranges, and filings appear weeks after the trade. For research and education only not investment advice, and not a signal to follow any individual&apos;s trades.
       </p>
     </section>
   );

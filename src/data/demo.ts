@@ -198,7 +198,7 @@ export const currencySymbol = (currency?: string, ticker?: string): string => {
 export const fmtCompactCur = (
   n: number | undefined | null,
   indian = false,
-  na = "—"
+  na = "n/a"
 ): string => {
   if (n == null || !isFinite(n)) return na;
   const a = Math.abs(n);

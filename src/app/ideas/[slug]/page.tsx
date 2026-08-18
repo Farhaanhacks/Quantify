@@ -59,7 +59,7 @@ function faqsFor(title: string, tickers: string[]): { q: string; a: string }[] {
   return [
     {
       q: `What is the ${title} theme?`,
-      a: `${title} is a research framework Quantifi uses to study a market theme — its core thesis, the companies exposed to it, the bull and bear case, and what would prove or break it. It is educational research, not a recommendation.`,
+      a: `${title} is a research framework Quantifi uses to study a market theme. Its core thesis, the companies exposed to it, the bull and bear case, and what would prove or break it. It is educational research, not a recommendation.`,
     },
     {
       q: `Which stocks are linked to ${title}?`,
@@ -69,11 +69,11 @@ function faqsFor(title: string, tickers: string[]): { q: string; a: string }[] {
     },
     {
       q: `What are the risks of the ${title} theme?`,
-      a: `Every theme carries risk — valuations move daily, the thesis can break, and a name being central to a theme does not make it a good investment. See the bear case and "what to watch" on this page.`,
+      a: `Every theme carries risk; valuations move daily, the thesis can break, and a name being central to a theme does not make it a good investment. See the bear case and "what to watch" on this page.`,
     },
     {
       q: `Is this investment advice?`,
-      a: `No. Quantifi is research and education only — not investment advice. Quantifi does not execute trades or provide guaranteed returns. Always do your own research and consult a licensed professional.`,
+      a: `No. Quantifi is research and education only; not investment advice. Quantifi does not execute trades or provide guaranteed returns. Always do your own research and consult a licensed professional.`,
     },
   ];
 }
@@ -129,7 +129,7 @@ export default function IdeaSlugPage({ params }: { params: { slug: string } }) {
       {tickers.length ? (
         <>
           <h2 className="mt-8 font-display text-xl font-semibold text-white">Key stocks &amp; ETFs</h2>
-          <p className="mt-1 text-xs text-slate-500">Thematic exposure studied within this theme — not a buy list.</p>
+          <p className="mt-1 text-xs text-slate-500">Thematic exposure studied within this theme, not a buy list.</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {tickers.map((t) => (
               <Link

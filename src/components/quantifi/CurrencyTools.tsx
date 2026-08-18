@@ -72,7 +72,7 @@ export default function CurrencyTools() {
       <SectionHeading
         eyebrow="Currencies"
         title="Multi-currency tools"
-        subtitle="Live FX rates from Yahoo. Convert between currencies and track several at once against a base — handy when your holdings span markets."
+        subtitle="Live FX rates from Yahoo. Convert between currencies and track several at once against a base; handy when your holdings span markets."
       />
 
       <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_1.1fr]">

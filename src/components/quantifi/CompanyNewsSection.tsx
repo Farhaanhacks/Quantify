@@ -68,7 +68,7 @@ export default function CompanyNewsSection({
     <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
       <h3 className="font-display text-lg font-semibold text-white">Recent News &amp; Updates</h3>
       <p className="mt-1 text-xs text-slate-500">
-        Latest coverage for {name ?? symbol} — tap a story to read it here.
+        Latest coverage for {name ?? symbol}, tap a story to read it here.
       </p>
 
       {items === null ? (
@@ -131,7 +131,7 @@ export default function CompanyNewsSection({
               </p>
             )}
             <p className="mt-3 text-xs text-slate-500">
-              Publisher&apos;s summary shown here — open the full article for the complete story.
+              Publisher&apos;s summary shown here, open the full article for the complete story.
             </p>
 
             <div className="mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-white/[0.06] pt-4">

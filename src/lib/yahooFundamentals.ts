@@ -70,7 +70,7 @@ function axis(checks: ScoreCheck[]): ScoreAxis {
 
 const c = (label: string, pass: boolean): ScoreCheck => ({ label, pass });
 const fpct = (x: number | undefined): string =>
-  x == null ? "—" : `${(x * 100).toFixed(0)}%`;
+  x == null ? "n/a" : `${(x * 100).toFixed(0)}%`;
 
 // The through-cycle cash-flow base, extracted so the live score and the
 // historical reconstruction cannot drift apart. Raw free cash flow is the wrong
@@ -250,11 +250,11 @@ function classifySector(
   const ind = (industry ?? "").toLowerCase();
   if (!s) return undefined;
   if (s.includes("financial"))
-    return { clusterLabel: "Banks & Financial Institutions", method: "P / B (price to book)", metricShort: "P/B", kind: "pb", benchmark: 1.2, why: "For lenders debt is raw material, not a capital-structure choice, so EV/EBITDA is mis-specified — book value and P/B are the cleaner lens." };
+    return { clusterLabel: "Banks & Financial Institutions", method: "P / B (price to book)", metricShort: "P/B", kind: "pb", benchmark: 1.2, why: "For lenders debt is raw material, not a capital-structure choice, so EV/EBITDA is mis-specified; book value and P/B are the cleaner lens." };
   if (s.includes("real estate"))
     return { clusterLabel: "Real Estate", method: "Net asset value (book proxy)", metricShort: "P/B", kind: "pb", benchmark: 1.0, navFloor: true, why: "A property company's value is tied to the appraised value of its land and buildings." };
   if (s.includes("basic materials") || s.includes("energy"))
-    return { clusterLabel: "Commodities & Resources", method: "Asset value (book proxy)", metricShort: "P/B", kind: "pb", benchmark: 1.2, navFloor: true, why: "Producers are valued off the worth of reserves and physical assets — an asset/NAV lens fits better than earnings multiples through the cycle." };
+    return { clusterLabel: "Commodities & Resources", method: "Asset value (book proxy)", metricShort: "P/B", kind: "pb", benchmark: 1.2, navFloor: true, why: "Producers are valued off the worth of reserves and physical assets; an asset/NAV lens fits better than earnings multiples through the cycle." };
   if (
     s.includes("utilities") ||
     (s.includes("communication") && ind.includes("telecom")) ||
@@ -266,7 +266,7 @@ function classifySector(
     const hyper = (profitMargins != null && profitMargins <= 0.05) || (revGrowth != null && revGrowth > 0.2);
     if (hyper)
       return { clusterLabel: "High-Growth Tech / SaaS", method: "EV / Sales", metricShort: "EV/Sales", kind: "ev_sales", benchmark: 6, why: "Near-term earnings are thin or non-existent while the company scales, so revenue multiples (EV/Sales) are the working lens." };
-    return { clusterLabel: "Technology", method: "P / E", metricShort: "P/E", kind: "pe", benchmark: 24, why: "A profitable tech compounder — an earnings multiple with a growth premium is the cleanest read." };
+    return { clusterLabel: "Technology", method: "P / E", metricShort: "P/E", kind: "pe", benchmark: 24, why: "A profitable tech compounder; an earnings multiple with a growth premium is the cleanest read." };
   }
   // Any not-yet-profitable company (in any sector outside banks / real estate /
   // telecom / commodities, which have their own asset- or EBITDA-based lens):
@@ -274,7 +274,7 @@ function classifySector(
   // same EV/Sales lens SaaS uses. This is what lets a loss-making growth name
   // still get an independent valuation instead of no card at all.
   if (profitMargins != null && profitMargins <= 0)
-    return { clusterLabel: "High-Growth / Pre-Profit", method: "EV / Sales", metricShort: "EV/Sales", kind: "ev_sales", benchmark: 5, why: "Not yet profitable, so earnings multiples don't apply — a revenue multiple (EV/Sales) is the working lens until profits arrive." };
+    return { clusterLabel: "High-Growth / Pre-Profit", method: "EV / Sales", metricShort: "EV/Sales", kind: "ev_sales", benchmark: 5, why: "Not yet profitable, so earnings multiples don't apply; a revenue multiple (EV/Sales) is the working lens until profits arrive." };
   return { clusterLabel: "Broad Market", method: "P / E", metricShort: "P/E", kind: "pe", benchmark: 18, why: "A general earnings-multiple lens for a mature, profitable business." };
 }
 
@@ -311,7 +311,7 @@ interface SectorValuationResult {
 function computeSectorValuation(i: SectorValuationInput): SectorValuationResult | undefined {
   const cfg = classifySector(i.sector, i.industry, i.profitMargins, i.revGrowth);
   if (!cfg || !(i.price > 0)) return undefined;
-  const mult = (n: number | undefined) => (n != null && isFinite(n) ? `${n.toFixed(1)}×` : "—");
+  const mult = (n: number | undefined) => (n != null && isFinite(n) ? `${n.toFixed(1)}×` : "n/a");
 
   // Real estate / commodities: book value is a conservative NAV FLOOR (land and
   // property at historical cost), and true appraised NAV isn't in our data feed.
@@ -329,7 +329,7 @@ function computeSectorValuation(i: SectorValuationInput): SectorValuationResult 
       tag: `${pb.toFixed(1)}× book value`,
       tagUnder: pb < 1,
       showBar: false,
-      note: `${cfg.clusterLabel} — ${cfg.why} Book value is only a CONSERVATIVE NAV floor: property and land are carried at historical cost, so the true appraised NAV is typically well above book — and isn't available from our data source. Treat it as a floor, not a price target; a name trading above book isn't necessarily overvalued.`,
+      note: `${cfg.clusterLabel}; ${cfg.why} Book value is only a CONSERVATIVE NAV floor: property and land are carried at historical cost, so the true appraised NAV is typically well above book; and isn't available from our data source. Treat it as a floor, not a price target; a name trading above book isn't necessarily overvalued.`,
     };
   }
 
@@ -387,7 +387,7 @@ function computeSectorValuation(i: SectorValuationInput): SectorValuationResult 
       tag: `${mult(current)} vs ~${cfg.benchmark}× typical`,
       tagUnder: current < cfg.benchmark,
       showBar: false,
-      note: `${cfg.clusterLabel} — normally valued on ${cfg.method}. This company trades a long way from the ~${cfg.benchmark}× ${cfg.metricShort} market average, so that average doesn't describe it: a durable compounder can hold a premium for years, and a structurally challenged business a discount. The figure shown is simply what a ~${cfg.benchmark}× multiple would imply — read it as context, NOT a price target, and compare against direct competitors in Peers below.`,
+      note: `${cfg.clusterLabel}; normally valued on ${cfg.method}. This company trades a long way from the ~${cfg.benchmark}× ${cfg.metricShort} market average, so that average doesn't describe it: a durable compounder can hold a premium for years, and a structurally challenged business a discount. The figure shown is simply what a ~${cfg.benchmark}× multiple would imply; read it as context, NOT a price target, and compare against direct competitors in Peers below.`,
     };
   }
 
@@ -402,7 +402,7 @@ function computeSectorValuation(i: SectorValuationInput): SectorValuationResult 
     tag: `${under ? "Below" : "Above"} sector value · ${Math.abs(gap).toFixed(0)}%`,
     tagUnder: under,
     showBar: true,
-    note: `${cfg.clusterLabel} — valued on ${cfg.method}. ${cfg.why} Fair value applies a ~${cfg.benchmark}× ${cfg.metricShort} sector benchmark to the company's own figures. A sector heuristic, not a precise target.`,
+    note: `${cfg.clusterLabel}; valued on ${cfg.method}. ${cfg.why} Fair value applies a ~${cfg.benchmark}× ${cfg.metricShort} sector benchmark to the company's own figures. A sector heuristic, not a precise target.`,
   };
 }
 
@@ -677,7 +677,7 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
     if (qp != null && qp > 0) {
       const ratio = qp / price;
       if (ratio > 2 || ratio < 0.5) {
-        console.warn(`[score] price mismatch for ${symbol}: fundamentals ${price} vs quote ${qp} — suppressing`);
+        console.warn(`[score] price mismatch for ${symbol}: fundamentals ${price} vs quote ${qp}, suppressing`);
         return null;
       }
     }
@@ -885,7 +885,7 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
     intrinsic == null
       ? ""
       : intrinsic.method === "excess-returns"
-      ? "A lender is worth its book value plus the returns it earns above its cost of equity — a bank's cash flow measures nothing here, so it isn't used. Model-based, not advice."
+      ? "A lender is worth its book value plus the returns it earns above its cost of equity, a bank's cash flow measures nothing here, so it isn't used. Model-based, not advice."
       : intrinsic.method === "pb"
       ? "Valued on book value at a typical sector multiple: the excess-return inputs (return on equity, book value) aren't complete enough to model the spread. Model-based, not advice."
       : (cfOutOfRange
@@ -896,9 +896,9 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
           : usedForwardBase
           ? "Built from consensus forward earnings, converted to cash at the company's own historical rate."
           : baseIsOcf
-          ? "Built from operating cash flow less capex — reported free cash flow is negative through the cycle."
+          ? "Built from operating cash flow less capex; reported free cash flow is negative through the cycle."
           : "Built from the company's own free cash flow, weighted toward recent years.") +
-        (cashflowVolatile ? " Free cash flow has been negative in some years — read it as a range." : "") +
+        (cashflowVolatile ? " Free cash flow has been negative in some years; read it as a range." : "") +
         " Model-based, not advice.";
 
   // Sector-appropriate valuation: pick the right multiple for the company's
@@ -930,7 +930,7 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
     fairValue: {
       estimate: target ?? price,
       method: "Analyst mean target",
-      note: "Analysts' average price target vs the current price — a research input, not advice.",
+      note: "Analysts' average price target vs the current price; a research input, not advice.",
     },
     // The method-aware valuation — what the page shows. `method` names the model
     // that produced it, so the card can never label an excess-return figure as a

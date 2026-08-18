@@ -195,3 +195,13 @@ export async function kvZTop(key: string, count: number): Promise<{ member: stri
     return [];
   }
 }
+
+/** SET key value NX EX ttl, returning whether this caller set it. */
+export async function kvSetNx(key: string, value: string, ttlSeconds: number): Promise<boolean> {
+  try {
+    const r = await command(["SET", key, value, "NX", "EX", String(Math.floor(ttlSeconds))]);
+    return r === "OK";
+  } catch {
+    return false;
+  }
+}

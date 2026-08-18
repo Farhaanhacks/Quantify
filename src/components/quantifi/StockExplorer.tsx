@@ -337,8 +337,8 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
           </div>
           <p className="mt-3 text-xs text-slate-500">
             {tvUnsupported
-              ? "Charts for this listing are drawn by the Quantifi engine (Yahoo data) — TradingView’s free widget doesn’t carry non-US symbols."
-              : "The Quantifi chart is shown by default — it carries corporate event markers drawn from SEC filings, plus period high/low. Switch to TradingView anytime for its drawing tools."}
+              ? "Charts for this listing are drawn by the Quantifi engine (Yahoo data). TradingView’s free widget doesn’t carry non-US symbols."
+              : "The Quantifi chart is shown by default. It carries corporate event markers drawn from SEC filings, plus period high/low. Switch to TradingView anytime for its drawing tools."}
           </p>
         </GlassCard>
       </section>
@@ -475,7 +475,7 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
                   {!scoreLoading ? (
                     <p className="mt-2 text-sm leading-relaxed text-slate-400">
                       {score?.message ??
-                        "Live data is unavailable for this name right now. This is normal for ETFs and funds, indices, crypto, currencies and very new listings — or the market-data source may be briefly rate-limiting. The chart above still works."}
+                        "Live data is unavailable for this name right now. This is normal for ETFs and funds, indices, crypto, currencies and very new listings; or the market-data source may be briefly rate-limiting. The chart above still works."}
                     </p>
                   ) : null}
                 </GlassCard>
@@ -662,7 +662,7 @@ function RevealGate({
         <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-400">
           You have <span className="font-semibold text-gold">{left}</span> of {limit} free{" "}
           {limit === 1 ? "analysis" : "analyses"} left. Revealing {ticker} uses one and unlocks
-          its live chart, Quantifi Score, fundamentals and insider activity — and you can
+          its live chart, Quantifi Score, fundamentals and insider activity; and you can
           re-open {ticker} anytime at no extra cost.
         </p>
         <div className="mt-7 flex items-center justify-center gap-3">
@@ -702,10 +702,10 @@ function FreeLimitWall({ ticker, signedIn }: { ticker: string; signedIn: boolean
         {FREE_LAUNCH_OFFER ? (
           <>
             <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-400">
-              <span className="font-mono text-slate-200">{ticker}</span> — its chart, the Quantifi
-              Score, fundamentals and insider activity — needs Quantifi Pro. Right now Pro is{" "}
+              <span className="font-mono text-slate-200">{ticker}</span>. Its chart, the Quantifi
+              Score, fundamentals and insider activity; needs Quantifi Pro. Right now Pro is{" "}
               <span className="font-semibold text-gold">free</span> for your first{" "}
-              {FREE_LAUNCH_DAYS} days — no card needed.
+              {FREE_LAUNCH_DAYS} days; no card needed.
             </p>
             <div className="mt-5 inline-flex items-baseline gap-2.5 rounded-lg border border-gold/30 bg-gold/[0.07] px-4 py-2.5">
               <span className="font-display text-3xl font-semibold text-gold">{PRO_PRICE_LABEL}</span>
@@ -717,8 +717,8 @@ function FreeLimitWall({ ticker, signedIn }: { ticker: string; signedIn: boolean
           </>
         ) : (
           <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-400">
-            <span className="font-mono text-slate-200">{ticker}</span> — its chart, the Quantifi
-            Score, fundamentals and insider activity — needs Quantifi Pro now. Unlock unlimited
+            <span className="font-mono text-slate-200">{ticker}</span>. Its chart, the Quantifi
+            Score, fundamentals and insider activity; needs Quantifi Pro now. Unlock unlimited
             analysis for{" "}
             <span className="font-semibold text-gold">
               {QUANTIFI_PRO.price}/{QUANTIFI_PRO.period}

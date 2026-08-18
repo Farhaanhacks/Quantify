@@ -29,7 +29,7 @@ export const KNOWN_FUNDS: Record<string, KnownFund> = {
     name: "Destiny Tech100",
     kind: "ETF",
     holdingsNote:
-      "Approximate weights, curated from Destiny Tech100's public disclosures — Yahoo doesn't publish a holdings breakdown for this fund.",
+      "Approximate weights, curated from Destiny Tech100's public disclosures. Yahoo doesn't publish a holdings breakdown for this fund.",
     holdings: [
       h("SpaceX", 0.34),
       h("OpenAI", 0.09),
@@ -48,7 +48,7 @@ export const KNOWN_FUNDS: Record<string, KnownFund> = {
     kind: "Mutual fund",
     preferQuantifiChart: true,
     holdingsNote:
-      "Approximate weights, curated from ARK Venture Fund's public disclosures — Yahoo doesn't publish a holdings breakdown for this fund.",
+      "Approximate weights, curated from ARK Venture Fund's public disclosures. Yahoo doesn't publish a holdings breakdown for this fund.",
     holdings: [
       h("SpaceX", 0.15),
       h("OpenAI", 0.07),

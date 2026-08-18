@@ -82,7 +82,7 @@ export default function PortfolioNews({ heading = true }: { heading?: boolean })
         <SectionHeading
           eyebrow="Portfolio news"
           title="News for your holdings"
-          subtitle="Recent headlines for the companies you actually hold — pulled live, not a sample."
+          subtitle="Recent headlines for the companies you actually hold; pulled live, not a sample."
         />
       ) : null}
 
@@ -167,7 +167,7 @@ export default function PortfolioNews({ heading = true }: { heading?: boolean })
           )}
           <p className="mt-3 text-xs text-slate-600">
             Headlines come from a live news search for each holding&apos;s company name. Quantifi
-            doesn&apos;t endorse any source — always read the original.
+            doesn&apos;t endorse any source, always read the original.
           </p>
         </>
       )}

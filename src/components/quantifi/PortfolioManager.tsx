@@ -321,7 +321,7 @@ export default function PortfolioManager() {
             }));
           }
         } catch {
-          /* ignore — keep stored price */
+          /* ignore; keep stored price */
         }
       }
     })();
@@ -331,7 +331,7 @@ export default function PortfolioManager() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, holdingsKey]);
 
-  // One year of closes per holding, thinned to ~50 points — enough for the
+  // One year of closes per holding, thinned to ~50 points; enough for the
   // trend shape in the 1Y column without shipping a full price history.
   useEffect(() => {
     if (!current) return;
@@ -350,7 +350,7 @@ export default function PortfolioManager() {
           const step = Math.max(1, Math.floor(vals.length / 50));
           setSparks((prev) => ({ ...prev, [t]: vals.filter((_, i) => i % step === 0).slice(-56) }));
         } catch {
-          /* chart is optional — the row renders without it */
+          /* chart is optional; the row renders without it */
         }
       }
     })();
@@ -381,7 +381,7 @@ export default function PortfolioManager() {
       const d = await r.json();
       if (!d.valid || typeof d.price !== "number") {
         setFormError(
-          `Couldn't find "${t}". Check the symbol — Indian stocks need a .NS suffix (e.g. RELIANCE.NS).`
+          `Couldn't find "${t}". Check the symbol. Indian stocks need a .NS suffix (e.g. RELIANCE.NS).`
         );
         return;
       }
@@ -394,7 +394,7 @@ export default function PortfolioManager() {
       setShares("");
       setAvgCost("");
     } catch {
-      setFormError("Couldn't verify that ticker right now — please try again.");
+      setFormError("Couldn't verify that ticker right now; please try again.");
     } finally {
       setAdding(false);
     }
@@ -420,7 +420,7 @@ export default function PortfolioManager() {
       <SectionHeading
         eyebrow="Portfolios"
         title="Build and track your own portfolios"
-        subtitle="Create portfolios and add real holdings — tickers are verified and priced from live data. Saved in your browser; illustrative, not advice."
+        subtitle="Create portfolios and add real holdings; tickers are verified and priced from live data. Saved in your browser; illustrative, not advice."
       />
 
       {/* Portfolio selector */}
@@ -553,7 +553,7 @@ export default function PortfolioManager() {
           ) : null}
           {summary?.mixedCurrency ? (
             <p className="mt-2 text-xs text-slate-500">
-              Note: this portfolio mixes currencies — per-row values are in each
+              Note: this portfolio mixes currencies; per-row values are in each
               stock&apos;s native currency, but the totals above are a naive sum (no
               FX conversion yet).
             </p>
@@ -617,13 +617,13 @@ export default function PortfolioManager() {
             ) : (
               <p className="mt-3 text-xs text-slate-500">
                 The ticker is verified against live data before it&apos;s added, and
-                the current price is fetched automatically — so only real symbols get
+                the current price is fetched automatically; so only real symbols get
                 tracked.
               </p>
             )}
           </GlassCard>
 
-          {/* Allocation — pie/donut with a legend */}
+          {/* Allocation; pie/donut with a legend */}
           {summary && summary.rows.length > 0 ? (
             <GlassCard className="mt-4 p-5 sm:p-6">
               <h4 className="font-display text-base font-semibold text-white">Allocation by holding</h4>
@@ -707,7 +707,7 @@ export default function PortfolioManager() {
                         ) : null}
                       </>
                     ) : (
-                      <span className="text-xs text-slate-600">—</span>
+                      <span className="text-xs text-slate-600"></span>
                     )}
                   </Cell>
 
@@ -782,7 +782,7 @@ export default function PortfolioManager() {
                         className="h-8 w-full min-w-[5rem]"
                       />
                     ) : (
-                      <span className="text-xs text-slate-600">—</span>
+                      <span className="text-xs text-slate-600"></span>
                     )}
                   </Cell>
                   <div className="col-span-2 flex justify-end gap-1 sm:col-span-3 xl:col-span-1">

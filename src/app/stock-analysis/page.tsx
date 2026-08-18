@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
-  title: "Stock Analysis — Search Any Stock or ETF",
+  title: "Stock Analysis. Search Any Stock or ETF",
   description:
     "Analyse any stock or ETF on Quantifi: live chart, valuation, analyst targets, financial summary, ownership and risks. Research only, not investment advice.",
   path: "/stock-analysis",
@@ -44,8 +44,8 @@ export default function StockAnalysisPage({
           {/* "Quantifi separates the two" used to open this paragraph, with no
               antecedent anywhere on the page — the sentence it referred to had
               been removed. */}
-          Search any symbol for a live chart, key statistics and — where we have
-          fundamentals — a scorecard that pressures the thesis, not just the
+          Search any symbol for a live chart, key statistics and, where we have
+          fundamentals; a scorecard that pressures the thesis, not just the
           price.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">

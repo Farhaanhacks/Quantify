@@ -23,7 +23,7 @@ export function FairValueBars({
   fairLabel = "Fair Value",
   note,
   outOfRangeTitle = "Beyond a 10-year DCF horizon",
-  outOfRangeNote = "Shown as context — the model can't support an over/under call here.",
+  outOfRangeNote = "Shown as context; the model can't support an over/under call here.",
 }: {
   price: number;
   fair: number;
@@ -204,9 +204,9 @@ export function FairValueHistoryChart({
       "no-prices":
         "Price history isn't available for this listing, so past years can't be paired with what the shares actually cost.",
       "cash-negative":
-        "This company's cash flow was negative through the cycle in every year on record — the model has no positive base to value those years on. Today's estimate comes from consensus forward earnings instead, which isn't available for past years.",
+        "This company's cash flow was negative through the cycle in every year on record; the model has no positive base to value those years on. Today's estimate comes from consensus forward earnings instead, which isn't available for past years.",
       "no-book":
-        "This is a lender, so it's valued on book value and return on equity rather than cash flow — and fewer than two years of reported shareholders' equity are available to reconstruct from.",
+        "This is a lender, so it's valued on book value and return on equity rather than cash flow; and fewer than two years of reported shareholders' equity are available to reconstruct from.",
       "too-few":
         "Only one past year could be valued, and a single point isn't a line.",
       unavailable:
@@ -223,7 +223,7 @@ export function FairValueHistoryChart({
           {why[reason] ??
             "Each day's cash-flow value is recorded as it's computed, and past years are reconstructed from reported statements where the data allows."}{" "}
           {recordedCount > 0
-            ? "A chart appears once there is enough of a run to show movement — two readings a day apart would just be two flat lines."
+            ? "A chart appears once there is enough of a run to show movement; two readings a day apart would just be two flat lines."
             : "From here it's recorded daily, so the line fills in as the valuation is recomputed."}
         </p>
       </div>
@@ -325,7 +325,7 @@ export function FairValueHistoryChart({
         {modelledCount > 0 ? (
           <>
             {modelledCount} point{modelledCount === 1 ? "" : "s"} reconstructed from reported
-            financial years — each year&apos;s own free cash flow, valued by the same model,
+            financial years; each year&apos;s own free cash flow, valued by the same model,
             against the share price on the day that year closed. Today&apos;s share count and
             rates are used throughout, so read them as a back-test, not as what the model showed
             at the time.

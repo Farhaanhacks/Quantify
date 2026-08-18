@@ -8,7 +8,7 @@ import type { InstQuarter } from "@/lib/institutional";
 const PALETTE = ["#818CF8", "#4F93F7", "#4FD1C5", "#34D399", "#F472B6", "#FB7185", "#94A3B8"];
 
 function compact(n?: number): string {
-  if (n == null || !isFinite(n)) return "—";
+  if (n == null || !isFinite(n)) return "n/a";
   const a = Math.abs(n);
   const s = n < 0 ? "-" : "";
   if (a >= 1e9) return `${s}${(a / 1e9).toFixed(2)}B`;
@@ -185,7 +185,7 @@ export default function ShareholdingStats({ symbol }: { symbol: string }) {
   return (
     <section className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
       <h3 className="font-display text-lg font-semibold text-white">Shareholding</h3>
-      <p className="mt-1 text-xs text-slate-500">Who owns the stock — from public 13F / ownership disclosures.</p>
+      <p className="mt-1 text-xs text-slate-500">Who owns the stock, from public 13F / ownership disclosures.</p>
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Top institutional holders */}
@@ -222,7 +222,7 @@ export default function ShareholdingStats({ symbol }: { symbol: string }) {
       {hasHist ? (
         <GlassCard className="mt-4 p-5">
           <h4 className="font-display text-base font-semibold text-white">Institutional Shareholding</h4>
-          <p className="mt-1 text-xs text-slate-500">Quarterly 13F aggregates — shares held and the % of shares outstanding.</p>
+          <p className="mt-1 text-xs text-slate-500">Quarterly 13F aggregates, shares held and the % of shares outstanding.</p>
 
           {/* Bar chart */}
           <div className="mt-5 flex h-36 items-end gap-2 border-b border-white/[0.08]">
@@ -257,7 +257,7 @@ export default function ShareholdingStats({ symbol }: { symbol: string }) {
                     <td className="py-2 text-slate-200">{q.period}</td>
                     <td className="py-2 text-right font-mono tnum text-slate-300">{q.institutions.toLocaleString()}</td>
                     <td className="py-2 text-right font-mono tnum text-slate-300">{compact(q.sharesHeld)}</td>
-                    <td className="py-2 text-right font-mono tnum text-slate-300">{q.ownershipPct ? `${q.ownershipPct.toFixed(2)}%` : "—"}</td>
+                    <td className="py-2 text-right font-mono tnum text-slate-300">{q.ownershipPct ? `${q.ownershipPct.toFixed(2)}%` : "n/a"}</td>
                     <td className={`py-2 text-right font-mono tnum ${q.sharesChange >= 0 ? "text-up" : "text-down"}`}>
                       {q.sharesChange >= 0 ? "+" : ""}{compact(q.sharesChange)}
                     </td>

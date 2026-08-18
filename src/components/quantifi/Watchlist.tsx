@@ -203,7 +203,7 @@ function WatchRow({ ticker, onRemove }: { ticker: string; onRemove: () => void }
           <>
             <span className="font-mono text-sm tnum text-white">
               {ccy(row?.currency, ticker)}
-              {row?.price != null ? fmtPrice(row.price) : "—"}
+              {row?.price != null ? fmtPrice(row.price) : "n/a"}
             </span>
             {gapLabel ? (
               <span className="flex flex-wrap items-center gap-1.5">
@@ -216,14 +216,14 @@ function WatchRow({ ticker, onRemove }: { ticker: string; onRemove: () => void }
                 {overhyped ? (
                   <span
                     className="rounded-full border border-gold/30 bg-gold/10 px-1.5 py-px text-[0.55rem] font-medium tracking-wide text-gold"
-                    title="The future cash-flow value sits well below the analyst target — the price runs ahead of what today's cash flows support. Open the stock to see both."
+                    title="The future cash-flow value sits well below the analyst target, the price runs ahead of what today's cash flows support. Open the stock to see both."
                   >
                     ⚠ Overhyped stock
                   </span>
                 ) : diverge ? (
                   <span
                     className="rounded-full border border-up/30 bg-up/10 px-1.5 py-px text-[0.55rem] font-medium tracking-wide text-up"
-                    title="The future cash-flow value sits well above the analyst target — today's cash generation implies more value than analysts credit. Open the stock to see both."
+                    title="The future cash-flow value sits well above the analyst target; today's cash generation implies more value than analysts credit. Open the stock to see both."
                   >
                     ▲ Cash-flow says cheaper
                   </span>
@@ -247,7 +247,7 @@ function WatchRow({ ticker, onRemove }: { ticker: string; onRemove: () => void }
           Valuation
         </span>
         <span className="font-mono text-sm tnum text-slate-300">
-          {row?.ps != null ? `P/S ${row.ps.toFixed(1)}x` : "—"}
+          {row?.ps != null ? `P/S ${row.ps.toFixed(1)}x` : "n/a"}
         </span>
       </div>
 
@@ -261,7 +261,7 @@ function WatchRow({ ticker, onRemove }: { ticker: string; onRemove: () => void }
             row?.growth == null ? "text-slate-300" : row.growth >= 0 ? "text-up" : "text-down"
           }`}
         >
-          {row?.growth != null ? signed(row.growth * 100) : "—"}
+          {row?.growth != null ? signed(row.growth * 100) : "n/a"}
         </span>
       </div>
 
@@ -272,7 +272,7 @@ function WatchRow({ ticker, onRemove }: { ticker: string; onRemove: () => void }
         </span>
         <span className="lg:flex lg:flex-col lg:items-end">
           <span className="font-mono text-sm tnum text-white">
-            {refValue != null ? `${ccy(row?.currency, ticker)}${fmtPrice(refValue)}` : "—"}
+            {refValue != null ? `${ccy(row?.currency, ticker)}${fmtPrice(refValue)}` : "n/a"}
           </span>
           {refValue != null ? (
             <span className="hidden text-[0.55rem] uppercase tracking-[0.1em] text-slate-600 lg:block">
@@ -349,7 +349,7 @@ export default function Watchlist({ heading = true }: { heading?: boolean }) {
       {heading ? (
         <SectionHeading
           eyebrow="Watchlist"
-          subtitle="Add the stocks you care about. Everything here is yours — edit it any time."
+          subtitle="Add the stocks you care about. Everything here is yours; edit it any time."
         />
       ) : null}
 
@@ -357,7 +357,7 @@ export default function Watchlist({ heading = true }: { heading?: boolean }) {
       {ready ? (
         <p className="mt-3 text-xs text-slate-500">
           {scope === "account"
-            ? "✓ Synced to your account — this list follows you on any device you sign in to."
+            ? "✓ Synced to your account. This list follows you on any device you sign in to."
             : "Saved on this device. Sign in (top-right) to sync across devices."}
         </p>
       ) : null}
@@ -371,7 +371,7 @@ export default function Watchlist({ heading = true }: { heading?: boolean }) {
           </span>
         </div>
         <p className="mt-1 text-xs text-slate-500">
-          Live price, fair value, growth and a 6-month trend — at a glance. AI names lead with their
+          Live price, fair value, growth and a 6-month trend; at a glance. AI names lead with their
           future cash-flow value; the rest with the analyst target.
         </p>
 
@@ -381,7 +381,7 @@ export default function Watchlist({ heading = true }: { heading?: boolean }) {
             value={stockInput}
             onChange={(e) => setStockInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleAddStock()}
-            placeholder="Add a ticker — e.g. NVDA, INFY.NS"
+            placeholder="Add a ticker, e.g. NVDA, INFY.NS"
             className={`${inputCls} flex-1`}
           />
           <button onClick={handleAddStock} disabled={checking || atFreeCap} className={btnCls}>

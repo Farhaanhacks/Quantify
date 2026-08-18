@@ -88,7 +88,7 @@ export default function StockHero({
                 {data?.marketCap != null ? (
                   <>
                     <span className="text-slate-600">·</span>
-                    <span>Market cap {fmtCompactCur(data.marketCap, indian, "—")}</span>
+                    <span>Market cap {fmtCompactCur(data.marketCap, indian, "n/a")}</span>
                   </>
                 ) : null}
                 {sectorLine ? (
@@ -105,7 +105,7 @@ export default function StockHero({
           <div className="flex flex-col items-end gap-2">
             <div className="flex items-baseline gap-2.5">
               <span className="font-mono text-3xl font-semibold tnum text-white">
-                {px != null ? `${sym}${fmtPrice(px)}` : "—"}
+                {px != null ? `${sym}${fmtPrice(px)}` : "n/a"}
               </span>
               {changePct != null ? (
                 <span className={`font-mono text-sm tnum ${changePct >= 0 ? "text-up" : "text-down"}`}>

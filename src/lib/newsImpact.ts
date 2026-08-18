@@ -142,7 +142,7 @@ const SIGNAL_BY_CAT: Record<Category, { type: string; relevance: Level; horizon:
   ma: { type: "Event-driven / Corporate action", relevance: "High", horizon: "Until the deal closes or breaks" },
   regulatory: { type: "Regulatory / Event", relevance: "High", horizon: "Until a filing or formal finding follows" },
   macro: { type: "Macro", relevance: "Medium", horizon: "Days to weeks, with the cycle" },
-  analyst: { type: "Sentiment / Narrative", relevance: "Low", horizon: "Short-term — sentiment, not fundamentals" },
+  analyst: { type: "Sentiment / Narrative", relevance: "Low", horizon: "Short-term; sentiment, not fundamentals" },
   product: { type: "Event-driven", relevance: "Medium", horizon: "Longer-term growth story" },
   general: { type: "Sentiment / Narrative", relevance: "Low", horizon: "Short-term, unless confirmed by filings or guidance" },
 };
@@ -206,12 +206,12 @@ export function analyzeNews(input: { title: string; summary: string; tickers: st
 
   // What changed.
   const changedByCat: Record<Category, string> = {
-    earnings: `An earnings or guidance item landed for ${names} — results and outlook are the fastest-moving inputs to a stock.`,
-    ma: `A deal, stake change or corporate action involving ${names} — transactions reprice the names involved and often their peers.`,
-    regulatory: `A legal or regulatory development touching ${names} — headlines like this can weigh on sentiment beyond the case itself.`,
+    earnings: `An earnings or guidance item landed for ${names}, results and outlook are the fastest-moving inputs to a stock.`,
+    ma: `A deal, stake change or corporate action involving ${names}; transactions reprice the names involved and often their peers.`,
+    regulatory: `A legal or regulatory development touching ${names}; headlines like this can weigh on sentiment beyond the case itself.`,
     macro: `A macro development (rates, inflation or policy) that tends to move whole sectors, not just ${names}.`,
-    analyst: `An analyst rating or price-target change on ${names} — a sentiment nudge rather than a fundamental shift.`,
-    product: `A product, chip, contract or partnership update from ${names} — the kind of news that shapes the longer-term growth story.`,
+    analyst: `An analyst rating or price-target change on ${names}; a sentiment nudge rather than a fundamental shift.`,
+    product: `A product, chip, contract or partnership update from ${names}; the kind of news that shapes the longer-term growth story.`,
     general: `A market headline referencing ${names}.`,
   };
   const whatChanged = changedByCat[category];
@@ -220,7 +220,7 @@ export function analyzeNews(input: { title: string; summary: string; tickers: st
   const pushVerb = tone === "positive" ? "support" : tone === "negative" ? "pressure" : "swing";
   const whyItMatters = primary
     ? `${primary} is valued partly on ${driver}. A ${SIGNAL_BY_CAT[category].type.split(" / ")[0].toLowerCase()} headline like this can ${pushVerb} sentiment around its ${narrative}, even if the direct fundamental impact is not yet clear.`
-    : `This reads through to ${sector} sentiment broadly rather than to one name — treat it as context for the names you hold in the space.`;
+    : `This reads through to ${sector} sentiment broadly rather than to one name, treat it as context for the names you hold in the space.`;
 
   // Impact map — the causal chain.
   const toneMove = tone === "positive" ? "improves" : tone === "negative" ? "weakens" : "wobbles";
@@ -241,8 +241,8 @@ export function analyzeNews(input: { title: string; summary: string; tickers: st
     return {
       ticker: t,
       role: isPrimary
-        ? `Most exposed — ${sector === "the sector" ? "directly named" : `${sector} exposure`}`
-        : "Sector peer — read-through",
+        ? `Most exposed; ${sector === "the sector" ? "directly named" : `${sector} exposure`}`
+        : "Sector peer; read-through",
       why: isPrimary
         ? `Named or central to the story; ${pushVerb}s the ${narrative}.`
         : `Moves on sentiment spillover from ${primary ?? "the lead name"}, not a direct catalyst.`,

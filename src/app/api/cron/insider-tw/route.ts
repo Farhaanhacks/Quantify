@@ -57,7 +57,7 @@ export async function GET(req: Request) {
       {
         ok: false,
         error:
-          "KV (Upstash Redis) not configured — set KV_REST_API_URL / KV_REST_API_TOKEN",
+          "KV (Upstash Redis) not configured. Set KV_REST_API_URL / KV_REST_API_TOKEN",
       },
       { status: 500 }
     );

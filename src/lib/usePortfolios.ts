@@ -36,6 +36,17 @@ export function usePortfolios() {
     []
   );
 
+  // A funnel step, so it is reported. Fire-and-forget: creating a portfolio
+  // must not wait on, or fail because of, a metric.
+  const track = () => {
+    void fetch("/api/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "portfolio" }),
+      keepalive: true,
+    }).catch(() => {});
+  };
+
   const createPortfolio = useCallback(
     (name: string) => {
       const p: UserPortfolio = {
@@ -45,6 +56,7 @@ export function usePortfolios() {
         createdAt: Date.now(),
       };
       setValue((prev) => [...prev, p]);
+      track();
       return p.id;
     },
     [setValue]

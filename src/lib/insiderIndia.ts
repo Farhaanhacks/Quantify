@@ -354,11 +354,11 @@ export async function getIndiaInsiderWithDebug(
     if (out.length === 0 && debug.httpStatus == null)
       debug.note =
         debug.bodySnippet === "timeout"
-          ? "The proxied BSE request timed out — try SCRAPER_PREMIUM (on) or raise the route maxDuration."
+          ? "The proxied BSE request timed out; try SCRAPER_PREMIUM (on) or raise the route maxDuration."
           : "BSE did not respond (blocked, or network unavailable from this host).";
     else if (out.length === 0 && debug.httpStatus === 429)
       debug.note =
-        `ScraperAPI 429 — your plan's CONCURRENT-request limit was hit (requests are now ` +
+        `ScraperAPI 429; your plan's CONCURRENT-request limit was hit (requests are now ` +
         `sequential, so this usually means other traffic is using the same key at once, ` +
         `or the free plan allows only 1 concurrent thread). Upgrade the plan's concurrency ` +
         `or reduce simultaneous scans. See bodySnippet.`;
@@ -369,11 +369,11 @@ export async function getIndiaInsiderWithDebug(
         `a BSE 403 means the IP is still blocked. See bodySnippet.`;
     else if (out.length === 0 && /no record found/i.test(debug.bodySnippet ?? ""))
       debug.note =
-        `PROXY WORKS — this is BSE's own "No Record Found!", not a block: the key, IP and scrip ` +
+        `PROXY WORKS. This is BSE's own "No Record Found!", not a block: the key, IP and scrip ` +
         `all resolve and BSE answers. We already tried multiple date windows (180/90/30/7d) and ` +
         `all came back empty, so it's a PARAMETER, not the window. Fastest fix: on bseindia.com/` +
         `corporates/ann.html filter for this company, open DevTools ▸ Network, and copy the ` +
-        `AnnGetData request URL that returns data — that gives the exact params to match. ` +
+        `AnnGetData request URL that returns data. That gives the exact params to match. ` +
         `(debug.bseUrl is the URL we send.)`;
     else if (out.length === 0 && debug.topLevelKeys.length === 0)
       debug.note =
@@ -381,7 +381,7 @@ export async function getIndiaInsiderWithDebug(
         `if it starts with "<" it's an HTML block/challenge page from the proxy; if it's JSON in a different shape, we'll adjust the parser.`;
     else if (out.length === 0 && debug.rawCount === 0)
       debug.note =
-        `BSE responded (HTTP ${debug.httpStatus}) with keys [${debug.topLevelKeys.join(", ")}] but an empty Table — no announcements for this scrip in the window.`;
+        `BSE responded (HTTP ${debug.httpStatus}) with keys [${debug.topLevelKeys.join(", ")}] but an empty Table; no announcements for this scrip in the window.`;
     else if (out.length === 0)
       debug.note = `BSE returned ${debug.rawCount} announcements but none were insider/SAST in the window.`;
     return { disclosures: out, debug };

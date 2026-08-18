@@ -139,7 +139,7 @@ export default function AnalystConsensus({ symbol, name }: { symbol: string; nam
       <SectionHeading
         eyebrow="Analyst view"
         title="What the street thinks"
-        subtitle={`The published analyst consensus on ${label} and the price targets behind it — an input to weigh, never a recommendation to act on.`}
+        subtitle={`The published analyst consensus on ${label} and the price targets behind it; an input to weigh, never a recommendation to act on.`}
       />
 
       <GlassCard className="mt-6 p-5 sm:p-6">

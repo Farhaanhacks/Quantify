@@ -203,7 +203,7 @@ export default function NewsFeed({ items }: { items: NewsArticle[] }) {
         <GlassCard className="mt-4 p-10 text-center">
           <p className="text-sm text-slate-400">
             {items.length === 0
-              ? "Couldn't reach the news feeds right now — they refresh automatically, so try again shortly."
+              ? "Couldn't reach the news feeds right now. They refresh automatically, so try again shortly."
               : "No stories match that filter."}
           </p>
         </GlassCard>

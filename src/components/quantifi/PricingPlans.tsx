@@ -111,7 +111,7 @@ export default function PricingPlans() {
         modal: { ondismiss: () => setLoading(false) },
       });
       rzp.on("payment.failed", () => {
-        setError("Payment failed. You haven't been charged — please try again.");
+        setError("Payment failed. You haven't been charged; please try again.");
         setLoading(false);
       });
       rzp.open();
@@ -173,7 +173,7 @@ export default function PricingPlans() {
                 ✦ Limited-time launch offer
               </div>
               <p className="mt-2 text-sm text-slate-400">
-                Free while it lasts — instant access, no card required. When the offer
+                Free while it lasts, instant access, no card required. When the offer
                 ends, Pro returns to its regular price.
               </p>
             </>
@@ -192,14 +192,14 @@ export default function PricingPlans() {
                 <span className="text-sm text-slate-500">/ {QUANTIFI_PRO.period}</span>
               </div>
               <p className="mt-2 text-sm text-slate-400">
-                Limited launch price — billed {QUANTIFI_PRO.price}/month. Cancel anytime.
+                Limited launch price, billed {QUANTIFI_PRO.price}/month. Cancel anytime.
               </p>
             </>
           )
         ) : FREE_LAUNCH_OFFER ? (
           <div className="mt-3">
             <span className="font-display text-3xl font-semibold text-gradient-gold">Free</span>
-            <p className="mt-1 text-sm text-slate-400">Launch access — Pro is on us right now.</p>
+            <p className="mt-1 text-sm text-slate-400">Launch access. Pro is on us right now.</p>
           </div>
         ) : (
           <div className="mt-3 flex items-baseline gap-1.5">

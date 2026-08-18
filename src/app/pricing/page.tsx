@@ -9,11 +9,11 @@ import { buildMetadata } from "@/lib/seo";
 // show, so the offer was invisible in search results.
 export const metadata = buildMetadata({
   title: FREE_LAUNCH_OFFER
-    ? "Pricing — Quantifi Pro is free for a limited time"
-    : `Pricing — Quantifi Pro (${QUANTIFI_PRO.price}/month)`,
+    ? "Pricing. Quantifi Pro is free for a limited time"
+    : `Pricing. Quantifi Pro (${QUANTIFI_PRO.price}/month)`,
   description: FREE_LAUNCH_OFFER
-    ? `Quantifi Pro is free for a limited time (standard ${PRO_STANDARD_PRICE}/month) — instant access, no card required. Unlimited stock analysis, all research ideas, full source packs and portfolio diagnosis. Research only, not investment advice.`
-    : `Quantifi Pro — ${QUANTIFI_PRO.price}/month (standard ${PRO_STANDARD_PRICE}). Unlimited stock analysis, all research ideas, full source packs and portfolio diagnosis. Research only, not investment advice.`,
+    ? `Quantifi Pro is free for a limited time (standard ${PRO_STANDARD_PRICE}/month), instant access, no card required. Unlimited stock analysis, all research ideas, full source packs and portfolio diagnosis. Research only, not investment advice.`
+    : `Quantifi Pro; ${QUANTIFI_PRO.price}/month (standard ${PRO_STANDARD_PRICE}). Unlimited stock analysis, all research ideas, full source packs and portfolio diagnosis. Research only, not investment advice.`,
   path: "/pricing",
 });
 
@@ -27,12 +27,10 @@ export default function PricingPage() {
         </h1>
         <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-slate-400">
           {FREE_LAUNCH_OFFER
-            ? "For a limited time, Quantifi Pro is free (standard price ₹500/month) — instant access, no card required. "
-            : `Just ${QUANTIFI_PRO.price}/month (standard price ₹500) — cancel anytime. `}
-          Everything else in Quantifi stays free. Pro adds the deep-research surfaces —
-          Stock Analysis, Insider Activity and Rare Finds. Because better market
-          thinking should be more accessible. Educational research tools only —
-          Quantifi never gives buy, sell or hold advice.
+            ? "For a limited time, Quantifi Pro is free (standard price ₹500/month); instant access, no card required. "
+            : `Just ${QUANTIFI_PRO.price}/month (standard price ₹500); cancel anytime. `}
+          Everything else in Quantifi stays free. Pro adds the deep-research surfaces Stock Analysis, Insider Activity and Rare Finds. Because better market
+          thinking should be more accessible. Educational research tools only Quantifi never gives buy, sell or hold advice.
         </p>
       </div>
 
@@ -44,7 +42,7 @@ export default function PricingPage() {
         <p className="text-xs text-slate-500">
           {FREE_LAUNCH_OFFER ? (
             <>
-              🎁 Limited-time launch: Quantifi Pro is free right now — instant access, no card and no
+              🎁 Limited-time launch: Quantifi Pro is free right now; instant access, no card and no
               auto-charge. When the offer ends you can continue on the regular plan via{" "}
               <span className="text-slate-300">Razorpay</span>, which never lets Quantifi see or store your
               card, UPI or bank details.

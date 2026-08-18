@@ -57,7 +57,7 @@ export const QUANTIFI_PRO: ProPlan = {
   period: "month",
   trialDays: 0,
   trialLabel: "Launch price",
-  tagline: "Limited launch price — ¢0.55/month (normally ₹500). Cancel anytime.",
+  tagline: "Limited launch price; ¢0.55/month (normally ₹500). Cancel anytime.",
   proFeatures: [...PRO_FEATURES],
   freeFeatures: [...FREE_FEATURES],
   cta: "Get Quantifi Pro",

@@ -72,7 +72,7 @@ function latestAnnual(facts: unknown, concept: string): { val: number; fy?: numb
 
 export async function getEdgarFundamentals(ticker: string): Promise<Fundamentals | null> {
   if (!UA) {
-    console.warn("[edgar] EDGAR_USER_AGENT is not set — SEC requires a User-Agent with contact info.");
+    console.warn("[edgar] EDGAR_USER_AGENT is not set; SEC requires a User-Agent with contact info.");
     return null;
   }
   try {

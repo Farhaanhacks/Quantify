@@ -69,7 +69,7 @@ function webviewPage(origin: string, nonce: string): string {
   document.getElementById('copyBtn').addEventListener('click', function(){
     var t='${origin}';
     (navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(t):Promise.reject())
-      .then(function(){document.getElementById('ok').textContent='Link copied — now open it in Chrome or Safari.';})
+      .then(function(){document.getElementById('ok').textContent='Link copied. Now open it in Chrome or Safari.';})
       .catch(function(){document.getElementById('ok').textContent='Copy the link above and open it in Chrome or Safari.';});
   });
 </script>

@@ -34,7 +34,7 @@ export default function AdminPage() {
             Operations
           </h1>
           <p className="mt-1 text-sm text-slate-400">
-            The state of this deployment&apos;s machinery — what a reader never sees.
+            The state of this deployment&apos;s machinery, which a reader never sees.
           </p>
         </div>
         <div className="text-right text-xs text-slate-500">

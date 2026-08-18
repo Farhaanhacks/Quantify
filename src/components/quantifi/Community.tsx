@@ -98,7 +98,7 @@ export default function Community() {
       <SectionHeading
         eyebrow="Community"
         title="Community Research"
-        subtitle="Community isn't a comment wall. It's where Quantifi decodes the major market frameworks — curated research playbooks built for study, not recommendations."
+        subtitle="Community isn't a comment wall. It's where Quantifi decodes the major market frameworks, curated research playbooks built for study, not recommendations."
       />
 
       {/* Featured Research Playbooks */}
@@ -121,13 +121,13 @@ export default function Community() {
               like researched. Requests are queued and shape which playbooks we build next.
             </p>
             <p className="mt-3 text-xs text-slate-500">
-              Educational research only — never personalised investment advice.
+              Educational research only, never personalised investment advice.
             </p>
           </div>
           <div>
             {sent ? (
               <div className="rounded-lg border border-up/30 bg-up/10 px-4 py-6 text-center text-sm text-up">
-                Thanks — your request is in the queue. We&apos;ll surface new playbooks here as
+                Thanks; your request is in the queue. We&apos;ll surface new playbooks here as
                 they&apos;re researched.
               </div>
             ) : (
@@ -176,7 +176,7 @@ export default function Community() {
       ) : null}
 
       <p className="mt-6 text-center text-xs text-slate-600">
-        Quantifi research is educational framework analysis — never a recommendation to buy, sell or
+        Quantifi research is educational framework analysis, never a recommendation to buy, sell or
         hold, and not personalised advice.
       </p>
     </section>

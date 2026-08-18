@@ -112,7 +112,7 @@ export default function TradingIdeas({
         <SectionHeading
           eyebrow="Ideas worth watching"
           title="Global research themes"
-          subtitle="Thematic research across the US, China and India — built for study, not recommendations. Tap any theme for the full research dashboard."
+          subtitle="Thematic research across the US, China and India; built for study, not recommendations. Tap any theme for the full research dashboard."
           href="/ideas"
           cta="All ideas"
         />
@@ -128,7 +128,7 @@ export default function TradingIdeas({
             Each theme lays out the investment question, the value chain, the
             bull / base / bear case, the thesis tests that would prove or break it,
             and the source pack behind it. Any prices, market caps or news shown for a
-            named stock are pulled live — where live data isn&apos;t available we show that,
+            named stock are pulled live; where live data isn&apos;t available we show that,
             never a made-up number.
           </p>
         </div>
@@ -414,7 +414,7 @@ function IdeaModal({ idea, pro, onClose }: { idea: TradingIdea; pro: boolean; on
           {/* Theme map / value chain — a vertical causal stack */}
           {idea.themeMap?.length ? (
             <div id="theme-map" className="scroll-mt-2">
-              <SectionLabel>Theme map — the value chain</SectionLabel>
+              <SectionLabel>Theme map, the value chain</SectionLabel>
               <div className="mt-2.5">
                 {idea.themeMap.map((link, i) => (
                   <div key={link.layer}>
@@ -446,7 +446,7 @@ function IdeaModal({ idea, pro, onClose }: { idea: TradingIdea; pro: boolean; on
           {idea.splitCycle?.length ? (
             <div className="mt-6">
               <SectionLabel>Split-cycle view</SectionLabel>
-              <p className="mt-1 text-xs text-slate-500">Not all of this theme moves together — each segment has its own driver and risk.</p>
+              <p className="mt-1 text-xs text-slate-500">Not all of this theme moves together, each segment has its own driver and risk.</p>
               <div className="mt-2.5 overflow-hidden rounded-lg border border-white/[0.06]">
                 <div className="hidden grid-cols-[1fr_1.3fr_1.1fr] gap-3 border-b border-white/[0.06] bg-white/[0.02] px-3.5 py-2 text-[0.6rem] uppercase tracking-[0.12em] text-slate-500 sm:grid">
                   <span>Segment</span>
@@ -537,13 +537,13 @@ function IdeaModal({ idea, pro, onClose }: { idea: TradingIdea; pro: boolean; on
 
           {/* Names grouped by role — uniform card with details shown directly */}
           <div id="names" className="scroll-mt-2">
-            <SectionLabel>Names to study — grouped by role · tap to open full analysis</SectionLabel>
+            <SectionLabel>Names to study, grouped by role · tap to open full analysis</SectionLabel>
             <div className="mt-3 space-y-4">
               {idea.groups.map((group) => (
                 <div key={group.label}>
                   <div className="flex flex-wrap items-baseline gap-x-2">
                     <h5 className="text-xs font-semibold text-teal">{group.label}</h5>
-                    {group.note ? <span className="text-[0.7rem] text-slate-500">— {group.note}</span> : null}
+                    {group.note ? <span className="text-[0.7rem] text-slate-500">{group.note}</span> : null}
                   </div>
                   <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {group.names.map((n) => (
@@ -661,8 +661,8 @@ function IdeaModal({ idea, pro, onClose }: { idea: TradingIdea; pro: boolean; on
                 <span className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/40 bg-gold/15 text-gold">🔒</span>
                 <span className="text-sm font-semibold text-white">Full source pack is part of Quantifi Pro</span>
                 <span className="max-w-md text-xs leading-relaxed text-slate-400">
-                  {idea.sourcePack.length} evidence sources — filings, earnings calls, industry &amp; policy
-                  data — each with what it checks, the linked names and the thesis test it informs.
+                  {idea.sourcePack.length} evidence sources, filings, earnings calls, industry &amp; policy
+                  data; each with what it checks, the linked names and the thesis test it informs.
                 </span>
                 <span className="mt-1 rounded-full bg-gradient-to-r from-gold-400 to-gold-600 px-3 py-1 text-[0.7rem] font-semibold text-ink">
                   Unlock with Pro →
@@ -751,7 +751,7 @@ function IdeaModal({ idea, pro, onClose }: { idea: TradingIdea; pro: boolean; on
           </div>
 
           <p className="mt-6 border-t border-white/[0.06] pt-4 text-xs text-slate-500">
-            A research starting point, not a recommendation. Not advice — always do your own work.
+            A research starting point, not a recommendation. Not advice; always do your own work.
           </p>
         </div>
       </div>
