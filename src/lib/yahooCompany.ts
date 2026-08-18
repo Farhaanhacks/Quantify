@@ -191,6 +191,14 @@ export async function getYahooStatements(
   try {
     const types = [
       "annualTotalRevenue", "annualGrossProfit", "annualOperatingIncome", "annualNetIncome",
+      // The expense lines, for the revenue-and-expenses breakdown. Yahoo does
+      // not publish revenue BY SEGMENT anywhere in this feed, so a breakdown
+      // built from it starts at total revenue; the segment fan on the left of a
+      // Simply Wall St diagram comes from the filings themselves.
+      "annualCostOfRevenue", "annualResearchAndDevelopment",
+      "annualSellingGeneralAndAdministration", "annualOperatingExpense",
+      "annualTaxProvision", "annualPretaxIncome",
+      "annualNetNonOperatingInterestIncomeExpense", "annualOtherNonOperatingIncomeExpenses",
       "annualTotalAssets", "annualTotalLiabilitiesNetMinorityInterest", "annualStockholdersEquity",
       "annualCashAndCashEquivalents", "annualLongTermDebt",
       "annualCurrentAssets", "annualCurrentLiabilities", "annualInventory",
@@ -261,6 +269,13 @@ export async function getYahooStatements(
       income: dates.map((d) => pick(d, {
         revenue: "annualTotalRevenue", grossProfit: "annualGrossProfit",
         operatingIncome: "annualOperatingIncome", netIncome: "annualNetIncome",
+        costOfRevenue: "annualCostOfRevenue",
+        researchAndDevelopment: "annualResearchAndDevelopment",
+        sellingGeneralAdmin: "annualSellingGeneralAndAdministration",
+        operatingExpense: "annualOperatingExpense",
+        taxProvision: "annualTaxProvision", pretaxIncome: "annualPretaxIncome",
+        nonOperatingInterest: "annualNetNonOperatingInterestIncomeExpense",
+        otherNonOperating: "annualOtherNonOperatingIncomeExpenses",
       })),
       balance,
       cashflow: dates.map((d) => pick(d, {
