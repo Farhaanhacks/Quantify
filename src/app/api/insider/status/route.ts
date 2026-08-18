@@ -3,6 +3,8 @@ import { getIngestMeta, kvConfigured } from "@/lib/insiderStore";
 import { getNSEInsiderWithDebug } from "@/lib/insiderIndiaNSE";
 import { getIndiaInsiderWithDebug } from "@/lib/insiderIndia";
 import { getCompanyInsiderTrades } from "@/lib/insider";
+import { getTaiwanIngestMeta } from "@/lib/taiwan/insiderStore";
+import { probeTaiwanDatasets } from "@/lib/taiwan/insiderFetch";
 
 // One endpoint that answers "why is there no insider data?" definitively.
 //
@@ -55,6 +57,14 @@ export async function GET(req: Request) {
   };
 
   const meta = await getIngestMeta().catch(() => null);
+  const taiwanMeta = await getTaiwanIngestMeta().catch(() => null);
+
+  // Taiwan is probed separately and by default, because it is the one source
+  // whose column names were never verified against the live feed — see
+  // scripts/fixtures/taiwan/README.md. One request per market reports the HTTP
+  // status, the row count and the payload's REAL column names, which is
+  // everything needed to tell "the exchange is down" from "the schema moved".
+  const taiwanProbe = probe ? await probeTaiwanDatasets().catch(() => null) : null;
 
   let probes: Record<string, unknown> = { skipped: true };
   if (probe) {
@@ -92,6 +102,30 @@ export async function GET(req: Request) {
       "Neither a vendor API nor a residential proxy is configured. NSE and BSE block datacenter IPs, which is every IP this app runs on, so live Indian fetches cannot succeed."
     );
   }
+  if (!config.redis) {
+    verdict.push(
+      "Taiwan also needs Redis: the TWSE/TPEx datasets are market-wide files ingested on a schedule, and with no store there is nothing for a stock page to read."
+    );
+  } else if (!taiwanMeta) {
+    verdict.push(
+      "The Taiwan ingest has never run. Trigger /api/cron/insider-tw once (add ?key=<CRON_SECRET> if that is set); every .TW / .TWO page reports 'source temporarily unavailable' until it completes."
+    );
+  } else if (!taiwanMeta.lastCompleteRun) {
+    verdict.push(
+      `The Taiwan ingest has run but never completed all six datasets. Failing: ${taiwanMeta.datasets
+        .filter((d) => !d.ok)
+        .map((d) => `${d.dataset} (${d.error ?? d.httpStatus ?? "unknown"})`)
+        .join(", ")}.`
+    );
+  }
+  const schemaMiss = (taiwanProbe ?? []).filter((p) => p.missingColumns?.length);
+  if (schemaMiss.length) {
+    verdict.push(
+      `A Taiwan dataset's columns are not the ones the parser knows (${schemaMiss
+        .map((p) => p.dataset)
+        .join(", ")}). Its real column names are in taiwanProbe[].seenColumns — add them to COLUMNS in src/lib/taiwan/insiderParse.ts.`
+    );
+  }
   if (!config.edgarUserAgent) {
     verdict.push(
       "EDGAR_USER_AGENT is not set. SEC asks for a declared contact string and throttles requests without one, so US Form 4 data may be rate-limited."
@@ -104,6 +138,8 @@ export async function GET(req: Request) {
     verdict,
     config,
     ingest: meta ?? null,
+    taiwanIngest: taiwanMeta ?? null,
+    taiwanProbe,
     probes,
     reference: {
       india:

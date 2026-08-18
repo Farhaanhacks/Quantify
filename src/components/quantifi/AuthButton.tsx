@@ -73,6 +73,9 @@ const SECTIONS: { heading: string; links: { href: string; label: string }[] }[] 
 
 export default function AuthButton() {
   const [user, setUser] = useState<SessionUser | null>(null);
+  // Staff. Only decides whether the menu shows a link — /admin re-checks the
+  // signed cookie on the server, so a forged flag here buys a link to a 404.
+  const [admin, setAdmin] = useState(false);
   const [ready, setReady] = useState(false);
   const [open, setOpen] = useState(false);
   const [light, setLight] = useState(false);
@@ -83,9 +86,10 @@ export default function AuthButton() {
     let cancelled = false;
     fetch("/api/auth/session")
       .then((r) => r.json())
-      .then((d: { user?: SessionUser | null }) => {
+      .then((d: { user?: SessionUser | null; admin?: boolean }) => {
         if (!cancelled) {
           setUser(d.user ?? null);
+          setAdmin(Boolean(d.admin));
           setReady(true);
         }
       })
@@ -255,6 +259,18 @@ export default function AuthButton() {
                 </Link>
               ))}
             </>
+          ) : null}
+
+          {admin ? (
+            <div>
+              <div className="mx-2 mt-1 border-t border-white/[0.07]" />
+              <p className="px-3 pb-1 pt-2 text-[0.6rem] font-semibold uppercase tracking-[0.14em] text-gold/80">
+                Staff
+              </p>
+              <Link href="/admin" onClick={() => setOpen(false)} className={row}>
+                Operations
+              </Link>
+            </div>
           ) : null}
 
           {SECTIONS.map((s) => (

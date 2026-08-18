@@ -175,6 +175,39 @@ export async function fetchDataset(spec: DatasetSpec): Promise<DatasetOutcome> {
   return out;
 }
 
+/**
+ * Fetch one dataset per market and report what came back, WITHOUT writing
+ * anything.
+ *
+ * This exists because the parser was written against the published schema by
+ * someone who could not reach the exchange to check it. If the live column names
+ * differ, the parser refuses to guess — which is right, but it leaves "source
+ * unavailable" on the page with no indication of why. This answers that from a
+ * deployment that does have network: the HTTP status, the row count, and the
+ * payload's own column names.
+ */
+export async function probeTaiwanDatasets(): Promise<
+  { dataset: string; url?: string; httpStatus?: number; rowsIn: number; records: number; missingColumns?: string[]; seenColumns?: string[]; error?: string; ok: boolean }[]
+> {
+  const specs = DATASETS.filter((d) => d.eventType === "holding_snapshot");
+  const out = [];
+  for (const spec of specs) {
+    const o = await fetchDataset(spec);
+    out.push({
+      dataset: o.dataset,
+      url: o.url,
+      httpStatus: o.httpStatus,
+      rowsIn: o.rowsIn,
+      records: o.records.length,
+      missingColumns: o.missingColumns,
+      seenColumns: o.seenColumns,
+      error: o.error,
+      ok: o.ok,
+    });
+  }
+  return out;
+}
+
 export interface MarketWideResult {
   /** companyId → records, newest first. */
   byCompany: Map<string, TaiwanInsiderRecord[]>;

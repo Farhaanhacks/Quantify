@@ -5,6 +5,7 @@
 // KV record shape (written by /api/razorpay/verify and the webhook):
 //   { "active": true, "subscription_id": "sub_...", "current_end": <unix secs> }
 import { kvGet } from "@/lib/kv";
+import { parseEmailAllowlist, emailInAllowlist } from "@/lib/emailAllowlist";
 
 export interface ProRecord {
   active?: boolean;
@@ -23,12 +24,7 @@ function proEmailAllowlist(): Set<string> {
     process.env.PRO_EMAIL ||
     process.env.NEXT_PUBLIC_PRO_EMAILS ||
     "";
-  return new Set(
-    raw
-      .split(/[\s,;]+/)
-      .map((e) => e.trim().toLowerCase())
-      .filter(Boolean)
-  );
+  return parseEmailAllowlist(raw);
 }
 
 // Owner / comp emails only (the PRO_EMAILS allowlist) — used to gate owner-only
@@ -36,6 +32,38 @@ function proEmailAllowlist(): Set<string> {
 export function isOwnerEmail(email?: string | null): boolean {
   if (!email) return false;
   return proEmailAllowlist().has(email.trim().toLowerCase());
+}
+
+// ── Staff ───────────────────────────────────────────────────────────────────
+//
+// A separate allowlist from PRO_EMAILS, and deliberately so. Pro is a PLAN — it
+// says someone paid, and comping it to a friend is routine. Staff is TRUST: it
+// opens operational surfaces that show which infrastructure is configured and
+// let a person trigger jobs. Sharing one list between the two means every comped
+// account silently becomes an operator.
+//
+// Set ADMIN_EMAILS to a comma-separated list. Unset means NOBODY is staff — the
+// admin surface 404s for everyone, which is the right default for a var that
+// might never be added.
+function adminEmailRaw(): string {
+  return process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || "";
+}
+
+/**
+ * Is this email on the staff allowlist?
+ *
+ * Server-only by construction: it reads a non-public env var, so it cannot be
+ * called from client code — which is the point. A client-side "is admin" flag is
+ * a hint for rendering, never a permission; every admin surface re-checks this
+ * on the server before it does or shows anything.
+ */
+export function isAdminEmail(email?: string | null): boolean {
+  return emailInAllowlist(email, adminEmailRaw());
+}
+
+/** Whether any staff account is configured at all — shown on the admin page. */
+export function adminConfigured(): boolean {
+  return parseEmailAllowlist(adminEmailRaw()).size > 0;
 }
 
 export async function isEmailPro(email?: string | null): Promise<boolean> {
