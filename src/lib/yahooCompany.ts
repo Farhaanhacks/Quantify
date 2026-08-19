@@ -265,8 +265,7 @@ export async function getYahooStatements(
         if (a != null && e != null) row.values.totalLiabilities = a - e;
       }
     }
-    return {
-      income: dates.map((d) => pick(d, {
+    const income = dates.map((d) => pick(d, {
         revenue: "annualTotalRevenue", grossProfit: "annualGrossProfit",
         operatingIncome: "annualOperatingIncome", netIncome: "annualNetIncome",
         costOfRevenue: "annualCostOfRevenue",
@@ -276,7 +275,21 @@ export async function getYahooStatements(
         taxProvision: "annualTaxProvision", pretaxIncome: "annualPretaxIncome",
         nonOperatingInterest: "annualNetNonOperatingInterestIncomeExpense",
         otherNonOperating: "annualOtherNonOperatingIncomeExpenses",
-      })),
+    }));
+    // Gross profit from the two figures around it, where Yahoo publishes those
+    // but not the line itself. Note what this does NOT do: a company with no
+    // cost-of-revenue line gets nothing, because for a bank or an insurer there
+    // is no cost of revenue to subtract and "revenue minus nothing" would just
+    // be revenue wearing a different label.
+    for (const row of income) {
+      if (row.values.grossProfit == null) {
+        const rev = row.values.revenue;
+        const cost = row.values.costOfRevenue;
+        if (rev != null && cost != null) row.values.grossProfit = rev - Math.abs(cost);
+      }
+    }
+    return {
+      income,
       balance,
       cashflow: dates.map((d) => pick(d, {
         operatingCashFlow: "annualOperatingCashFlow", capex: "annualCapitalExpenditure",
@@ -286,6 +299,35 @@ export async function getYahooStatements(
   } catch {
     return empty;
   }
+}
+
+/**
+ * Put a trailing-twelve-month column in front of the annual ones.
+ *
+ * This exists because of a question that looks like a scraping bug and is not.
+ * Yahoo's own page shows "Gross Profit (ttm) 186.33B" for JPMorgan while our
+ * annual columns showed n/a, and the two figures come from different places:
+ * the annual columns are the fundamentals timeseries, which carries the lines a
+ * company actually FILES, and the ttm figure is one the data source computes
+ * from the last four quarters. A bank files no cost of revenue and therefore no
+ * gross profit, so the annual line is genuinely absent while the computed one
+ * exists. That the same figure is quoted elsewhere as 199.4b rather than 186.3b
+ * is the tell: reported lines do not disagree between sources, derived ones do.
+ *
+ * So the ttm figure gets its own column, marked, instead of being dropped (which
+ * loses a number the reader can see on Yahoo) or written into a dated annual
+ * column (which would state that the company reported it for that year).
+ */
+function withTtmColumn(
+  income: FinRow[],
+  ttm: { revenue?: number; grossProfit?: number; netIncome?: number }
+): FinRow[] {
+  const has = Object.values(ttm).some((v) => v != null);
+  if (!has) return income;
+  // Operating income is deliberately absent: the summary modules publish an
+  // operating MARGIN, and multiplying it back out would put a derived figure in
+  // a column of reported ones without saying so.
+  return [{ date: "TTM", values: { ...ttm } }, ...income];
 }
 
 export async function getYahooCompany(input: string): Promise<CompanyData | null> {
@@ -552,7 +594,11 @@ export async function getYahooCompany(input: string): Promise<CompanyData | null
       ownership.institutionsPct != null || ownership.insidersPct != null || ownership.institutionsCount != null
         ? ownership
         : undefined,
-    incomeStatements: stmts.income,
+    incomeStatements: withTtmColumn(stmts.income, {
+      revenue: revenueVal,
+      grossProfit: num(fd.grossProfits),
+      netIncome: netIncomeVal2,
+    }),
     balanceSheets: stmts.balance,
     cashflowStatements: stmts.cashflow,
     news: await fetchNews(symbol),
