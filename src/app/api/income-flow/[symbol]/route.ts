@@ -4,8 +4,9 @@ import { jsonCached } from "@/lib/httpCache";
 import { aliasSymbol } from "@/lib/symbolAlias";
 import {
   buildFlowForModel,
-  type BankIncomeLines,
-  type IndustrialIncomeLines,
+  MODEL_TITLES,
+  type AnyIncomeLines,
+  type IncomeModel,
 } from "@/lib/incomeFlow";
 
 export const dynamic = "force-dynamic";
@@ -21,13 +22,12 @@ export const dynamic = "force-dynamic";
 /**
  * Industries that report as lenders.
  *
- * Deliberately NOT the whole Financial Services sector. An insurer's account
- * runs premiums earned to claims incurred to underwriting result; an asset
- * manager's is fee income against compensation; a broker's is commissions. None
- * of those are interest earned and expended, and drawing them as a bank would
- * repeat the same mistake this selection exists to fix, one industry over. They
- * fall through to the industrial builder, which refuses honestly, until each has
- * a model of its own.
+ * Deliberately NOT the whole Financial Services sector. An insurer has its own
+ * list below; an asset manager's account is fee income against compensation and
+ * a broker's is commissions, and neither is interest earned and expended.
+ * Drawing them as a bank would repeat the same mistake one industry over, so
+ * they fall through to the industrial builder and, failing that, to the generic
+ * bridge, which claims nothing about structure.
  */
 const BANK_INDUSTRIES = new Set([
   "banks",
@@ -38,6 +38,29 @@ const BANK_INDUSTRIES = new Set([
   "banks—regional - us",
   "savings & cooperative banks",
   "thrifts & mortgage finance",
+]);
+
+/**
+ * Industries that report as insurers.
+ *
+ * Separate from banking for the same reason banking is separate from industry:
+ * an insurer's account runs premiums earned and investment income in, claims
+ * incurred out. It has no interest expended and no cost of sales, and drawing it
+ * as either would be the same substitution one industry over.
+ */
+const INSURANCE_INDUSTRIES = new Set([
+  "insurance—life",
+  "insurance - life",
+  "insurance—property & casualty",
+  "insurance - property & casualty",
+  "insurance—reinsurance",
+  "insurance - reinsurance",
+  "insurance—specialty",
+  "insurance - specialty",
+  "insurance—diversified",
+  "insurance - diversified",
+  "insurance brokers",
+  "insurance",
 ]);
 
 const normIndustry = (s?: string) =>
@@ -69,44 +92,67 @@ export async function GET(_req: Request, { params }: { params: { symbol: string 
     const sector = typeof ap.sector === "string" ? ap.sector : undefined;
     const v = row.values;
 
-    // Two conditions, both required. The industry alone would mis-file any
-    // company Yahoo classifies loosely; the fields alone would catch every
-    // company that happens to report an interest line, which is most of them.
+    // Each model needs BOTH an industry that reports that way and the lines
+    // themselves. The industry alone mis-files anything Yahoo classifies
+    // loosely; the lines alone catch every company that happens to report an
+    // interest figure, which is most of them.
     const hasBankFields =
       v.netInterestIncome != null ||
       v.interestIncome != null ||
       v.provisionForLoanLosses != null;
-    const isBank = BANK_INDUSTRIES.has(normIndustry(industry)) && hasBankFields;
+    const hasInsuranceFields =
+      v.premiumsEarned != null || v.claimsIncurred != null || v.netInvestmentIncome != null;
 
-    const lines: BankIncomeLines | IndustrialIncomeLines = isBank
-      ? {
-          model: "bank",
-          interestIncome: v.interestIncome,
-          interestExpense: v.interestExpense,
-          netInterestIncome: v.netInterestIncome,
-          nonInterestIncome: v.nonInterestIncome,
-          operatingExpense: v.operatingExpense,
-          provisionForLoanLosses: v.provisionForLoanLosses,
-          pretaxIncome: v.pretaxIncome,
-          taxProvision: v.taxProvision,
-          netIncome: v.netIncome,
-          totalIncome: v.revenue,
-        }
-      : {
-          model: "industrial",
-          revenue: v.revenue,
-          costOfRevenue: v.costOfRevenue,
-          grossProfit: v.grossProfit,
-          researchAndDevelopment: v.researchAndDevelopment,
-          sellingGeneralAdmin: v.sellingGeneralAdmin,
-          operatingExpense: v.operatingExpense,
-          operatingIncome: v.operatingIncome,
-          taxProvision: v.taxProvision,
-          pretaxIncome: v.pretaxIncome,
-          nonOperatingInterest: v.nonOperatingInterest,
-          otherNonOperating: v.otherNonOperating,
-          netIncome: v.netIncome,
-        };
+    const ind = normIndustry(industry);
+    const model: IncomeModel = BANK_INDUSTRIES.has(ind) && hasBankFields
+      ? "bank"
+      : INSURANCE_INDUSTRIES.has(ind) && hasInsuranceFields
+        ? "insurance"
+        : "industrial";
+
+    const lines: AnyIncomeLines =
+      model === "bank"
+        ? {
+            model: "bank",
+            interestIncome: v.interestIncome,
+            interestExpense: v.interestExpense,
+            netInterestIncome: v.netInterestIncome,
+            nonInterestIncome: v.nonInterestIncome,
+            operatingExpense: v.operatingExpense,
+            provisionForLoanLosses: v.provisionForLoanLosses,
+            pretaxIncome: v.pretaxIncome,
+            taxProvision: v.taxProvision,
+            netIncome: v.netIncome,
+            totalIncome: v.revenue,
+          }
+        : model === "insurance"
+          ? {
+              model: "insurance",
+              premiumsEarned: v.premiumsEarned,
+              netInvestmentIncome: v.netInvestmentIncome,
+              totalRevenue: v.revenue,
+              claimsIncurred: v.claimsIncurred,
+              underwritingExpense: v.underwritingExpense,
+              operatingExpense: v.operatingExpense,
+              pretaxIncome: v.pretaxIncome,
+              taxProvision: v.taxProvision,
+              netIncome: v.netIncome,
+            }
+          : {
+              model: "industrial",
+              revenue: v.revenue,
+              costOfRevenue: v.costOfRevenue,
+              grossProfit: v.grossProfit,
+              researchAndDevelopment: v.researchAndDevelopment,
+              sellingGeneralAdmin: v.sellingGeneralAdmin,
+              operatingExpense: v.operatingExpense,
+              operatingIncome: v.operatingIncome,
+              taxProvision: v.taxProvision,
+              pretaxIncome: v.pretaxIncome,
+              nonOperatingInterest: v.nonOperatingInterest,
+              otherNonOperating: v.otherNonOperating,
+              netIncome: v.netIncome,
+            };
 
     const flow = buildFlowForModel(lines);
     if (!flow.ok) {
@@ -115,6 +161,7 @@ export async function GET(_req: Request, { params }: { params: { symbol: string 
           available: false,
           reason: "not_drawable",
           model: flow.model,
+          title: MODEL_TITLES[flow.model ?? "industrial"],
           // The statement itself, so the section can show a table where it
           // cannot draw a diagram. A reader who came for the numbers should not
           // leave with a sentence.
@@ -138,6 +185,7 @@ export async function GET(_req: Request, { params }: { params: { symbol: string 
         currency: typeof pr.currency === "string" ? pr.currency : undefined,
         periodEnd: row.date,
         model: flow.model,
+        title: MODEL_TITLES[flow.model ?? "industrial"],
         industry,
         sector,
         flow,
