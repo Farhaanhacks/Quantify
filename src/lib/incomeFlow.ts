@@ -38,11 +38,22 @@
  * Asking it for a gross profit and refusing to draw anything when it has none
  * rejects a complete, valid statement.
  *
- * The registry is open by design. Four entries today:
+ * The registry is open by design. Eight entries today:
  *
  *   industrial  revenue, cost of sales, gross profit
  *   bank        interest earned and expended, provisions as their own head
+ *   lender      the same cascade for an NBFC: no deposits, so finance costs
+ *               rather than interest expended, and impairments rather than
+ *               provisions and contingencies
  *   insurance   premiums earned and investment income in, claims incurred out
+ *   fee         commissions and fees against compensation: brokers, asset
+ *               managers, insurance BROKERS, who take no underwriting risk and
+ *               therefore have no claims line at all
+ *   operating   revenue to operating expenses and operating income, for a
+ *               business with no cost of sales to speak of: REITs, utilities,
+ *               transport, services, holding companies
+ *   burn        costs funded by a loss, for a company with little or no revenue:
+ *               pre-revenue biotech, a SPAC, an early-stage anything
  *   generic     revenue to profit before tax, with one derived expense block
  *
  * `generic` is the safety net rather than a reporting structure: a REIT, an
@@ -52,11 +63,20 @@
  * a breakdown. Brokers and asset managers will earn their own builders in time;
  * until then they get an honest bridge rather than someone else's model.
  */
-export type IncomeModel = "industrial" | "bank" | "insurance" | "generic";
+export type IncomeModel =
+  | "industrial"
+  | "bank"
+  | "lender"
+  | "insurance"
+  | "fee"
+  | "operating"
+  | "burn"
+  | "generic";
 
 /** A bank's account, in the order the statement itself reads. */
 export interface BankIncomeLines {
-  model: "bank";
+  /** "lender" draws the same cascade in an NBFC's vocabulary. */
+  model: "bank" | "lender";
   /** Interest earned: the top line of a lender's account. */
   interestIncome?: number;
   /** Interest expended: what it paid depositors and lenders. */
@@ -115,7 +135,10 @@ export type IncomeLines = IndustrialIncomeLines;
 export type AnyIncomeLines =
   | IndustrialIncomeLines
   | BankIncomeLines
-  | InsuranceIncomeLines;
+  | InsuranceIncomeLines
+  | FeeIncomeLines
+  | OperatingIncomeLines
+  | BurnIncomeLines;
 
 /**
  * What the section calls itself, per model.
@@ -127,7 +150,11 @@ export type AnyIncomeLines =
 export const MODEL_TITLES: Record<IncomeModel, string> = {
   industrial: "Revenue & expenses breakdown",
   bank: "Bank income breakdown",
+  lender: "Lending income breakdown",
   insurance: "Insurance income breakdown",
+  fee: "Fee & commission breakdown",
+  operating: "Operating income breakdown",
+  burn: "Operating costs & loss",
   generic: "Income & expenses bridge",
 };
 
@@ -327,12 +354,38 @@ export const buildIncomeFlow = buildIndustrialIncomeFlow;
  * cycle.
  */
 export function buildBankIncomeFlow(lines: BankIncomeLines): IncomeFlow {
+  // A non-bank lender runs the same cascade in different words. It funds itself
+  // in the market rather than from deposits, so what it pays is a finance cost
+  // and not interest expended, and what it sets aside is an impairment charge
+  // and not provisions and contingencies. Same identities, right vocabulary:
+  // a reader comparing the diagram against the filing should see the filing's
+  // own words.
+  const lender = lines.model === "lender";
+  const model: IncomeModel = lender ? "lender" : "bank";
+  const L = lender
+    ? {
+        top: "Interest income",
+        funding: "Finance costs",
+        net: "Net interest income",
+        other: "Fee & other income",
+        operating: "Net operating income",
+        provisions: "Impairment charges",
+      }
+    : {
+        top: "Interest earned",
+        funding: "Interest expended",
+        net: "Net interest income",
+        other: "Other income",
+        operating: "Operating income",
+        provisions: "Loan-loss provisions",
+      };
+
   const fail = (reason: string): IncomeFlow => ({
     nodes: [],
     links: [],
     ok: false,
     loss: false,
-    model: "bank",
+    model,
     reason,
   });
 
@@ -375,11 +428,11 @@ export function buildBankIncomeFlow(lines: BankIncomeLines): IncomeFlow {
   // since interest earned that splits into one branch is not a split at all.
   let depthShift = 0;
   if (interestIncome != null && interestExpense != null && interestExpense <= interestIncome) {
-    add({ id: "interestIncome", label: "Interest earned", value: interestIncome, kind: "revenue", depth: 0 });
-    add({ id: "interestExpense", label: "Interest expended", value: interestExpense, kind: "cost", depth: 1 });
+    add({ id: "interestIncome", label: L.top, value: interestIncome, kind: "revenue", depth: 0 });
+    add({ id: "interestExpense", label: L.funding, value: interestExpense, kind: "cost", depth: 1 });
     add({
       id: "nii",
-      label: "Net interest income",
+      label: L.net,
       value: netInterestIncome,
       kind: "profit",
       depth: 1,
@@ -404,21 +457,21 @@ export function buildBankIncomeFlow(lines: BankIncomeLines): IncomeFlow {
         // at net interest income.
         nodes.length = 0;
         links.length = 0;
-        add({ id: "nii", label: "Net interest income", value: netInterestIncome, kind: "revenue", depth: 1 });
+        add({ id: "nii", label: L.net, value: netInterestIncome, kind: "revenue", depth: 1 });
       }
     }
   } else {
     // Net interest income is where the picture starts when the gross interest
     // lines are not published.
-    add({ id: "nii", label: "Net interest income", value: netInterestIncome, kind: "revenue", depth: 1 });
+    add({ id: "nii", label: L.net, value: netInterestIncome, kind: "revenue", depth: 1 });
     depthShift = 0;
   }
 
   if (otherIncome > 0) {
-    add({ id: "otherIncome", label: "Other income", value: otherIncome, kind: "revenue", depth: 1 });
+    add({ id: "otherIncome", label: L.other, value: otherIncome, kind: "revenue", depth: 1 });
   }
 
-  add({ id: "operatingIncome", label: "Operating income", value: operatingIncome, kind: "profit", depth: 2 + depthShift });
+  add({ id: "operatingIncome", label: L.operating, value: operatingIncome, kind: "profit", depth: 2 + depthShift });
   join("nii", "operatingIncome", netInterestIncome);
   if (otherIncome > 0) join("otherIncome", "operatingIncome", otherIncome);
 
@@ -432,7 +485,7 @@ export function buildBankIncomeFlow(lines: BankIncomeLines): IncomeFlow {
       links,
       ok: true,
       loss: netIncome != null && netIncome < 0,
-      model: "bank",
+      model,
       simplified: true,
       reason: "operating expenses not reported, so the flow stops at operating income",
     };
@@ -459,7 +512,7 @@ export function buildBankIncomeFlow(lines: BankIncomeLines): IncomeFlow {
       links,
       ok: true,
       loss: netIncome != null && netIncome < 0,
-      model: "bank",
+      model,
       simplified: true,
       reason: "provisions or pre-tax profit not reported, so the flow stops at pre-provision profit",
     };
@@ -468,7 +521,7 @@ export function buildBankIncomeFlow(lines: BankIncomeLines): IncomeFlow {
   // exceptional items and share-of-associates sit between them. The gap is
   // carried as its own node rather than folded into either figure.
   const gap = prePro - prov - pbt;
-  add({ id: "provisions", label: "Loan-loss provisions", value: prov, kind: "expense", depth: 4 });
+  add({ id: "provisions", label: L.provisions, value: prov, kind: "expense", depth: 4 });
   add({ id: "pbt", label: "Profit before tax", value: pbt, kind: "profit", depth: 4 });
   join("preprovision", "provisions", prov);
   join("preprovision", "pbt", pbt);
@@ -488,7 +541,7 @@ export function buildBankIncomeFlow(lines: BankIncomeLines): IncomeFlow {
       links,
       ok: true,
       loss: net != null && net < 0,
-      model: "bank",
+      model,
       simplified: true,
       reason: "tax or net profit not reported, so the flow stops at profit before tax",
     };
@@ -503,7 +556,7 @@ export function buildBankIncomeFlow(lines: BankIncomeLines): IncomeFlow {
     join("pbt", "minority", residual);
   }
 
-  return { nodes, links, ok: true, loss: false, model: "bank" };
+  return { nodes, links, ok: true, loss: false, model };
 }
 
 /**
@@ -519,6 +572,7 @@ export function buildBankIncomeFlow(lines: BankIncomeLines): IncomeFlow {
  * income to profit, not a breakdown, and the section says so.
  */
 export function buildSimplifiedBankFlow(lines: BankIncomeLines): IncomeFlow {
+  const model: IncomeModel = lines.model === "lender" ? "lender" : "bank";
   const total =
     pos(lines.totalIncome) ??
     (lines.interestIncome != null && lines.nonInterestIncome != null
@@ -533,7 +587,7 @@ export function buildSimplifiedBankFlow(lines: BankIncomeLines): IncomeFlow {
       links: [],
       ok: false,
       loss: false,
-      model: "bank",
+      model,
       simplified: true,
       reason: "not enough of the account to bridge income to profit",
     };
@@ -543,7 +597,7 @@ export function buildSimplifiedBankFlow(lines: BankIncomeLines): IncomeFlow {
   const combined = total - pbt;
   const nodes: FlowNode[] = [
     { id: "totalIncome", label: "Total income", value: total, kind: "revenue", depth: 0 },
-    { id: "combined", label: "Expenses and provisions", value: combined, kind: "expense", depth: 1, derived: true },
+    { id: "combined", label: model === "lender" ? "Costs and impairments" : "Expenses and provisions", value: combined, kind: "expense", depth: 1, derived: true },
     { id: "pbt", label: "Profit before tax", value: pbt, kind: "profit", depth: 1 },
   ];
   const links: FlowLink[] = [
@@ -556,7 +610,7 @@ export function buildSimplifiedBankFlow(lines: BankIncomeLines): IncomeFlow {
     links.push({ from: "pbt", to: "tax", value: tax });
     links.push({ from: "pbt", to: "netProfit", value: pbt - tax });
   }
-  return { nodes, links, ok: true, loss: net < 0, model: "bank", simplified: true };
+  return { nodes, links, ok: true, loss: net < 0, model, simplified: true };
 }
 
 
@@ -793,43 +847,450 @@ export function buildGenericIncomeFlow(
   return { nodes, links, ok: nodes.length > 1, loss: net != null && net < 0, model, simplified: true };
 }
 
+
+// ── Fee businesses ──────────────────────────────────────────────────────────
+
+export interface FeeIncomeLines {
+  model: "fee";
+  /** Commissions, brokerage and management fees. */
+  feeIncome?: number;
+  /** Anything else on the top line: interest on balances, principal gains. */
+  otherIncome?: number;
+  totalRevenue?: number;
+  /** Compensation and benefits, which is most of the cost base. */
+  compensation?: number;
+  operatingExpense?: number;
+  pretaxIncome?: number;
+  taxProvision?: number;
+  netIncome?: number;
+}
+
 /**
- * Pick the builder from the model, and fall back to the bridge, never sideways.
+ * A broker's or asset manager's account.
  *
- * The rule that matters: a company never gets ANOTHER industry's model. A bank
- * whose detailed lines are missing gets the generic bridge, not the industrial
- * builder, because substituting one reporting structure for another is the
- * failure this whole registry exists to fix. The bridge claims nothing about
- * structure; it only says income went in and profit came out.
+ *   Fee & commission income ─┐
+ *                            ├─ Total revenue ─┬─ Compensation & benefits
+ *   Other income ────────────┘                 ├─ Other operating expenses
+ *                                              ├─ Other costs (derived)
+ *                                              └─ Profit before tax ─┬─ Tax
+ *                                                                    └─ Net profit
+ *
+ * INSURANCE BROKERS belong here, not with insurers. A broker places risk and
+ * takes a commission; it underwrites nothing, so it has no premiums earned and
+ * no claims incurred, and drawing it with a claims line would invent the single
+ * most important number an insurance statement has.
+ */
+export function buildFeeIncomeFlow(lines: FeeIncomeLines): IncomeFlow {
+  return revenueSplitFlow({
+    model: "fee",
+    sources: [
+      { id: "fees", label: "Fee & commission income", value: pos(lines.feeIncome) },
+      { id: "otherIncome", label: "Other income", value: pos(lines.otherIncome) },
+    ],
+    revenueLabel: "Total revenue",
+    revenue: pos(lines.totalRevenue),
+    costs: [
+      { id: "comp", label: "Compensation & benefits", value: mag(lines.compensation) },
+      { id: "opex", label: "Other operating expenses", value: mag(lines.operatingExpense) },
+    ],
+    residualLabel: "Other costs",
+    fallbackCostLabel: "Costs and expenses",
+    pretaxIncome: lines.pretaxIncome,
+    taxProvision: lines.taxProvision,
+    netIncome: lines.netIncome,
+  });
+}
+
+// ── Operating businesses without a cost of sales ────────────────────────────
+
+export interface OperatingIncomeLines {
+  model: "operating";
+  revenue?: number;
+  /** Property operating costs, cost of services, fuel and power, and so on. */
+  operatingExpense?: number;
+  sellingGeneralAdmin?: number;
+  depreciation?: number;
+  operatingIncome?: number;
+  /** Interest and everything else between operating income and pre-tax. */
+  nonOperatingInterest?: number;
+  pretaxIncome?: number;
+  taxProvision?: number;
+  netIncome?: number;
+}
+
+/**
+ * Revenue to operating income, for a business with no cost of sales to speak of.
+ *
+ *   Revenue ─┬─ Operating expenses ─┬─ Selling, general & admin
+ *            │                      ├─ Depreciation & amortisation
+ *            │                      └─ Other operating costs
+ *            └─ Operating income ─┬─ Interest & other
+ *                                 └─ Profit before tax ─┬─ Tax
+ *                                                       └─ Net profit
+ *
+ * A REIT collects rent, a utility sells power, a transport operator sells
+ * seats: each has an operating cost base rather than a cost of goods, and the
+ * gross-profit subtraction either is not published or is not meaningful. This
+ * keeps the two-stage shape those statements actually have, where the generic
+ * bridge would flatten it to one derived block.
+ */
+export function buildOperatingIncomeFlow(lines: OperatingIncomeLines): IncomeFlow {
+  const fail = (reason: string): IncomeFlow => ({
+    nodes: [], links: [], ok: false, loss: false, model: "operating", reason,
+  });
+
+  const revenue = pos(lines.revenue);
+  if (revenue == null) return fail("no revenue reported");
+
+  const net = lines.netIncome;
+  const tax = mag(lines.taxProvision);
+  let pbt = lines.pretaxIncome;
+  if (pbt == null && net != null && tax != null) pbt = net + tax;
+
+  let operating = lines.operatingIncome;
+  const opexTotal = mag(lines.operatingExpense);
+  if (operating == null && opexTotal != null) operating = revenue - opexTotal;
+  if (operating == null || operating <= 0 || operating > revenue) {
+    return fail(
+      operating == null
+        ? "no operating income or operating expense reported"
+        : "operating income is not a positive share of revenue, so the flow cannot be drawn to scale"
+    );
+  }
+
+  const nodes: FlowNode[] = [
+    { id: "revenue", label: "Revenue", value: revenue, kind: "revenue", depth: 0 },
+  ];
+  const links: FlowLink[] = [];
+  const add = (n: FlowNode) => nodes.push(n);
+  const join = (from: string, to: string, value: number) => links.push({ from, to, value });
+
+  const opex = revenue - operating;
+  add({ id: "opex", label: "Operating expenses", value: opex, kind: "expense", depth: 1, derived: lines.operatingExpense == null });
+  add({ id: "operating", label: "Operating income", value: operating, kind: "profit", depth: 1, derived: lines.operatingIncome == null });
+  join("revenue", "opex", opex);
+  join("revenue", "operating", operating);
+
+  // The named components of the operating cost base, where they fit inside it.
+  const parts: { id: string; label: string; value: number }[] = [];
+  const addPart = (id: string, label: string, v?: number) => {
+    const m = mag(v);
+    if (m != null && m > 0) parts.push({ id, label, value: m });
+  };
+  addPart("sga", "Selling, general & admin", lines.sellingGeneralAdmin);
+  addPart("dna", "Depreciation & amortisation", lines.depreciation);
+  const named = parts.reduce((sum, p) => sum + p.value, 0);
+  let simplified = true;
+  if (named > 0 && named <= opex) {
+    simplified = false;
+    for (const p of parts) {
+      add({ id: p.id, label: p.label, value: p.value, kind: "expense", depth: 2 });
+      join("opex", p.id, p.value);
+    }
+    const rest = opex - named;
+    if (rest > opex * 0.001) {
+      add({ id: "otherOpex", label: "Other operating costs", value: rest, kind: "expense", depth: 2, derived: true });
+      join("opex", "otherOpex", rest);
+    }
+  }
+
+  // Operating income down to pre-tax, and the gap between them named rather
+  // than absorbed: for most of these businesses that gap is interest, which is
+  // the whole story for a leveraged REIT or utility.
+  if (pbt != null && isFinite(pbt) && pbt > 0 && pbt <= operating) {
+    const between = operating - pbt;
+    add({ id: "pbt", label: "Profit before tax", value: pbt, kind: "profit", depth: 2 });
+    join("operating", "pbt", pbt);
+    if (between > operating * 0.001) {
+      add({
+        id: "interest",
+        label: "Interest & other",
+        value: between,
+        kind: "expense",
+        depth: 2,
+        derived: lines.nonOperatingInterest == null,
+      });
+      join("operating", "interest", between);
+    }
+
+    const taxVal = tax ?? (net != null ? Math.max(0, pbt - net) : undefined);
+    if (taxVal != null && taxVal <= pbt) {
+      add({ id: "tax", label: "Tax", value: taxVal, kind: "expense", depth: 3 });
+      add({ id: "netProfit", label: "Net profit", value: pbt - taxVal, kind: "profit", depth: 3 });
+      join("pbt", "tax", taxVal);
+      join("pbt", "netProfit", pbt - taxVal);
+    }
+  } else {
+    simplified = true;
+  }
+
+  return {
+    nodes,
+    links,
+    ok: true,
+    loss: net != null && net < 0,
+    model: "operating",
+    simplified: simplified || undefined,
+  };
+}
+
+// ── Companies that spend more than they earn ────────────────────────────────
+
+export interface BurnIncomeLines {
+  model: "burn";
+  revenue?: number;
+  /** Interest on the cash pile, which for a SPAC is the entire income statement. */
+  otherIncome?: number;
+  researchAndDevelopment?: number;
+  sellingGeneralAdmin?: number;
+  operatingExpense?: number;
+  netIncome?: number;
+}
+
+/**
+ * Where the money went, for a company with little or no revenue.
+ *
+ *   Revenue (if any) ─┐
+ *                     ├─ Operating costs ─┬─ Research & development
+ *   Interest & other ─┤                   ├─ General & administrative
+ *   Net loss ─────────┘                   └─ Other costs
+ *
+ * A pre-revenue biotech has no revenue to split and no profit to bridge to, so
+ * every other model in this file refuses it. But its statement is not empty and
+ * the question "where did the money go" has a precise answer: research, general
+ * costs, and the loss that funded them. A SPAC is the same shape with trust
+ * interest as the only income.
+ *
+ * The loss is a SOURCE here for the same reason it is in the bank model: costs
+ * exceeded income, and a node cannot emit more than it holds.
+ */
+export function buildBurnIncomeFlow(lines: BurnIncomeLines): IncomeFlow {
+  const fail = (reason: string): IncomeFlow => ({
+    nodes: [], links: [], ok: false, loss: true, model: "burn", reason,
+  });
+
+  const revenue = pos(lines.revenue) ?? 0;
+  const other = pos(lines.otherIncome) ?? 0;
+  const net = lines.netIncome;
+  if (net == null || !isFinite(net) || net >= 0) {
+    return fail("this model only describes a company operating at a loss");
+  }
+  const loss = Math.abs(net);
+  const total = revenue + other + loss;
+  if (total <= 0) return fail("no costs to account for");
+
+  const nodes: FlowNode[] = [];
+  const links: FlowLink[] = [];
+  const add = (n: FlowNode) => nodes.push(n);
+
+  if (revenue > 0) {
+    add({ id: "revenue", label: "Revenue", value: revenue, kind: "revenue", depth: 0 });
+    links.push({ from: "revenue", to: "costs", value: revenue });
+  }
+  if (other > 0) {
+    add({ id: "otherIncome", label: "Interest & other income", value: other, kind: "revenue", depth: 0 });
+    links.push({ from: "otherIncome", to: "costs", value: other });
+  }
+  add({ id: "netLoss", label: "Net loss", value: loss, kind: "loss", depth: 0 });
+  links.push({ from: "netLoss", to: "costs", value: loss });
+
+  add({ id: "costs", label: "Operating costs", value: total, kind: "expense", depth: 1 });
+
+  const parts: { id: string; label: string; value: number }[] = [];
+  const addPart = (id: string, label: string, v?: number) => {
+    const m = mag(v);
+    if (m != null && m > 0) parts.push({ id, label, value: m });
+  };
+  addPart("rnd", "Research & development", lines.researchAndDevelopment);
+  addPart("sga", "General & administrative", lines.sellingGeneralAdmin);
+  const named = parts.reduce((sum, p) => sum + p.value, 0);
+  let simplified = true;
+  if (named > 0 && named <= total) {
+    simplified = false;
+    for (const p of parts) {
+      add({ id: p.id, label: p.label, value: p.value, kind: "expense", depth: 2 });
+      links.push({ from: "costs", to: p.id, value: p.value });
+    }
+    const rest = total - named;
+    if (rest > total * 0.001) {
+      add({ id: "otherCosts", label: "Other costs", value: rest, kind: "expense", depth: 2, derived: true });
+      links.push({ from: "costs", to: "otherCosts", value: rest });
+    }
+  }
+
+  return { nodes, links, ok: true, loss: true, model: "burn", simplified: simplified || undefined };
+}
+
+// ── The shared revenue-split shape ──────────────────────────────────────────
+
+interface SplitSpec {
+  model: IncomeModel;
+  sources: { id: string; label: string; value?: number }[];
+  revenueLabel: string;
+  revenue?: number;
+  costs: { id: string; label: string; value?: number }[];
+  residualLabel: string;
+  fallbackCostLabel: string;
+  pretaxIncome?: number;
+  taxProvision?: number;
+  netIncome?: number;
+}
+
+/**
+ * Income in, named costs out, profit at the end.
+ *
+ * Shared because the shape is identical for several kinds of business and the
+ * conservation rules must not be re-implemented per model: named costs are used
+ * only when they fit inside the total, the remainder is always drawn, and a set
+ * that does not fit collapses to one derived block instead of being scaled.
+ */
+function revenueSplitFlow(spec: SplitSpec): IncomeFlow {
+  const fail = (reason: string): IncomeFlow => ({
+    nodes: [], links: [], ok: false, loss: false, model: spec.model, reason,
+  });
+
+  const components = spec.sources.reduce((sum, x) => sum + (x.value ?? 0), 0);
+  const revenue = spec.revenue ?? (components > 0 ? components : undefined);
+  if (revenue == null || revenue <= 0) return fail("no revenue reported");
+
+  const net = spec.netIncome;
+  const tax = mag(spec.taxProvision);
+  let pbt = spec.pretaxIncome;
+  if (pbt == null && net != null && tax != null) pbt = net + tax;
+  if (pbt == null || !isFinite(pbt)) return fail("no profit before tax reported");
+  if (pbt > revenue) return fail("profit before tax exceeds revenue, so the flow cannot be drawn to scale");
+
+  const nodes: FlowNode[] = [];
+  const links: FlowLink[] = [];
+  const add = (n: FlowNode) => nodes.push(n);
+  const join = (from: string, to: string, value: number) => links.push({ from, to, value });
+
+  const split = components > 0 && components <= revenue * 1.001;
+  if (split) {
+    for (const src of spec.sources) {
+      if (!src.value || src.value <= 0) continue;
+      add({ id: src.id, label: src.label, value: src.value, kind: "revenue", depth: 0 });
+      join(src.id, "revenue", src.value);
+    }
+    const gap = revenue - components;
+    if (gap > revenue * 0.001) {
+      add({ id: "otherRevenue", label: "Other revenue", value: gap, kind: "revenue", depth: 0 });
+      join("otherRevenue", "revenue", gap);
+    }
+  }
+  add({ id: "revenue", label: spec.revenueLabel, value: revenue, kind: "revenue", depth: split ? 1 : 0 });
+
+  const outDepth = split ? 2 : 1;
+  const costs = revenue - Math.max(0, pbt);
+  const named = spec.costs.reduce((sum, c) => sum + (c.value ?? 0), 0);
+  let simplified = true;
+  if (named > 0 && named <= costs) {
+    simplified = false;
+    for (const c of spec.costs) {
+      if (!c.value || c.value <= 0) continue;
+      add({ id: c.id, label: c.label, value: c.value, kind: "expense", depth: outDepth });
+      join("revenue", c.id, c.value);
+    }
+    const rest = costs - named;
+    if (rest > revenue * 0.001) {
+      add({ id: "residual", label: spec.residualLabel, value: rest, kind: "expense", depth: outDepth, derived: true });
+      join("revenue", "residual", rest);
+    }
+  } else if (costs > 0) {
+    add({ id: "residual", label: spec.fallbackCostLabel, value: costs, kind: "expense", depth: outDepth, derived: true });
+    join("revenue", "residual", costs);
+  }
+
+  if (pbt > 0) {
+    add({ id: "pbt", label: "Profit before tax", value: pbt, kind: "profit", depth: outDepth });
+    join("revenue", "pbt", pbt);
+    const taxVal = tax ?? (net != null ? Math.max(0, pbt - net) : undefined);
+    if (taxVal != null && taxVal <= pbt) {
+      add({ id: "tax", label: "Tax", value: taxVal, kind: "expense", depth: outDepth + 1 });
+      add({ id: "netProfit", label: "Net profit", value: pbt - taxVal, kind: "profit", depth: outDepth + 1 });
+      join("pbt", "tax", taxVal);
+      join("pbt", "netProfit", pbt - taxVal);
+    }
+  }
+
+  return {
+    nodes,
+    links,
+    ok: true,
+    loss: net != null && net < 0,
+    model: spec.model,
+    simplified: simplified || undefined,
+  };
+}
+
+/**
+ * Pick the builder from the model, and fall back downwards, never sideways.
+ *
+ * Two rules.
+ *
+ * A company never gets another industry's model. A lender whose detail is thin
+ * gets the bridge, not the industrial builder, because substituting one
+ * reporting structure for another is the failure this registry exists to fix.
+ *
+ * A company that is losing money is not a company with no statement. Where a
+ * revenue-and-profit model refuses because there is no profit to draw, the burn
+ * model answers the question that is still askable: where the money went. That
+ * is the difference between "we cannot draw this" and "there is nothing here".
  */
 export function buildFlowForModel(lines: AnyIncomeLines): IncomeFlow {
-  const bridgeInput = lines as BridgeLines;
+  const bridge = lines as BridgeLines;
+  const burnable = lines as BurnIncomeLines;
+  const model = lines.model;
 
-  if (lines.model === "bank") {
-    const detailed = buildBankIncomeFlow(lines);
+  /** The bridge, then the burn diagram, in that model's own name. */
+  const lastResort = (m: IncomeModel, combinedLabel?: string): IncomeFlow => {
+    const b = buildGenericIncomeFlow(bridge, { model: m, combinedLabel });
+    if (b.ok) return b;
+    const burn = buildBurnIncomeFlow({ ...burnable, model: "burn" });
+    return burn.ok ? burn : b;
+  };
+
+  if (model === "bank" || model === "lender") {
+    const detailed = buildBankIncomeFlow(lines as BankIncomeLines);
     if (detailed.ok && !detailed.simplified) return detailed;
-    const bridge = buildSimplifiedBankFlow(lines);
-    if (bridge.ok && !detailed.ok) return bridge;
+    const simple = buildSimplifiedBankFlow(lines as BankIncomeLines);
     if (detailed.ok) return detailed;
-    return bridge.ok
-      ? bridge
-      : buildGenericIncomeFlow(bridgeInput, { model: "bank", combinedLabel: "Expenses and provisions" });
+    if (simple.ok) return simple;
+    return lastResort(model, model === "lender" ? "Costs and impairments" : "Expenses and provisions");
   }
 
-  if (lines.model === "insurance") {
-    const detailed = buildInsuranceIncomeFlow(lines);
+  if (model === "insurance") {
+    const detailed = buildInsuranceIncomeFlow(lines as InsuranceIncomeLines);
     if (detailed.ok) return detailed;
-    return buildGenericIncomeFlow(bridgeInput, { model: "insurance", combinedLabel: "Claims and expenses" });
+    return lastResort("insurance", "Claims and expenses");
   }
 
-  if (lines.model === "generic") return buildGenericIncomeFlow(bridgeInput);
+  if (model === "fee") {
+    const detailed = buildFeeIncomeFlow(lines as FeeIncomeLines);
+    if (detailed.ok) return detailed;
+    return lastResort("fee", "Compensation and expenses");
+  }
 
-  const industrial = buildIndustrialIncomeFlow(lines);
+  if (model === "operating") {
+    const detailed = buildOperatingIncomeFlow(lines as OperatingIncomeLines);
+    if (detailed.ok) return detailed;
+    return lastResort("operating", "Operating costs");
+  }
+
+  if (model === "burn") {
+    const burn = buildBurnIncomeFlow(lines as BurnIncomeLines);
+    if (burn.ok) return burn;
+    return buildGenericIncomeFlow(bridge, { model: "burn" });
+  }
+
+  if (model === "generic") return lastResort("generic");
+
+  const industrial = buildIndustrialIncomeFlow(lines as IndustrialIncomeLines);
   if (industrial.ok) return industrial;
   // An industrial company with no cost of sales and no gross profit is usually
-  // a service business, a REIT or simply a gap in the feed. It still has a top
-  // line and a profit, so it gets the bridge rather than an empty panel.
-  return buildGenericIncomeFlow(bridgeInput);
+  // a service business, a REIT or simply a gap in the feed; one that is losing
+  // money has no profit to bridge to. Both still have something to show.
+  return lastResort("generic");
 }
 
 
