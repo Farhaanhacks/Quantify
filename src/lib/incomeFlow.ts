@@ -25,7 +25,48 @@
 // at total revenue and the caption says why, which is better than approximating
 // segments from anywhere else.
 
-export interface IncomeLines {
+/**
+ * Which reporting structure a company's income statement follows.
+ *
+ * This exists because the industrial identity
+ *
+ *   revenue = cost of sales + gross profit
+ *
+ * is not universal, and treating it as universal was a model-selection bug
+ * dressed up as missing data. A bank has no cost of sales: it borrows at one
+ * rate, lends at another, and the first line of its account is interest earned.
+ * Asking it for a gross profit and refusing to draw anything when it has none
+ * rejects a complete, valid statement.
+ *
+ * The registry is deliberately open. Insurers (premiums earned, claims incurred,
+ * underwriting result) and brokers (commissions and fee income) are different
+ * again, and each needs its own builder rather than a broadened version of one
+ * of these two.
+ */
+export type IncomeModel = "industrial" | "bank";
+
+/** A bank's account, in the order the statement itself reads. */
+export interface BankIncomeLines {
+  model: "bank";
+  /** Interest earned: the top line of a lender's account. */
+  interestIncome?: number;
+  /** Interest expended: what it paid depositors and lenders. */
+  interestExpense?: number;
+  netInterestIncome?: number;
+  /** Other income: fees, commissions, treasury and trading. */
+  nonInterestIncome?: number;
+  operatingExpense?: number;
+  /** Provisions and contingencies, in Indian reporting. */
+  provisionForLoanLosses?: number;
+  pretaxIncome?: number;
+  taxProvision?: number;
+  netIncome?: number;
+  /** Total income, where the components are not published separately. */
+  totalIncome?: number;
+}
+
+export interface IndustrialIncomeLines {
+  model?: "industrial";
   revenue?: number;
   costOfRevenue?: number;
   grossProfit?: number;
@@ -39,6 +80,11 @@ export interface IncomeLines {
   otherNonOperating?: number;
   netIncome?: number;
 }
+
+/** The old name, kept so existing callers and tests do not have to change. */
+export type IncomeLines = IndustrialIncomeLines;
+
+export type AnyIncomeLines = IndustrialIncomeLines | BankIncomeLines;
 
 export type FlowKind = "revenue" | "cost" | "profit" | "expense" | "loss";
 
@@ -62,6 +108,10 @@ export interface FlowLink {
 export interface IncomeFlow {
   nodes: FlowNode[];
   links: FlowLink[];
+  /** Which reporting structure produced this flow. */
+  model?: IncomeModel;
+  /** True when part of the flow was derived rather than reported line by line. */
+  simplified?: boolean;
   /** False when there is not enough of an income statement to draw anything. */
   ok: boolean;
   reason?: string;
@@ -89,7 +139,7 @@ const mag = (x?: number): number | undefined =>
  *                                          ├─ Non-operating
  *                                          └─ Other
  */
-export function buildIncomeFlow(lines: IncomeLines): IncomeFlow {
+export function buildIndustrialIncomeFlow(lines: IndustrialIncomeLines): IncomeFlow {
   const revenue = pos(lines.revenue);
   if (revenue == null) {
     return { nodes: [], links: [], ok: false, loss: false, reason: "no revenue reported" };
@@ -200,7 +250,285 @@ export function buildIncomeFlow(lines: IncomeLines): IncomeFlow {
     }
   }
 
-  return { nodes, links, ok: true, loss };
+  return { nodes, links, ok: true, loss, model: "industrial" };
+}
+
+/** The old export name, so nothing that imported it has to change. */
+export const buildIncomeFlow = buildIndustrialIncomeFlow;
+
+
+// ── Banks ───────────────────────────────────────────────────────────────────
+
+/**
+ * A lender's account, drawn the way a lender reports.
+ *
+ *   Interest earned ─┬─ Interest expended
+ *                    └─ Net interest income ─┐
+ *                                            ├─ Operating income ─┬─ Operating expenses
+ *                            Other income ───┘                    └─ Pre-provision profit ─┬─ Loan-loss provisions
+ *                                                                                          └─ Profit before tax ─┬─ Tax
+ *                                                                                                                └─ Net profit
+ *
+ * Every step is an accounting identity a bank actually publishes, and each is
+ * derived only from the two figures on either side of it. Nothing here invents a
+ * cost of sales or calls revenue a gross profit: doing either would make the
+ * picture render while stating something false about how the business works,
+ * which is worse than the empty diagram it replaced.
+ *
+ * Provisions sit AFTER operating expenses and on their own branch, because that
+ * is where Indian reporting puts them: provisions and contingencies are a
+ * separate head of expenditure, and pre-provision profit is the figure analysts
+ * read precisely because it separates the running of the bank from the credit
+ * cycle.
+ */
+export function buildBankIncomeFlow(lines: BankIncomeLines): IncomeFlow {
+  const fail = (reason: string): IncomeFlow => ({
+    nodes: [],
+    links: [],
+    ok: false,
+    loss: false,
+    model: "bank",
+    reason,
+  });
+
+  const interestIncome = pos(lines.interestIncome);
+  const interestExpense = mag(lines.interestExpense);
+  const otherIncome = pos(lines.nonInterestIncome) ?? 0;
+
+  // Net interest income, reported or reconstructed from the two lines that
+  // define it. Not derived from anything else: interest earned minus a figure
+  // that is not interest expended would not be net interest income.
+  let netInterestIncome = pos(lines.netInterestIncome);
+  let niiDerived = false;
+  if (netInterestIncome == null && interestIncome != null && interestExpense != null) {
+    netInterestIncome = interestIncome - interestExpense;
+    niiDerived = true;
+  }
+  if (netInterestIncome == null || netInterestIncome <= 0) {
+    // A negative spread is real in a rate shock and cannot be drawn to scale
+    // here, for the same reason a negative gross profit cannot.
+    return fail(
+      netInterestIncome == null
+        ? "no net interest income, and not enough of the interest lines to derive it"
+        : "net interest income is not positive, so the flow cannot be drawn to scale"
+    );
+  }
+
+  const operatingIncome = netInterestIncome + otherIncome;
+  const netIncome = lines.netIncome;
+  const pretax = lines.pretaxIncome;
+  const tax = mag(lines.taxProvision);
+  const provisions = mag(lines.provisionForLoanLosses);
+  const operatingExpense = mag(lines.operatingExpense);
+
+  const nodes: FlowNode[] = [];
+  const links: FlowLink[] = [];
+  const add = (n: FlowNode) => nodes.push(n);
+  const join = (from: string, to: string, value: number) => links.push({ from, to, value });
+
+  // Column 0 and 1: the interest book. Only drawn when both halves are known,
+  // since interest earned that splits into one branch is not a split at all.
+  let depthShift = 0;
+  if (interestIncome != null && interestExpense != null && interestExpense <= interestIncome) {
+    add({ id: "interestIncome", label: "Interest earned", value: interestIncome, kind: "revenue", depth: 0 });
+    add({ id: "interestExpense", label: "Interest expended", value: interestExpense, kind: "cost", depth: 1 });
+    add({
+      id: "nii",
+      label: "Net interest income",
+      value: netInterestIncome,
+      kind: "profit",
+      depth: 1,
+      derived: niiDerived,
+    });
+    join("interestIncome", "interestExpense", interestExpense);
+    join("interestIncome", "nii", netInterestIncome);
+    // A reported net interest income does not always equal earned minus
+    // expended: the feed can carry the three lines from slightly different
+    // bases. The difference is drawn rather than absorbed, because the
+    // alternative is either restating a reported figure or letting interest
+    // earned emit less than it holds, and both are the kind of quiet
+    // adjustment this module exists to avoid.
+    const interestGap = interestIncome - interestExpense - netInterestIncome;
+    if (Math.abs(interestGap) > interestIncome * 0.001) {
+      if (interestGap > 0) {
+        add({ id: "interestOther", label: "Other interest items", value: interestGap, kind: "cost", depth: 1 });
+        join("interestIncome", "interestOther", interestGap);
+      } else {
+        // The two outflows exceed the top line, which cannot be drawn as a
+        // split at all, so the interest book is dropped and the account starts
+        // at net interest income.
+        nodes.length = 0;
+        links.length = 0;
+        add({ id: "nii", label: "Net interest income", value: netInterestIncome, kind: "revenue", depth: 1 });
+      }
+    }
+  } else {
+    // Net interest income is where the picture starts when the gross interest
+    // lines are not published.
+    add({ id: "nii", label: "Net interest income", value: netInterestIncome, kind: "revenue", depth: 1 });
+    depthShift = 0;
+  }
+
+  if (otherIncome > 0) {
+    add({ id: "otherIncome", label: "Other income", value: otherIncome, kind: "revenue", depth: 1 });
+  }
+
+  add({ id: "operatingIncome", label: "Operating income", value: operatingIncome, kind: "profit", depth: 2 + depthShift });
+  join("nii", "operatingIncome", netInterestIncome);
+  if (otherIncome > 0) join("otherIncome", "operatingIncome", otherIncome);
+
+  // Operating expenses and what survives them.
+  if (operatingExpense == null || operatingExpense > operatingIncome) {
+    // Without a usable cost-to-income split the account stops here rather than
+    // guessing at one. An expense figure larger than the income it is deducted
+    // from is a sign the line means something else in this filing.
+    return {
+      nodes,
+      links,
+      ok: true,
+      loss: netIncome != null && netIncome < 0,
+      model: "bank",
+      simplified: true,
+      reason: "operating expenses not reported, so the flow stops at operating income",
+    };
+  }
+
+  const prePro = operatingIncome - operatingExpense;
+  add({ id: "opex", label: "Operating expenses", value: operatingExpense, kind: "expense", depth: 3 });
+  add({ id: "preprovision", label: "Pre-provision profit", value: prePro, kind: "profit", depth: 3, derived: true });
+  join("operatingIncome", "opex", operatingExpense);
+  join("operatingIncome", "preprovision", prePro);
+
+  // Provisions, and profit before tax.
+  //
+  // Pre-tax profit is preferred as reported and reconstructed only when it is
+  // absent, so a filing whose provisions line excludes something we cannot see
+  // does not silently move the pre-tax figure.
+  let pbt = pos(pretax);
+  let prov = provisions;
+  if (pbt != null && prov == null) prov = Math.max(0, prePro - pbt);
+  if (pbt == null && prov != null) pbt = prePro - prov;
+  if (pbt == null || prov == null || prov > prePro) {
+    return {
+      nodes,
+      links,
+      ok: true,
+      loss: netIncome != null && netIncome < 0,
+      model: "bank",
+      simplified: true,
+      reason: "provisions or pre-tax profit not reported, so the flow stops at pre-provision profit",
+    };
+  }
+  // Reported provisions and a reported pre-tax profit rarely reconcile exactly:
+  // exceptional items and share-of-associates sit between them. The gap is
+  // carried as its own node rather than folded into either figure.
+  const gap = prePro - prov - pbt;
+  add({ id: "provisions", label: "Loan-loss provisions", value: prov, kind: "expense", depth: 4 });
+  add({ id: "pbt", label: "Profit before tax", value: pbt, kind: "profit", depth: 4 });
+  join("preprovision", "provisions", prov);
+  join("preprovision", "pbt", pbt);
+  if (gap > prePro * 0.001) {
+    add({ id: "otherItems", label: "Other items", value: gap, kind: "expense", depth: 4 });
+    join("preprovision", "otherItems", gap);
+  }
+
+  // Tax and what is left.
+  let taxVal = tax;
+  let net = netIncome;
+  if (net != null && taxVal == null) taxVal = Math.max(0, pbt - net);
+  if (net == null && taxVal != null) net = pbt - taxVal;
+  if (taxVal == null || net == null || net < 0 || taxVal > pbt) {
+    return {
+      nodes,
+      links,
+      ok: true,
+      loss: net != null && net < 0,
+      model: "bank",
+      simplified: true,
+      reason: "tax or net profit not reported, so the flow stops at profit before tax",
+    };
+  }
+  add({ id: "tax", label: "Tax", value: taxVal, kind: "expense", depth: 5 });
+  add({ id: "netProfit", label: "Net profit", value: net, kind: "profit", depth: 5 });
+  join("pbt", "tax", taxVal);
+  join("pbt", "netProfit", net);
+  const residual = pbt - taxVal - net;
+  if (residual > pbt * 0.001) {
+    add({ id: "minority", label: "Minority interest & other", value: residual, kind: "expense", depth: 5 });
+    join("pbt", "minority", residual);
+  }
+
+  return { nodes, links, ok: true, loss: false, model: "bank" };
+}
+
+/**
+ * The bridge to fall back to when the detailed lines are missing.
+ *
+ *   Total income ─┬─ Expenses and provisions (derived)
+ *                 └─ Profit before tax ─┬─ Tax
+ *                                       └─ Net profit
+ *
+ * The combined node is labelled derived because that is exactly what it is: one
+ * subtraction standing in for interest expended, operating expenses and
+ * provisions, which are three different things about a bank. It is a bridge from
+ * income to profit, not a breakdown, and the section says so.
+ */
+export function buildSimplifiedBankFlow(lines: BankIncomeLines): IncomeFlow {
+  const total =
+    pos(lines.totalIncome) ??
+    (lines.interestIncome != null && lines.nonInterestIncome != null
+      ? pos(lines.interestIncome + lines.nonInterestIncome)
+      : pos(lines.interestIncome));
+  const pbt = pos(lines.pretaxIncome);
+  const net = lines.netIncome;
+
+  if (total == null || pbt == null || net == null || pbt > total) {
+    return {
+      nodes: [],
+      links: [],
+      ok: false,
+      loss: false,
+      model: "bank",
+      simplified: true,
+      reason: "not enough of the account to bridge income to profit",
+    };
+  }
+
+  const tax = mag(lines.taxProvision) ?? Math.max(0, pbt - net);
+  const combined = total - pbt;
+  const nodes: FlowNode[] = [
+    { id: "totalIncome", label: "Total income", value: total, kind: "revenue", depth: 0 },
+    { id: "combined", label: "Expenses and provisions", value: combined, kind: "expense", depth: 1, derived: true },
+    { id: "pbt", label: "Profit before tax", value: pbt, kind: "profit", depth: 1 },
+  ];
+  const links: FlowLink[] = [
+    { from: "totalIncome", to: "combined", value: combined },
+    { from: "totalIncome", to: "pbt", value: pbt },
+  ];
+  if (net >= 0 && tax <= pbt) {
+    nodes.push({ id: "tax", label: "Tax", value: tax, kind: "expense", depth: 2 });
+    nodes.push({ id: "netProfit", label: "Net profit", value: pbt - tax, kind: "profit", depth: 2 });
+    links.push({ from: "pbt", to: "tax", value: tax });
+    links.push({ from: "pbt", to: "netProfit", value: pbt - tax });
+  }
+  return { nodes, links, ok: true, loss: net < 0, model: "bank", simplified: true };
+}
+
+/**
+ * Pick the builder from the model, and fall back within the bank family only.
+ *
+ * A bank whose detailed lines are missing gets the simplified bridge; it never
+ * gets the industrial builder, because the failure mode being fixed here is
+ * exactly that substitution.
+ */
+export function buildFlowForModel(lines: AnyIncomeLines): IncomeFlow {
+  if (lines.model === "bank") {
+    const detailed = buildBankIncomeFlow(lines);
+    if (detailed.ok) return detailed;
+    const bridge = buildSimplifiedBankFlow(lines);
+    return bridge.ok ? bridge : detailed;
+  }
+  return buildIndustrialIncomeFlow(lines);
 }
 
 /** Every node's outgoing links, for checking conservation. */
