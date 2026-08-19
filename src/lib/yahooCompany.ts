@@ -221,7 +221,12 @@ export async function getYahooStatements(
       "annualOtherIncomeExpense",
       "annualNetNonOperatingInterestIncomeExpense", "annualOtherNonOperatingIncomeExpenses",
       "annualTotalAssets", "annualTotalLiabilitiesNetMinorityInterest", "annualStockholdersEquity",
-      "annualCashAndCashEquivalents", "annualLongTermDebt",
+      // Total and current debt are REQUESTED as well as mapped. They were
+      // mapped and not requested, so every historical debt figure came back
+      // undefined and the debt-to-equity chart drew an equity line on its own
+      // while still calling itself a debt-to-equity history.
+      "annualCashAndCashEquivalents",
+      "annualTotalDebt", "annualLongTermDebt", "annualCurrentDebt",
       "annualCurrentAssets", "annualCurrentLiabilities", "annualInventory",
       "annualOperatingCashFlow", "annualCapitalExpenditure", "annualFreeCashFlow",
     ];
