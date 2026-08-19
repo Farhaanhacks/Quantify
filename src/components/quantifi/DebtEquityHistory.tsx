@@ -4,8 +4,19 @@ import { useEffect, useState } from "react";
 import { GlassCard, SectionHeading } from "@/components/quantifi/Cards";
 import type { CompanyData } from "@/lib/yahooCompany";
 import { currencySymbol } from "@/data/demo";
+import {
+  financialHealthModel,
+  leverageVerdict,
+  showsCashFlowCoverage,
+  showsCashVersusDebt,
+  MODEL_HEADINGS,
+  EQUITY_ONLY_HEADING,
+  type HealthModel,
+} from "@/lib/financialHealth";
 
-type Tone = "good" | "warn" | "bad";
+// "neutral" exists so a figure can be reported without being scored, which is
+// the only honest thing to do with a lender's gearing.
+type Tone = "good" | "warn" | "bad" | "neutral";
 
 function compactCur(n: number | undefined, sym: string): string {
   if (n == null || !isFinite(n)) return "n/a";
@@ -26,19 +37,27 @@ function Seesaw({
   equity,
   sym,
   fmt,
+  model,
+  asOf,
 }: {
   debt: number;
   equity: number;
   sym: string;
   fmt: (n: number | undefined, s: string) => string;
+  model: HealthModel;
+  asOf?: string;
 }) {
   const total = debt + equity || 1;
   // Positive angle tilts the RIGHT (equity) side down, so the heavier side sinks.
   const angle = Math.max(-16, Math.min(16, ((equity - debt) / total) * 22));
-  const ratio = equity > 0 ? debt / equity : undefined;
-  const verdict =
-    ratio == null ? "n/a" : ratio <= 0.5 ? "Healthy" : ratio <= 1 ? "Manageable" : "Stretched";
-  const tone = ratio == null ? "text-slate-400" : ratio <= 0.5 ? "text-up" : ratio <= 1 ? "text-gold" : "text-down";
+  const ratio = equity > 0 ? debt / equity : null;
+  // The verdict is not this component's to decide. A lender gets its gearing
+  // stated and no adjective, because "Stretched" at 7.56x is a judgement about
+  // an industrial company being applied to a business whose leverage IS the
+  // business.
+  const v = leverageVerdict(ratio, model);
+  const tone =
+    v.tone === "good" ? "text-up" : v.tone === "warn" ? "text-gold" : v.tone === "bad" ? "text-down" : "text-slate-300";
 
   return (
     <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-5">
@@ -63,9 +82,17 @@ function Seesaw({
         <rect x="126" y="124" width="68" height="5" rx="2.5" fill="rgba(212,175,55,0.45)" />
       </svg>
       <p className={`mt-1 text-center text-sm font-medium ${tone}`}>
-        {verdict}
-        {ratio != null ? <span className="text-slate-500"> · {ratio.toFixed(2)} debt-to-equity</span> : null}
+        {v.verdict ?? "Not comparable"}
+        {ratio != null && model === "industrial" ? (
+          <span className="text-slate-500"> · {ratio.toFixed(2)} debt-to-equity</span>
+        ) : null}
       </p>
+      {asOf ? (
+        <p className="mt-1 text-center text-[0.6rem] text-slate-500">
+          Both figures from the balance sheet to {asOf}.
+        </p>
+      ) : null}
+      <p className="mt-2 text-center text-[0.62rem] leading-relaxed text-slate-500">{v.note}</p>
     </div>
   );
 }
@@ -140,7 +167,7 @@ function YearBars({
 
 function Insight({ title, detail, tone }: { title: string; detail: string; tone: Tone }) {
   const dot =
-    tone === "good" ? "bg-up" : tone === "warn" ? "bg-gold" : "bg-down";
+    tone === "good" ? "bg-up" : tone === "warn" ? "bg-gold" : tone === "bad" ? "bg-down" : "bg-slate-500";
   return (
     <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4">
       <div className="flex items-center gap-2">
@@ -215,18 +242,34 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
   const label = name ?? symbol;
   const stmtCur = data.financialCurrency ?? data.currency ?? "USD";
   const sym = currencySymbol(stmtCur);
+  const model = financialHealthModel(data.industry, data.sector);
 
-  // ── Insight lines (from the most reliable current figures) ─────────────────
+  // ── Annual and current, kept apart ────────────────────────────────────────
+  //
+  // These used to be one value: the live total-debt figure was written into the
+  // newest annual point so the legend and the beam could not disagree. They
+  // cannot disagree now either, but not by pretending a quarterly snapshot is
+  // an annual close. A ratio built from debt at one date and equity at another
+  // is not a ratio of anything, and on a fast-growing balance sheet the error
+  // is not small.
   const cash = data.totalCash;
-  // The live total-debt figure when we have it, else the newest annual point —
-  // and this single value drives the legend, the balance and the insight cards,
-  // so the section can never quote itself two different numbers.
-  const debt = data.totalDebt ?? series[series.length - 1].debt;
   const ocf = data.operatingCashflow;
+  const currentDebtSnapshot = data.totalDebt;
+
+  const historicalDebtPoints = series.filter((row) => row.debt != null);
+  const hasDebtHistory = historicalDebtPoints.length >= 2;
+
+  const first = series[0];
+  const last = series[series.length - 1];
+  const latestAnnualDebt = last.debt;
+  const latestAnnualEquity = last.equity;
+  // Everything dated uses the annual pair; the live snapshot is shown on its own
+  // and never mixed into a ratio.
+  const debt = latestAnnualDebt ?? currentDebtSnapshot;
 
   const insights: { title: string; detail: string; tone: Tone }[] = [];
 
-  if (cash != null && debt != null) {
+  if (cash != null && debt != null && showsCashVersusDebt(model)) {
     insights.push(
       cash >= debt
         ? {
@@ -242,15 +285,6 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
     );
   }
 
-  const first = series[0];
-  const last = series[series.length - 1];
-
-  // The legend labels the chart lines, and the balance beam and the ratio card
-  // quote the same figures, so the newest plotted point must BE that number.
-  // Without this the section drew a debt line ending at one value while the
-  // legend directly above it read another.
-  if (debt != null) last.debt = debt;
-
   // A debt-to-equity ratio needs POSITIVE equity to mean anything. Dividing by
   // a negative book value yields a negative percentage, which this section would
   // then narrate as "reduced from -60% to -12%" — a sentence that sounds like
@@ -263,9 +297,14 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
   if (r0 != null && r1 != null) {
     const up = r1 >= r0;
     insights.push({
-      title: up ? "Debt to equity" : "Reducing debt",
-      detail: `${label}'s debt-to-equity ratio has ${up ? "increased" : "reduced"} from ${r0.toFixed(0)}% to ${r1.toFixed(1)}% over the past ${span} year${span === 1 ? "" : "s"}.`,
-      tone: r1 <= 40 ? "good" : r1 <= 100 ? "warn" : "bad",
+      title: model === "industrial" ? (up ? "Debt to equity" : "Reducing debt") : "Gearing over time",
+      detail:
+        model === "industrial"
+          ? `${label}'s debt-to-equity ratio has ${up ? "increased" : "reduced"} from ${r0.toFixed(0)}% to ${r1.toFixed(1)}% over the past ${span} year${span === 1 ? "" : "s"}.`
+          : `${label}'s borrowings have moved from ${(r0 / 100).toFixed(2)}x equity to ${(r1 / 100).toFixed(2)}x over the past ${span} year${span === 1 ? "" : "s"}. For a lender this tracks the size of the book rather than the safety of it.`,
+      // A lender's gearing is not scored. The direction is worth showing; a red
+      // dot next to it would be the industrial threshold coming back in.
+      tone: model === "industrial" ? (r1 <= 40 ? "good" : r1 <= 100 ? "warn" : "bad") : "neutral",
     });
   }
 
@@ -280,7 +319,11 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
     });
   }
 
-  if (ocf != null && debt != null && debt > 0) {
+  // Operating cash flow against debt, for companies where that means something.
+  // For a lender it does not: money lent out is an operating outflow, so the
+  // ratio reads worst exactly when the book is growing fastest, and PFC's "1.5%
+  // of its debt" was a description of a lender doing its job.
+  if (ocf != null && debt != null && debt > 0 && showsCashFlowCoverage(model)) {
     const cover = (ocf / debt) * 100;
     insights.push({
       title: "Debt coverage",
@@ -339,6 +382,12 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
     .filter((p): p is { i: number; v: number } => p.v != null);
   const debtLine = debtPoints.map((p) => `${X(p.i)},${Y(p.v)}`).join(" ");
 
+  // The heading has to match what is actually drawn. An equity line on its own
+  // under the title "Debt to equity history" is the section claiming to show
+  // something it does not have, which is how a missing field became an apparent
+  // finding about the company.
+  const heading = hasDebtHistory ? MODEL_HEADINGS[model] : EQUITY_ONLY_HEADING;
+
   // Fewer than three reported years can't carry a trend line — see YearBars.
   const sparse = series.length < 3;
   // A line needs two points to exist; a bar needs one. So a company with debt
@@ -350,8 +399,8 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
     <section className="mx-auto max-w-7xl px-4 pb-4 sm:px-6 lg:px-8">
       <SectionHeading
         eyebrow="Financial health"
-        title="Debt to equity history and analysis"
-        subtitle="How the company's borrowings compare with shareholder equity over time, and whether that debt is comfortably covered."
+        title={heading.title}
+        subtitle={heading.subtitle}
       />
 
       <GlassCard className="mt-6 p-5 sm:p-6">
@@ -434,16 +483,52 @@ export default function DebtEquityHistory({ symbol, name }: { symbol: string; na
           </p>
         ) : null}
 
-        {/* Balance beam — debt vs equity at a glance */}
-        {(() => {
-          const dNow = debt;
-          const eNow = last.equity;
-          return dNow != null && dNow > 0 && eNow != null && eNow > 0 ? (
-            <div className="mt-4">
-              <Seesaw debt={dNow} equity={eNow} sym={sym} fmt={compactCur} />
+        {/* Balance beam, from ONE reporting date. The beam is a ratio drawn to
+            scale, so a debt figure from one date against equity from another
+            would be a picture of nothing. */}
+        {latestAnnualDebt != null && latestAnnualDebt > 0 && latestAnnualEquity != null && latestAnnualEquity > 0 ? (
+          <div className="mt-4">
+            <Seesaw
+              debt={latestAnnualDebt}
+              equity={latestAnnualEquity}
+              sym={sym}
+              fmt={compactCur}
+              model={model}
+              asOf={last.date}
+            />
+          </div>
+        ) : null}
+
+        {/* The live borrowings figure, on its own card because it is a different
+            statement from a different date. Shown when there is no annual debt
+            to pair with equity, or when the two are far enough apart that a
+            reader comparing them deserves to see both. */}
+        {currentDebtSnapshot != null &&
+        (latestAnnualDebt == null ||
+          Math.abs(currentDebtSnapshot - latestAnnualDebt) > Math.abs(latestAnnualDebt) * 0.02) ? (
+          <div className="mt-4 rounded-lg border border-white/[0.08] bg-white/[0.02] p-4">
+            <div className="text-[0.62rem] uppercase tracking-[0.14em] text-slate-500">
+              Latest reported borrowings
             </div>
-          ) : null;
-        })()}
+            <p className="mt-1 font-display text-xl font-semibold text-white">
+              {compactCur(currentDebtSnapshot, sym)}
+            </p>
+            <p className="mt-1 text-[0.65rem] leading-relaxed text-slate-500">
+              The most recent figure the data source carries, which is usually a quarterly balance
+              sheet. It is kept separate from the annual figures above rather than being written
+              into them, because a ratio needs both halves from the same date.
+            </p>
+          </div>
+        ) : null}
+
+        {/* Said plainly when the borrowings history simply is not published. */}
+        {!hasDebtHistory ? (
+          <p className="mt-4 rounded-lg border border-gold/25 bg-gold/[0.05] p-3 text-[0.68rem] leading-relaxed text-slate-300">
+            Historical borrowings are not available for {label} from the current data source, so the
+            chart above shows equity alone. That is a gap in the data rather than a company with no
+            borrowings.
+          </p>
+        ) : null}
 
         {/* Insights */}
         {insights.length ? (
