@@ -155,7 +155,11 @@ export function backfillFairValue(data: CompanyData, closes: Close[]): BackfillP
   const netIncomeByDate = new Map<string, number>();
   const revenueByDate = new Map<string, number>();
   for (const r of data.incomeStatements ?? []) {
-    if (!r.date) continue;
+    // The income statements now lead with a trailing-twelve-month column, which
+    // is a computed figure and not a fiscal year. It must never enter a dated
+    // series: it would either fail to join and be silently dropped, or worse,
+    // join against something and put a rolling figure on a year's point.
+    if (!r.date || r.date === "TTM") continue;
     const d = r.date.slice(0, 10);
     if (r.values.netIncome != null) netIncomeByDate.set(d, r.values.netIncome);
     if (r.values.revenue != null) revenueByDate.set(d, r.values.revenue);
