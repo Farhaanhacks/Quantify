@@ -211,6 +211,12 @@ export async function getYahooStatements(
       "annualNetPolicyholderBenefitsAndClaims", "annualPolicyholderBenefitsGross",
       "annualNetInvestmentIncome", "annualTotalMoneyMarketInvestments",
       "annualPolicyAcquisitionExpense", "annualTotalExpenses",
+      // Depreciation, which for a REIT, a utility or an airline is one of the
+      // largest lines on the account and the reason operating income and net
+      // income differ so much.
+      "annualDepreciationAndAmortization",
+      "annualDepreciationAmortizationDepletion",
+      "annualReconciledDepreciation",
       "annualInterestIncomeNonOperating", "annualInterestExpenseNonOperating",
       "annualOtherIncomeExpense",
       "annualNetNonOperatingInterestIncomeExpense", "annualOtherNonOperatingIncomeExpenses",
@@ -324,6 +330,11 @@ export async function getYahooStatements(
           "annualPolicyholderBenefitsGross",
         ],
         netInvestmentIncome: "annualNetInvestmentIncome",
+        depreciation: [
+          "annualDepreciationAndAmortization",
+          "annualDepreciationAmortizationDepletion",
+          "annualReconciledDepreciation",
+        ],
         underwritingExpense: "annualPolicyAcquisitionExpense",
         totalExpenses: "annualTotalExpenses",
     }));
