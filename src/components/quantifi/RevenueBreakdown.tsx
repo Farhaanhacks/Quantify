@@ -16,6 +16,20 @@ import { layoutFlow, type IncomeFlow, type FlowKind } from "@/lib/incomeFlow";
 const NODE_W = 13;
 const CANVAS_H = 380;
 
+// How wide the drawing is, in its own coordinates.
+//
+// A bank's account is six columns where an industrial one is four, and a label
+// is drawn beside its node rather than under it, so the same canvas that reads
+// cleanly for four columns runs "Profit before tax" straight through "Net
+// profit" for six. Widening the viewBox rather than shrinking the text keeps
+// the labels legible: the SVG scales to its container either way, so the effect
+// is that a longer account is drawn at a smaller scale, which is what a longer
+// account needs.
+const COLUMN_WIDTH = 190;
+const MIN_WIDTH = 900;
+const canvasWidth = (columns: number) =>
+  Math.max(MIN_WIDTH, columns * COLUMN_WIDTH + 140);
+
 const FILL: Record<FlowKind, string> = {
   revenue: "#4F93F7",
   cost: "#E0A63C",
@@ -30,8 +44,32 @@ interface Payload {
   name?: string;
   currency?: string;
   periodEnd?: string;
+  model?: "industrial" | "bank";
+  industry?: string;
   flow?: IncomeFlow;
+  /** The reported lines, so a table can stand in where a diagram cannot. */
+  statement?: Record<string, number | undefined>;
 }
+
+// What each reported line is called, for the fallback table. Ordered as the
+// statement reads rather than alphabetically, so it can be followed downwards.
+const LINE_LABELS: [string, string][] = [
+  ["interestIncome", "Interest earned"],
+  ["interestExpense", "Interest expended"],
+  ["netInterestIncome", "Net interest income"],
+  ["nonInterestIncome", "Other income"],
+  ["revenue", "Total income"],
+  ["costOfRevenue", "Cost of sales"],
+  ["grossProfit", "Gross profit"],
+  ["researchAndDevelopment", "Research & development"],
+  ["sellingGeneralAdmin", "Selling, general & admin"],
+  ["operatingExpense", "Operating expenses"],
+  ["provisionForLoanLosses", "Provisions & contingencies"],
+  ["operatingIncome", "Operating income"],
+  ["pretaxIncome", "Profit before tax"],
+  ["taxProvision", "Tax"],
+  ["netIncome", "Net profit"],
+];
 
 function money(n: number, sym: string): string {
   const a = Math.abs(n);
@@ -78,13 +116,16 @@ export default function RevenueBreakdown({ symbol, name }: { symbol: string; nam
     };
   }, [symbol]);
 
-  const laid = useMemo(
-    () =>
-      data?.flow?.ok
-        ? layoutFlow(data.flow, { width: 900, height: CANVAS_H, nodeWidth: NODE_W, gap: 20 })
-        : null,
-    [data]
-  );
+  const laid = useMemo(() => {
+    if (!data?.flow?.ok) return null;
+    const columns = new Set(data.flow.nodes.map((n) => n.depth)).size;
+    return layoutFlow(data.flow, {
+      width: canvasWidth(columns),
+      height: CANVAS_H,
+      nodeWidth: NODE_W,
+      gap: 20,
+    });
+  }, [data]);
 
   if (data === undefined) {
     return (
@@ -94,11 +135,39 @@ export default function RevenueBreakdown({ symbol, name }: { symbol: string; nam
     );
   }
   if (!data || !data.available || !laid) {
+    // A diagram that cannot be drawn is not a reason to show nothing. Where the
+    // statement came back but its shape defeats every model we have, the lines
+    // themselves are still the answer to the question the section asks.
+    const rows = data?.statement
+      ? LINE_LABELS.filter(([k]) => data.statement?.[k] != null)
+      : [];
+    const fallbackSym = currencySymbol(data?.currency);
     return (
       <section className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
         <h3 className="font-display text-lg font-semibold text-white">Revenue &amp; expenses breakdown</h3>
-        <GlassCard className="mt-3 p-5 text-sm text-slate-400">
-          {data?.message ?? "The income statement for this listing isn't available right now."}
+        <GlassCard className="mt-3 p-5">
+          <p className="text-sm text-slate-400">
+            {data?.message ?? "The income statement for this listing isn't available right now."}
+          </p>
+          {rows.length ? (
+            <>
+              <table className="mt-4 w-full border-collapse text-sm">
+                <tbody>
+                  {rows.map(([k, label]) => (
+                    <tr key={k} className="border-b border-white/[0.05]">
+                      <td className="py-1.5 pr-4 text-slate-400">{label}</td>
+                      <td className="py-1.5 text-right font-mono tnum text-slate-200">
+                        {money(data!.statement![k]!, fallbackSym)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="mt-3 text-[0.65rem] text-slate-500">
+                The reported lines for {data?.periodEnd ?? "the latest year"}, shown as filed.
+              </p>
+            </>
+          ) : null}
         </GlassCard>
       </section>
     );
@@ -137,13 +206,24 @@ export default function RevenueBreakdown({ symbol, name }: { symbol: string; nam
       <p className="mt-1 text-xs text-slate-500">
         How {who} makes and spends money, from the annual statement to
         {data.periodEnd ? ` ${data.periodEnd}` : " the latest reported year"}.
+        {data.model === "bank"
+          ? " Read as a lender's account: interest earned and expended, then provisions as their own head of expenditure."
+          : ""}
       </p>
+      {data.flow?.simplified ? (
+        <p className="mt-2 text-[0.7rem] text-gold">
+          Part of this account is not published line by line, so the diagram stops where the
+          reported figures stop, and any node marked derived is one subtraction standing in for
+          several items.
+        </p>
+      ) : null}
 
       <GlassCard className="mt-4 p-4 sm:p-6">
         <div className="overflow-x-auto">
           <svg
-            viewBox={`0 0 900 ${CANVAS_H + 40}`}
-            className="min-w-[720px]"
+            viewBox={`0 0 ${laid.width} ${CANVAS_H + 40}`}
+            className="w-full"
+            style={{ minWidth: Math.min(laid.width, 760) }}
             role="img"
             aria-label="Revenue and expenses flow"
           >
@@ -233,6 +313,9 @@ export default function RevenueBreakdown({ symbol, name }: { symbol: string; nam
       </GlassCard>
 
       <p className="mt-3 text-[0.65rem] leading-relaxed text-slate-500">
+        {data.model === "bank"
+          ? "A bank has no cost of sales, so there is no gross profit here and none is invented: the account runs from interest earned through net interest income and other income to operating income, and provisions sit on their own branch after operating expenses, which is where the reporting standards put them. "
+          : ""}
         Revenue is shown as one figure rather than split by business line: segment
         revenue appears in the company&apos;s own filings and not in the data feed behind this page,
         and estimating it would be inventing the most interesting part of the picture. Where a line
