@@ -38,6 +38,9 @@ const {
   buildSimplifiedBankFlow,
   buildInsuranceIncomeFlow,
   buildGenericIncomeFlow,
+  buildFeeIncomeFlow,
+  buildOperatingIncomeFlow,
+  buildBurnIncomeFlow,
   buildFlowForModel,
   MODEL_TITLES,
   outflow,
@@ -609,13 +612,215 @@ const INSURER = {
   ok("an empty statement is refused", nothing.ok === false);
 }
 
+// ── Non-bank lenders ────────────────────────────────────────────────────────
+//
+// An NBFC runs a bank's cascade without a bank's funding. Same identities, and
+// the filing's own words: finance costs rather than interest expended,
+// impairment charges rather than provisions and contingencies.
+{
+  const f = buildBankIncomeFlow({ ...BANK, model: "lender" });
+  ok("builds", f.ok === true);
+  ok("tagged lender, not bank", f.model === "lender");
+  ok("the top line is interest income", node(f, "interestIncome").label === "Interest income");
+  ok("funding is a finance cost", node(f, "interestExpense").label === "Finance costs");
+  ok("and the charge is an impairment", node(f, "provisions").label === "Impairment charges");
+  ok("nothing says loan-loss provisions", f.nodes.every((n) => n.label !== "Loan-loss provisions"));
+  ok("nothing says interest expended", f.nodes.every((n) => n.label !== "Interest expended"));
+  // The arithmetic is untouched by the vocabulary.
+  const bank = buildBankIncomeFlow(BANK);
+  ok("the same values as the bank cascade", f.nodes.every((n, i) => Math.abs(n.value - bank.nodes[i].value) < 1e-9));
+  near("and it still conserves", outflow(f, "interestIncome"), 1000);
+  ok("dispatches to itself", buildFlowForModel({ ...BANK, model: "lender" }).model === "lender");
+}
+
+// ── Fee businesses: brokers, managers, insurance BROKERS ────────────────────
+{
+  const FEE = {
+    model: "fee",
+    feeIncome: 900,
+    otherIncome: 100,
+    compensation: 500,
+    operatingExpense: 200,
+    pretaxIncome: 250,
+    taxProvision: 60,
+    netIncome: 190,
+  };
+  const f = buildFeeIncomeFlow(FEE);
+  ok("builds", f.ok === true);
+  ok("tagged fee", f.model === "fee");
+  near("fee income", node(f, "fees").value, 900);
+  near("other income", node(f, "otherIncome").value, 100);
+  near("total revenue", node(f, "revenue").value, 1000);
+  near("compensation", node(f, "comp").value, 500);
+  near("other operating expenses", node(f, "opex").value, 200);
+  near("the remainder is drawn", node(f, "residual").value, 1000 - 250 - 700);
+  near("profit before tax", node(f, "pbt").value, 250);
+  near("net profit", node(f, "netProfit").value, 190);
+
+  // The point of the model: a broker underwrites nothing.
+  ok("no claims line", node(f, "claims") === undefined);
+  ok("no premiums line", node(f, "premiums") === undefined);
+  ok("no gross profit", node(f, "gross") === undefined);
+  ok("no cost of sales", node(f, "cost") === undefined);
+
+  near("revenue splits exactly", outflow(f, "revenue"), 1000);
+  near("profit before tax splits exactly", outflow(f, "pbt"), 250);
+  near("fee income flows on entirely", outflow(f, "fees"), 900);
+
+  // Named costs that do not fit collapse to one block rather than being scaled.
+  const oversized = buildFeeIncomeFlow({ ...FEE, compensation: 5000 });
+  ok("the oversized split is dropped", node(oversized, "comp") === undefined);
+  ok("one derived block stands in", node(oversized, "residual").derived === true);
+  ok("flagged simplified", oversized.simplified === true);
+  near("and it still conserves", outflow(oversized, "revenue"), 1000);
+
+  const noProfit = buildFeeIncomeFlow({ model: "fee", feeIncome: 900 });
+  ok("without a profit figure there is no diagram", noProfit.ok === false);
+  ok("but it is still tagged fee", noProfit.model === "fee");
+}
+
+// ── Operating businesses: REITs, utilities, transport ───────────────────────
+{
+  const REIT = {
+    model: "operating",
+    revenue: 1000,
+    operatingExpense: 600,
+    sellingGeneralAdmin: 150,
+    depreciation: 300,
+    operatingIncome: 400,
+    pretaxIncome: 250,
+    taxProvision: 50,
+    netIncome: 200,
+  };
+  const f = buildOperatingIncomeFlow(REIT);
+  ok("builds", f.ok === true);
+  ok("tagged operating", f.model === "operating");
+  ok("and is not flagged simplified", !f.simplified);
+  near("revenue", node(f, "revenue").value, 1000);
+  near("operating expenses", node(f, "opex").value, 600);
+  near("operating income", node(f, "operating").value, 400);
+  near("selling, general & admin", node(f, "sga").value, 150);
+  near("depreciation", node(f, "dna").value, 300);
+  near("the rest of the cost base is drawn", node(f, "otherOpex").value, 150);
+  near("profit before tax", node(f, "pbt").value, 250);
+  // The gap between operating income and pre-tax is the interest bill, which
+  // for a leveraged REIT or utility is most of the story.
+  near("interest and other is named", node(f, "interest").value, 150);
+  near("net profit", node(f, "netProfit").value, 200);
+
+  ok("no gross profit", node(f, "gross") === undefined);
+  ok("no cost of sales", node(f, "cost") === undefined);
+
+  near("revenue splits exactly", outflow(f, "revenue"), 1000);
+  near("operating expenses split exactly", outflow(f, "opex"), 600);
+  near("operating income splits exactly", outflow(f, "operating"), 400);
+  near("profit before tax splits exactly", outflow(f, "pbt"), 250);
+
+  // Operating income derived from the expense line, and marked.
+  const derived = buildOperatingIncomeFlow({ ...REIT, operatingIncome: undefined });
+  near("operating income derives from the expenses", node(derived, "operating").value, 400);
+  ok("and is marked derived", node(derived, "operating").derived === true);
+
+  // Neither published: no two-stage shape to draw.
+  const neither = buildOperatingIncomeFlow({ model: "operating", revenue: 1000, pretaxIncome: 250, netIncome: 200 });
+  ok("without either line there is no operating split", neither.ok === false);
+  ok("with a reason", /operating income or operating expense/.test(neither.reason));
+  // ... and the dispatcher still draws something for it.
+  const viaDispatch = buildFlowForModel({ model: "operating", revenue: 1000, pretaxIncome: 250, netIncome: 200 });
+  ok("the dispatcher falls back to the bridge", viaDispatch.ok === true);
+  ok("keeping the operating model's name", viaDispatch.model === "operating");
+  ok("labelled as operating costs", node(viaDispatch, "combined").label === "Operating costs");
+}
+
+// ── Burn: pre-revenue biotech, SPACs, anything losing money ─────────────────
+{
+  const BIOTECH = {
+    model: "burn",
+    revenue: 0,
+    otherIncome: 20,
+    researchAndDevelopment: 200,
+    sellingGeneralAdmin: 80,
+    netIncome: -260,
+  };
+  const f = buildBurnIncomeFlow(BIOTECH);
+  ok("a company with no revenue still draws", f.ok === true);
+  ok("tagged burn", f.model === "burn");
+  ok("flagged as a loss", f.loss === true);
+  near("interest and other income", node(f, "otherIncome").value, 20);
+  near("the loss", node(f, "netLoss").value, 260);
+  near("total costs are income plus the loss", node(f, "costs").value, 280);
+  near("research & development", node(f, "rnd").value, 200);
+  near("general & administrative", node(f, "sga").value, 80);
+  ok("no revenue node, because there is no revenue", node(f, "revenue") === undefined);
+  ok("no gross profit", node(f, "gross") === undefined);
+  ok("no profit before tax", node(f, "pbt") === undefined);
+
+  // The loss FUNDS the costs; nothing emits more than it holds.
+  near("the loss flows into the cost block", outflow(f, "netLoss"), 260);
+  near("costs split exactly", outflow(f, "costs"), 280);
+  near("and are funded exactly", f.links.filter((l) => l.to === "costs").reduce((s, l) => s + l.value, 0), 280);
+
+  // With some revenue, it becomes a third source.
+  const withRev = buildBurnIncomeFlow({ ...BIOTECH, revenue: 50, netIncome: -210 });
+  near("revenue is a source", node(withRev, "revenue").value, 50);
+  near("and the total is unchanged", node(withRev, "costs").value, 280);
+  near("still funded exactly", withRev.links.filter((l) => l.to === "costs").reduce((s, l) => s + l.value, 0), 280);
+
+  // A SPAC: trust interest, a little admin, a small loss.
+  const spac = buildBurnIncomeFlow({ model: "burn", otherIncome: 12, sellingGeneralAdmin: 15, netIncome: -3 });
+  ok("a SPAC draws", spac.ok === true);
+  near("its costs are interest plus the loss", node(spac, "costs").value, 15);
+  near("which the admin line fills", node(spac, "sga").value, 15);
+
+  const profitable = buildBurnIncomeFlow({ ...BIOTECH, netIncome: 50 });
+  ok("a profitable company is not a burn", profitable.ok === false);
+  ok("with a reason", /at a loss/.test(profitable.reason));
+}
+
+// ── The dispatcher covers what used to be rejected ──────────────────────────
+{
+  // A loss-making company with no revenue: every revenue model refuses, and the
+  // burn diagram answers the question that is still askable.
+  const preRevenue = buildFlowForModel({
+    researchAndDevelopment: 200, sellingGeneralAdmin: 80, netIncome: -280,
+  });
+  ok("a pre-revenue company draws something", preRevenue.ok === true);
+  ok("as the burn model", preRevenue.model === "burn");
+  near("with its research spending named", node(preRevenue, "rnd").value, 200);
+
+  // A loss-making bank keeps its own model rather than falling to industrial.
+  const lossBank = buildFlowForModel({
+    model: "bank", totalIncome: 1000, interestIncome: 900, interestExpense: 600,
+    researchAndDevelopment: undefined, netIncome: -50,
+  });
+  ok("a loss-making bank draws something", lossBank.ok === true);
+  ok("and never becomes an industrial", lossBank.model !== "industrial");
+  ok("with no cost of sales", node(lossBank, "cost") === undefined);
+
+  // An insurance broker must not be given a claims line.
+  const broker = buildFlowForModel({
+    model: "fee", feeIncome: 500, compensation: 300, pretaxIncome: 120, taxProvision: 30, netIncome: 90,
+  });
+  ok("a broker draws", broker.ok === true);
+  ok("as a fee business", broker.model === "fee");
+  ok("with no claims", node(broker, "claims") === undefined);
+  ok("and no premiums", node(broker, "premiums") === undefined);
+
+  // The industrial path is untouched by any of it.
+  const industrial2 = buildFlowForModel(AMD);
+  ok("a full industrial statement is unchanged", industrial2.model === "industrial");
+  near("gross profit intact", node(industrial2, "gross").value, 23.02e9);
+}
+
 // ── Titles travel with the model ────────────────────────────────────────────
 {
-  ok("every model has a title", ["industrial", "bank", "insurance", "generic"].every((m) => typeof MODEL_TITLES[m] === "string" && MODEL_TITLES[m].length > 0));
+  const MODELS = ["industrial", "bank", "lender", "insurance", "fee", "operating", "burn", "generic"];
+  ok("every model has a title", MODELS.every((m) => typeof MODEL_TITLES[m] === "string" && MODEL_TITLES[m].length > 0));
   ok("the bank title says bank", /bank/i.test(MODEL_TITLES.bank));
   ok("the insurance title says insurance", /insurance/i.test(MODEL_TITLES.insurance));
   ok("the industrial title is the revenue one", /revenue/i.test(MODEL_TITLES.industrial));
-  ok("titles are distinct", new Set(Object.values(MODEL_TITLES)).size === 4);
+  ok("titles are distinct", new Set(Object.values(MODEL_TITLES)).size === MODELS.length);
+  ok("the registry has no extra entries", Object.keys(MODEL_TITLES).length === MODELS.length);
   ok("no em-dashes in the titles", Object.values(MODEL_TITLES).every((t) => !t.includes("—")));
 }
 
