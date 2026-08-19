@@ -31,7 +31,15 @@ execFileSync(
   ["tsc", join(root, "src/lib/incomeFlow.ts"), "--outDir", out, "--module", "esnext", "--target", "es2022", "--moduleResolution", "bundler"],
   { stdio: "pipe" }
 );
-const { buildIncomeFlow, outflow, layoutFlow } = await import(join(out, "incomeFlow.js"));
+const {
+  buildIncomeFlow,
+  buildIndustrialIncomeFlow,
+  buildBankIncomeFlow,
+  buildSimplifiedBankFlow,
+  buildFlowForModel,
+  outflow,
+  layoutFlow,
+} = await import(join(out, "incomeFlow.js"));
 rmSync(out, { recursive: true, force: true });
 
 let passed = 0;
@@ -226,6 +234,213 @@ const AMD = {
   const empty = layoutFlow({ nodes: [], links: [], ok: false, loss: false }, { width: 500, height: 200 });
   ok("an empty flow lays out to nothing", empty.nodes.length === 0);
   ok("without dividing by zero", Number.isFinite(empty.width) && empty.width === 500);
+}
+
+// ── Banks: a different reporting structure, not missing data ────────────────
+//
+// The bug these cover: assuming revenue = cost of sales + gross profit for every
+// business. A bank borrows at one rate and lends at another; it has no cost of
+// sales, so the industrial builder rejected complete, valid statements. The
+// tests below pin that the bank path never produces a gross profit or a cost of
+// sales, and never reaches those by setting either to zero, which would render
+// a picture whose accounting meaning is wrong.
+
+// An Indian bank's account, in the statement's own order.
+const BANK = {
+  model: "bank",
+  interestIncome: 1000,      // Interest Earned
+  interestExpense: 600,      // Interest Expended
+  nonInterestIncome: 200,    // Other Income
+  operatingExpense: 250,     // Operating Expenses
+  provisionForLoanLosses: 90, // Provisions and Contingencies
+  pretaxIncome: 260,         // Profit Before Tax
+  taxProvision: 65,
+  netIncome: 195,            // Net Profit
+  totalIncome: 1200,
+};
+
+{
+  const f = buildBankIncomeFlow(BANK);
+  ok("a bank statement builds", f.ok === true);
+  ok("tagged as the bank model", f.model === "bank");
+  ok("and is not flagged simplified", !f.simplified);
+
+  // The lines a bank actually reports.
+  near("interest earned", node(f, "interestIncome").value, 1000);
+  near("interest expended", node(f, "interestExpense").value, 600);
+  near("net interest income is derived from the two", node(f, "nii").value, 400);
+  ok("and is marked derived", node(f, "nii").derived === true);
+  near("other income", node(f, "otherIncome").value, 200);
+  near("operating income is net interest plus other", node(f, "operatingIncome").value, 600);
+  near("operating expenses", node(f, "opex").value, 250);
+  near("pre-provision profit", node(f, "preprovision").value, 350);
+  near("provisions", node(f, "provisions").value, 90);
+  near("profit before tax", node(f, "pbt").value, 260);
+  near("tax", node(f, "tax").value, 65);
+  near("net profit", node(f, "netProfit").value, 195);
+
+  // The thing that must never appear.
+  ok("no gross profit node", node(f, "gross") === undefined);
+  ok("no cost of sales node", node(f, "cost") === undefined);
+  ok("no expenses block from the industrial model", node(f, "expenses") === undefined);
+  ok("no R&D node", node(f, "rnd") === undefined);
+
+  // Conservation, every step.
+  near("interest earned splits exactly", outflow(f, "interestIncome"), 1000);
+  near("net interest income flows on entirely", outflow(f, "nii"), 400);
+  near("other income flows on entirely", outflow(f, "otherIncome"), 200);
+  near("operating income splits exactly", outflow(f, "operatingIncome"), 600);
+  near("pre-provision profit splits exactly", outflow(f, "preprovision"), 350);
+  near("profit before tax splits exactly", outflow(f, "pbt"), 260);
+  ok("interest expended is terminal", outflow(f, "interestExpense") === 0);
+  ok("provisions are terminal", outflow(f, "provisions") === 0);
+  ok("net profit is terminal", outflow(f, "netProfit") === 0);
+  ok("nothing is negative", f.nodes.every((n) => n.value >= 0) && f.links.every((l) => l.value >= 0));
+
+  // Provisions come AFTER operating expenses and on their own branch, which is
+  // where the reporting standards put them.
+  ok("provisions hang off pre-provision profit", link(f, "preprovision", "provisions") !== undefined);
+  ok("not off operating income", link(f, "operatingIncome", "provisions") === undefined);
+  ok("operating expenses hang off operating income", link(f, "operatingIncome", "opex") !== undefined);
+  ok("provisions sit right of operating expenses", node(f, "provisions").depth > node(f, "opex").depth);
+}
+
+// ── Bank: reported net interest income wins over the derivation ─────────────
+{
+  const f = buildBankIncomeFlow({ ...BANK, netInterestIncome: 380 });
+  near("the reported figure is used", node(f, "nii").value, 380);
+  ok("and is not marked derived", !node(f, "nii").derived);
+  // 1000 earned, 600 expended and a reported 380 do not reconcile. The 20 is
+  // drawn as its own node rather than restating either reported figure.
+  near("the difference is its own node", node(f, "interestOther").value, 20);
+  ok("interest expended keeps its reported value", node(f, "interestExpense").value === 600);
+  near("interest earned still splits exactly", outflow(f, "interestIncome"), 1000);
+
+  // The other direction cannot be drawn as a split at all.
+  const over = buildBankIncomeFlow({ ...BANK, netInterestIncome: 500 });
+  ok("an over-full split drops the interest book", node(over, "interestIncome") === undefined);
+  ok("and starts at net interest income", node(over, "nii").value === 500);
+  near("which still flows on entirely", outflow(over, "nii"), 500);
+}
+
+// ── Bank: the account stops where the reporting stops ───────────────────────
+{
+  const noOpex = buildBankIncomeFlow({ ...BANK, operatingExpense: undefined });
+  ok("still draws what it knows", noOpex.ok === true);
+  ok("flagged simplified", noOpex.simplified === true);
+  ok("stops at operating income", node(noOpex, "operatingIncome") !== undefined);
+  ok("with no pre-provision profit", node(noOpex, "preprovision") === undefined);
+  ok("and says why", /operating expenses/.test(noOpex.reason));
+  near("what it drew still conserves", outflow(noOpex, "interestIncome"), 1000);
+
+  const noProv = buildBankIncomeFlow({ ...BANK, provisionForLoanLosses: undefined, pretaxIncome: undefined });
+  ok("without provisions or pre-tax it stops earlier", noProv.ok === true);
+  ok("flagged simplified", noProv.simplified === true);
+  ok("pre-provision profit is the last node", node(noProv, "preprovision") !== undefined);
+  ok("no provisions node", node(noProv, "provisions") === undefined);
+
+  // One of the two is enough: the other is the subtraction.
+  const provOnly = buildBankIncomeFlow({ ...BANK, pretaxIncome: undefined });
+  near("pre-tax derives from provisions", node(provOnly, "pbt").value, 260);
+  const pbtOnly = buildBankIncomeFlow({ ...BANK, provisionForLoanLosses: undefined });
+  near("provisions derive from pre-tax", node(pbtOnly, "provisions").value, 90);
+
+  const noTax = buildBankIncomeFlow({ ...BANK, taxProvision: undefined, netIncome: undefined });
+  ok("stops at profit before tax", node(noTax, "pbt") !== undefined && node(noTax, "tax") === undefined);
+  ok("flagged simplified", noTax.simplified === true);
+}
+
+// ── Bank: refusals ──────────────────────────────────────────────────────────
+{
+  const nothing = buildBankIncomeFlow({ model: "bank" });
+  ok("an empty bank statement is refused", nothing.ok === false);
+  ok("with a reason about interest", /interest/.test(nothing.reason));
+
+  const negSpread = buildBankIncomeFlow({ model: "bank", interestIncome: 100, interestExpense: 140 });
+  ok("a negative spread is refused", negSpread.ok === false);
+  ok("with a reason about scale", /to scale/.test(negSpread.reason));
+
+  // Interest expended larger than earned cannot be drawn as a split, so the
+  // interest book is dropped rather than drawn wrong.
+  const odd = buildBankIncomeFlow({ ...BANK, netInterestIncome: 400, interestExpense: 1200 });
+  ok("an impossible interest split is dropped", node(odd, "interestExpense") === undefined);
+  ok("but the account still starts at net interest income", node(odd, "nii") !== undefined);
+}
+
+// ── Bank: reconciliation gaps are shown, not absorbed ───────────────────────
+{
+  // Provisions and pre-tax that do not reconcile: 350 - 90 - 200 leaves 60.
+  const f = buildBankIncomeFlow({ ...BANK, pretaxIncome: 200, taxProvision: 50, netIncome: 150 });
+  near("the gap is its own node", node(f, "otherItems").value, 60);
+  near("pre-provision profit still splits exactly", outflow(f, "preprovision"), 350);
+  ok("provisions were not inflated to close it", node(f, "provisions").value === 90);
+  ok("pre-tax profit was not inflated either", node(f, "pbt").value === 200);
+}
+
+// ── Bank: the simplified bridge ─────────────────────────────────────────────
+{
+  const f = buildSimplifiedBankFlow({
+    model: "bank",
+    totalIncome: 1200,
+    pretaxIncome: 260,
+    taxProvision: 65,
+    netIncome: 195,
+  });
+  ok("bridges income to profit", f.ok === true);
+  ok("flagged simplified", f.simplified === true);
+  near("total income", node(f, "totalIncome").value, 1200);
+  near("the combined node is the whole subtraction", node(f, "combined").value, 940);
+  ok("and is marked derived", node(f, "combined").derived === true);
+  ok("it does not pretend to be operating expenses", node(f, "combined").label !== "Operating expenses");
+  ok("no gross profit anywhere", node(f, "gross") === undefined);
+  near("total income splits exactly", outflow(f, "totalIncome"), 1200);
+  near("profit before tax splits exactly", outflow(f, "pbt"), 260);
+
+  const tooLittle = buildSimplifiedBankFlow({ model: "bank", totalIncome: 1200 });
+  ok("without a pre-tax figure there is no bridge", tooLittle.ok === false);
+  ok("and it is still tagged as a bank", tooLittle.model === "bank");
+}
+
+// ── The dispatcher ──────────────────────────────────────────────────────────
+{
+  const bank = buildFlowForModel(BANK);
+  ok("a bank goes to the bank builder", bank.model === "bank");
+  ok("and gets the detailed flow", bank.simplified !== true);
+
+  // A bank with only the summary lines falls back WITHIN the bank family.
+  const thin = buildFlowForModel({ model: "bank", totalIncome: 1200, pretaxIncome: 260, taxProvision: 65, netIncome: 195 });
+  ok("a thin bank statement still builds", thin.ok === true);
+  ok("as a bank, never as an industrial", thin.model === "bank");
+  ok("no gross profit was invented", node(thin, "gross") === undefined);
+  ok("no cost of sales was invented", node(thin, "cost") === undefined);
+
+  const industrial = buildFlowForModel({ ...AMD, model: "industrial" });
+  ok("an industrial goes to the industrial builder", industrial.model === "industrial");
+  near("and is unchanged", node(industrial, "gross").value, 23.02e9);
+
+  // No model named is the industrial default, which is what every existing
+  // caller relies on.
+  const legacy = buildFlowForModel(AMD);
+  ok("an unlabelled statement is industrial", legacy.model === "industrial");
+  ok("buildIncomeFlow is still the industrial builder", buildIncomeFlow === buildIndustrialIncomeFlow);
+}
+
+// ── Bank layout ─────────────────────────────────────────────────────────────
+{
+  const L = layoutFlow(buildBankIncomeFlow(BANK), { width: 900, height: 400, nodeWidth: 12, gap: 16 });
+  ok("every bank node is laid out", L.nodes.length === buildBankIncomeFlow(BANK).nodes.length);
+  ok("nothing runs past the bottom", L.nodes.every((n) => n.y + n.height <= 400.001));
+  ok("nothing runs past the right", L.nodes.every((n) => n.x <= 900 - 12 + 0.001));
+  // Operating income takes TWO inflows; their thicknesses must fill it exactly
+  // or the ribbons will not meet the node they arrive at.
+  const into = L.links.filter((l) => l.to === "operatingIncome");
+  ok("two ribbons arrive at operating income", into.length === 2);
+  near(
+    "and together they fill it",
+    into.reduce((s, l) => s + l.thickness, 0),
+    node(L, "operatingIncome").height,
+    1e-6
+  );
 }
 
 console.log(`${passed} passed, ${failed} failed`);
