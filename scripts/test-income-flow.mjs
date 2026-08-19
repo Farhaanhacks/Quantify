@@ -36,7 +36,10 @@ const {
   buildIndustrialIncomeFlow,
   buildBankIncomeFlow,
   buildSimplifiedBankFlow,
+  buildInsuranceIncomeFlow,
+  buildGenericIncomeFlow,
   buildFlowForModel,
+  MODEL_TITLES,
   outflow,
   layoutFlow,
 } = await import(join(out, "incomeFlow.js"));
@@ -441,6 +444,179 @@ const BANK = {
     node(L, "operatingIncome").height,
     1e-6
   );
+}
+
+// ── Insurance: premiums in, claims out ──────────────────────────────────────
+//
+// The same class of bug as the bank case, one industry over. An insurer sells a
+// promise and pays for it later: money arrives as premiums and as the return on
+// the float, and leaves as claims. There is no cost of sales and no gross
+// profit, and the diagram must not manufacture either.
+
+const INSURER = {
+  model: "insurance",
+  premiumsEarned: 800,
+  netInvestmentIncome: 200,
+  totalRevenue: 1000,
+  claimsIncurred: 560,
+  underwritingExpense: 240,
+  pretaxIncome: 150,
+  taxProvision: 40,
+  netIncome: 110,
+};
+
+{
+  const f = buildInsuranceIncomeFlow(INSURER);
+  ok("an insurer builds", f.ok === true);
+  ok("tagged as the insurance model", f.model === "insurance");
+  ok("and is not flagged simplified", !f.simplified);
+
+  near("premiums earned", node(f, "premiums").value, 800);
+  near("investment income", node(f, "investment").value, 200);
+  near("total revenue", node(f, "revenue").value, 1000);
+  near("claims incurred", node(f, "claims").value, 560);
+  near("underwriting expenses", node(f, "underwriting").value, 240);
+  near("profit before tax", node(f, "pbt").value, 150);
+  near("tax", node(f, "tax").value, 40);
+  near("net profit", node(f, "netProfit").value, 110);
+  near("the unnamed remainder is drawn", node(f, "otherCosts").value, 1000 - 150 - 800);
+
+  ok("no gross profit node", node(f, "gross") === undefined);
+  ok("no cost of sales node", node(f, "cost") === undefined);
+  ok("no interest book", node(f, "interestIncome") === undefined && node(f, "nii") === undefined);
+  ok("no loan-loss provisions", node(f, "provisions") === undefined);
+
+  near("premiums flow on entirely", outflow(f, "premiums"), 800);
+  near("investment income flows on entirely", outflow(f, "investment"), 200);
+  near("revenue splits exactly", outflow(f, "revenue"), 1000);
+  near("profit before tax splits exactly", outflow(f, "pbt"), 150);
+  ok("claims are terminal", outflow(f, "claims") === 0);
+  ok("nothing is negative", f.nodes.every((n) => n.value >= 0) && f.links.every((l) => l.value >= 0));
+}
+
+// ── Insurance: partial and awkward inputs ───────────────────────────────────
+{
+  // Components that do not add to the reported total leave a visible remainder
+  // rather than restating either.
+  const f = buildInsuranceIncomeFlow({ ...INSURER, totalRevenue: 1100 });
+  near("the revenue gap is its own node", node(f, "otherRevenue").value, 100);
+  near("revenue still receives exactly its value", 
+    f.links.filter((l) => l.to === "revenue").reduce((s, l) => s + l.value, 0), 1100);
+
+  // No component split at all: the account starts at total revenue.
+  const totalOnly = buildInsuranceIncomeFlow({
+    model: "insurance", totalRevenue: 1000, claimsIncurred: 560, underwritingExpense: 240,
+    pretaxIncome: 150, taxProvision: 40, netIncome: 110,
+  });
+  ok("starts at total revenue", node(totalOnly, "premiums") === undefined);
+  ok("which is column 0", node(totalOnly, "revenue").depth === 0);
+  near("and still splits exactly", outflow(totalOnly, "revenue"), 1000);
+
+  // Named costs that exceed what is available collapse to one derived block
+  // rather than being scaled to fit.
+  const oversized = buildInsuranceIncomeFlow({ ...INSURER, claimsIncurred: 2000 });
+  ok("the oversized split is dropped", node(oversized, "claims") === undefined);
+  ok("one derived block stands in", node(oversized, "otherCosts").derived === true);
+  ok("flagged simplified", oversized.simplified === true);
+  near("and it still conserves", outflow(oversized, "revenue"), 1000);
+
+  // Pre-tax reconstructed from net income and tax.
+  const noPbt = buildInsuranceIncomeFlow({ ...INSURER, pretaxIncome: undefined });
+  near("pre-tax derives from net plus tax", node(noPbt, "pbt").value, 150);
+
+  const noRevenue = buildInsuranceIncomeFlow({ model: "insurance", pretaxIncome: 10 });
+  ok("no premiums and no revenue is refused", noRevenue.ok === false);
+  ok("with a reason", /premiums or total revenue/.test(noRevenue.reason));
+
+  const impossible = buildInsuranceIncomeFlow({ ...INSURER, pretaxIncome: 5000 });
+  ok("profit larger than revenue is refused", impossible.ok === false);
+  ok("with a reason about scale", /to scale/.test(impossible.reason));
+}
+
+// ── The generic bridge: nobody is rejected for having a different statement ──
+{
+  const f = buildGenericIncomeFlow({ revenue: 1000, pretaxIncome: 200, taxProvision: 50, netIncome: 150 });
+  ok("bridges", f.ok === true);
+  ok("tagged generic", f.model === "generic");
+  ok("always flagged simplified", f.simplified === true);
+  near("revenue", node(f, "revenue").value, 1000);
+  near("the combined block is the whole subtraction", node(f, "combined").value, 800);
+  ok("marked derived", node(f, "combined").derived === true);
+  ok("and never given a real line's name", node(f, "combined").label === "Costs and expenses");
+  ok("no gross profit", node(f, "gross") === undefined);
+  ok("no cost of sales", node(f, "cost") === undefined);
+  near("revenue splits exactly", outflow(f, "revenue"), 1000);
+  near("profit before tax splits exactly", outflow(f, "pbt"), 200);
+  near("net profit", node(f, "netProfit").value, 150);
+
+  // Tax reconstructed from the gap between pre-tax and net.
+  const noTax = buildGenericIncomeFlow({ revenue: 1000, pretaxIncome: 200, netIncome: 150 });
+  near("tax derives from the difference", node(noTax, "tax").value, 50);
+
+  // Only a top line and a profit: still a diagram.
+  const bare = buildGenericIncomeFlow({ revenue: 1000, netIncome: 150 });
+  ok("a top line and a profit are enough", bare.ok === true);
+  near("and it conserves", outflow(bare, "revenue"), 1000);
+
+  const noTop = buildGenericIncomeFlow({ netIncome: 150 });
+  ok("without a top line there is nothing to bridge", noTop.ok === false);
+  ok("with a reason", /top line/.test(noTop.reason));
+
+  const overProfit = buildGenericIncomeFlow({ revenue: 100, pretaxIncome: 500 });
+  ok("profit larger than revenue is refused", overProfit.ok === false);
+
+  const labelled = buildGenericIncomeFlow({ revenue: 1000, pretaxIncome: 200, netIncome: 150 }, { combinedLabel: "Claims and expenses", model: "insurance" });
+  ok("the caller can name the block", node(labelled, "combined").label === "Claims and expenses");
+  ok("and keep its own model", labelled.model === "insurance");
+}
+
+// ── The dispatcher never substitutes one industry's model for another ───────
+{
+  const insurance = buildFlowForModel(INSURER);
+  ok("an insurer goes to the insurance builder", insurance.model === "insurance");
+  ok("with premiums drawn", node(insurance, "premiums") !== undefined);
+
+  // An insurer with only totals falls back to the bridge, still as an insurer.
+  const thinInsurer = buildFlowForModel({ model: "insurance", totalRevenue: 1000, pretaxIncome: 150, taxProvision: 40, netIncome: 110 });
+  ok("still builds", thinInsurer.ok === true);
+  ok("still an insurer, never an industrial", thinInsurer.model === "insurance");
+  ok("no gross profit was invented", node(thinInsurer, "gross") === undefined);
+
+  // A bank with nothing but totals: bridge, tagged bank.
+  const thinBank = buildFlowForModel({ model: "bank", totalIncome: 1200, pretaxIncome: 260, taxProvision: 65, netIncome: 195 });
+  ok("a thin bank still builds", thinBank.ok === true);
+  ok("tagged bank", thinBank.model === "bank");
+  ok("with no cost of sales", node(thinBank, "cost") === undefined);
+
+  // The rows that used to be rejected outright.
+  const reit = buildFlowForModel({ revenue: 500, pretaxIncome: 120, taxProvision: 20, netIncome: 100 });
+  ok("a company with no gross profit or cost of sales still draws", reit.ok === true);
+  ok("as the generic bridge", reit.model === "generic");
+  near("and it conserves", outflow(reit, "revenue"), 500);
+
+  const incomplete = buildFlowForModel({ revenue: 500, netIncome: 100 });
+  ok("an incomplete feed still draws", incomplete.ok === true);
+  ok("as the generic bridge", incomplete.model === "generic");
+
+  // An industrial company with the full lines is unaffected by any of it.
+  const industrial = buildFlowForModel(AMD);
+  ok("a full industrial statement still uses the industrial model", industrial.model === "industrial");
+  near("with its gross profit intact", node(industrial, "gross").value, 23.02e9);
+  ok("and is not flagged simplified", !industrial.simplified);
+
+  // Nothing at all is still a refusal: there is no diagram for no data.
+  const nothing = buildFlowForModel({});
+  ok("an empty statement is refused", nothing.ok === false);
+}
+
+// ── Titles travel with the model ────────────────────────────────────────────
+{
+  ok("every model has a title", ["industrial", "bank", "insurance", "generic"].every((m) => typeof MODEL_TITLES[m] === "string" && MODEL_TITLES[m].length > 0));
+  ok("the bank title says bank", /bank/i.test(MODEL_TITLES.bank));
+  ok("the insurance title says insurance", /insurance/i.test(MODEL_TITLES.insurance));
+  ok("the industrial title is the revenue one", /revenue/i.test(MODEL_TITLES.industrial));
+  ok("titles are distinct", new Set(Object.values(MODEL_TITLES)).size === 4);
+  ok("no em-dashes in the titles", Object.values(MODEL_TITLES).every((t) => !t.includes("—")));
 }
 
 console.log(`${passed} passed, ${failed} failed`);
