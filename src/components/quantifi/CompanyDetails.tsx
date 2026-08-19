@@ -43,7 +43,19 @@ function StatementTable({ rows, labels, indian }: { rows?: FinRow[]; labels: { k
           <tr className="border-b border-white/10 text-left text-slate-400">
             <th className="py-2 pr-4 font-medium">Item</th>
             {rows.map((r, i) => (
-              <th key={i} className="py-2 pr-4 font-mono text-xs text-slate-300">{r.date ?? "n/a"}</th>
+              <th
+                key={i}
+                className={`py-2 pr-4 font-mono text-xs ${
+                  r.date === "TTM" ? "text-gold" : "text-slate-300"
+                }`}
+                title={
+                  r.date === "TTM"
+                    ? "Trailing twelve months, computed by the data source from the last four quarters. Not a filed annual figure."
+                    : undefined
+                }
+              >
+                {r.date ?? "n/a"}
+              </th>
             ))}
           </tr>
         </thead>
@@ -58,6 +70,50 @@ function StatementTable({ rows, labels, indian }: { rows?: FinRow[]; labels: { k
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/**
+ * Why a cell is empty, when the reason is a fact about the company.
+ *
+ * "n/a" beside Gross Profit for a bank reads as a broken scraper, and people
+ * check it against Yahoo's own page, which shows a trailing-twelve-month figure
+ * and appears to contradict us. It does not: banks file no cost of revenue, so
+ * there is no gross profit line in the accounts, and the figure on that page is
+ * computed rather than reported. Saying so is the difference between a gap in
+ * the data and a gap in the company's income statement.
+ */
+function IncomeStatementNotes({ rows }: { rows?: FinRow[] }) {
+  if (!rows?.length) return null;
+  const annual = rows.filter((r) => r.date !== "TTM");
+  const ttm = rows.find((r) => r.date === "TTM");
+  if (!annual.length) return null;
+
+  const notes: string[] = [];
+  const missingEverywhere = (key: string) => annual.every((r) => r.values[key] == null);
+
+  if (missingEverywhere("grossProfit")) {
+    notes.push(
+      ttm?.values.grossProfit != null
+        ? "Gross profit is not a line this company files: with no cost of revenue there is nothing to subtract from revenue, which is normal for banks, insurers and other financial companies. The TTM column carries the figure the data source computes from the last four quarters, which is why other sites quote a slightly different one."
+        : "Gross profit is not a line this company files: with no cost of revenue there is nothing to subtract from revenue, which is normal for banks, insurers and other financial companies."
+    );
+  }
+  if (missingEverywhere("operatingIncome")) {
+    notes.push(
+      "Operating income is likewise absent from the filed statement. For a lender the equivalent measure is pre-tax income, since interest expense is a cost of the business rather than a financing item."
+    );
+  }
+  if (!notes.length) return null;
+
+  return (
+    <div className="mt-2 space-y-1">
+      {notes.map((n) => (
+        <p key={n} className="text-[0.65rem] leading-relaxed text-slate-500">
+          {n}
+        </p>
+      ))}
     </div>
   );
 }
@@ -235,6 +291,7 @@ export default function CompanyDetails({ symbol }: { symbol: string }) {
                 { key: "operatingIncome", label: "Operating Income" },
                 { key: "netIncome", label: "Net Income" },
               ]} />
+              <IncomeStatementNotes rows={data.incomeStatements} />
             </div>
             <div>
               <h4 className="mb-2 font-display text-sm font-semibold text-white">Balance Sheet</h4>
