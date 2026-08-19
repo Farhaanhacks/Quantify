@@ -9,6 +9,12 @@ import {
   type IncomeModel,
 } from "@/lib/incomeFlow";
 
+// Industry to reporting structure.
+//
+// Each set is matched against Yahoo's own industry string, lower-cased and
+// whitespace-collapsed, with both dash forms because the feed uses an em-dash
+// on some listings and a hyphen on others.
+
 export const dynamic = "force-dynamic";
 
 // The income statement behind the revenue-and-expenses breakdown, and the choice
@@ -41,12 +47,28 @@ const BANK_INDUSTRIES = new Set([
 ]);
 
 /**
- * Industries that report as insurers.
+ * Non-bank lenders.
  *
- * Separate from banking for the same reason banking is separate from industry:
- * an insurer's account runs premiums earned and investment income in, claims
- * incurred out. It has no interest expended and no cost of sales, and drawing it
- * as either would be the same substitution one industry over.
+ * They run a bank's cascade without a bank's funding: no deposits, so what they
+ * pay is a finance cost, and what they set aside is an impairment charge. Same
+ * identities, different words, which is why they share the builder and not the
+ * vocabulary.
+ */
+const LENDER_INDUSTRIES = new Set([
+  "credit services",
+  "consumer finance",
+  "mortgage finance",
+  "financial conglomerates",
+  "specialty finance",
+]);
+
+/**
+ * Insurers, meaning companies that carry underwriting risk.
+ *
+ * Insurance BROKERS are deliberately absent: a broker places risk and takes a
+ * commission, underwrites nothing, and has no premiums earned and no claims
+ * incurred. Drawing one with a claims line would invent the single most
+ * important number an insurance statement has. They are fee businesses, below.
  */
 const INSURANCE_INDUSTRIES = new Set([
   "insurance—life",
@@ -59,8 +81,48 @@ const INSURANCE_INDUSTRIES = new Set([
   "insurance - specialty",
   "insurance—diversified",
   "insurance - diversified",
-  "insurance brokers",
   "insurance",
+]);
+
+/** Businesses whose revenue is fees and whose cost base is mostly people. */
+const FEE_INDUSTRIES = new Set([
+  "insurance brokers",
+  "asset management",
+  "capital markets",
+  "financial data & stock exchanges",
+  "shell companies",
+]);
+
+/**
+ * Businesses with an operating cost base rather than a cost of goods.
+ *
+ * A REIT collects rent, a utility sells power, a transport operator sells
+ * seats. Each reports operating expenses and operating income, and the
+ * gross-profit subtraction either is not published or means nothing. They kept
+ * working before this list existed, but only as a one-block bridge; with it
+ * they get the two-stage shape their statements actually have.
+ */
+const OPERATING_INDUSTRIES = new Set([
+  "reit—diversified", "reit - diversified",
+  "reit—healthcare facilities", "reit - healthcare facilities",
+  "reit—hotel & motel", "reit - hotel & motel",
+  "reit—industrial", "reit - industrial",
+  "reit—mortgage", "reit - mortgage",
+  "reit—office", "reit - office",
+  "reit—residential", "reit - residential",
+  "reit—retail", "reit - retail",
+  "reit—specialty", "reit - specialty",
+  "real estate services", "real estate—development", "real estate - development",
+  "real estate—diversified", "real estate - diversified",
+  "utilities—regulated electric", "utilities - regulated electric",
+  "utilities—regulated gas", "utilities - regulated gas",
+  "utilities—regulated water", "utilities - regulated water",
+  "utilities—diversified", "utilities - diversified",
+  "utilities—independent power producers", "utilities - independent power producers",
+  "utilities—renewable", "utilities - renewable",
+  "airlines", "railroads", "marine shipping", "trucking",
+  "integrated freight & logistics", "airports & air services",
+  "conglomerates",
 ]);
 
 const normIndustry = (s?: string) =>
@@ -102,18 +164,33 @@ export async function GET(_req: Request, { params }: { params: { symbol: string 
       v.provisionForLoanLosses != null;
     const hasInsuranceFields =
       v.premiumsEarned != null || v.claimsIncurred != null || v.netInvestmentIncome != null;
+    const hasOperatingFields = v.operatingIncome != null || v.operatingExpense != null;
+    // A company reporting no revenue, or a loss with no profit to draw, is the
+    // burn case. Checked last, and on the figures rather than the industry: a
+    // pre-revenue biotech and a listed shell have nothing in common except this.
+    const lossMaking = v.netIncome != null && v.netIncome < 0;
+    const noRevenue = v.revenue == null || v.revenue <= 0;
 
     const ind = normIndustry(industry);
-    const model: IncomeModel = BANK_INDUSTRIES.has(ind) && hasBankFields
-      ? "bank"
-      : INSURANCE_INDUSTRIES.has(ind) && hasInsuranceFields
-        ? "insurance"
-        : "industrial";
+    const model: IncomeModel =
+      noRevenue && lossMaking
+        ? "burn"
+        : BANK_INDUSTRIES.has(ind) && hasBankFields
+          ? "bank"
+          : LENDER_INDUSTRIES.has(ind) && hasBankFields
+            ? "lender"
+            : INSURANCE_INDUSTRIES.has(ind) && hasInsuranceFields
+              ? "insurance"
+              : FEE_INDUSTRIES.has(ind)
+                ? "fee"
+                : OPERATING_INDUSTRIES.has(ind) && hasOperatingFields
+                  ? "operating"
+                  : "industrial";
 
     const lines: AnyIncomeLines =
-      model === "bank"
+      model === "bank" || model === "lender"
         ? {
-            model: "bank",
+            model,
             interestIncome: v.interestIncome,
             interestExpense: v.interestExpense,
             netInterestIncome: v.netInterestIncome,
@@ -138,7 +215,40 @@ export async function GET(_req: Request, { params }: { params: { symbol: string 
               taxProvision: v.taxProvision,
               netIncome: v.netIncome,
             }
-          : {
+          : model === "fee"
+            ? {
+                model: "fee",
+                feeIncome: v.revenue,
+                compensation: v.sellingGeneralAdmin,
+                operatingExpense: v.operatingExpense,
+                pretaxIncome: v.pretaxIncome,
+                taxProvision: v.taxProvision,
+                netIncome: v.netIncome,
+              }
+            : model === "operating"
+              ? {
+                  model: "operating",
+                  revenue: v.revenue,
+                  operatingExpense: v.operatingExpense,
+                  sellingGeneralAdmin: v.sellingGeneralAdmin,
+                  depreciation: v.depreciation,
+                  operatingIncome: v.operatingIncome,
+                  nonOperatingInterest: v.nonOperatingInterest,
+                  pretaxIncome: v.pretaxIncome,
+                  taxProvision: v.taxProvision,
+                  netIncome: v.netIncome,
+                }
+              : model === "burn"
+                ? {
+                    model: "burn",
+                    revenue: v.revenue,
+                    otherIncome: v.interestIncome ?? v.netInvestmentIncome ?? v.otherNonOperating,
+                    researchAndDevelopment: v.researchAndDevelopment,
+                    sellingGeneralAdmin: v.sellingGeneralAdmin,
+                    operatingExpense: v.operatingExpense,
+                    netIncome: v.netIncome,
+                  }
+                : {
               model: "industrial",
               revenue: v.revenue,
               costOfRevenue: v.costOfRevenue,
