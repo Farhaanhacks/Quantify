@@ -38,12 +38,21 @@
  * Asking it for a gross profit and refusing to draw anything when it has none
  * rejects a complete, valid statement.
  *
- * The registry is deliberately open. Insurers (premiums earned, claims incurred,
- * underwriting result) and brokers (commissions and fee income) are different
- * again, and each needs its own builder rather than a broadened version of one
- * of these two.
+ * The registry is open by design. Four entries today:
+ *
+ *   industrial  revenue, cost of sales, gross profit
+ *   bank        interest earned and expended, provisions as their own head
+ *   insurance   premiums earned and investment income in, claims incurred out
+ *   generic     revenue to profit before tax, with one derived expense block
+ *
+ * `generic` is the safety net rather than a reporting structure: a REIT, an
+ * asset manager, a broker or any company whose feed is incomplete gets a bridge
+ * from income to profit instead of a rejection. It is always labelled derived,
+ * because one subtraction standing in for a whole cost base is a bridge and not
+ * a breakdown. Brokers and asset managers will earn their own builders in time;
+ * until then they get an honest bridge rather than someone else's model.
  */
-export type IncomeModel = "industrial" | "bank";
+export type IncomeModel = "industrial" | "bank" | "insurance" | "generic";
 
 /** A bank's account, in the order the statement itself reads. */
 export interface BankIncomeLines {
@@ -65,8 +74,27 @@ export interface BankIncomeLines {
   totalIncome?: number;
 }
 
+/** An insurer's account: premiums and investment income in, claims out. */
+export interface InsuranceIncomeLines {
+  model: "insurance";
+  /** Net premiums earned. */
+  premiumsEarned?: number;
+  /** Net investment income, and realised gains where they are not split out. */
+  netInvestmentIncome?: number;
+  /** Total revenue as reported, where the components are not published. */
+  totalRevenue?: number;
+  /** Benefits, claims and loss adjustment expenses. */
+  claimsIncurred?: number;
+  /** Policy acquisition costs and other underwriting expenses. */
+  underwritingExpense?: number;
+  operatingExpense?: number;
+  pretaxIncome?: number;
+  taxProvision?: number;
+  netIncome?: number;
+}
+
 export interface IndustrialIncomeLines {
-  model?: "industrial";
+  model?: "industrial" | "generic";
   revenue?: number;
   costOfRevenue?: number;
   grossProfit?: number;
@@ -84,7 +112,24 @@ export interface IndustrialIncomeLines {
 /** The old name, kept so existing callers and tests do not have to change. */
 export type IncomeLines = IndustrialIncomeLines;
 
-export type AnyIncomeLines = IndustrialIncomeLines | BankIncomeLines;
+export type AnyIncomeLines =
+  | IndustrialIncomeLines
+  | BankIncomeLines
+  | InsuranceIncomeLines;
+
+/**
+ * What the section calls itself, per model.
+ *
+ * Kept here rather than in the component so the name of a diagram and the model
+ * that produced it cannot drift apart: a heading that says "Revenue & expenses"
+ * over a diagram with no revenue line in it is its own small falsehood.
+ */
+export const MODEL_TITLES: Record<IncomeModel, string> = {
+  industrial: "Revenue & expenses breakdown",
+  bank: "Bank income breakdown",
+  insurance: "Insurance income breakdown",
+  generic: "Income & expenses bridge",
+};
 
 export type FlowKind = "revenue" | "cost" | "profit" | "expense" | "loss";
 
@@ -514,22 +559,279 @@ export function buildSimplifiedBankFlow(lines: BankIncomeLines): IncomeFlow {
   return { nodes, links, ok: true, loss: net < 0, model: "bank", simplified: true };
 }
 
+
+// ── Insurance ───────────────────────────────────────────────────────────────
+
 /**
- * Pick the builder from the model, and fall back within the bank family only.
+ * An insurer's account.
  *
- * A bank whose detailed lines are missing gets the simplified bridge; it never
- * gets the industrial builder, because the failure mode being fixed here is
- * exactly that substitution.
+ *   Premiums earned ─┐
+ *                    ├─ Total revenue ─┬─ Claims incurred
+ *   Investment income┘                 ├─ Underwriting & operating expenses
+ *                                      ├─ Other expenses (derived)
+ *                                      └─ Profit before tax ─┬─ Tax
+ *                                                            └─ Net profit
+ *
+ * An insurer sells a promise and pays for it later, so the shape of its account
+ * is the opposite way round from a manufacturer's: money arrives as premiums and
+ * as the return on the float those premiums create, and leaves as claims. There
+ * is no cost of sales, and the closest thing to a gross margin, the underwriting
+ * result, is premiums less claims less the cost of writing the business, which
+ * is a different subtraction from the one an industrial statement makes.
+ *
+ * Claims and underwriting expenses are drawn only where the filing reports them,
+ * and the difference between those and total revenue less pre-tax profit is a
+ * visible "Other expenses" rather than being folded into either.
+ */
+export function buildInsuranceIncomeFlow(lines: InsuranceIncomeLines): IncomeFlow {
+  const fail = (reason: string): IncomeFlow => ({
+    nodes: [],
+    links: [],
+    ok: false,
+    loss: false,
+    model: "insurance",
+    reason,
+  });
+
+  const premiums = pos(lines.premiumsEarned);
+  const investment = pos(lines.netInvestmentIncome);
+  const revenue =
+    pos(lines.totalRevenue) ??
+    (premiums != null || investment != null ? (premiums ?? 0) + (investment ?? 0) : undefined);
+  if (revenue == null || revenue <= 0) return fail("no premiums or total revenue reported");
+
+  const net = lines.netIncome;
+  const tax = mag(lines.taxProvision);
+  let pbt = lines.pretaxIncome;
+  if (pbt == null && net != null && tax != null) pbt = net + tax;
+  if (pbt == null || !isFinite(pbt)) return fail("no profit before tax reported");
+  if (pbt > revenue) return fail("profit before tax exceeds revenue, so the flow cannot be drawn to scale");
+
+  const nodes: FlowNode[] = [];
+  const links: FlowLink[] = [];
+  const add = (n: FlowNode) => nodes.push(n);
+  const join = (from: string, to: string, value: number) => links.push({ from, to, value });
+
+  // The revenue side. Drawn as its components only when they account for the
+  // total; a partial split would show premiums as the whole of revenue.
+  const components = (premiums ?? 0) + (investment ?? 0);
+  const splitRevenue = components > 0 && components <= revenue * 1.001;
+  if (splitRevenue) {
+    if (premiums != null) {
+      add({ id: "premiums", label: "Premiums earned", value: premiums, kind: "revenue", depth: 0 });
+      join("premiums", "revenue", premiums);
+    }
+    if (investment != null) {
+      add({ id: "investment", label: "Investment income", value: investment, kind: "revenue", depth: 0 });
+      join("investment", "revenue", investment);
+    }
+    const gap = revenue - components;
+    if (gap > revenue * 0.001) {
+      add({ id: "otherRevenue", label: "Other revenue", value: gap, kind: "revenue", depth: 0 });
+      join("otherRevenue", "revenue", gap);
+    }
+  }
+  add({
+    id: "revenue",
+    label: "Total revenue",
+    value: revenue,
+    kind: "revenue",
+    depth: splitRevenue ? 1 : 0,
+    derived: lines.totalRevenue == null,
+  });
+
+  const outDepth = splitRevenue ? 2 : 1;
+  const claims = mag(lines.claimsIncurred);
+  const underwriting = mag(lines.underwritingExpense) ?? mag(lines.operatingExpense);
+  const namedCosts = (claims ?? 0) + (underwriting ?? 0);
+  const costs = revenue - pbt;
+
+  if (namedCosts > 0 && namedCosts <= costs) {
+    if (claims != null) {
+      add({ id: "claims", label: "Claims incurred", value: claims, kind: "cost", depth: outDepth });
+      join("revenue", "claims", claims);
+    }
+    if (underwriting != null) {
+      add({
+        id: "underwriting",
+        label: "Underwriting & operating expenses",
+        value: underwriting,
+        kind: "expense",
+        depth: outDepth,
+      });
+      join("revenue", "underwriting", underwriting);
+    }
+    const other = costs - namedCosts;
+    if (other > revenue * 0.001) {
+      add({ id: "otherCosts", label: "Other expenses", value: other, kind: "expense", depth: outDepth, derived: true });
+      join("revenue", "otherCosts", other);
+    }
+  } else if (costs > 0) {
+    // The named lines are missing or do not fit inside the total; one derived
+    // block is honest, two mis-scaled named ones are not.
+    add({
+      id: "otherCosts",
+      label: "Claims and expenses",
+      value: costs,
+      kind: "expense",
+      depth: outDepth,
+      derived: true,
+    });
+    join("revenue", "otherCosts", costs);
+  }
+
+  add({ id: "pbt", label: "Profit before tax", value: Math.max(0, pbt), kind: "profit", depth: outDepth });
+  if (pbt > 0) join("revenue", "pbt", pbt);
+
+  const simplified = !(namedCosts > 0 && namedCosts <= costs);
+  const taxVal = tax ?? (net != null && pbt != null ? Math.max(0, pbt - net) : undefined);
+  if (taxVal != null && pbt > 0 && taxVal <= pbt) {
+    const left = pbt - taxVal;
+    add({ id: "tax", label: "Tax", value: taxVal, kind: "expense", depth: outDepth + 1 });
+    add({ id: "netProfit", label: "Net profit", value: left, kind: "profit", depth: outDepth + 1 });
+    join("pbt", "tax", taxVal);
+    join("pbt", "netProfit", left);
+  }
+
+  return {
+    nodes,
+    links,
+    ok: true,
+    loss: net != null && net < 0,
+    model: "insurance",
+    simplified: simplified || undefined,
+  };
+}
+
+// ── The generic bridge ──────────────────────────────────────────────────────
+
+export interface BridgeLines {
+  revenue?: number;
+  totalRevenue?: number;
+  totalIncome?: number;
+  pretaxIncome?: number;
+  taxProvision?: number;
+  netIncome?: number;
+}
+
+/**
+ * Income to profit, for a company no specific model fits.
+ *
+ *   Revenue ─┬─ Costs and expenses (derived)
+ *            └─ Profit before tax ─┬─ Tax
+ *                                  └─ Net profit
+ *
+ * This is the safety net. A REIT, an asset manager, a broker, a company whose
+ * feed happens to be missing its expense lines: all of them have a top line and
+ * a profit, and a bridge between the two is a real, if coarse, answer to what
+ * the section asks. It exists because the alternative was refusing to draw
+ * anything, which taught the reader nothing and looked like a bug.
+ *
+ * The combined node is always marked derived and never given the name of a real
+ * line. Calling one subtraction "operating expenses" would be a specific claim
+ * about a cost base nobody published.
+ */
+export function buildGenericIncomeFlow(
+  lines: BridgeLines,
+  opts: { combinedLabel?: string; model?: IncomeModel } = {}
+): IncomeFlow {
+  const model = opts.model ?? "generic";
+  const revenue = pos(lines.revenue) ?? pos(lines.totalRevenue) ?? pos(lines.totalIncome);
+  const net = lines.netIncome;
+  const tax = mag(lines.taxProvision);
+  let pbt = lines.pretaxIncome;
+  if (pbt == null && net != null && tax != null) pbt = net + tax;
+  // With no pre-tax figure at all, net income is the profit the bridge lands on.
+  if (pbt == null) pbt = net;
+
+  if (revenue == null || pbt == null || !isFinite(pbt) || pbt > revenue) {
+    return {
+      nodes: [],
+      links: [],
+      ok: false,
+      loss: net != null && net < 0,
+      model,
+      simplified: true,
+      reason:
+        revenue == null
+          ? "no top line reported"
+          : pbt == null
+            ? "no profit figure reported"
+            : "profit exceeds revenue, so the flow cannot be drawn to scale",
+    };
+  }
+
+  const combined = revenue - Math.max(0, pbt);
+  const nodes: FlowNode[] = [
+    { id: "revenue", label: "Revenue", value: revenue, kind: "revenue", depth: 0 },
+  ];
+  const links: FlowLink[] = [];
+  if (combined > 0) {
+    nodes.push({
+      id: "combined",
+      label: opts.combinedLabel ?? "Costs and expenses",
+      value: combined,
+      kind: "expense",
+      depth: 1,
+      derived: true,
+    });
+    links.push({ from: "revenue", to: "combined", value: combined });
+  }
+  if (pbt > 0) {
+    nodes.push({ id: "pbt", label: "Profit before tax", value: pbt, kind: "profit", depth: 1 });
+    links.push({ from: "revenue", to: "pbt", value: pbt });
+
+    const taxVal = tax ?? (net != null ? Math.max(0, pbt - net) : undefined);
+    if (taxVal != null && taxVal <= pbt) {
+      nodes.push({ id: "tax", label: "Tax", value: taxVal, kind: "expense", depth: 2 });
+      nodes.push({ id: "netProfit", label: "Net profit", value: pbt - taxVal, kind: "profit", depth: 2 });
+      links.push({ from: "pbt", to: "tax", value: taxVal });
+      links.push({ from: "pbt", to: "netProfit", value: pbt - taxVal });
+    }
+  }
+
+  return { nodes, links, ok: nodes.length > 1, loss: net != null && net < 0, model, simplified: true };
+}
+
+/**
+ * Pick the builder from the model, and fall back to the bridge, never sideways.
+ *
+ * The rule that matters: a company never gets ANOTHER industry's model. A bank
+ * whose detailed lines are missing gets the generic bridge, not the industrial
+ * builder, because substituting one reporting structure for another is the
+ * failure this whole registry exists to fix. The bridge claims nothing about
+ * structure; it only says income went in and profit came out.
  */
 export function buildFlowForModel(lines: AnyIncomeLines): IncomeFlow {
+  const bridgeInput = lines as BridgeLines;
+
   if (lines.model === "bank") {
     const detailed = buildBankIncomeFlow(lines);
-    if (detailed.ok) return detailed;
+    if (detailed.ok && !detailed.simplified) return detailed;
     const bridge = buildSimplifiedBankFlow(lines);
-    return bridge.ok ? bridge : detailed;
+    if (bridge.ok && !detailed.ok) return bridge;
+    if (detailed.ok) return detailed;
+    return bridge.ok
+      ? bridge
+      : buildGenericIncomeFlow(bridgeInput, { model: "bank", combinedLabel: "Expenses and provisions" });
   }
-  return buildIndustrialIncomeFlow(lines);
+
+  if (lines.model === "insurance") {
+    const detailed = buildInsuranceIncomeFlow(lines);
+    if (detailed.ok) return detailed;
+    return buildGenericIncomeFlow(bridgeInput, { model: "insurance", combinedLabel: "Claims and expenses" });
+  }
+
+  if (lines.model === "generic") return buildGenericIncomeFlow(bridgeInput);
+
+  const industrial = buildIndustrialIncomeFlow(lines);
+  if (industrial.ok) return industrial;
+  // An industrial company with no cost of sales and no gross profit is usually
+  // a service business, a REIT or simply a gap in the feed. It still has a top
+  // line and a profit, so it gets the bridge rather than an empty panel.
+  return buildGenericIncomeFlow(bridgeInput);
 }
+
 
 /** Every node's outgoing links, for checking conservation. */
 export function outflow(flow: IncomeFlow, id: string): number {
