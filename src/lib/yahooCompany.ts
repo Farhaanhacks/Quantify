@@ -198,6 +198,15 @@ export async function getYahooStatements(
       "annualCostOfRevenue", "annualResearchAndDevelopment",
       "annualSellingGeneralAndAdministration", "annualOperatingExpense",
       "annualTaxProvision", "annualPretaxIncome",
+      // A lender's account. Different lines entirely: interest earned and
+      // expended rather than revenue and cost of sales, and provisions as their
+      // own head of expenditure. Several spellings are requested because the
+      // feed does not use one key per concept across exchanges.
+      "annualInterestIncome", "annualInterestExpense", "annualNetInterestIncome",
+      "annualNonInterestIncome", "annualTotalRevenue",
+      "annualCreditLossesProvision", "annualProvisionForDoubtfulAccounts",
+      "annualInterestIncomeNonOperating", "annualInterestExpenseNonOperating",
+      "annualOtherIncomeExpense",
       "annualNetNonOperatingInterestIncomeExpense", "annualOtherNonOperatingIncomeExpenses",
       "annualTotalAssets", "annualTotalLiabilitiesNetMinorityInterest", "annualStockholdersEquity",
       "annualCashAndCashEquivalents", "annualLongTermDebt",
@@ -235,10 +244,27 @@ export async function getYahooStatements(
       }
     }
     const dates = Array.from(byDate.keys()).sort().reverse().slice(0, 4);
-    const pick = (date: string, keys: Record<string, string>): FinRow => {
+    // One field, several candidate source names, first one present wins.
+    //
+    // Necessary rather than tidy: Yahoo does not use one key per concept across
+    // exchanges. A provisions line arrives as CreditLossesProvision for a US
+    // bank and as ProvisionForDoubtfulAccounts elsewhere, and an Indian bank's
+    // "Provisions and Contingencies" may land in either. Guessing one name and
+    // treating its absence as the company not reporting the figure is how a
+    // present line becomes an empty cell.
+    const pick = (date: string, keys: Record<string, string | string[]>): FinRow => {
       const src = byDate.get(date) ?? {};
       const values: Record<string, number | undefined> = {};
-      for (const k in keys) values[k] = src[keys[k]];
+      for (const k in keys) {
+        const candidates = Array.isArray(keys[k]) ? (keys[k] as string[]) : [keys[k] as string];
+        values[k] = undefined;
+        for (const c of candidates) {
+          if (src[c] != null) {
+            values[k] = src[c];
+            break;
+          }
+        }
+      }
       return { date, values };
     };
     const balance = dates.map((d) => pick(d, {
@@ -275,6 +301,16 @@ export async function getYahooStatements(
         taxProvision: "annualTaxProvision", pretaxIncome: "annualPretaxIncome",
         nonOperatingInterest: "annualNetNonOperatingInterestIncomeExpense",
         otherNonOperating: "annualOtherNonOperatingIncomeExpenses",
+        // Bank lines. The Indian statement's own words are in the comments,
+        // since that is what a reader comparing against a filing will see.
+        interestIncome: ["annualInterestIncome", "annualInterestIncomeNonOperating"], // Interest Earned
+        interestExpense: ["annualInterestExpense", "annualInterestExpenseNonOperating"], // Interest Expended
+        netInterestIncome: "annualNetInterestIncome",
+        nonInterestIncome: ["annualNonInterestIncome", "annualOtherIncomeExpense"], // Other Income
+        provisionForLoanLosses: [
+          "annualCreditLossesProvision",
+          "annualProvisionForDoubtfulAccounts",
+        ], // Provisions and Contingencies
     }));
     // Gross profit from the two figures around it, where Yahoo publishes those
     // but not the line itself. Note what this does NOT do: a company with no
