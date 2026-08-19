@@ -205,6 +205,12 @@ export async function getYahooStatements(
       "annualInterestIncome", "annualInterestExpense", "annualNetInterestIncome",
       "annualNonInterestIncome", "annualTotalRevenue",
       "annualCreditLossesProvision", "annualProvisionForDoubtfulAccounts",
+      // An insurer's account: premiums in, claims out, and investment income on
+      // the float in between. None of it is revenue and cost of sales.
+      "annualTotalPremiumsEarned", "annualNetPremiumsEarned",
+      "annualNetPolicyholderBenefitsAndClaims", "annualPolicyholderBenefitsGross",
+      "annualNetInvestmentIncome", "annualTotalMoneyMarketInvestments",
+      "annualPolicyAcquisitionExpense", "annualTotalExpenses",
       "annualInterestIncomeNonOperating", "annualInterestExpenseNonOperating",
       "annualOtherIncomeExpense",
       "annualNetNonOperatingInterestIncomeExpense", "annualOtherNonOperatingIncomeExpenses",
@@ -311,6 +317,15 @@ export async function getYahooStatements(
           "annualCreditLossesProvision",
           "annualProvisionForDoubtfulAccounts",
         ], // Provisions and Contingencies
+        // Insurance lines.
+        premiumsEarned: ["annualTotalPremiumsEarned", "annualNetPremiumsEarned"],
+        claimsIncurred: [
+          "annualNetPolicyholderBenefitsAndClaims",
+          "annualPolicyholderBenefitsGross",
+        ],
+        netInvestmentIncome: "annualNetInvestmentIncome",
+        underwritingExpense: "annualPolicyAcquisitionExpense",
+        totalExpenses: "annualTotalExpenses",
     }));
     // Gross profit from the two figures around it, where Yahoo publishes those
     // but not the line itself. Note what this does NOT do: a company with no
