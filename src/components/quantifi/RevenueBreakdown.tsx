@@ -57,6 +57,7 @@ interface Payload {
 // statement reads rather than alphabetically, so it can be followed downwards.
 const LINE_LABELS: [string, string][] = [
   ["premiumsEarned", "Premiums earned"],
+  ["depreciation", "Depreciation & amortisation"],
   ["netInvestmentIncome", "Investment income"],
   ["claimsIncurred", "Claims incurred"],
   ["underwritingExpense", "Underwriting expenses"],
@@ -77,6 +78,18 @@ const LINE_LABELS: [string, string][] = [
   ["netIncome", "Net profit"],
 ];
 
+// One sentence per model, saying how to read the picture. Keyed by model so a
+// diagram and its explanation cannot describe different things.
+const SUBTITLES: Partial<Record<IncomeModel, string>> = {
+  bank: " Read as a lender's account: interest earned and expended, then provisions as their own head of expenditure.",
+  lender: " Read as a lender's account: interest income against the cost of funding it, then impairments as their own head of expenditure.",
+  insurance: " Read as an insurer's account: premiums earned and investment income in, claims incurred out.",
+  fee: " Read as a fee business: commissions and fees in, and a cost base that is mostly people.",
+  operating: " Read as an operating account: revenue to operating costs and operating income, with no cost of goods in between.",
+  burn: " Read as where the money went: this company spent more than it earned, and the loss is what funded the difference.",
+  generic: " Read as a bridge from income to profit, because this company's statement does not follow a structure we model line by line.",
+};
+
 function money(n: number, sym: string): string {
   const a = Math.abs(n);
   const s = n < 0 ? "-" : "";
@@ -86,6 +99,18 @@ function money(n: number, sym: string): string {
   if (a >= 1e3) return `${s}${sym}${(a / 1e3).toFixed(1)}k`;
   return `${s}${sym}${Math.round(a)}`;
 }
+
+// The longer note, again per model. Each says what the diagram does NOT claim,
+// which is the part a reader cannot see for themselves.
+const FOOTNOTES: Partial<Record<IncomeModel, string>> = {
+  bank: "A bank has no cost of sales, so there is no gross profit here and none is invented: the account runs from interest earned through net interest income and other income to operating income, and provisions sit on their own branch after operating expenses, which is where the reporting standards put them. ",
+  lender: "A non-bank lender funds itself in the market rather than from deposits, so what it pays is a finance cost and what it sets aside is an impairment charge. The identities are a bank's; the words are the ones its own filing uses. ",
+  insurance: "An insurer has no cost of sales either. It sells a promise and pays for it later, so money arrives as premiums and as the return on the float those premiums create, and leaves as claims. There is no gross profit line and none is invented. ",
+  fee: "A broker or manager earns commissions and fees and carries no inventory and, for a broker, no underwriting risk: there is no cost of sales and no claims line, and neither is invented here. ",
+  operating: "This business reports an operating cost base rather than a cost of goods, so the diagram runs revenue to operating expenses and operating income rather than through a gross profit that its statement does not contain. ",
+  burn: "This company spent more than it earned, so there is no profit to divide and the diagram shows the opposite: what the money was spent on, and the loss that funded it alongside whatever revenue there was. ",
+  generic: "This company's statement does not match a structure we model line by line, so the diagram bridges its top line to its profit with one derived block rather than naming costs nobody published. ",
+};
 
 /** A ribbon: a cubic curve whose thickness is the flow's value. */
 function ribbonPath(x0: number, y0: number, x1: number, y1: number, t: number): string {
@@ -216,13 +241,7 @@ export default function RevenueBreakdown({ symbol, name }: { symbol: string; nam
       <p className="mt-1 text-xs text-slate-500">
         How {who} makes and spends money, from the annual statement to
         {data.periodEnd ? ` ${data.periodEnd}` : " the latest reported year"}.
-        {data.model === "bank"
-          ? " Read as a lender's account: interest earned and expended, then provisions as their own head of expenditure."
-          : data.model === "insurance"
-            ? " Read as an insurer's account: premiums earned and investment income in, claims incurred out."
-            : data.model === "generic"
-              ? " Read as a bridge from income to profit, because this company's statement does not follow a structure we model line by line."
-              : ""}
+        {SUBTITLES[data.model ?? "industrial"] ?? ""}
       </p>
       {data.flow?.simplified ? (
         <p className="mt-2 text-[0.7rem] text-gold">
@@ -327,13 +346,7 @@ export default function RevenueBreakdown({ symbol, name }: { symbol: string; nam
       </GlassCard>
 
       <p className="mt-3 text-[0.65rem] leading-relaxed text-slate-500">
-        {data.model === "bank"
-          ? "A bank has no cost of sales, so there is no gross profit here and none is invented: the account runs from interest earned through net interest income and other income to operating income, and provisions sit on their own branch after operating expenses, which is where the reporting standards put them. "
-          : data.model === "insurance"
-            ? "An insurer has no cost of sales either. It sells a promise and pays for it later, so money arrives as premiums and as the return on the float those premiums create, and leaves as claims. There is no gross profit line and none is invented. "
-            : data.model === "generic"
-              ? "This company's statement does not match a structure we model line by line, so the diagram bridges its top line to its profit with one derived block rather than naming costs nobody published. "
-              : ""}
+        {FOOTNOTES[data.model ?? "industrial"] ?? ""}
         Revenue is shown as one figure rather than split by business line: segment
         revenue appears in the company&apos;s own filings and not in the data feed behind this page,
         and estimating it would be inventing the most interesting part of the picture. Where a line
