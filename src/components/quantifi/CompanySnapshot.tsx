@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   GlassCard,
   ScoreRadar,
-  Tag,
 } from "@/components/quantifi/Cards";
 import {
   SCORE_AXES,
@@ -268,7 +267,7 @@ export default function CompanySnapshot({
           A cash-flow value isn&apos;t available for {a.ticker} yet. This company
           doesn&apos;t currently generate positive{" "}
           <span className="text-slate-300">operating cash flow</span>, so a
-          cash-flow valuation would be negative or meaningless rather than useful common for early-stage or heavy-investment names still scaling toward
+          cash-flow valuation would be negative or meaningless rather than useful. This is common for early-stage or heavy-investment names still scaling toward
           cash generation.
         </p>
       )}
@@ -298,7 +297,10 @@ export default function CompanySnapshot({
           </div>
           <p className="mt-1 max-w-md text-xs text-slate-500">{sv.note}</p>
         </div>
-        <Tag tone={sv.tagUnder ? "up" : "down"}>{sv.tag}</Tag>
+        {/* The "Below sector value · 38%" capsule used to sit here. It was
+            removed deliberately: the same gap is already stated underneath as a
+            percentage and a fair value, and a green badge gave a sector
+            heuristic the authority of a verdict. */}
       </div>
       <div className="mt-3 text-[0.7rem] uppercase tracking-[0.14em] text-slate-500">
         {sv.sector} · <span className="font-mono normal-case tracking-normal text-slate-300">{sv.metricLabel}</span>
