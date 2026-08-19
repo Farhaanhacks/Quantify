@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { GlassCard } from "@/components/quantifi/Cards";
 import { currencySymbol } from "@/data/demo";
-import { layoutFlow, type IncomeFlow, type FlowKind } from "@/lib/incomeFlow";
+import { layoutFlow, MODEL_TITLES, type IncomeFlow, type FlowKind, type IncomeModel } from "@/lib/incomeFlow";
 
 // Revenue and expenses, drawn as a flow.
 //
@@ -44,7 +44,9 @@ interface Payload {
   name?: string;
   currency?: string;
   periodEnd?: string;
-  model?: "industrial" | "bank";
+  model?: IncomeModel;
+  /** The heading, chosen by the model rather than fixed. */
+  title?: string;
   industry?: string;
   flow?: IncomeFlow;
   /** The reported lines, so a table can stand in where a diagram cannot. */
@@ -54,6 +56,10 @@ interface Payload {
 // What each reported line is called, for the fallback table. Ordered as the
 // statement reads rather than alphabetically, so it can be followed downwards.
 const LINE_LABELS: [string, string][] = [
+  ["premiumsEarned", "Premiums earned"],
+  ["netInvestmentIncome", "Investment income"],
+  ["claimsIncurred", "Claims incurred"],
+  ["underwritingExpense", "Underwriting expenses"],
   ["interestIncome", "Interest earned"],
   ["interestExpense", "Interest expended"],
   ["netInterestIncome", "Net interest income"],
@@ -144,7 +150,9 @@ export default function RevenueBreakdown({ symbol, name }: { symbol: string; nam
     const fallbackSym = currencySymbol(data?.currency);
     return (
       <section className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
-        <h3 className="font-display text-lg font-semibold text-white">Revenue &amp; expenses breakdown</h3>
+        <h3 className="font-display text-lg font-semibold text-white">
+          {data?.title ?? MODEL_TITLES.industrial}
+        </h3>
         <GlassCard className="mt-3 p-5">
           <p className="text-sm text-slate-400">
             {data?.message ?? "The income statement for this listing isn't available right now."}
@@ -202,13 +210,19 @@ export default function RevenueBreakdown({ symbol, name }: { symbol: string; nam
 
   return (
     <section className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
-      <h3 className="font-display text-lg font-semibold text-white">Revenue &amp; expenses breakdown</h3>
+      <h3 className="font-display text-lg font-semibold text-white">
+        {data.title ?? MODEL_TITLES[data.model ?? "industrial"]}
+      </h3>
       <p className="mt-1 text-xs text-slate-500">
         How {who} makes and spends money, from the annual statement to
         {data.periodEnd ? ` ${data.periodEnd}` : " the latest reported year"}.
         {data.model === "bank"
           ? " Read as a lender's account: interest earned and expended, then provisions as their own head of expenditure."
-          : ""}
+          : data.model === "insurance"
+            ? " Read as an insurer's account: premiums earned and investment income in, claims incurred out."
+            : data.model === "generic"
+              ? " Read as a bridge from income to profit, because this company's statement does not follow a structure we model line by line."
+              : ""}
       </p>
       {data.flow?.simplified ? (
         <p className="mt-2 text-[0.7rem] text-gold">
@@ -315,7 +329,11 @@ export default function RevenueBreakdown({ symbol, name }: { symbol: string; nam
       <p className="mt-3 text-[0.65rem] leading-relaxed text-slate-500">
         {data.model === "bank"
           ? "A bank has no cost of sales, so there is no gross profit here and none is invented: the account runs from interest earned through net interest income and other income to operating income, and provisions sit on their own branch after operating expenses, which is where the reporting standards put them. "
-          : ""}
+          : data.model === "insurance"
+            ? "An insurer has no cost of sales either. It sells a promise and pays for it later, so money arrives as premiums and as the return on the float those premiums create, and leaves as claims. There is no gross profit line and none is invented. "
+            : data.model === "generic"
+              ? "This company's statement does not match a structure we model line by line, so the diagram bridges its top line to its profit with one derived block rather than naming costs nobody published. "
+              : ""}
         Revenue is shown as one figure rather than split by business line: segment
         revenue appears in the company&apos;s own filings and not in the data feed behind this page,
         and estimating it would be inventing the most interesting part of the picture. Where a line
