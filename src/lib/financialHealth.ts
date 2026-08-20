@@ -13,7 +13,42 @@
 // applies here, and for the same reason: the ratio is not wrong, the yardstick
 // is. Raising the threshold would have hidden that rather than fixed it.
 
-export type HealthModel = "industrial" | "lender" | "insurer";
+/**
+ * The five books a balance sheet can be read under.
+ *
+ * It started as three, and three was still too coarse. A bank funds itself with
+ * customer deposits and is judged on capital adequacy and asset quality; a
+ * non-bank lender mostly cannot take deposits at all and lives or dies on
+ * whether its wholesale funding rolls; a life insurer's liabilities are
+ * decades-long actuarial reserves and a general insurer's are claims it expects
+ * to pay this year. Handing any of them another's checklist repeats the
+ * original mistake one rung down, which is why "lender" split into bank and
+ * nbfc and "insurer" split by line of business.
+ *
+ * This union is duplicated as BalanceSheetModel in balanceSheet.ts; see the
+ * comment there for why, and for what stops the two drifting.
+ */
+export type HealthModel =
+  | "industrial"
+  | "bank"
+  | "nbfc"
+  | "life-insurer"
+  | "general-insurer";
+
+/** Anything whose leverage is raw material rather than a capital-structure choice. */
+export function isFinancialInstitutionModel(model: HealthModel): boolean {
+  return model !== "industrial";
+}
+
+/** Lenders, of either kind. */
+export function isLenderModel(model: HealthModel): boolean {
+  return model === "bank" || model === "nbfc";
+}
+
+/** Insurers, of either kind. */
+export function isInsurerModel(model: HealthModel): boolean {
+  return model === "life-insurer" || model === "general-insurer";
+}
 
 /**
  * Industries whose leverage is raw material rather than a capital-structure
@@ -24,16 +59,34 @@ export type HealthModel = "industrial" | "lender" | "insurer";
  * "Infrastructure Finance" alike, and a missed match here is a company judged
  * by the wrong yardstick rather than a diagram that fails to draw.
  */
-const LENDER_TERMS = [
+const BANK_TERMS = [
   "bank",
+  "thrifts",
+  "savings & cooperative",
+  "savings and cooperative",
+];
+
+/**
+ * Non-bank lenders.
+ *
+ * Kept apart from banks because the single most important line on a bank's
+ * funding side — customer deposits — is one most of these companies are not
+ * licensed to have. Power Finance Corporation borrows from the wholesale market
+ * and lends to power projects; scoring it on deposit funding would mark it down
+ * for not being a bank, which is the same error as marking a bank down for not
+ * being a manufacturer.
+ */
+const NBFC_TERMS = [
   "credit services",
   "consumer finance",
   "mortgage finance",
   "specialty finance",
   "infrastructure finance",
   "development finance",
-  "thrifts",
-  "savings & cooperative",
+  "housing finance",
+  "non banking financial",
+  "nbfc",
+  "leasing",
 ];
 
 /**
@@ -45,7 +98,15 @@ const LENDER_TERMS = [
  * loan book; it is an ordinary company that happens to sell insurance, and it
  * should be judged like one.
  */
-const INSURER_TERMS = ["insurance", "insurers", "reinsurance"];
+/**
+ * Life assurance, whose liabilities run for decades and are actuarial estimates
+ * rather than amounts owed.
+ */
+const LIFE_INSURER_TERMS = ["insurance—life", "insurance - life", "insurance life", "life insurance", "life assurance"];
+
+/** Everything else that underwrites: property, casualty, health, reinsurance. */
+const GENERAL_INSURER_TERMS = ["insurance", "insurers", "reinsurance", "assurance"];
+
 const NOT_INSURER_TERMS = ["insurance brokers", "insurance broker"];
 
 const norm = (s?: string) => (s ?? "").toLowerCase().replace(/\s+/g, " ").trim();
@@ -58,9 +119,16 @@ export function financialHealthModel(industry?: string, sector?: string): Health
     // whose balance sheets are ordinary. Without an industry we judge normally.
     return "industrial";
   }
+  // Order matters. "Insurance Brokers" contains "insurance", and a broker is an
+  // ordinary company that sells other people's policies: it carries no reserves
+  // and no loan book, so it must be excluded before anything else is tested.
   if (NOT_INSURER_TERMS.some((t) => i.includes(t))) return "industrial";
-  if (LENDER_TERMS.some((t) => i.includes(t))) return "lender";
-  if (INSURER_TERMS.some((t) => i.includes(t))) return "insurer";
+  if (BANK_TERMS.some((t) => i.includes(t))) return "bank";
+  if (NBFC_TERMS.some((t) => i.includes(t))) return "nbfc";
+  // Life before general: "Insurance—Life" contains "insurance", so testing the
+  // general list first would swallow every life insurer.
+  if (LIFE_INSURER_TERMS.some((t) => i.includes(t))) return "life-insurer";
+  if (GENERAL_INSURER_TERMS.some((t) => i.includes(t))) return "general-insurer";
   void sector;
   return "industrial";
 }
@@ -95,7 +163,7 @@ export function leverageVerdict(
     };
   }
 
-  if (model === "lender") {
+  if (isLenderModel(model)) {
     return {
       verdict: `${ratio.toFixed(2)}x gearing`,
       tone: "neutral",
@@ -104,7 +172,7 @@ export function leverageVerdict(
     };
   }
 
-  if (model === "insurer") {
+  if (isInsurerModel(model)) {
     return {
       verdict: `${ratio.toFixed(2)}x`,
       tone: "neutral",
@@ -149,15 +217,25 @@ export const MODEL_HEADINGS: Record<HealthModel, { title: string; subtitle: stri
     subtitle:
       "How the company's borrowings compare with shareholder equity over time, and whether that debt is comfortably covered.",
   },
-  lender: {
+  bank: {
     title: "Borrowings and equity history",
     subtitle:
-      "How the loan book is funded. For a lender, borrowings are raw material rather than a burden, so this shows the shape of the balance sheet instead of judging it against industrial thresholds.",
+      "How the balance sheet is funded. A bank's largest funding source is customer deposits, which are not borrowings and are not shown here, so this is a partial view of the liability side rather than a verdict on it.",
   },
-  insurer: {
+  nbfc: {
     title: "Borrowings and equity history",
     subtitle:
-      "Borrowings against shareholder equity. An insurer's main liabilities are policy reserves, which are not borrowings and do not appear here.",
+      "How the loan book is funded. A non-bank lender borrows wholesale and lends onward, so gearing is the shape of the business rather than a warning sign, and it should be read against capital adequacy and asset quality.",
+  },
+  "life-insurer": {
+    title: "Borrowings and equity history",
+    subtitle:
+      "Borrowings against shareholder equity. A life insurer's main liabilities are policy reserves held against contracts running for decades; they are not borrowings and do not appear here.",
+  },
+  "general-insurer": {
+    title: "Borrowings and equity history",
+    subtitle:
+      "Borrowings against shareholder equity. A general insurer's main liabilities are claims reserves rather than borrowings, so this describes only a small part of the balance sheet.",
   },
 };
 
