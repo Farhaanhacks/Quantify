@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 import { COUNTRY_ISO, countryForSymbol } from "@/lib/listingCountry";
 import { type SearchHit, tokensOf, coversAllTokens, rank } from "@/lib/searchRank";
 import { searchIndia } from "@/lib/indiaCompanies";
+import {
+  parseSearchQuery,
+  groupListings,
+  exchangeCodeOf,
+  isDepositaryReceipt,
+  listingPreference,
+  type Listing,
+} from "@/lib/listingRank";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +34,7 @@ function kindOf(type: string, symbol: string): SearchHit["kind"] {
 }
 
 // Map a Yahoo symbol's exchange suffix to a country flag so users can eyeball the
-// right listing — e.g. TRENT.NS 🇮🇳 vs SVT.L 🇬🇧. US symbols carry no suffix.
+// right listing, e.g. TRENT.NS 🇮🇳 vs SVT.L 🇬🇧. US symbols carry no suffix.
 const SUFFIX_FLAG: Record<string, string> = {
   NS: "🇮🇳", BO: "🇮🇳", L: "🇬🇧", TO: "🇨🇦", V: "🇨🇦", AX: "🇦🇺", NZ: "🇳🇿",
   DE: "🇩🇪", F: "🇩🇪", PA: "🇫🇷", AS: "🇳🇱", BR: "🇧🇪", MI: "🇮🇹", MC: "🇪🇸",
@@ -38,7 +46,7 @@ const SUFFIX_FLAG: Record<string, string> = {
 
 // The suffix→ISO and name→ISO maps live in lib/listingCountry because the search
 // dropdown needs the same answer for rows it loaded from localStorage. Emoji
-// flags are regional-indicator pairs that Windows has no font for — they render
+// flags are regional-indicator pairs that Windows has no font for: they render
 // there as the bare letters "IN"/"US", which is what the ISO code + drawn SVG
 // replaced.
 const countryFor = countryForSymbol;
@@ -54,10 +62,10 @@ const isEquityType = (type: string) =>
 
 // ─── EODHD search (primary when EODHD_API_KEY is set) ────────────────────────
 // EODHD indexes company NAMES and exchange CODES (incl. BSE numeric scrip codes),
-// so "mini" → Mini Diamonds India and "523373" → Mini Diamonds India both resolve
-// — the coverage Yahoo's search lacks for Indian names. We convert EODHD's
-// `Code`+`Exchange` into the Yahoo-style symbol (`.BO`/`.NS`/…) the rest of the
-// app already speaks, so the chosen result stays navigable by /api/quote etc.
+// so "mini" → Mini Diamonds India and "523373" → Mini Diamonds India both
+// resolve: the coverage Yahoo's search lacks for Indian names. We convert
+// EODHD's `Code`+`Exchange` into the Yahoo-style symbol (`.BO`/`.NS`/…) the rest
+// of the app already speaks, so the chosen result stays navigable by /api/quote.
 const EODHD_SUFFIX: Record<string, string> = {
   US: "", NYSE: "", NASDAQ: "", AMEX: "", BATS: "", NMFQS: "", OTC: "", OTCQB: "", OTCQX: "", PINK: "",
   BSE: ".BO", NSE: ".NS", LSE: ".L", TO: ".TO", V: ".V", AU: ".AX", NZ: ".NZ",
@@ -102,10 +110,18 @@ async function eodhdSearch(q: string, key: string): Promise<SearchHit[] | null> 
         flag: COUNTRY_FLAG[country] ?? flagFor(symbol),
         country: COUNTRY_ISO[country] ?? countryFor(symbol),
         kind: kindOf(type, symbol),
+        // Kept rather than discarded: the provider's own symbol, the currency
+        // the listing trades in, and the ISIN where EODHD supplies one. The
+        // ISIN is the only stable identifier either feed carries, and it is
+        // what lets two listings be recognised as one company without guessing
+        // from the ticker.
+        providerSymbol: `${code}${exCode ? `.${exCode}` : ""}`,
+        currency: str(it.Currency),
+        isin: str(it.ISIN),
       });
     }
     // Every candidate, unranked and untruncated. The caller merges this with
-    // Yahoo's results and ranks the union — cutting to 8 here would throw away
+    // Yahoo's results and ranks the union: cutting to 8 here would throw away
     // the company before anything had a chance to sort it above the funds.
     return out;
   } catch {
@@ -136,6 +152,8 @@ async function yahooSearch(q: string, count = 12): Promise<SearchHit[]> {
           flag: flagFor(symbol),
           country: countryFor(symbol),
           kind: kindOf(type, symbol),
+          providerSymbol: symbol,
+          exchangeCode: str(quote.exchange),
         };
       })
       .filter((x): x is SearchHit => !!x && isEquityType(x.type))
@@ -147,7 +165,7 @@ async function yahooSearch(q: string, count = 12): Promise<SearchHit[]> {
 }
 
 // Yahoo's SEARCH doesn't index bare BSE scrip codes, but its QUOTE endpoint does
-// resolve `<code>.BO` to a name — so a user typing "523373" (or "BSE:523373")
+// resolve `<code>.BO` to a name, so a user typing "523373" (or "BSE:523373")
 // still finds the company even without EODHD.
 async function resolveBseCode(code: string): Promise<SearchHit | null> {
   try {
@@ -171,16 +189,17 @@ async function resolveBseCode(code: string): Promise<SearchHit | null> {
 
 export async function GET(req: Request) {
   const raw = (new URL(req.url).searchParams.get("q") ?? "").trim();
-  // Accept "BSE:523373" / "NSE:RELIANCE" / "NASDAQ:AAPL" — strip the exchange
-  // prefix so both the code and the bare symbol resolve.
-  const q = raw.replace(/^[A-Za-z]{2,6}:\s*/, "").trim();
-  if (q.length < 1) return NextResponse.json({ results: [] });
+  // "NYSE:NKE" names an exchange, and that is an instruction rather than noise.
+  // The prefix used to be stripped and thrown away, so the most explicit thing
+  // a user can say about which listing they want had no effect at all.
+  const { q, exchangeHint } = parseSearchQuery(raw);
+  if (q.length < 1) return NextResponse.json({ results: [], companies: [] });
 
   // Both sources, always, then rank the union.
   //
   // EODHD used to short-circuit this: if it returned anything at all, Yahoo was
   // never asked. That is backwards for a query like "kotak", where EODHD's
-  // index is full of fund share classes — hundreds of them — and the bank fell
+  // index is full of fund share classes, hundreds of them, and the bank fell
   // outside the results entirely. Yahoo's search is weak on Indian micro-caps
   // and strong on large companies, so the two cover each other's gaps; asking
   // only the first one to answer meant a user had to type "kotak bank" to find
@@ -203,7 +222,7 @@ export async function GET(req: Request) {
     seen.add(dedupeKey);
     merged.push(hit);
   }
-  // Multi-word queries are answered WORD BY WORD, always — not as a fallback.
+  // Multi-word queries are answered WORD BY WORD, always, not as a fallback.
   //
   // Both upstream indexes match roughly left to right, so "hdfc insurance"
   // returns nothing while "hdfc life" returns the company. Treating the phrase
@@ -235,8 +254,8 @@ export async function GET(req: Request) {
   }
 
   if (tokens.length > 1) {
-    // Ask DEEPLY on each word. A single word is a broad query — "hdfc" matches
-    // a bank, an AMC, an insurer and a dozen funds — so the company being
+    // Ask DEEPLY on each word. A single word is a broad query: "hdfc" matches
+    // a bank, an AMC, an insurer and a dozen funds, so the company being
     // looked for is often outside the first handful. Yahoo's default of twelve
     // rows is why searching "hdfc" surfaced HDFC Bank twice and HDFC Life not
     // at all; the row existed, we just never asked for enough of them.
@@ -270,22 +289,66 @@ export async function GET(req: Request) {
 
   merged.sort((a, b) => rank(a, q) - rank(b, q));
 
-  // One row per company, not one per listing.
+  // One row per COMPANY, with every listing kept under it.
   //
-  // HDFC Life appears twice — NSE and BSE — and the two rows carry the same
-  // company, the same chart and the same page. A reader scanning results has to
-  // notice they are duplicates and pick one, which is work the search should
-  // have done. The better-ranked listing survives (NSE first for Indian names,
-  // since that is what the rest of the app resolves most reliably).
-  const byCompany: SearchHit[] = [];
-  const claimed = new Set<string>();
-  for (const hit of merged) {
-    // The company, not the listing: drop the exchange suffix and normalise.
-    const root = `${hit.symbol.replace(/\.[A-Z]{1,4}$/i, "").toUpperCase()}|${hit.kind ?? "Stock"}`;
-    if (claimed.has(root)) continue;
-    claimed.add(root);
-    byCompany.push(hit);
-  }
+  // This used to collapse to one row per ticker ROOT and delete the rest, so
+  // NKE and NKE.SG were the same string and whichever arrived first won. That
+  // is how a search for Nike returned a Stuttgart quotation and no New York
+  // listing at all: nothing ranked the venues, the tie fell to name length, and
+  // the loser was discarded rather than kept.
+  //
+  // Now the listings are grouped by company identity, ordered within the group
+  // by which venue the security actually belongs to, and all of them survive.
+  const groups = groupListings(merged as Listing[], { exchangeHint });
 
-  return NextResponse.json({ results: byCompany.slice(0, 8) });
+  // Companies are ordered by how well the QUERY matched, using the ranking that
+  // was already there, but read from the listing the group settled on rather
+  // than from whichever row happened to arrive first.
+  groups.sort((a, b) => {
+    const byQuery = rank(a.preferred as SearchHit, q) - rank(b.preferred as SearchHit, q);
+    if (byQuery !== 0) return byQuery;
+    return listingPreference(a.preferred, { exchangeHint }) - listingPreference(b.preferred, { exchangeHint });
+  });
+
+  const shaped = groups.slice(0, 8).map((g) => {
+    const listing = (l: Listing) => ({
+      symbol: l.symbol,
+      providerSymbol: l.providerSymbol ?? l.symbol,
+      name: l.name,
+      exchange: l.exchange,
+      exchangeCode: exchangeCodeOf(l),
+      country: l.country,
+      flag: l.flag,
+      // Currency travels with the LISTING. An ADR in dollars and the ordinary
+      // share in rupees are different prices of different securities, and
+      // sharing one currency between them would misstate both.
+      currency: l.currency,
+      isAdr: isDepositaryReceipt(l),
+      kind: l.kind,
+      type: l.type,
+      isin: l.isin,
+    });
+    return {
+      id: g.id,
+      name: g.name,
+      kind: g.kind,
+      preferred: listing(g.preferred),
+      listings: g.listings.map(listing),
+      listingCount: g.listings.length,
+    };
+  });
+
+  return NextResponse.json({
+    // The flat list stays, and stays first: it is what every existing caller
+    // reads, and it now carries the right listing per company.
+    results: shaped.map((c) => ({
+      ...c.preferred,
+      // The alternatives, so a caller that wants them does not need a second
+      // request, and one that does not can ignore the field.
+      listings: c.listings,
+      listingCount: c.listingCount,
+    })),
+    companies: shaped,
+    exchangeHint,
+  });
 }
