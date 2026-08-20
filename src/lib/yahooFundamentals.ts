@@ -7,6 +7,24 @@ import type {
 import { yahooQuoteSummary, resolveYahooSymbol, yahooQuotes } from "@/lib/yahooCrumb";
 import { getYahooStatements } from "@/lib/yahooCompany";
 import { knownFund } from "@/data/knownFunds";
+import { financialHealthModel, type HealthModel } from "@/lib/financialHealth";
+import {
+  balanceSheetAxis,
+  ratio,
+  PCR_TOTAL,
+  type BalanceSheetModel,
+  type BankMetrics,
+  type Metric,
+  type NbfcMetrics,
+} from "@/lib/balanceSheet";
+
+// The two model unions are declared separately so each file stays importless
+// and independently testable. This is what stops them drifting: if either gains
+// or loses a member, one of these two lines fails to compile.
+const _modelsAgree: BalanceSheetModel = "industrial" as HealthModel;
+const _modelsAgreeBack: HealthModel = "industrial" as BalanceSheetModel;
+void _modelsAgree;
+void _modelsAgreeBack;
 import {
   intrinsicValuePerShare,
   isFinancialInstitution,
@@ -31,6 +49,150 @@ export type { IntrinsicValue, ValuationMethod } from "@/lib/valuationModel";
 // non-commercial use). The cookie/crumb handshake and retries live in
 // yahooCrumb.ts so every Yahoo lib shares one cached, resilient crumb. Returns
 // null on any failure — or for funds/indexes — so callers fall back gracefully.
+
+/**
+ * The Balance Sheet Strength axis, sourced under the model the company needs.
+ *
+ * What this can and cannot get, stated plainly, because the honest answer for a
+ * bank today is mostly "cannot":
+ *
+ *   • Industrial companies: all three measures come from the quote payload that
+ *     is already in hand. Unchanged, and unchanged deliberately — the old
+ *     checks were never wrong for the companies they were written for.
+ *
+ *   • Banks and non-bank lenders: the STRUCTURAL ratios are derivable from the
+ *     balance sheet — how the book is funded, how much of the assets it is, how
+ *     levered the whole thing is. Asset quality and regulatory capital are not.
+ *     Gross and net NPAs, provision coverage, CET1 and CRAR are published in the
+ *     company's own filings, its investor presentations and its Basel/Pillar-3
+ *     disclosures, and none of them appear in a generic quote feed under any
+ *     spelling. A dedicated filings adapter is the only way to get them, and
+ *     until one exists those checks stay "unavailable" and the card says
+ *     "Insufficient bank data" rather than scoring a bank on a third of its
+ *     picture.
+ *
+ *   • Insurers: solvency, combined ratio, persistency and reserve adequacy are
+ *     regulatory filings end to end. Nothing here sources them, and the card
+ *     says so.
+ *
+ * That is a smaller claim than the old 0/10 made, and it is the true one.
+ * Publishing "Fragile" for a bank whose bad loans are near one per cent was
+ * worse than publishing nothing.
+ */
+async function balanceSheetStrength(
+  symbol: string,
+  model: HealthModel,
+  quote: {
+    currentRatio?: number;
+    debtToEquity?: number;
+    totalCash?: number;
+    totalDebt?: number;
+  }
+): Promise<ScoreAxis> {
+  if (model === "industrial") {
+    return balanceSheetAxis("industrial", {
+      industrial: {
+        currentRatio: { value: quote.currentRatio, source: "Yahoo Finance financialData", derived: false },
+        // Yahoo reports this as a percentage — 152 means 1.52x — and reading it
+        // as a multiple would call a normally-financed company reckless.
+        debtToEquity: {
+          value: quote.debtToEquity != null ? quote.debtToEquity / 100 : undefined,
+          definition: "total debt / total shareholder equity",
+          source: "Yahoo Finance financialData",
+          derived: true,
+        },
+        cashToDebt: {
+          value:
+            quote.totalCash != null && quote.totalDebt != null && quote.totalDebt > 0
+              ? quote.totalCash / quote.totalDebt
+              : undefined,
+          definition: "cash and equivalents / total debt",
+          source: "Yahoo Finance financialData",
+          derived: true,
+        },
+      },
+    });
+  }
+
+  if (model === "life-insurer" || model === "general-insurer") {
+    // Every measure an insurer is judged on — solvency against the regulatory
+    // minimum, combined and loss ratios, reserve adequacy, persistency — is a
+    // regulatory filing. None of it is reachable from here, so the axis reports
+    // that rather than substituting the measures it CAN reach, which would be
+    // the original bug wearing a different label.
+    return balanceSheetAxis(model, {});
+  }
+
+  // Banks and non-bank lenders. One balance-sheet date, so every ratio below is
+  // built from figures of the same vintage and the same scope; ratio() refuses
+  // the combination otherwise.
+  let latest: { date?: string; values: Record<string, number | undefined> } | undefined;
+  try {
+    const ts = await getYahooStatements(symbol);
+    latest = ts.balance[0];
+  } catch {
+    /* no statements → every structural check is unavailable, which is correct */
+  }
+
+  const m = (key: string, definition?: string): Metric =>
+    latest?.values[key] != null
+      ? {
+          value: latest.values[key],
+          asOf: latest.date,
+          scope: "consolidated",
+          source: "Yahoo Finance fundamentals timeseries",
+          definition,
+          derived: false,
+        }
+      : { unavailableReason: "Not published in the balance sheet feed for this company." };
+
+  const NOT_IN_FEED: Metric = {
+    unavailableReason:
+      "Published in the company's own filings and Basel/Pillar-3 disclosures, not in the current data source.",
+  };
+
+  const assets = m("totalAssets");
+  const equity = m("totalEquity");
+  const liabilities = m("totalLiabilities");
+  const deposits = m("deposits", "customer deposits");
+  const netLoans = m("netLoans", "net advances");
+
+  const structural = {
+    depositFunding: ratio(deposits, liabilities, { definition: "customer deposits / total liabilities" }),
+    loansToDeposits: ratio(netLoans, deposits, { definition: "net advances / customer deposits" }),
+    loansToAssets: ratio(netLoans, assets, { definition: "net advances / total assets" }),
+    assetsToEquity: ratio(assets, equity, { definition: "total assets / shareholder equity" }),
+  };
+
+  if (model === "bank") {
+    const bank: BankMetrics = {
+      grossNpaRatio: NOT_IN_FEED,
+      netNpaRatio: NOT_IN_FEED,
+      provisionCoverage: { ...NOT_IN_FEED, definition: PCR_TOTAL },
+      capitalBufferPoints: NOT_IN_FEED,
+      ...structural,
+    };
+    return balanceSheetAxis("bank", { bank });
+  }
+
+  // A non-bank lender gets no deposit-funding check at all. Most are not
+  // licensed to take deposits, so the measure does not apply to them — and
+  // scoring a company against a bar it is legally barred from clearing is
+  // exactly the mistake this whole change exists to undo.
+  const nbfc: NbfcMetrics = {
+    crarBufferPoints: NOT_IN_FEED,
+    tier1BufferPoints: NOT_IN_FEED,
+    stage3Ratio: NOT_IN_FEED,
+    provisionCoverage: NOT_IN_FEED,
+    assetLiabilityGap: NOT_IN_FEED,
+    liquidityCoverage: NOT_IN_FEED,
+    largestFundingShare: NOT_IN_FEED,
+    securedShare: NOT_IN_FEED,
+    largestExposureShare: NOT_IN_FEED,
+    gearing: ratio(m("totalDebt"), equity, { definition: "total borrowings / shareholder equity" }),
+  };
+  return balanceSheetAxis("nbfc", { nbfc });
+}
 
 export interface LiveScore {
   analytics: CompanyAnalytics;
@@ -62,13 +224,25 @@ const num = (x: unknown): number | undefined => {
 const str = (x: unknown): string | undefined =>
   typeof x === "string" && x.length ? x : undefined;
 
+/**
+ * An axis built from checks that were all evaluated.
+ *
+ * The other four axes read fields that either arrive or do not, and where they
+ * do not the check genuinely fails — a company with no dividend yield does not
+ * pay a dividend. Balance Sheet Strength is different, and does not come
+ * through here: see balanceSheetAxis, which distinguishes a metric we could not
+ * source from one the company failed.
+ */
 function axis(checks: ScoreCheck[]): ScoreAxis {
-  const passed = checks.filter((c) => c.pass).length;
+  const passed = checks.filter((c) => c.status === "pass").length;
   const score = checks.length ? Math.round((passed / checks.length) * 6) : 0;
-  return { score, checks };
+  return { score, checks, sufficient: true };
 }
 
-const c = (label: string, pass: boolean): ScoreCheck => ({ label, pass });
+const c = (label: string, pass: boolean): ScoreCheck => ({
+  label,
+  status: pass ? "pass" : "fail",
+});
 const fpct = (x: number | undefined): string =>
   x == null ? "n/a" : `${(x * 100).toFixed(0)}%`;
 
@@ -695,6 +869,26 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
       : undefined;
   const marketCapLive = liveMarketCap ?? liveMarketCapDerived ?? marketCap;
 
+  // ── Balance Sheet Strength, under the right model ─────────────────────────
+  //
+  // HDFC Bank used to score 0/10 here and be labelled "Fragile", because every
+  // company on earth was measured against a manufacturer's balance sheet:
+  // current ratio above 1, debt/equity below 1x, more cash than debt. A bank
+  // fails all three by construction — its liabilities are demand deposits, it
+  // is levered eight to ten times because that is what a bank IS, and cash
+  // earns nothing so it holds as little as it can. The score was measuring the
+  // distance between a bank and a factory.
+  //
+  // So the industry picks the checklist, and a financial institution never
+  // reaches the industrial one. Not down-weighted: not reached.
+  const healthModel = financialHealthModel(str(ap.industry), str(ap.sector));
+  const health = await balanceSheetStrength(symbol, healthModel, {
+    currentRatio,
+    debtToEquity,
+    totalCash,
+    totalDebt,
+  });
+
   const scores: Record<ScoreAxisKey, ScoreAxis> = {
     value: axis([
       c("Trades below analysts' average target", target != null && price < target),
@@ -711,11 +905,7 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
       c("Healthy profit margin (>10%)", profitMargins != null && profitMargins > 0.1),
       c("Good return on equity (>12%)", roe != null && roe > 0.12),
     ]),
-    health: axis([
-      c("Short-term assets cover liabilities (current ratio >1)", currentRatio != null && currentRatio > 1),
-      c("Conservative debt (debt/equity below 1x)", debtToEquity != null && debtToEquity < 100),
-      c("More cash than total debt", totalCash != null && totalDebt != null && totalCash > totalDebt),
-    ]),
+    health,
     dividends: axis([
       c("Pays a dividend", divYield != null && divYield > 0),
       c("Yield above ~2%", divYield != null && divYield > 0.02),
@@ -728,15 +918,22 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
   if (roe != null && roe > 0.15) rewards.push(`Strong return on equity (${fpct(roe)}).`);
   if (revGrowth != null && revGrowth > 0.1) rewards.push(`Revenue growing double digits (${fpct(revGrowth)}).`);
   if (profitMargins != null && profitMargins > 0.15) rewards.push(`Healthy profit margin (${fpct(profitMargins)}).`);
-  if (totalCash != null && totalDebt != null && totalCash > totalDebt) rewards.push("More cash on hand than total debt.");
+  if (healthModel === "industrial" && totalCash != null && totalDebt != null && totalCash > totalDebt)
+    rewards.push("More cash on hand than total debt.");
   if (target != null && price < target) rewards.push("Trades below analysts' average price target.");
   if (divYield != null && divYield > 0.02) rewards.push(`Pays a dividend (${fpct(divYield)} yield).`);
 
   if (profitMargins != null && profitMargins <= 0) riskFlags.push("Currently unprofitable.");
-  if (debtToEquity != null && debtToEquity >= 100) riskFlags.push(`Elevated debt (debt/equity ${(debtToEquity / 100).toFixed(1)}x).`);
+  // The same yardstick problem, in prose. "Elevated debt (debt/equity 7.6x)" is
+  // a true sentence about a lender and a meaningless warning: a lender with no
+  // leverage has no business. Both of these are industrial readings and stay
+  // with industrial companies.
+  if (healthModel === "industrial" && debtToEquity != null && debtToEquity >= 100)
+    riskFlags.push(`Elevated debt (debt/equity ${(debtToEquity / 100).toFixed(1)}x).`);
   if (pe != null && pe > 40) riskFlags.push(`Rich valuation (P/E ${pe.toFixed(0)}).`);
   if (target != null && price > target) riskFlags.push("Trades above analysts' average price target.");
-  if (currentRatio != null && currentRatio < 1) riskFlags.push("Short-term liabilities exceed short-term assets.");
+  if (healthModel === "industrial" && currentRatio != null && currentRatio < 1)
+    riskFlags.push("Short-term liabilities exceed short-term assets.");
   if (divYield == null || divYield === 0) riskFlags.push("Pays no dividend.");
 
   if (rewards.length === 0) rewards.push("No standout strengths in the available fundamentals.");
