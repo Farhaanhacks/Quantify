@@ -227,6 +227,19 @@ export async function getYahooStatements(
       // while still calling itself a debt-to-equity history.
       "annualCashAndCashEquivalents",
       "annualTotalDebt", "annualLongTermDebt", "annualCurrentDebt",
+      // A bank's balance sheet, in the several spellings the feed uses.
+      //
+      // These are what let the Balance Sheet Strength card say anything at all
+      // about a bank. Only the structural ratios come from here — how the book
+      // is funded, how much of the balance sheet it is, how levered the whole
+      // thing is. Asset quality and capital adequacy (GNPA, net NPA, provision
+      // coverage, CET1) are NOT in this feed under any spelling; they live in
+      // the bank's own filings and Basel/Pillar-3 disclosures, and the card says
+      // "insufficient" rather than guessing at them.
+      "annualTotalDeposits", "annualDeposits", "annualCustomerAccounts",
+      "annualInterestBearingDepositsLiability", "annualNonInterestBearingDeposits",
+      "annualNetLoan", "annualGrossLoan", "annualLoansAndAdvances", "annualLoansReceivable",
+      "annualAllowanceForLoansAndLeaseLosses", "annualAllowanceForDoubtfulAccountsReceivable",
       "annualCurrentAssets", "annualCurrentLiabilities", "annualInventory",
       "annualOperatingCashFlow", "annualCapitalExpenditure", "annualFreeCashFlow",
     ];
@@ -296,6 +309,19 @@ export async function getYahooStatements(
       currentDebt: "annualCurrentDebt",
       currentAssets: "annualCurrentAssets", currentLiabilities: "annualCurrentLiabilities",
       inventory: "annualInventory",
+      // A lender's balance sheet. Every one of these is optional: a
+      // manufacturer reports none of them, and a bank whose feed does not carry
+      // them leaves the corresponding check unavailable rather than failed.
+      deposits: [
+        "annualTotalDeposits", "annualDeposits", "annualCustomerAccounts",
+        "annualInterestBearingDepositsLiability",
+      ],
+      netLoans: ["annualNetLoan", "annualLoansAndAdvances", "annualLoansReceivable"],
+      grossLoans: ["annualGrossLoan", "annualNetLoan"],
+      loanLossAllowance: [
+        "annualAllowanceForLoansAndLeaseLosses",
+        "annualAllowanceForDoubtfulAccountsReceivable",
+      ],
     }));
     // Yahoo often omits the direct "total liabilities" line (it did for Alphabet),
     // so derive it from the accounting identity Assets = Liabilities + Equity when
