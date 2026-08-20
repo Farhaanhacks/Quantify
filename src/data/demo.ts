@@ -47,15 +47,20 @@ export function axisLabel(key: ScoreAxisKey, score: number): string {
   return M[key][band];
 }
 
-export interface ScoreCheck {
-  label: string;
-  pass: boolean;
-}
-
-export interface ScoreAxis {
-  score: number; // 0–6
-  checks: ScoreCheck[];
-}
+/**
+ * A check has THREE outcomes, and the third is why HDFC Bank read 0/10.
+ *
+ * `pass: boolean` collapsed "this failed" and "we could not source this" into
+ * the same value, so every metric we lack rendered as a red cross and counted
+ * against the company. A metric we do not have is a fact about our data, not
+ * about the balance sheet.
+ *
+ * Defined in lib/balanceSheet.ts, which is importless so its test script can
+ * compile and drive it standalone, and re-exported here so the many call sites
+ * that read the type from `@/data/demo` keep working.
+ */
+import type { ScoreAxis } from "@/lib/balanceSheet";
+export type { CheckStatus, ScoreCheck, ScoreAxis, ReportingScope } from "@/lib/balanceSheet";
 
 export interface CompanyAnalytics {
   ticker: string;
@@ -113,8 +118,21 @@ export interface CompanyAnalytics {
   riskFlags: string[];
 }
 
-export const overallScore = (a: CompanyAnalytics): number =>
-  SCORE_AXES.reduce((sum, axis) => sum + a.scores[axis.key].score, 0); // 0–30
+/**
+ * The headline score, 0–30, over the axes that could actually be scored.
+ *
+ * An unscored axis is EXCLUDED and the remainder rescaled, never counted as
+ * zero. Counting it as zero is the same error as a failed check standing in for
+ * a missing one, just one level up: HDFC Bank's unmeasurable balance sheet
+ * would have taken six points off its total and dragged it to the bottom of
+ * every screen it appeared in, on the strength of data we do not have.
+ */
+export const overallScore = (a: CompanyAnalytics): number => {
+  const scored = SCORE_AXES.filter((axis) => a.scores[axis.key].sufficient !== false);
+  if (!scored.length) return 0;
+  const sum = scored.reduce((total, axis) => total + a.scores[axis.key].score, 0);
+  return Math.round((sum / (scored.length * 6)) * 30);
+};
 
 // ── Formatting helpers ───────────────────────────────────────────────────────
 
