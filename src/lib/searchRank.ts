@@ -13,6 +13,25 @@ export interface SearchHit {
   country?: string;
   /** Normalised class: what this listing actually is. */
   kind?: "Stock" | "ETF" | "Fund" | "Index";
+
+  // ── Listing identity, kept separate from company identity ────────────────
+  //
+  // A company is not a listing. Nike is one company with a New York listing, a
+  // Stuttgart quotation, a London line and a Thai depositary receipt, and each
+  // of those has its own symbol, venue, currency and price. Collapsing them
+  // into one string is what let a German secondary quotation stand in for the
+  // NYSE listing, so every field that distinguishes them travels with the row.
+
+  /** The symbol as the provider returned it, before suffix mapping. */
+  providerSymbol?: string;
+  /** The venue's own code, where the provider gives one separately. */
+  exchangeCode?: string;
+  /** The currency this LISTING trades in. Never shared with another listing. */
+  currency?: string;
+  /** True when this is a depositary receipt rather than the ordinary share. */
+  isAdr?: boolean;
+  /** ISIN, where the provider supplies one. */
+  isin?: string;
 }
 
 /**
