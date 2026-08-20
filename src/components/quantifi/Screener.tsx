@@ -468,7 +468,20 @@ export default function Screener({ heading = true }: { heading?: boolean }) {
                             <ul className="mt-1 space-y-0.5">
                               {r.analytics.scores[axdef.key].checks.map((chk, i) => (
                                 <li key={i} className="flex items-start gap-2 text-xs text-slate-400">
-                                  <span className={chk.pass ? "text-up" : "text-slate-600"}>{chk.pass ? "✓" : "·"}</span>
+                                  {/* Three marks, because a check we could not
+                                      source is not a check the company failed. */}
+                                  <span
+                                    className={
+                                      chk.status === "pass"
+                                        ? "text-up"
+                                        : chk.status === "fail"
+                                          ? "text-down/70"
+                                          : "text-slate-700"
+                                    }
+                                    title={chk.status === "unavailable" ? "Not available" : undefined}
+                                  >
+                                    {chk.status === "pass" ? "✓" : chk.status === "fail" ? "✕" : "–"}
+                                  </span>
                                   {chk.label}
                                 </li>
                               ))}
