@@ -54,6 +54,9 @@ export default function PriceChart({
   // The company has less trading history than the selected range — a recent
   // listing. The chart is real; the window just isn't full.
   const [partial, setPartial] = useState(false);
+  /** Which bars came back. A 1Y window answered with 5-minute bars is honest
+      about a company that has traded for three days, but only if it says so. */
+  const [interval, setInterval] = useState<string>("1d");
 
   // Canvas tooltips are built inside the chart effect, so the currency symbol has
   // to be resolvable there — derive it from the ticker plus whatever the quote
@@ -146,6 +149,7 @@ export default function PriceChart({
           return;
         }
         setPartial(Boolean(data.partial));
+        setInterval(typeof data.interval === "string" ? data.interval : "1d");
 
         // Candles need OHLC. The Stooq fallback is closes-only, so rather than
         // faking bars we render the line and say why.
@@ -490,7 +494,8 @@ export default function PriceChart({
       {partial && !err ? (
         <p className="mt-2 text-xs text-slate-500">
           This company hasn&apos;t traded for the full {range.toUpperCase()} window, the chart shows its
-          entire price history to date.
+          entire price history to date
+          {interval !== "1d" && interval !== "1wk" ? `, in ${interval} bars` : ""}.
         </p>
       ) : null}
       {noCandles && !err ? (
