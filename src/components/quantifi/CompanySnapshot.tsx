@@ -35,22 +35,45 @@ const toTen = (score: number) => Math.round((score / 6) * 10);
 // the pattern of a single red among five greens registers before any of the
 // words do. The labels stay one click away rather than being dropped — knowing
 // WHICH check failed is the reason anyone opens this at all.
+// A check we could not source is drawn as a hollow dash, never as a cross.
+//
+// This is the whole of the HDFC Bank fix in one component. The old dot had two
+// states, so an unsourced metric rendered in exactly the same red as a failed
+// one, and a bank whose capital adequacy we simply do not have looked like a
+// bank that had failed its capital adequacy. The neutral state has to be
+// visibly neither.
+const STATUS_TITLE: Record<ScoreCheck["status"], string> = {
+  pass: "Pass",
+  fail: "Fail",
+  unavailable: "Not available",
+};
+
 function CheckDots({ checks }: { checks: ScoreCheck[] }) {
   return (
     <span className="flex flex-wrap items-center gap-1.5">
       {checks.map((c, i) => (
         <span
           key={i}
-          title={`${c.pass ? "Pass" : "Fail"}, ${c.label}`}
+          title={
+            c.status === "unavailable"
+              ? `Not available, ${c.label}${c.unavailableReason ? ` — ${c.unavailableReason}` : ""}`
+              : `${STATUS_TITLE[c.status]}, ${c.label}`
+          }
           className={`flex h-[18px] w-[18px] flex-none items-center justify-center rounded-full border ${
-            c.pass ? "border-up/50 bg-up/15 text-up" : "border-down/50 bg-down/15 text-down"
+            c.status === "pass"
+              ? "border-up/50 bg-up/15 text-up"
+              : c.status === "fail"
+                ? "border-down/50 bg-down/15 text-down"
+                : "border-white/15 bg-white/[0.04] text-slate-500"
           }`}
         >
           <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3.5">
-            {c.pass ? (
+            {c.status === "pass" ? (
               <path d="m5 13 4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
-            ) : (
+            ) : c.status === "fail" ? (
               <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+            ) : (
+              <path d="M6 12h12" strokeLinecap="round" />
             )}
           </svg>
         </span>
@@ -93,13 +116,30 @@ export default function CompanySnapshot({
   const cur = currencySymbol(currency, ticker);
 
   const total = overallScore(a); // 0–30
-  const radarValues = SCORE_AXES.map((axis) => a.scores[axis.key].score);
-  const radarLabels = SCORE_AXES.map((axis) => axis.short);
+  // An axis nobody could measure is plotted at the midpoint, not at zero.
+  //
+  // A zero spoke is a claim — it draws the shape of a company that failed that
+  // dimension — and for a bank whose capital adequacy simply is not in our data
+  // that claim is false. The midpoint asserts neither strength nor weakness,
+  // and the footnote under the chart names which axes are unscored so the shape
+  // is never read as more informed than it is.
+  const unscoredAxes = SCORE_AXES.filter((axis) => a.scores[axis.key].sufficient === false);
+  const radarValues = SCORE_AXES.map((axis) =>
+    a.scores[axis.key].sufficient === false ? 3 : a.scores[axis.key].score
+  );
+  const radarLabels = SCORE_AXES.map((axis) =>
+    a.scores[axis.key].sufficient === false ? `${axis.short}*` : axis.short
+  );
 
   const gap = ((a.fairValue.estimate - resolvedPrice) / resolvedPrice) * 100;
 
   // --- Synthesis: strongest / weakest axis, a risk lens and a one-line read ---
+  // Only scored axes can be a company's strength or its soft spot. Ranking an
+  // unmeasured one would let "we could not source this" become "this is the
+  // weakest thing about the company", which is precisely the sentence the old
+  // 0/10 was writing about HDFC Bank.
   const ranked = [...SCORE_AXES]
+    .filter((axis) => a.scores[axis.key].sufficient !== false)
     .map((axis) => ({ axis, score: a.scores[axis.key].score }))
     .sort((x, y) => y.score - x.score);
   const strongest = ranked[0];
@@ -147,8 +187,9 @@ export default function CompanySnapshot({
       : valuationScore >= 5
       ? "and it still screens reasonably valued"
       : "with a fair, not cheap, valuation";
-  const quantifiRead =
-    weakest.score >= 5
+  const quantifiRead = !weakest
+    ? `Not enough sourced fundamentals to score this company on any axis. The measures involved are published in the company's own filings rather than in the data source behind this page.`
+    : weakest.score >= 5
       ? `Screens strongly across the board; ${valuationHint}. The thesis test now is whether it can keep beating already-high expectations.`
       : `Strongest on ${strongest.axis.label.toLowerCase()}; the soft spot is ${weakest.axis.label.toLowerCase()} (${axisLabel(weakest.axis.key, weakest.score)}). Key thesis test: ${weakest.axis.question.toLowerCase()}`;
 
@@ -354,7 +395,8 @@ export default function CompanySnapshot({
               (() => {
                 const axis = SCORE_AXES[activeAxis];
                 const d = a.scores[axis.key as ScoreAxisKey];
-                const passed = d.checks.filter((c) => c.pass).length;
+                const evaluated = d.checks.filter((c) => c.status !== "unavailable");
+                const passed = evaluated.filter((c) => c.status === "pass").length;
                 // Sit on the opposite side of the chart from the axis being
                 // pointed at. Five axes: 0, 1 and 4 are in the upper half, 2 and
                 // 3 in the lower — so the card drops to the bottom for the top
@@ -394,6 +436,17 @@ export default function CompanySnapshot({
           <div className="mt-3 border-t border-white/[0.06] pt-3">
             <div className="text-[0.7rem] uppercase tracking-[0.16em] text-slate-500">Snowflake analysis</div>
             <p className="mt-1 text-sm leading-relaxed text-slate-300">{snowflakeRead}</p>
+            {/* The asterisk on the chart, explained. Without this the midpoint
+                spoke reads as a middling result rather than as an absence. */}
+            {unscoredAxes.length ? (
+              <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                *{" "}
+                {unscoredAxes.map((axis) => axis.label).join(" and ")}{" "}
+                {unscoredAxes.length === 1 ? "is" : "are"} not scored for this company and{" "}
+                {unscoredAxes.length === 1 ? "is" : "are"} drawn at the midpoint rather than at zero.{" "}
+                {a.scores[unscoredAxes[0].key].unavailableNote}
+              </p>
+            ) : null}
           </div>
         </GlassCard>
 
@@ -403,8 +456,9 @@ export default function CompanySnapshot({
           <div className="space-y-2.5">
             {SCORE_AXES.map((axis, idx) => {
               const d = a.scores[axis.key as ScoreAxisKey];
-              const supports = d.checks.filter((c) => c.pass);
-              const worries = d.checks.filter((c) => !c.pass);
+              const supports = d.checks.filter((c) => c.status === "pass");
+              const worries = d.checks.filter((c) => c.status === "fail");
+              const unsourced = d.checks.filter((c) => c.status === "unavailable");
               const active = activeAxis === idx;
               return (
                 <details
@@ -430,14 +484,27 @@ export default function CompanySnapshot({
                             <span className="px-1.5 text-slate-700">|</span>
                             {axis.label}
                           </span>
-                          <span className={`rounded-full border px-1.5 py-px text-[0.6rem] font-medium ${labelTone(d.score)}`}>
-                            {axisLabel(axis.key, d.score)}
-                          </span>
+                          {/* No verdict word, and no score out of ten, when too
+                              few measures could be sourced to support one. A
+                              bank whose capital adequacy we do not have is not
+                              "Fragile"; it is unmeasured, and saying so is the
+                              only honest thing on offer. */}
+                          {d.sufficient === false ? (
+                            <span className="rounded-full border border-white/15 bg-white/[0.04] px-1.5 py-px text-[0.6rem] font-medium text-slate-400">
+                              Not enough data
+                            </span>
+                          ) : (
+                            <span className={`rounded-full border px-1.5 py-px text-[0.6rem] font-medium ${labelTone(d.score)}`}>
+                              {axisLabel(axis.key, d.score)}
+                            </span>
+                          )}
                         </span>
                         <span className="mt-1 block text-xs leading-relaxed text-slate-400">{axis.question}</span>
                       </span>
                       <span className="flex flex-none items-center gap-2.5">
-                        <span className="font-mono text-sm tnum text-white">{toTen(d.score)}/10</span>
+                        <span className="font-mono text-sm tnum text-white">
+                          {d.sufficient === false ? "—" : `${toTen(d.score)}/10`}
+                        </span>
                         <span className="text-slate-500 transition group-open:rotate-90" aria-hidden>›</span>
                       </span>
                     </span>
@@ -446,8 +513,11 @@ export default function CompanySnapshot({
                         <span className="text-[0.68rem] text-slate-500">
                           Analysis checks{" "}
                           <span className="font-mono tnum text-slate-300">
-                            {supports.length}/{d.checks.length}
+                            {supports.length}/{d.checks.length - unsourced.length}
                           </span>
+                          {unsourced.length ? (
+                            <span className="text-slate-600"> · {unsourced.length} not available</span>
+                          ) : null}
                         </span>
                         <CheckDots checks={d.checks} />
                       </span>
@@ -480,6 +550,32 @@ export default function CompanySnapshot({
                         </ul>
                       </div>
                     ) : null}
+                    {/* Named, not hidden. A reader who wants to know why a bank
+                        has no balance-sheet score deserves the list of what is
+                        missing and where it actually lives. */}
+                    {unsourced.length ? (
+                      <div>
+                        <div className="text-[0.58rem] uppercase tracking-[0.14em] text-slate-500">
+                          What we could not measure
+                        </div>
+                        <ul className="mt-1 space-y-1">
+                          {unsourced.map((chk, i) => (
+                            <li key={i} className="flex items-start gap-2 text-xs text-slate-500">
+                              <span className="mt-0.5" aria-hidden>–</span>
+                              <span>
+                                {chk.label}
+                                {chk.unavailableReason ? (
+                                  <span className="text-slate-600"> — {chk.unavailableReason}</span>
+                                ) : null}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                    {d.sufficient === false && d.unavailableNote ? (
+                      <p className="text-xs leading-relaxed text-slate-400">{d.unavailableNote}</p>
+                    ) : null}
                   </div>
                 </details>
               );
@@ -502,10 +598,21 @@ export default function CompanySnapshot({
           {SCORE_AXES.map((axis) => (
             <span
               key={axis.key}
-              className={`rounded-full border px-2 py-0.5 text-[0.6rem] ${labelTone(a.scores[axis.key].score)}`}
-              title={`${axis.label}: ${toTen(a.scores[axis.key].score)}/10`}
+              className={`rounded-full border px-2 py-0.5 text-[0.6rem] ${
+                a.scores[axis.key].sufficient === false
+                  ? "border-white/15 bg-white/[0.04] text-slate-500"
+                  : labelTone(a.scores[axis.key].score)
+              }`}
+              title={
+                a.scores[axis.key].sufficient === false
+                  ? `${axis.label}: not scored — ${a.scores[axis.key].unavailableNote ?? "not enough data"}`
+                  : `${axis.label}: ${toTen(a.scores[axis.key].score)}/10`
+              }
             >
-              {axis.short} · {axisLabel(axis.key, a.scores[axis.key].score)}
+              {axis.short} ·{" "}
+              {a.scores[axis.key].sufficient === false
+                ? "not scored"
+                : axisLabel(axis.key, a.scores[axis.key].score)}
             </span>
           ))}
         </div>
