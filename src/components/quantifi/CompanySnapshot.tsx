@@ -28,19 +28,19 @@ function labelTone(score: number): string {
 // Score on a 0–10 feel (stored 0–6).
 const toTen = (score: number) => Math.round((score / 6) * 10);
 
-// One dot per check, filled green when it passes and red when it doesn't.
+// One dot per check: green for a pass, red for a fail, and a hollow dash for a
+// measure we could not source.
 //
-// The count above it ("Analysis Checks 5/6") and the dots say the same thing
+// The count above it ("Analysis checks 5/6") and the dots say the same thing
 // twice on purpose: the number is what you read, the dots are what you see, and
 // the pattern of a single red among five greens registers before any of the
 // words do. The labels stay one click away rather than being dropped — knowing
 // WHICH check failed is the reason anyone opens this at all.
-// A check we could not source is drawn as a hollow dash, never as a cross.
 //
-// This is the whole of the HDFC Bank fix in one component. The old dot had two
-// states, so an unsourced metric rendered in exactly the same red as a failed
-// one, and a bank whose capital adequacy we simply do not have looked like a
-// bank that had failed its capital adequacy. The neutral state has to be
+// The third state is the whole of the HDFC Bank fix in one component. The old
+// dot had two states, so an unsourced metric rendered in exactly the same red as
+// a failed one, and a bank whose capital adequacy we simply do not have looked
+// like a bank that had FAILED its capital adequacy. The neutral state has to be
 // visibly neither.
 const STATUS_TITLE: Record<ScoreCheck["status"], string> = {
   pass: "Pass",
