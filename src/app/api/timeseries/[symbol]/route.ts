@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getStooqSeries, type StooqPoint } from "@/lib/stooq";
+import { seriesLadder, MIN_DRAWABLE_POINTS } from "@/lib/marketMath";
 import { cacheHeaders } from "@/lib/httpCache";
 import { aliasSymbol } from "@/lib/symbolAlias";
 import { currencyForTicker } from "@/data/demo";
@@ -149,9 +150,6 @@ async function fetchYahooPoints(
 }
 
 async function yahooSeries(symbol: string, range: string) {
-  // Intraday for 1D, weekly for the very long ranges, daily otherwise.
-  const interval =
-    range === "1d" ? "5m" : range === "max" || range === "10y" ? "1wk" : "1d";
   const need = MIN_POINTS[range] ?? 5;
 
   // BSE (.BO) listings frequently have thin or missing Yahoo chart history while
@@ -162,27 +160,40 @@ async function yahooSeries(symbol: string, range: string) {
   if (/\.BO$/i.test(symbol)) candidates.push(symbol.replace(/\.BO$/i, ".NS"));
   else if (/\.NS$/i.test(symbol)) candidates.push(symbol.replace(/\.NS$/i, ".BO"));
 
+  // Ask for the requested window first, then progressively shorter windows at
+  // finer intervals.
+  //
+  // A company that listed this week has three daily bars and no more, so a 1Y
+  // request at a daily interval returns almost nothing and used to be thrown
+  // away as a stub. The price badge kept showing a live quote directly above an
+  // empty chart, which is the page contradicting itself: the history existed,
+  // we were asking for it in a shape it could not fill.
   let best: { points: Point[]; candles: Candle[]; meta: Record<string, unknown> } | null = null;
-  for (const sym of candidates) {
-    const got = await fetchYahooPoints(sym, range, interval);
-    if (!best || got.points.length > best.points.length) best = got;
-    if (best.points.length >= need) break; // rich enough — stop early
+  let usedInterval = "1d";
+  for (const attempt of seriesLadder(range)) {
+    for (const sym of candidates) {
+      const got = await fetchYahooPoints(sym, attempt.range, attempt.interval);
+      if (!best || got.points.length > best.points.length) {
+        best = got;
+        usedInterval = attempt.interval;
+      }
+      if (best.points.length >= need) break;
+    }
+    if (best && best.points.length >= need) break;
+    // A finer window is only worth asking for when the coarser one came back
+    // too thin to draw. Enough points already means stop.
+    if (best && best.points.length >= MIN_DRAWABLE_POINTS && attempt.interval !== "1d") break;
   }
-  // Reject a STUB series — but not a short history.
+
+  // Reject only what cannot be drawn at all.
   //
-  // These thresholds exist so a handful of stray points never renders as a
-  // convincing year-long chart. Applied as a hard floor they also throw away
-  // the entire price history of a recently listed company: a stock that has
-  // traded for forty sessions cannot produce the eighty closes a 1Y view asks
-  // for, so the route reported "no chart data available" for a company whose
-  // data we were holding. The quote badge showed a live price directly above
-  // the empty chart, which is how it was noticed.
-  //
-  // A short series is now served and FLAGGED, so the chart can plot the real
-  // history and say it is all there is. Only a genuinely stubby response — too
-  // little to draw a line from — is still rejected.
-  const STUB_FLOOR = 5;
-  if (!best || best.points.length < STUB_FLOOR) throw new Error("Yahoo: series too short");
+  // The old floor was five points, applied to whatever the first request
+  // returned. That discarded the entire history of a recent listing. With the
+  // ladder above, too few points now means the symbol genuinely has almost no
+  // trading history anywhere, and two points is the least that makes a line.
+  if (!best || best.points.length < MIN_DRAWABLE_POINTS) {
+    throw new Error("Yahoo: no drawable series");
+  }
   const partial = best.points.length < need;
 
   const points = best.points;
@@ -213,6 +224,10 @@ async function yahooSeries(symbol: string, range: string) {
     // recent listing, not a data failure. The chart says so rather than
     // implying the window is fully covered.
     partial,
+    // Which bars these actually are. A 1Y request answered with five-minute
+    // bars covering three days is a truthful chart of a company that has traded
+    // for three days, and the UI needs to be able to say which it is drawing.
+    interval: usedInterval,
   };
 }
 
