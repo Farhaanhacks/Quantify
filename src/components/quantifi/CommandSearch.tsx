@@ -31,6 +31,21 @@ interface Match {
   flag: string;
   country?: string;
   kind?: "Stock" | "ETF" | "Fund" | "Index";
+  /** The currency THIS listing trades in, never another listing's. */
+  currency?: string;
+  /** A depositary receipt is a claim on shares listed elsewhere, not the share. */
+  isAdr?: boolean;
+  exchangeCode?: string;
+  /**
+   * Every listing of this company, preferred first.
+   *
+   * One row is one company; the row shows the listing the security actually
+   * belongs to, and the alternatives sit behind a disclosure. They used to be
+   * deleted outright, which is how a search for Nike returned a Stuttgart
+   * quotation and no New York listing.
+   */
+  listings?: Match[];
+  listingCount?: number;
 }
 
 /** A destination inside the app, searchable by name the same way a company is. */
@@ -151,6 +166,8 @@ export default function CommandSearch({ className = "" }: { className?: string }
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Match[]>([]);
+  /** Which company's alternative listings are open, by preferred symbol. */
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [news, setNews] = useState<NewsHit[]>([]);
   const [recent, setRecent] = useState<Match[]>([]);
   const [loading, setLoading] = useState(false);
@@ -215,6 +232,7 @@ export default function CommandSearch({ className = "" }: { className?: string }
         const r = await fetch(`/api/symbol-search?q=${encodeURIComponent(term)}`, { signal: ac.signal });
         const d = await r.json();
         setResults(Array.isArray(d.results) ? d.results : []);
+        setExpanded(null);
         setActive(0);
       } catch {
         /* aborted or offline — keep what's on screen */
@@ -576,7 +594,55 @@ export default function CommandSearch({ className = "" }: { className?: string }
                               </span>
                             </span>
                           </span>
+                          {m.listingCount && m.listingCount > 1 ? (
+                            <span
+                              role="button"
+                              tabIndex={-1}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpanded((prev) => (prev === m.symbol ? null : m.symbol));
+                              }}
+                              className="flex-none rounded-full border border-white/15 px-2 py-0.5 text-[0.6rem] text-slate-400 hover:border-gold/40 hover:text-gold"
+                            >
+                              {expanded === m.symbol ? "hide" : `+${m.listingCount - 1} listings`}
+                            </span>
+                          ) : null}
                         </button>
+
+                        {/* The alternatives. Each one is selectable in its own
+                            right: a reader who wants the Stuttgart line, or the
+                            London one, can open it directly rather than being
+                            told it does not exist. */}
+                        {expanded === m.symbol && m.listings ? (
+                          <ul className="mb-1 ml-11 border-l border-white/[0.08] pl-3">
+                            {m.listings.map((l) => (
+                              <li key={l.symbol}>
+                                <button
+                                  type="button"
+                                  onClick={() => chooseSymbol(l)}
+                                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-white/[0.05]"
+                                >
+                                  <FlagChip country={l.country} symbol={l.symbol} />
+                                  <span className="min-w-0 flex-1 truncate text-[0.72rem] text-slate-300">
+                                    {l.exchange ? `${l.exchange}: ` : ""}
+                                    {l.symbol}
+                                  </span>
+                                  {l.isAdr ? (
+                                    <span className="flex-none rounded-[3px] border border-white/15 px-1 py-px text-[0.5rem] uppercase tracking-wide text-slate-400">
+                                      ADR
+                                    </span>
+                                  ) : null}
+                                  {l.currency ? (
+                                    <span className="flex-none font-mono text-[0.6rem] text-slate-500">{l.currency}</span>
+                                  ) : null}
+                                  {l.symbol === m.symbol ? (
+                                    <span className="flex-none text-[0.55rem] uppercase tracking-wide text-gold">preferred</span>
+                                  ) : null}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
                       </li>
                     ))}
 
