@@ -45,7 +45,21 @@ interface Match {
    * quotation and no New York listing.
    */
   listings?: Match[];
+  /**
+   * Every listing EXCEPT the one on the main row.
+   *
+   * The disclosure used to render `listings` in full, so the main listing
+   * appeared twice — once as the row you clicked and again inside its own
+   * expansion, wearing a "preferred" badge. The row already communicates which
+   * listing will open; saying it a second time was noise, and the badge was
+   * explaining a decision the layout had already made.
+   */
+  alternatives?: Match[];
   listingCount?: number;
+  /** What this line is: an ordinary share, or a receipt for one held elsewhere. */
+  securityType?: "ordinary" | "depositary-receipt" | "unknown";
+  /** For a receipt, the ordinary share it is a claim on, where we can name it. */
+  underlyingSymbol?: string;
 }
 
 /** A destination inside the app, searchable by name the same way a company is. */
@@ -139,6 +153,42 @@ function fmtWhen(iso: string): string {
  */
 // A row's logo. In a list the monogram fallback earns its place: every row needs
 // the same shape, or the names below them stop lining up.
+/**
+ * The alternative listings to show under a company row.
+ *
+ * `alternatives` comes from the search API already stripped of the main
+ * listing. Rows restored from localStorage predate that field, so they fall
+ * back to filtering the full list — which is what the API does anyway, and
+ * keeps a recent search from rendering its own main listing twice.
+ */
+function alternativesOf(m: Match): Match[] {
+  if (m.alternatives) return m.alternatives;
+  return (m.listings ?? []).filter((l) => l.symbol !== m.symbol);
+}
+
+/**
+ * "ADR", "GDR", or nothing.
+ *
+ * A depositary receipt is a claim on shares that trade on another market, in
+ * another currency, often in a different ratio. Saying so is the whole point of
+ * the chip: it is the difference between HDFC Bank at ₹1,000 in Mumbai and a
+ * $75 receipt for three of them in New York. American programmes are ADRs;
+ * everything else is a GDR by convention.
+ */
+function receiptLabel(l: Match): string | null {
+  const isReceipt = l.securityType === "depositary-receipt" || (l.securityType == null && l.isAdr);
+  if (!isReceipt) return null;
+  return l.exchangeCode === "NYSE" || l.exchangeCode === "NASDAQ" || l.country === "US" ? "ADR" : "GDR";
+}
+
+function ChevronUp() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="h-3 w-3">
+      <path d="M18 15l-6-6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function CompanyMark({ symbol, name }: { symbol?: string; name: string }) {
   return <CompanyLogo symbol={symbol} name={name} size={36} fallback="letter" />;
 }
@@ -602,9 +652,18 @@ export default function CommandSearch({ className = "" }: { className?: string }
                                 e.stopPropagation();
                                 setExpanded((prev) => (prev === m.symbol ? null : m.symbol));
                               }}
-                              className="flex-none rounded-full border border-white/15 px-2 py-0.5 text-[0.6rem] text-slate-400 hover:border-gold/40 hover:text-gold"
+                              aria-label={
+                                expanded === m.symbol
+                                  ? "Hide other listings"
+                                  : `Show ${m.listingCount - 1} other listing${m.listingCount - 1 === 1 ? "" : "s"}`
+                              }
+                              className="inline-flex flex-none items-center justify-center rounded-full border border-white/15 px-2 py-0.5 text-[0.6rem] text-slate-400 hover:border-gold/40 hover:text-gold"
                             >
-                              {expanded === m.symbol ? "hide" : `+${m.listingCount - 1} listings`}
+                              {expanded === m.symbol ? (
+                                <ChevronUp />
+                              ) : (
+                                `+${m.listingCount - 1} listing${m.listingCount - 1 === 1 ? "" : "s"}`
+                              )}
                             </span>
                           ) : null}
                         </button>
@@ -613,9 +672,9 @@ export default function CommandSearch({ className = "" }: { className?: string }
                             right: a reader who wants the Stuttgart line, or the
                             London one, can open it directly rather than being
                             told it does not exist. */}
-                        {expanded === m.symbol && m.listings ? (
+                        {expanded === m.symbol && alternativesOf(m).length ? (
                           <ul className="mb-1 ml-11 border-l border-white/[0.08] pl-3">
-                            {m.listings.map((l) => (
+                            {alternativesOf(m).map((l) => (
                               <li key={l.symbol}>
                                 <button
                                   type="button"
@@ -627,16 +686,20 @@ export default function CommandSearch({ className = "" }: { className?: string }
                                     {l.exchange ? `${l.exchange}: ` : ""}
                                     {l.symbol}
                                   </span>
-                                  {l.isAdr ? (
-                                    <span className="flex-none rounded-[3px] border border-white/15 px-1 py-px text-[0.5rem] uppercase tracking-wide text-slate-400">
-                                      ADR
+                                  {receiptLabel(l) ? (
+                                    <span
+                                      title={
+                                        l.underlyingSymbol
+                                          ? `A receipt for ${l.underlyingSymbol}, which trades on its home market`
+                                          : "A depositary receipt, not the ordinary share"
+                                      }
+                                      className="flex-none rounded-[3px] border border-white/15 px-1 py-px text-[0.5rem] uppercase tracking-wide text-slate-400"
+                                    >
+                                      {receiptLabel(l)}
                                     </span>
                                   ) : null}
                                   {l.currency ? (
                                     <span className="flex-none font-mono text-[0.6rem] text-slate-500">{l.currency}</span>
-                                  ) : null}
-                                  {l.symbol === m.symbol ? (
-                                    <span className="flex-none text-[0.55rem] uppercase tracking-wide text-gold">preferred</span>
                                   ) : null}
                                 </button>
                               </li>
