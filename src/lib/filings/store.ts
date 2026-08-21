@@ -1,4 +1,5 @@
 import { kvConfigured, kvGet, kvSet, kvSAdd, kvSMembers } from "@/lib/kv";
+import type { RawDocumentMeta } from "@/lib/filings/r2";
 import type { Filing, FilingFact } from "@/lib/filings/types";
 
 // Where filings and their facts are kept.
@@ -26,9 +27,6 @@ const KEY = {
   symbol: (symbol: string) => `filings:symbol:${symbol.toUpperCase()}`,
 };
 
-/** Redis values are not a document store; this is the line. */
-const MAX_KV_VALUE = 400 * 1024;
-
 export interface RawStoreResult {
   stored: boolean;
   storageKey?: string;
@@ -46,37 +44,15 @@ export interface RawStoreResult {
  */
 export async function storeRawDocument(
   contentHash: string,
-  bytes: string
+  bytes: string | Uint8Array,
+  meta: RawDocumentMeta = {}
 ): Promise<RawStoreResult> {
-  const bucketUrl = process.env.FILINGS_BUCKET_URL;
-  const bucketToken = process.env.FILINGS_BUCKET_TOKEN;
-  if (bucketUrl && bucketToken) {
-    try {
-      const key = `filings/${contentHash}`;
-      const res = await fetch(`${bucketUrl.replace(/\/$/, "")}/${key}`, {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${bucketToken}`, "Content-Type": "application/octet-stream" },
-        body: bytes,
-        signal: AbortSignal.timeout(20000),
-      });
-      if (!res.ok) return { stored: false, reason: `Object store responded ${res.status}.` };
-      return { stored: true, storageKey: key };
-    } catch (e) {
-      return { stored: false, reason: `Object store unreachable: ${(e as Error).message}` };
-    }
-  }
-  if (bytes.length <= MAX_KV_VALUE && kvConfigured()) {
-    const ok = await kvSet(KEY.filing(`raw:${contentHash}`), bytes);
-    return ok
-      ? { stored: true, storageKey: `kv:raw:${contentHash}` }
-      : { stored: false, reason: "KV write failed." };
-  }
-  return {
-    stored: false,
-    reason: bytes.length > MAX_KV_VALUE
-      ? "No object storage configured and the document is too large for KV. Set FILINGS_BUCKET_URL and FILINGS_BUCKET_TOKEN."
-      : "No storage configured.",
-  };
+  // Raw filings never fall back to Redis. A successful ingest must retain the
+  // exact source bytes in durable object storage or report that it did not.
+  // Loaded only on the write path so read-only score and test processes do not
+  // initialise the S3 client or carry its dependency into unrelated bundles.
+  const { putRawDocument } = await import("@/lib/filings/r2");
+  return putRawDocument(contentHash, bytes, meta);
 }
 
 /** True when this exact document has already been ingested for this company. */
