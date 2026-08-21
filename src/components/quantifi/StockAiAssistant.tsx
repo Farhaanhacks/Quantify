@@ -17,12 +17,14 @@ export default function StockAiAssistant({
   brief,
   open,
   onOpenChange,
+  showLauncher = true,
 }: {
   ticker: string;
   name?: string;
   brief?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  showLauncher?: boolean;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -106,7 +108,7 @@ export default function StockAiAssistant({
 
   return (
     <>
-      {!open ? (
+      {showLauncher && !open ? (
         <button
           type="button"
           onClick={() => onOpenChange(true)}
