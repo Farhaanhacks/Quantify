@@ -29,6 +29,7 @@ export default function StockAiAssistant({
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [serviceError, setServiceError] = useState<string>();
   const endRef = useRef<HTMLDivElement>(null);
   const label = name ?? ticker;
 
@@ -36,6 +37,7 @@ export default function StockAiAssistant({
     setMessages([]);
     setInput("");
     setLoading(false);
+    setServiceError(undefined);
   }, [ticker]);
 
   useEffect(() => {
@@ -56,6 +58,7 @@ export default function StockAiAssistant({
     const history = messages.slice(-8);
     setInput("");
     setLoading(true);
+    setServiceError(undefined);
     setMessages((current) => [
       ...current,
       { role: "user", content: question },
@@ -95,12 +98,16 @@ export default function StockAiAssistant({
 
       if (!answer.trim()) throw new Error("Quantifi AI returned an empty response. Please try again.");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Quantifi AI is temporarily unavailable.";
-      setMessages((current) => {
-        const next = [...current];
-        next[next.length - 1] = { role: "assistant", content: message };
-        return next;
-      });
+      const raw = error instanceof Error ? error.message : "Quantifi AI is temporarily unavailable.";
+      const message = /not configured/i.test(raw)
+        ? "Quantifi AI is not available yet."
+        : raw;
+      // A provider/configuration failure is application state, not an AI reply.
+      // Remove the just-added question + empty answer and show one persistent
+      // status card, so repeated taps cannot fill the conversation with fake
+      // assistant bubbles carrying the same server error.
+      setMessages((current) => current.slice(0, -2));
+      setServiceError(message);
     } finally {
       setLoading(false);
     }
@@ -138,7 +145,6 @@ export default function StockAiAssistant({
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-gold">Quantifi AI</span>
-                  <span className="rounded-full border border-up/20 bg-up/[0.07] px-1.5 py-px text-[0.55rem] uppercase tracking-wider text-up">Context on</span>
                 </div>
                 <h2 className="mt-1 truncate font-display text-lg font-semibold text-white">{label}</h2>
                 <p className="font-mono text-xs text-slate-500">{ticker}</p>
@@ -156,14 +162,6 @@ export default function StockAiAssistant({
             </header>
 
             <div className="flex-1 overflow-y-auto px-4 py-4">
-              {!messages.length ? (
-                <div className="rounded-xl border border-gold/15 bg-gold/[0.05] p-4">
-                  <p className="text-sm leading-relaxed text-slate-300">
-                    I already know you are analysing <span className="font-medium text-white">{label}</span>. Ask about its valuation, risks, financial health or the figures shown on this page.
-                  </p>
-                </div>
-              ) : null}
-
               <div className="space-y-3">
                 {messages.map((message, index) => (
                   <div
@@ -186,6 +184,12 @@ export default function StockAiAssistant({
                   </div>
                 ))}
               </div>
+
+              {serviceError ? (
+                <div className="mt-4 rounded-xl border border-down/20 bg-down/[0.06] px-4 py-3 text-sm text-slate-300" role="alert">
+                  {serviceError}
+                </div>
+              ) : null}
 
               <div className="mt-5">
                 <div className="text-[0.6rem] uppercase tracking-[0.14em] text-slate-600">Suggested questions</div>
