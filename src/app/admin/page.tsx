@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { currentUser } from "@/lib/serverSession";
 import { isAdminEmail } from "@/lib/access";
 import AdminOps from "@/components/quantifi/AdminOps";
+import FilingsUpload from "@/components/quantifi/FilingsUpload";
 
 // The team's view of the site.
 //
@@ -42,6 +43,7 @@ export default function AdminPage() {
         </div>
       </div>
       <AdminOps />
+      <FilingsUpload />
     </section>
   );
 }
