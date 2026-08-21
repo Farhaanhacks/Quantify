@@ -225,6 +225,18 @@ const NIKE = [
   ok("the ADR is marked as one", isDepositaryReceipt(adr) === true);
   ok("the ordinary is not", isDepositaryReceipt(g.preferred) === false);
   ok("no two listings share a symbol", new Set(g.listings.map((l) => l.symbol)).size === 3);
+
+  // The ordinary lines have the company's ISIN; the ADR is a different
+  // security and therefore has its own. Better provider metadata must not split
+  // the same company back into separate search rows.
+  const identified = groupListings([
+    { ...HDFC[0], isin: "US40415F1012" },
+    { ...HDFC[1], isin: "INE040A01034" },
+    { ...HDFC[2], isin: "INE040A01034", name: "HDFC Bank Limited" },
+  ]);
+  ok("ordinary-share and ADR ISINs still form one company", identified.length === 1);
+  ok("all identified HDFC listings remain available", identified[0].listings.length === 3);
+  ok("identified HDFC still defaults to NSE", identified[0].preferred.symbol === "HDFCBANK.NS");
 }
 
 // ── GOOG and GOOGL stay distinct ────────────────────────────────────────────
