@@ -769,6 +769,30 @@ export function groupListings(listings: Listing[], ctx: PreferenceContext = {}):
     buckets.get(id)!.push(l);
   }
 
+  // Identity is additive, not exclusive. NSE and BSE can share an ISIN while a
+  // US depositary receipt has a different ISIN (or none), even though all three
+  // rows carry the same company name. If ISIN were allowed to replace the exact
+  // name signal, enriching the Indian rows with better metadata would split the
+  // ADR back into a second company result. Unite exact normalised names first;
+  // the same-exchange and share-class safeguards below still split securities
+  // such as GOOG/GOOGL where they must remain separate.
+  const exactNameHost = new Map<string, string>();
+  for (const id of [...order]) {
+    const members = buckets.get(id);
+    if (!members?.length) continue;
+    const norm = normaliseCompanyName(members[0].name);
+    if (!norm) continue;
+    const key = `${norm}|${members[0].kind ?? "Stock"}`;
+    const host = exactNameHost.get(key);
+    if (!host) {
+      exactNameHost.set(key, id);
+      continue;
+    }
+    if (host === id) continue;
+    buckets.get(host)!.push(...members);
+    buckets.set(id, []);
+  }
+
   // A depositary receipt's name is a mangled version of the underlying's, and
   // no feed gives the two the same identifier. Thailand files Nike as
   // "NIKE80_DR NIKE#KTB", which normalises to "nike ktb" and would otherwise be
@@ -782,6 +806,7 @@ export function groupListings(listings: Listing[], ctx: PreferenceContext = {}):
   // definition, so it is the one case where the weaker signal is still true.
   const wholeNames = new Map<string, string>();
   for (const [id, members] of buckets) {
+    if (!members.length) continue;
     const norm = normaliseCompanyName(members[0].name);
     if (norm && !norm.includes(" ") && !wholeNames.has(norm)) wholeNames.set(norm, id);
   }
