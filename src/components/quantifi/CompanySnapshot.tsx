@@ -89,6 +89,9 @@ export default function CompanySnapshot({
   name,
   currency,
   live = false,
+  aiBrief,
+  aiBriefLoading = false,
+  onOpenAi,
 }: {
   ticker: string;
   data?: CompanyAnalytics;
@@ -96,6 +99,9 @@ export default function CompanySnapshot({
   name?: string;
   currency?: string;
   live?: boolean;
+  aiBrief?: string;
+  aiBriefLoading?: boolean;
+  onOpenAi?: () => void;
 }) {
   // Which axis the reader is pointing at, wherever they point at it: the chart
   // and the five cards beside it drive the same value, so hovering either one
@@ -460,6 +466,7 @@ export default function CompanySnapshot({
               const supports = d.checks.filter((c) => c.status === "pass");
               const worries = d.checks.filter((c) => c.status === "fail");
               const unsourced = d.checks.filter((c) => c.status === "unavailable");
+              const measured = d.checks.length - unsourced.length;
               const active = activeAxis === idx;
               return (
                 <details
@@ -504,7 +511,11 @@ export default function CompanySnapshot({
                       </span>
                       <span className="flex flex-none items-center gap-2.5">
                         <span className="font-mono text-sm tnum text-white">
-                          {d.sufficient === false ? "n/a" : `${toTen(d.score)}/10`}
+                          {d.sufficient === false
+                            ? measured
+                              ? `${supports.length}/${measured} passed`
+                              : "Not scored"
+                            : `${toTen(d.score)}/10`}
                         </span>
                         <span className="text-slate-500 transition group-open:rotate-90" aria-hidden>›</span>
                       </span>
@@ -520,7 +531,7 @@ export default function CompanySnapshot({
                             to be the complete list. */}
                         <span className="text-[0.68rem] text-slate-500">
                           <span className="font-mono tnum text-slate-300">
-                            {d.checks.length - unsourced.length} of {d.checks.length}
+                            {measured} of {d.checks.length}
                           </span>{" "}
                           measured
                           <span className="text-slate-600">
@@ -593,16 +604,48 @@ export default function CompanySnapshot({
         </GlassCard>
       </div>
 
-      {/* Quantifi Read — synthesis: the soft spot and the key thesis test */}
+      {/* Quantifi Read — the cached AI brief leads, while the deterministic
+          scorecard read remains directly beneath it. DeepSeek explains the
+          canonical numbers; it never produces the numbers. */}
       <GlassCard className="mt-4 border-gold/20 bg-gold/[0.06] p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="text-[0.7rem] uppercase tracking-[0.16em] text-gold/80">Quantifi read</div>
-          <div className="flex items-center gap-2 text-[0.7rem]">
+          <div className="flex flex-wrap items-center gap-2 text-[0.7rem]">
             <span className="uppercase tracking-[0.12em] text-slate-500">Risk lens</span>
             <span className={`rounded-full border px-2 py-0.5 font-semibold ${riskTone}`}>{riskLens}</span>
+            {onOpenAi ? (
+              <button
+                type="button"
+                onClick={onOpenAi}
+                className="rounded-full border border-gold/25 bg-gold/[0.08] px-2.5 py-1 font-semibold text-gold transition hover:border-gold/45 hover:bg-gold/[0.12]"
+              >
+                Ask AI
+              </button>
+            ) : null}
           </div>
         </div>
-        <p className="mt-2 text-sm leading-relaxed text-slate-200">{quantifiRead}</p>
+        {aiBrief || aiBriefLoading ? (
+          <div className="mt-3">
+            <div className="flex items-center gap-2 text-[0.6rem] uppercase tracking-[0.14em] text-slate-500">
+              What matters now
+              <span className="rounded-full border border-gold/20 bg-gold/[0.07] px-1.5 py-px text-[0.52rem] text-gold/80">AI</span>
+            </div>
+            {aiBrief ? (
+              <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-slate-200">{aiBrief}</p>
+            ) : (
+              <div className="mt-2 space-y-2" aria-label="Quantifi AI is reading the stock context">
+                <div className="h-2.5 w-full animate-pulse rounded-full bg-white/[0.07]" />
+                <div className="h-2.5 w-4/5 animate-pulse rounded-full bg-white/[0.05]" />
+              </div>
+            )}
+            <div className="mt-3 border-t border-white/[0.06] pt-3">
+              <div className="text-[0.58rem] uppercase tracking-[0.14em] text-slate-600">Scorecard read</div>
+              <p className="mt-1 text-xs leading-relaxed text-slate-400">{quantifiRead}</p>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-2 text-sm leading-relaxed text-slate-200">{quantifiRead}</p>
+        )}
         <div className="mt-3 flex flex-wrap gap-1.5">
           {SCORE_AXES.map((axis) => (
             <span
