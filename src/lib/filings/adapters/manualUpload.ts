@@ -1,4 +1,11 @@
-import { contentHashOf, alreadyIngested, saveFiling, storeRawDocument, recordError } from "@/lib/filings/store";
+import {
+  contentHashOf,
+  alreadyIngested,
+  saveFiling,
+  storeRawDocument,
+  recordError,
+  linkSymbol,
+} from "@/lib/filings/store";
 import { extractFromXbrl } from "@/lib/filings/extract";
 import { PARSER_VERSION, type Filing, type FilingFact } from "@/lib/filings/types";
 import type { IndustryType } from "@/lib/filings/concepts";
@@ -30,6 +37,16 @@ export interface IngestRequest {
   category?: string;
   submittedAt?: string;
   exchangeFilingId?: string;
+  /**
+   * Trading symbols this company is reached by, e.g. ["HDFCBANK.NS", "HDFCBANK.BO"].
+   *
+   * Filings are keyed on ISIN or CIN and pages are reached by symbol, so
+   * something has to join the two. Without this, a filing ingested under a
+   * proper identifier is invisible to the page that should read it, and
+   * invisible silently: the card goes on saying the data is unavailable while
+   * the data sits in the database.
+   */
+  symbols?: string[];
 }
 
 export interface IngestResult {
@@ -140,6 +157,10 @@ export async function ingestFiling(req: IngestRequest): Promise<IngestResult> {
   // gap explainable instead of merely empty.
   const all: FilingFact[] = [...extracted.facts, ...extracted.rejected];
   const saved = await saveFiling(filing, all);
+
+  // Written after the facts, so a symbol never points at a company whose
+  // filings have not landed yet.
+  for (const sym of req.symbols ?? []) await linkSymbol(sym, req.companyId);
 
   if (!saved) {
     return {

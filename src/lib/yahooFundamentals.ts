@@ -17,7 +17,7 @@ import {
   type Metric,
   type NbfcMetrics,
 } from "@/lib/balanceSheet";
-import { getCompanyFacts } from "@/lib/filings/store";
+import { getCompanyFacts, companyIdForSymbol } from "@/lib/filings/store";
 import { bankMetricsFromFilings, nbfcMetricsFromFilings } from "@/lib/filings/toMetrics";
 
 // The two model unions are declared separately so each file stays importless
@@ -68,7 +68,7 @@ async function filedMetrics(symbol: string, model: HealthModel): Promise<ScoreAx
   if (model !== "bank" && model !== "nbfc") return null;
   let facts;
   try {
-    facts = await getCompanyFacts(companyIdForSymbol(symbol));
+    facts = await getCompanyFacts(await companyIdForSymbol(symbol));
   } catch {
     return null;
   }
@@ -84,23 +84,6 @@ async function filedMetrics(symbol: string, model: HealthModel): Promise<ScoreAx
   const { metrics, sourced } = nbfcMetricsFromFilings(facts);
   if (sourced === 0) return null;
   return balanceSheetAxis("nbfc", { nbfc: metrics as NbfcMetrics });
-}
-
-/**
- * The filings master's id for a listing.
- *
- * Deliberately narrow: the pipeline keys companies on ISIN or CIN, and a symbol
- * is not either of those. Until the master is populated this maps the symbol to
- * the provisional key the master itself would mint for it, so a manually
- * uploaded filing lines up with the page that will read it, and nothing else
- * resolves. That is the honest state of this join today, and it is one lookup
- * to change once the master is loaded.
- */
-function companyIdForSymbol(symbol: string): string {
-  const s = symbol.toUpperCase().trim();
-  if (/\.NS$/.test(s)) return `provisional:nse:${s.replace(/\.NS$/, "")}`;
-  if (/\.BO$/.test(s)) return `provisional:bse:${s.replace(/\.BO$/, "")}`;
-  return `provisional:nse:${s}`;
 }
 
 /**

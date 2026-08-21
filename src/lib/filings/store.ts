@@ -23,6 +23,7 @@ const KEY = {
   index: (companyId: string) => `filings:index:${companyId}`,
   facts: (filingId: string) => `filings:facts:${filingId}`,
   errors: () => `filings:errors`,
+  symbol: (symbol: string) => `filings:symbol:${symbol.toUpperCase()}`,
 };
 
 /** Redis values are not a document store; this is the line. */
@@ -124,6 +125,56 @@ export async function getCompanyFacts(companyId: string): Promise<FilingFact[]> 
     }
   }
   return out.sort((a, b) => (b.periodEnd ?? "").localeCompare(a.periodEnd ?? ""));
+}
+
+/**
+ * Point a trading symbol at the company its filings are stored under.
+ *
+ * This exists because the two halves of the system identify a company
+ * differently, and correctly. Filings are keyed on ISIN or CIN, because that is
+ * what survives a rename and what both exchanges agree on. Pages are reached by
+ * symbol, because that is what a reader types. Without something joining them,
+ * a filing ingested as isin:INE040A01034 is invisible to the page for
+ * HDFCBANK.NS, and invisible in the worst way: no error, no empty result to
+ * investigate, just a card that goes on saying the data is not available while
+ * the data sits in the database.
+ *
+ * The link is written at ingest, when both identifiers are in hand.
+ */
+export async function linkSymbol(symbol: string, companyId: string): Promise<void> {
+  if (!kvConfigured() || !symbol || !companyId) return;
+  await kvSet(KEY.symbol(symbol), companyId);
+}
+
+/**
+ * The company id a symbol's filings live under.
+ *
+ * The alias first, then the provisional key a symbol-only ingest would have
+ * minted for itself. The fallback is what makes an ingest that carried no
+ * identifier still reachable; the alias is what makes a properly identified one
+ * reachable too.
+ */
+export async function companyIdForSymbol(symbol: string): Promise<string> {
+  const s = (symbol ?? "").toUpperCase().trim();
+  if (!s) return "";
+  if (kvConfigured()) {
+    const linked = await kvGet(KEY.symbol(s));
+    if (linked) return linked;
+    // The bare root, so HDFCBANK.NS finds a link written for HDFCBANK.
+    const root = s.replace(/\.[A-Z]{1,3}$/, "");
+    if (root !== s) {
+      const byRoot = await kvGet(KEY.symbol(root));
+      if (byRoot) return byRoot;
+    }
+  }
+  return provisionalIdForSymbol(s);
+}
+
+/** The key a symbol-only ingest mints, matching companyMaster's own rule. */
+export function provisionalIdForSymbol(symbol: string): string {
+  const s = (symbol ?? "").toUpperCase().trim();
+  if (/\.BO$/.test(s)) return `provisional:bse:${s.replace(/\.BO$/, "")}`;
+  return `provisional:nse:${s.replace(/\.NS$/, "")}`;
 }
 
 export interface ProcessingError {

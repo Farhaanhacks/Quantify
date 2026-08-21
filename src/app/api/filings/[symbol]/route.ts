@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCompanyFacts } from "@/lib/filings/store";
+import { getCompanyFacts, companyIdForSymbol } from "@/lib/filings/store";
 import { cacheHeaders } from "@/lib/httpCache";
 
 export const dynamic = "force-dynamic";
@@ -13,13 +13,6 @@ export const dynamic = "force-dynamic";
 // needs to see whether the pipeline read nothing or read something and refused
 // it.
 
-function companyIdForSymbol(symbol: string): string {
-  const s = symbol.toUpperCase().trim();
-  if (/\.NS$/.test(s)) return `provisional:nse:${s.replace(/\.NS$/, "")}`;
-  if (/\.BO$/.test(s)) return `provisional:bse:${s.replace(/\.BO$/, "")}`;
-  return `provisional:nse:${s}`;
-}
-
 export async function GET(
   _req: Request,
   { params }: { params: { symbol: string } }
@@ -27,7 +20,7 @@ export async function GET(
   const symbol = (params.symbol ?? "").slice(0, 32);
   if (!symbol) return NextResponse.json({ error: "No symbol." }, { status: 400 });
 
-  const companyId = companyIdForSymbol(symbol);
+  const companyId = await companyIdForSymbol(symbol);
   let facts;
   try {
     facts = await getCompanyFacts(companyId);

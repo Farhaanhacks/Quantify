@@ -42,6 +42,10 @@ writeFileSync(
       skipLibCheck: true,
       strict: false,
       lib: ["es2022", "dom"],
+      // The store reads environment variables, so it needs Node's types, and a
+      // tsconfig written outside the project does not find them on its own.
+      typeRoots: [join(root, "node_modules/@types")],
+      types: ["node"],
     },
     files: [
       join(root, "src/lib/filings/extract.ts"),
@@ -49,6 +53,9 @@ writeFileSync(
       // Nothing in the chain imports the classifier, but the card's answer
       // depends on it choosing the bank checklist, so it is asserted here too.
       join(root, "src/lib/financialHealth.ts"),
+      // The join between how filings are keyed and how pages find them.
+      join(root, "src/lib/filings/store.ts"),
+      join(root, "src/lib/filings/companyMaster.ts"),
     ],
   })
 );
@@ -76,6 +83,8 @@ const { extractFromXbrl } = await import(join(out, "lib/filings/extract.js"));
 const { bankMetricsFromFilings } = await import(join(out, "lib/filings/toMetrics.js"));
 const { balanceSheetAxis } = await import(join(out, "lib/balanceSheet.js"));
 const { financialHealthModel } = await import(join(out, "lib/financialHealth.js"));
+const { provisionalIdForSymbol } = await import(join(out, "lib/filings/store.js"));
+const { companyKey } = await import(join(out, "lib/filings/companyMaster.js"));
 
 let passed = 0;
 let failed = 0;
@@ -208,6 +217,39 @@ const { metrics, sourced } = bankMetricsFromFilings(result.facts, {
   ok("without filings the same bank is not scored", blind.sufficient === false);
   ok("and says insufficient bank data", /insufficient bank data/i.test(blind.unavailableNote));
   ok("so the pipeline is what changes the answer", axis.sufficient !== blind.sufficient);
+}
+
+// ── The join between an identifier and a symbol ─────────────────────────────
+//
+// Filings are keyed on ISIN or CIN, because that is what survives a rename and
+// what both exchanges agree on. Pages are reached by symbol, because that is
+// what a reader types. If nothing joins the two, a filing ingested correctly is
+// read by nothing — and silently: no error, no empty result to chase, just a
+// card that goes on saying the data is unavailable while the data sits in the
+// database. That is the worst failure mode this pipeline can have, so the
+// fallback key the two sides mint independently has to agree exactly.
+{
+  ok("a plain symbol mints an NSE key", provisionalIdForSymbol("HDFCBANK") === "provisional:nse:HDFCBANK");
+  ok("the .NS suffix is stripped", provisionalIdForSymbol("HDFCBANK.NS") === "provisional:nse:HDFCBANK");
+  ok("a BSE listing keys to BSE", provisionalIdForSymbol("HDFCBANK.BO") === "provisional:bse:HDFCBANK");
+  ok("case does not matter", provisionalIdForSymbol("hdfcbank.ns") === "provisional:nse:HDFCBANK");
+  ok("nor does whitespace", provisionalIdForSymbol("  HDFCBANK.NS ") === "provisional:nse:HDFCBANK");
+
+  // The two files mint this key independently. If they ever disagree, an
+  // unidentified ingest becomes unreachable, so the agreement is asserted.
+  ok(
+    "the store and the company master agree on the NSE key",
+    provisionalIdForSymbol("HDFCBANK.NS") === companyKey({ nseSymbol: "HDFCBANK" })
+  );
+  ok(
+    "and on the BSE key",
+    provisionalIdForSymbol("500180.BO") === companyKey({ bseScripCode: "500180" })
+  );
+  // And an identifier still beats a symbol wherever both are present.
+  ok(
+    "an ISIN outranks a symbol",
+    companyKey({ isin: "INE040A01034", nseSymbol: "HDFCBANK" }) === "isin:INE040A01034"
+  );
 }
 
 rmSync(out, { recursive: true, force: true });

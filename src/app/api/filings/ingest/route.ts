@@ -76,6 +76,11 @@ export async function POST(req: Request) {
     category: str("category"),
     submittedAt: str("submittedAt"),
     exchangeFilingId: str("exchangeFilingId"),
+    // Without these the filing is stored correctly and read by nothing: the
+    // page looks a company up by symbol and the filing is keyed by identifier.
+    symbols: Array.isArray(body.symbols)
+      ? (body.symbols as unknown[]).filter((x): x is string => typeof x === "string").slice(0, 8)
+      : undefined,
   });
 
   // A duplicate is a success. It means the document was already held, which is

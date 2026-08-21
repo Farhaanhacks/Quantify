@@ -1,8 +1,14 @@
 #!/usr/bin/env node
 // Ingest filings from a local folder.
 //
-//   node scripts/ingest-filings-india.mjs --dir ./filings --company isin:INE040A01034 \
-//        --industry bank --period-end 2026-03-31 --scope consolidated
+//   node scripts/ingest-filings-india.mjs --dir ./filings \
+//        --company isin:INE040A01034 --symbol HDFCBANK.NS,HDFCBANK.BO \
+//        --industry bank --period-end 2026-03-31 --scope consolidated --write
+//
+// --symbol is not optional in practice. Filings are keyed on ISIN or CIN and
+// pages are reached by symbol, so without it the filing is stored perfectly and
+// read by nothing: the card goes on saying the data is unavailable while the
+// data sits in the database.
 //
 // The development path, and the one to build the reader against. There is no
 // way to reach the NSE's or the BSE's feed without a licence, so the honest
@@ -30,6 +36,7 @@ const companyId = flag("company");
 const industry = flag("industry", "bank");
 const periodEnd = flag("period-end");
 const scope = flag("scope");
+const symbols = (flag("symbol", "") || "").split(",").map((x) => x.trim()).filter(Boolean);
 const apiBase = flag("api", process.env.QUANTIFI_BASE_URL || "");
 const cookie = process.env.QUANTIFI_ADMIN_COOKIE || "";
 const write = has("write");
@@ -37,6 +44,12 @@ const write = has("write");
 if (!companyId) {
   console.error("--company is required, and must be an identifier: isin:INE040A01034 or cin:...");
   console.error("A ticker is not an identity. See src/lib/filings/companyMaster.ts.");
+  process.exit(1);
+}
+if (!symbols.length) {
+  console.error("--symbol is required: the identifier is how the filing is stored, the symbol is how");
+  console.error("the page finds it. Without the link the facts are unreachable, and silently so.");
+  console.error("  --symbol HDFCBANK.NS,HDFCBANK.BO");
   process.exit(1);
 }
 
@@ -67,11 +80,12 @@ for (const name of files) {
     source: "manual",
     periodEnd,
     scope,
+    symbols,
     sourceUrl: `file://${join(dir, name)}`,
   };
 
   if (!write) {
-    console.log(`  ${name}: ${content.length} bytes, would post to /api/filings/ingest`);
+    console.log(`  ${name}: ${content.length} bytes, would post to /api/filings/ingest as ${companyId} (${symbols.join(", ")})`);
     continue;
   }
   if (!apiBase) {
