@@ -17,6 +17,8 @@ import {
   type Metric,
   type NbfcMetrics,
 } from "@/lib/balanceSheet";
+import { getCompanyFacts } from "@/lib/filings/store";
+import { bankMetricsFromFilings, nbfcMetricsFromFilings } from "@/lib/filings/toMetrics";
 
 // The two model unions are declared separately so each file stays importless
 // and independently testable. This is what stops them drifting: if either gains
@@ -49,6 +51,57 @@ export type { IntrinsicValue, ValuationMethod } from "@/lib/valuationModel";
 // non-commercial use). The cookie/crumb handshake and retries live in
 // yahooCrumb.ts so every Yahoo lib shares one cached, resilient crumb. Returns
 // null on any failure — or for funds/indexes — so callers fall back gracefully.
+
+/**
+ * The checklist inputs a company's own filings supply, when we hold any.
+ *
+ * Returns null rather than an empty result when nothing has been ingested, so
+ * the caller falls through to the quote feed instead of publishing an
+ * "insufficient" verdict that only means we have not run the ingest yet.
+ *
+ * Facts are keyed by the company's stable id in the filings master. The symbol
+ * is what this function is given, so the lookup goes through the same identity
+ * table the pipeline writes with; a symbol that has no company record has no
+ * filings by definition, which is the null case.
+ */
+async function filedMetrics(symbol: string, model: HealthModel): Promise<ScoreAxis | null> {
+  if (model !== "bank" && model !== "nbfc") return null;
+  let facts;
+  try {
+    facts = await getCompanyFacts(companyIdForSymbol(symbol));
+  } catch {
+    return null;
+  }
+  if (!facts.length) return null;
+
+  if (model === "bank") {
+    const { metrics, sourced } = bankMetricsFromFilings(facts);
+    // Nothing usable came out, so this is the same as holding no filings at all
+    // and the quote feed's structural ratios are still worth trying.
+    if (sourced === 0) return null;
+    return balanceSheetAxis("bank", { bank: metrics as BankMetrics });
+  }
+  const { metrics, sourced } = nbfcMetricsFromFilings(facts);
+  if (sourced === 0) return null;
+  return balanceSheetAxis("nbfc", { nbfc: metrics as NbfcMetrics });
+}
+
+/**
+ * The filings master's id for a listing.
+ *
+ * Deliberately narrow: the pipeline keys companies on ISIN or CIN, and a symbol
+ * is not either of those. Until the master is populated this maps the symbol to
+ * the provisional key the master itself would mint for it, so a manually
+ * uploaded filing lines up with the page that will read it, and nothing else
+ * resolves. That is the honest state of this join today, and it is one lookup
+ * to change once the master is loaded.
+ */
+function companyIdForSymbol(symbol: string): string {
+  const s = symbol.toUpperCase().trim();
+  if (/\.NS$/.test(s)) return `provisional:nse:${s.replace(/\.NS$/, "")}`;
+  if (/\.BO$/.test(s)) return `provisional:bse:${s.replace(/\.BO$/, "")}`;
+  return `provisional:nse:${s}`;
+}
 
 /**
  * The Balance Sheet Strength axis, sourced under the model the company needs.
@@ -123,9 +176,21 @@ async function balanceSheetStrength(
     return balanceSheetAxis(model, {});
   }
 
-  // Banks and non-bank lenders. One balance-sheet date, so every ratio below is
-  // built from figures of the same vintage and the same scope; ratio() refuses
-  // the combination otherwise.
+  // Banks and non-bank lenders. The filings first, because they are the only
+  // place the measures that actually describe a lender exist.
+  //
+  // This is what the ingestion pipeline is for. Asset quality and regulatory
+  // capital — gross and net NPAs, provision coverage, CRAR — are tagged in the
+  // company's own XBRL results and in its Basel disclosures, and appear in no
+  // generic quote feed under any spelling. Where those facts have been ingested
+  // and validated, the checklist reads them and the card scores the bank on the
+  // things a bank is judged on. Where they have not, it falls through to the
+  // structural ratios below and says how much of the picture it had.
+  const filed = await filedMetrics(symbol, model);
+  if (filed) return filed;
+
+  // One balance-sheet date, so every ratio below is built from figures of the
+  // same vintage and the same scope; ratio() refuses the combination otherwise.
   let latest: { date?: string; values: Record<string, number | undefined> } | undefined;
   try {
     const ts = await getYahooStatements(symbol);

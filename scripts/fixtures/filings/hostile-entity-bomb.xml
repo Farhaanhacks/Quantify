@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<!--
+  The document a general-purpose XML parser must never be handed.
+
+  The entity chain below expands geometrically: each level references the one
+  under it ten times, so a few hundred bytes become gigabytes of string in a
+  parser that resolves entities, and the process dies. It is the oldest attack
+  against XML and it still works, which is why the parser refuses a DOCTYPE
+  outright instead of trusting a library flag.
+-->
+<!DOCTYPE lolz [
+  <!ENTITY lol "lol">
+  <!ENTITY lol1 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">
+  <!ENTITY lol2 "&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;">
+  <!ENTITY lol3 "&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;">
+]>
+<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance">
+  <in-bse-fin:Assets contextRef="C1" unitRef="INR">&lol3;</in-bse-fin:Assets>
+</xbrli:xbrl>

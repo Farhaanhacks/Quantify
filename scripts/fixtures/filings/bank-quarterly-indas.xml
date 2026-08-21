@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  A quarterly result in the shape Indian banks file it under Ind-AS.
+
+  Written by hand rather than downloaded, because there is no way to reach an
+  exchange feed from a development machine without a licence. Every construct
+  here is one the parser has to survive, and each is present on purpose:
+
+    * two scopes in one document, consolidated and standalone, separated by a
+      dimension rather than by being in different files
+    * a prior-year comparative sitting beside the current quarter with nothing
+      but its dates to tell them apart
+    * an instant context for balance-sheet items and a duration context for
+      profit-and-loss items
+    * a ratio in percent alongside absolutes in rupees
+    * a nil fact, which is the filer saying a figure does not exist
+    * a negative written with sign="-" rather than a minus in the text
+    * a tag from an insurer's taxonomy, which has no business in a bank's filing
+    * a tag nothing maps, which must be reported rather than guessed at
+
+  The figures are of the order a large Indian private bank reports, and they
+  satisfy the accounting identities on purpose so the identity checks are being
+  tested against a document that should pass them.
+-->
+<xbrli:xbrl
+  xmlns:xbrli="http://www.xbrl.org/2003/instance"
+  xmlns:xbrldi="http://xbrl.org/2006/xbrldi"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:link="http://www.xbrl.org/2003/linkbase"
+  xmlns:in-bse-fin="http://www.bseindia.com/xbrl/fin/2020-03-31/in-bse-fin">
+
+  <xbrli:context id="C_CONS_INSTANT">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.bseindia.com">500180</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="in-bse-fin:ConsolidatedAndSeparateFinancialStatementsAxis">in-bse-fin:ConsolidatedMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period><xbrli:instant>2026-03-31</xbrli:instant></xbrli:period>
+  </xbrli:context>
+
+  <xbrli:context id="C_CONS_QUARTER">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.bseindia.com">500180</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="in-bse-fin:ConsolidatedAndSeparateFinancialStatementsAxis">in-bse-fin:ConsolidatedMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2026-01-01</xbrli:startDate>
+      <xbrli:endDate>2026-03-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+
+  <xbrli:context id="C_STANDALONE_INSTANT">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.bseindia.com">500180</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="in-bse-fin:ConsolidatedAndSeparateFinancialStatementsAxis">in-bse-fin:StandaloneMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period><xbrli:instant>2026-03-31</xbrli:instant></xbrli:period>
+  </xbrli:context>
+
+  <xbrli:context id="C_PRIOR_YEAR">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.bseindia.com">500180</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="in-bse-fin:ConsolidatedAndSeparateFinancialStatementsAxis">in-bse-fin:ConsolidatedMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period><xbrli:instant>2025-03-31</xbrli:instant></xbrli:period>
+  </xbrli:context>
+
+  <xbrli:unit id="INR">
+    <xbrli:measure>iso4217:INR</xbrli:measure>
+  </xbrli:unit>
+  <xbrli:unit id="PURE">
+    <xbrli:measure>xbrli:pure</xbrli:measure>
+  </xbrli:unit>
+
+  <in-bse-fin:NatureOfReportStandaloneConsolidated contextRef="C_CONS_INSTANT">Consolidated</in-bse-fin:NatureOfReportStandaloneConsolidated>
+
+  <!-- Balance sheet. Assets equal liabilities plus equity, as they must. -->
+  <in-bse-fin:Assets contextRef="C_CONS_INSTANT" unitRef="INR" decimals="-5">40300000000000</in-bse-fin:Assets>
+  <in-bse-fin:Liabilities contextRef="C_CONS_INSTANT" unitRef="INR" decimals="-5">35200000000000</in-bse-fin:Liabilities>
+  <in-bse-fin:Equity contextRef="C_CONS_INSTANT" unitRef="INR" decimals="-5">5100000000000</in-bse-fin:Equity>
+  <in-bse-fin:Deposits contextRef="C_CONS_INSTANT" unitRef="INR" decimals="-5">26000000000000</in-bse-fin:Deposits>
+  <in-bse-fin:Advances contextRef="C_CONS_INSTANT" unitRef="INR" decimals="-5">25500000000000</in-bse-fin:Advances>
+  <in-bse-fin:Investments contextRef="C_CONS_INSTANT" unitRef="INR" decimals="-5">7400000000000</in-bse-fin:Investments>
+
+  <!-- Asset quality and capital: the figures no quote feed carries. -->
+  <in-bse-fin:GrossNPARatio contextRef="C_CONS_INSTANT" unitRef="PURE" decimals="2">1.33</in-bse-fin:GrossNPARatio>
+  <in-bse-fin:NetNPARatio contextRef="C_CONS_INSTANT" unitRef="PURE" decimals="2">0.43</in-bse-fin:NetNPARatio>
+  <in-bse-fin:ProvisionCoverageRatio contextRef="C_CONS_INSTANT" unitRef="PURE" decimals="1">171.0</in-bse-fin:ProvisionCoverageRatio>
+  <in-bse-fin:CapitalAdequacyRatio contextRef="C_CONS_INSTANT" unitRef="PURE" decimals="2">18.80</in-bse-fin:CapitalAdequacyRatio>
+  <in-bse-fin:Tier1CapitalRatio contextRef="C_CONS_INSTANT" unitRef="PURE" decimals="2">17.20</in-bse-fin:Tier1CapitalRatio>
+
+  <!-- Profit and loss for the quarter. -->
+  <in-bse-fin:InterestEarned contextRef="C_CONS_QUARTER" unitRef="INR" decimals="-5">810000000000</in-bse-fin:InterestEarned>
+  <in-bse-fin:InterestExpended contextRef="C_CONS_QUARTER" unitRef="INR" decimals="-5">470000000000</in-bse-fin:InterestExpended>
+  <in-bse-fin:ProfitLossForPeriod contextRef="C_CONS_QUARTER" unitRef="INR" decimals="-5">176000000000</in-bse-fin:ProfitLossForPeriod>
+
+  <!-- A negative written the way XBRL writes one: in an attribute. -->
+  <in-bse-fin:ProvisionsAndContingencies contextRef="C_CONS_QUARTER" unitRef="INR" decimals="-5" sign="-">31000000000</in-bse-fin:ProvisionsAndContingencies>
+
+  <!-- The filer says this figure does not exist. Not zero. -->
+  <in-bse-fin:SavingsBankDeposits contextRef="C_CONS_INSTANT" unitRef="INR" xsi:nil="true"/>
+
+  <!-- Last year's balance sheet, sitting beside this year's. -->
+  <in-bse-fin:Assets contextRef="C_PRIOR_YEAR" unitRef="INR" decimals="-5">36100000000000</in-bse-fin:Assets>
+
+  <!-- The standalone book, which must never be mixed with the consolidated one. -->
+  <in-bse-fin:Deposits contextRef="C_STANDALONE_INSTANT" unitRef="INR" decimals="-5">25100000000000</in-bse-fin:Deposits>
+
+  <!-- An insurer's tag in a bank's filing. Reported, not mapped. -->
+  <in-bse-fin:ValueOfNewBusiness contextRef="C_CONS_QUARTER" unitRef="INR" decimals="-5">4000000000</in-bse-fin:ValueOfNewBusiness>
+
+  <!-- Nothing maps this. It must be listed, not guessed at. -->
+  <in-bse-fin:NumberOfBranchesAddedDuringQuarter contextRef="C_CONS_QUARTER" decimals="0">142</in-bse-fin:NumberOfBranchesAddedDuringQuarter>
+</xbrli:xbrl>
