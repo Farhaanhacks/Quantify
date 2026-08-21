@@ -32,3 +32,9 @@ next-env.d.ts
 # one day and fail the next, and a build that passes locally proves nothing
 # about the one that runs on the server.
 quantifi-latest.zip
+
+# Delivery artifacts, built from the repo rather than part of it. Pushes from
+# this environment are refused, so each change ships as a zip of the tree and a
+# patch series; both are regenerated on demand and neither belongs in history.
+quantifi.zip
+quantifi-update.patch

@@ -56,7 +56,7 @@ function CheckDots({ checks }: { checks: ScoreCheck[] }) {
           key={i}
           title={
             c.status === "unavailable"
-              ? `Not available, ${c.label}${c.unavailableReason ? ` — ${c.unavailableReason}` : ""}`
+              ? `Not available, ${c.label}${c.unavailableReason ? `: ${c.unavailableReason}` : ""}`
               : `${STATUS_TITLE[c.status]}, ${c.label}`
           }
           className={`flex h-[18px] w-[18px] flex-none items-center justify-center rounded-full border ${
@@ -503,7 +503,7 @@ export default function CompanySnapshot({
                       </span>
                       <span className="flex flex-none items-center gap-2.5">
                         <span className="font-mono text-sm tnum text-white">
-                          {d.sufficient === false ? "—" : `${toTen(d.score)}/10`}
+                          {d.sufficient === false ? "n/a" : `${toTen(d.score)}/10`}
                         </span>
                         <span className="text-slate-500 transition group-open:rotate-90" aria-hidden>›</span>
                       </span>
@@ -565,7 +565,7 @@ export default function CompanySnapshot({
                               <span>
                                 {chk.label}
                                 {chk.unavailableReason ? (
-                                  <span className="text-slate-600"> — {chk.unavailableReason}</span>
+                                  <span className="text-slate-600">: {chk.unavailableReason}</span>
                                 ) : null}
                               </span>
                             </li>
@@ -605,7 +605,7 @@ export default function CompanySnapshot({
               }`}
               title={
                 a.scores[axis.key].sufficient === false
-                  ? `${axis.label}: not scored — ${a.scores[axis.key].unavailableNote ?? "not enough data"}`
+                  ? `${axis.label}: not scored. ${a.scores[axis.key].unavailableNote ?? "Not enough data."}`
                   : `${axis.label}: ${toTen(a.scores[axis.key].score)}/10`
               }
             >

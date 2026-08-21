@@ -38,6 +38,11 @@ const {
   companyIdentity,
   normaliseCompanyName,
   groupListings,
+  inferIssuerCountry,
+  listingCountryOf,
+  securityTypeOf,
+  isHomePrimaryListing,
+  declaredDepositaryReceipt,
 } = await import(join(out, "listingRank.js"));
 rmSync(out, { recursive: true, force: true });
 
@@ -283,6 +288,183 @@ const NIKE = [
   ok("a single listing is a group of one", one.length === 1 && one[0].listings.length === 1);
   ok("and is its own preferred", one[0].preferred.symbol === "NKE");
   ok("a nameless row still groups", groupListings([{ symbol: "ABC", name: "", type: "", exchange: "" }]).length === 1);
+}
+
+// ── The home-market rule ────────────────────────────────────────────────────
+//
+// "NYSE always wins" was an overcorrection for Nike, and it broke HDFC Bank:
+// searching "hdfc" returned NYSE:HDB, a New York depositary receipt, as the
+// bank's listing. The receipt trades in dollars at a different price for a
+// different number of underlying shares, so preferring it is the same class of
+// error as preferring Stuttgart for Nike.
+//
+// These are the REAL provider shapes. Yahoo returns HDB as an unremarkable
+// "EQUITY" on "NYQ" named "HDFC Bank Limited" — no ADR marker anywhere — which
+// is precisely why text matching could not see it and why the domicile has to
+// be derived from the set of listings instead.
+{
+  const HDFC_RAW = [
+    { symbol: "HDB", name: "HDFC Bank Limited", type: "EQUITY", exchange: "NYQ", currency: "USD", kind: "Stock" },
+    { symbol: "HDFCBANK.NS", name: "HDFC Bank Limited", type: "EQUITY", exchange: "NSI", currency: "INR", kind: "Stock" },
+    { symbol: "HDFCBANK.BO", name: "HDFC Bank Limited", type: "EQUITY", exchange: "BSE", currency: "INR", kind: "Stock" },
+  ];
+  ok("nothing in the feed calls HDB a receipt", HDFC_RAW.every((l) => declaredDepositaryReceipt(l) === false));
+
+  const g = groupListings(HDFC_RAW)[0];
+  ok("hdfc -> NSE:HDFCBANK.NS", g.preferred.symbol === "HDFCBANK.NS");
+  ok("the issuer is read as Indian", g.issuerCountry === "IN");
+  ok("HDB is still available", g.listings.some((l) => l.symbol === "HDB"));
+  ok("as an ALTERNATIVE, not the default", g.alternatives.some((l) => l.symbol === "HDB"));
+  ok("and is derived to be a receipt", g.listings.find((l) => l.symbol === "HDB").securityType === "depositary-receipt");
+  ok("which names the share it is a claim on", g.listings.find((l) => l.symbol === "HDB").underlyingSymbol === "HDFCBANK.NS");
+  ok("the NSE line is the home primary", g.preferred.isHomePrimary === true);
+  ok("the BSE line is ordinary too", g.listings.find((l) => l.symbol === "HDFCBANK.BO").securityType === "ordinary");
+  ok("BSE ranks above the ADR", g.listings.findIndex((l) => l.symbol === "HDFCBANK.BO") < g.listings.findIndex((l) => l.symbol === "HDB"));
+  ok("the alternatives never repeat the main listing", !g.alternatives.some((l) => l.symbol === g.preferred.symbol));
+  ok("and account for every other listing", g.alternatives.length === g.listings.length - 1);
+  ok("currencies stay with their own line", g.preferred.currency === "INR" && g.listings.find((l) => l.symbol === "HDB").currency === "USD");
+
+  // The instruction still wins. Yahoo calls the venue "NYQ" and the user types
+  // "NYSE"; those have to be the same exchange or the explicit form is ignored.
+  ok("NYSE and NYQ are one venue", exchangeCodeOf({ symbol: "HDB", name: "", type: "", exchange: "NYQ" }) === "NYSE");
+  const hinted = groupListings(HDFC_RAW, { exchangeHint: "NYSE" })[0];
+  ok("NYSE:HDB selects HDB", hinted.preferred.symbol === "HDB");
+  ok("and keeps the ordinary shares behind it", hinted.alternatives.some((l) => l.symbol === "HDFCBANK.NS"));
+  ok("the parsed prefix is canonical", parseSearchQuery("NYSE:HDB").exchangeHint === "NYSE");
+  ok("and so is a vendor code typed by hand", parseSearchQuery("NYQ:HDB").exchangeHint === "NYSE");
+
+  // Same rule, opposite answer, no company named anywhere in it.
+  const NIKE_RAW = [
+    { symbol: "NKE.SG", name: "Nike Inc.", type: "EQUITY", exchange: "STU", currency: "EUR", kind: "Stock" },
+    { symbol: "0QZ6.L", name: "NIKE INC NIKE ORD CLASS B", type: "EQUITY", exchange: "LSE", currency: "GBP", kind: "Stock" },
+    { symbol: "NKE", name: "NIKE, Inc.", type: "EQUITY", exchange: "NYQ", currency: "USD", kind: "Stock" },
+  ];
+  const n = groupListings(NIKE_RAW)[0];
+  ok("nike -> NYSE:NKE", n.preferred.symbol === "NKE");
+  ok("the issuer is read as American", n.issuerCountry === "US");
+  ok("NKE is the home primary", n.preferred.isHomePrimary === true);
+  // A London line for an American company is the ordinary share quoted abroad,
+  // not a receipt. Labelling it one would misdescribe it AND move it.
+  ok("London is not called a receipt", n.listings.find((l) => l.symbol === "0QZ6.L").securityType === "ordinary");
+  ok("but it is not home either", n.listings.find((l) => l.symbol === "0QZ6.L").isHomePrimary === false);
+  ok("and it ranks below New York", n.listings.findIndex((l) => l.symbol === "NKE") < n.listings.findIndex((l) => l.symbol === "0QZ6.L"));
+  ok("Stuttgart is last", n.listings[n.listings.length - 1].symbol === "NKE.SG");
+}
+
+// ── The rule generalises, and is not two special cases ──────────────────────
+{
+  // A German issuer with a New York receipt. Neither market is India and
+  // neither is the United States-as-home, so nothing learned from HDFC or Nike
+  // can be carrying this one.
+  const SAP = groupListings([
+    { symbol: "SAP", name: "SAP SE", type: "EQUITY", exchange: "NYQ", currency: "USD", kind: "Stock" },
+    { symbol: "SAP.DE", name: "SAP SE", type: "EQUITY", exchange: "XETRA", currency: "EUR", kind: "Stock" },
+  ])[0];
+  ok("a German issuer prefers Xetra", SAP.preferred.symbol === "SAP.DE");
+  ok("over its New York line", SAP.issuerCountry === "DE");
+  ok("which is derived to be a receipt", SAP.listings.find((l) => l.symbol === "SAP").securityType === "depositary-receipt");
+
+  // A Canadian issuer whose New York line is an ORDINARY share, not a receipt.
+  // Canada, Israel and the offshore holding jurisdictions list directly in New
+  // York, and calling those ADRs would be wrong about what the security is.
+  const SHOP = groupListings([
+    { symbol: "SHOP", name: "Shopify Inc.", type: "EQUITY", exchange: "NYQ", currency: "USD", kind: "Stock" },
+    { symbol: "SHOP.TO", name: "Shopify Inc.", type: "EQUITY", exchange: "TOR", currency: "CAD", kind: "Stock" },
+  ])[0];
+  ok("a Canadian issuer prefers Toronto", SHOP.preferred.symbol === "SHOP.TO");
+  ok("and its New York line is ordinary", SHOP.listings.find((l) => l.symbol === "SHOP").securityType === "ordinary");
+  ok("so it is not demoted as a receipt", SHOP.listings.findIndex((l) => l.symbol === "SHOP") === 1);
+
+  // A Japanese issuer.
+  const TOYOTA = groupListings([
+    { symbol: "TM", name: "Toyota Motor Corporation", type: "EQUITY", exchange: "NYQ", currency: "USD", kind: "Stock" },
+    { symbol: "7203.T", name: "Toyota Motor Corporation", type: "EQUITY", exchange: "JPX", currency: "JPY", kind: "Stock" },
+  ])[0];
+  ok("a Japanese issuer prefers Tokyo", TOYOTA.preferred.symbol === "7203.T");
+
+  // A purely American company keeps its American answer.
+  const AAPL = groupListings([
+    { symbol: "APC.F", name: "Apple Inc.", type: "EQUITY", exchange: "FRA", currency: "EUR", kind: "Stock" },
+    { symbol: "AAPL", name: "Apple Inc.", type: "EQUITY", exchange: "NMS", currency: "USD", kind: "Stock" },
+  ])[0];
+  ok("an American issuer prefers NASDAQ", AAPL.preferred.symbol === "AAPL");
+  ok("over a Frankfurt quotation", AAPL.issuerCountry === "US");
+}
+
+// ── Domicile: what it reads, and what it cannot ─────────────────────────────
+{
+  // An ISIN settles it outright — the first two characters ARE the country.
+  ok("an ISIN names the country", inferIssuerCountry([
+    { symbol: "HDB", name: "HDFC Bank Limited", type: "EQUITY", exchange: "NYQ", isin: "INE040A01034" },
+  ]) === "IN");
+  ok("even against a US venue", inferIssuerCountry([
+    { symbol: "HDB", name: "X", type: "EQUITY", exchange: "NYQ", isin: "INE040A01034" },
+    { symbol: "X.NS", name: "X", type: "EQUITY", exchange: "NSI" },
+  ]) === "IN");
+  ok("a US ISIN says US", inferIssuerCountry([
+    { symbol: "NKE", name: "NIKE, Inc.", type: "EQUITY", exchange: "NYQ", isin: "US6541061031" },
+  ]) === "US");
+  // XS is a clearing system, not a country, and must not be read as one.
+  ok("XS is not a country", inferIssuerCountry([
+    { symbol: "X", name: "X", type: "EQUITY", exchange: "NYQ", isin: "XS1234567890" },
+  ]) === "US");
+
+  // A market that lists domestic issuers and almost nothing else outweighs one
+  // that hosts the world's receipts. That single comparison is the whole rule.
+  ok("NSE outweighs NYSE", inferIssuerCountry([
+    { symbol: "HDB", name: "X", type: "EQUITY", exchange: "NYQ" },
+    { symbol: "X.NS", name: "X", type: "EQUITY", exchange: "NSI" },
+  ]) === "IN");
+  ok("NYSE outweighs Stuttgart", inferIssuerCountry([
+    { symbol: "X.SG", name: "X", type: "EQUITY", exchange: "STU" },
+    { symbol: "X", name: "X", type: "EQUITY", exchange: "NYQ" },
+  ]) === "US");
+  ok("input order does not matter", inferIssuerCountry([
+    { symbol: "X.NS", name: "X", type: "EQUITY", exchange: "NSI" },
+    { symbol: "HDB", name: "X", type: "EQUITY", exchange: "NYQ" },
+  ]) === "IN");
+  ok("a declared receipt does not vote for its own venue", inferIssuerCountry([
+    { symbol: "HDB", name: "HDFC Bank Ltd ADR", type: "ADR", exchange: "NYQ" },
+    { symbol: "X.NS", name: "X", type: "EQUITY", exchange: "NSI" },
+  ]) === "IN");
+  // An unknown domicile is a real answer, and must not default to America.
+  ok("nothing to go on means no answer", inferIssuerCountry([]) === undefined);
+
+  ok("listing country from a suffix", listingCountryOf({ symbol: "HDFCBANK.NS", name: "", type: "", exchange: "" }) === "IN");
+  ok("listing country from a venue", listingCountryOf({ symbol: "HDB", name: "", type: "", exchange: "NYQ" }) === "US");
+  ok("Euronext Paris is France", listingCountryOf({ symbol: "MC.PA", name: "", type: "", exchange: "" }) === "FR");
+  ok("Euronext Amsterdam is the Netherlands", listingCountryOf({ symbol: "ASML.AS", name: "", type: "", exchange: "" }) === "NL");
+
+  const inNy = { symbol: "HDB", name: "HDFC Bank Limited", type: "EQUITY", exchange: "NYQ" };
+  ok("an Indian issuer's New York line is a receipt", securityTypeOf(inNy, "IN") === "depositary-receipt");
+  ok("and is not home primary", isHomePrimaryListing(inNy, "IN") === false);
+  ok("with no domicile, nothing is claimed", securityTypeOf(inNy) === "unknown");
+  ok("nor is home primary claimed", isHomePrimaryListing(inNy) === false);
+  const inMumbai = { symbol: "HDFCBANK.NS", name: "HDFC Bank Limited", type: "EQUITY", exchange: "NSI" };
+  ok("the Mumbai line is home primary", isHomePrimaryListing(inMumbai, "IN") === true);
+  // A secondary German quotation of an Indian share is not a receipt: it is the
+  // same security quoted elsewhere, and receipts rank ABOVE secondary
+  // quotations, so mislabelling it would promote it.
+  ok("Stuttgart is not a receipt", securityTypeOf({ symbol: "X.SG", name: "X", type: "EQUITY", exchange: "STU" }, "IN") === "ordinary");
+}
+
+// ── Tier order is the published priority ────────────────────────────────────
+{
+  const at = (l, issuerCountry) => listingPreference(l, { issuerCountry });
+  const IN = "IN";
+  const home = { symbol: "X.NS", name: "X", type: "EQUITY", exchange: "NSI" };
+  const home2 = { symbol: "X.BO", name: "X", type: "EQUITY", exchange: "BSE" };
+  const foreign = { symbol: "X.L", name: "X", type: "EQUITY", exchange: "LSE" };
+  const receipt = { symbol: "X", name: "X ADR", type: "ADR", exchange: "NYQ" };
+  const secondary = { symbol: "X.SG", name: "X", type: "EQUITY", exchange: "STU" };
+  const offExchange = { symbol: "XF", name: "X", type: "EQUITY", exchange: "Pink Sheets" };
+  ok("home primary first", at(home, IN) < at(home2, IN));
+  ok("second home listing next", at(home2, IN) < at(foreign, IN));
+  ok("then a major foreign listing", at(foreign, IN) < at(receipt, IN));
+  ok("then depositary receipts", at(receipt, IN) < at(secondary, IN));
+  ok("then secondary quotations", at(secondary, IN) < at(offExchange, IN));
+  ok("an explicit exchange beats every tier", at(offExchange, IN) > listingPreference(offExchange, { issuerCountry: IN, exchangeHint: "OTC" }));
+  ok("and wins outright", listingPreference(offExchange, { issuerCountry: IN, exchangeHint: "OTC" }) < at(home, IN));
 }
 
 console.log(`${passed} passed, ${failed} failed`);

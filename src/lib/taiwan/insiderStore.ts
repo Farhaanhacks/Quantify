@@ -9,7 +9,7 @@ import type { TaiwanInsiderRecord, TaiwanMarket } from "@/lib/taiwan/insiderPars
 // every listed company's filings to show one company's, and would put a public
 // exchange in the request path of every reader.
 //
-// The statuses, and why there are five of them
+// ── The statuses, and why there are five of them ────────────────────────────
 //
 // The whole point of this rewrite is that these are different facts and the
 // reader is entitled to know which one they are looking at:
@@ -20,7 +20,7 @@ import type { TaiwanInsiderRecord, TaiwanMarket } from "@/lib/taiwan/insiderPars
 //   source_unavailable the exchange did not answer, or answered in a shape we
 //                      did not recognise. We know nothing about this company.
 //   unsupported        not a TWSE/TPEx listing
-//   stale              we have data, but it is older than it should be. Shown,
+//   stale              we have data, but it is older than it should be — shown,
 //                      dated, and flagged rather than presented as current
 //
 // The old adapter collapsed all of these into "no insider disclosures found",
@@ -56,7 +56,7 @@ export const STALE_AFTER_HOURS = 48;
 
 export interface TaiwanIngestMeta {
   lastRun: string; // ISO
-  /** Only set when EVERY dataset answered. A partial run must not look complete. */
+  /** Only set when EVERY dataset answered — a partial run must not look complete. */
   lastCompleteRun?: string;
   /** Per market, so one exchange's outage does not mute the other. */
   lastCompleteByMarket?: Partial<Record<TaiwanMarket, string>>;
@@ -73,7 +73,7 @@ export interface TaiwanIngestMeta {
   }[];
 }
 
-/** "2330.TW" / "2330.TWO" to "2330". Both markets key on the board number. */
+/** "2330.TW" / "2330.TWO" → "2330". Both markets key on the board number. */
 export function taiwanCompanyId(ticker: string): string | null {
   const m = ticker.toUpperCase().trim().match(/^(\d{4,6})\.(TW|TWO)$/);
   return m ? m[1] : null;
@@ -128,7 +128,7 @@ export async function setTaiwanIngestMeta(meta: TaiwanIngestMeta): Promise<void>
  * The set of companies the last complete ingest saw.
  *
  * This is what makes "no filings" sayable. Without it, a company absent from the
- * store is indistinguishable from a company we never had data for, and guessing
+ * store is indistinguishable from a company we never had data for — and guessing
  * is how the previous version came to tell people a company had disclosed
  * nothing when the truth was that the fetch had failed.
  */
@@ -158,7 +158,7 @@ export interface TaiwanLookup {
 }
 
 /**
- * Everything the API needs about one ticker, in one call, including the reason
+ * Everything the API needs about one ticker, in one call — including the reason
  * when there is nothing to show.
  */
 export async function lookupTaiwanInsider(ticker: string): Promise<TaiwanLookup> {

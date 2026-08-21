@@ -324,7 +324,7 @@ export default function RareFinds() {
       <GlassCard className="mt-6 border-gold/20 bg-gold/[0.05] p-5">
         <div className="text-[0.62rem] uppercase tracking-[0.16em] text-gold/80">The backdrop · AI bubble watch</div>
         <p className="mt-2 text-sm leading-relaxed text-slate-200">
-          Heading into 2026, an AI-driven valuation crash is the single most-cited market risk roughly half to a majority of surveyed fund managers now call AI the market&apos;s biggest tail
+          Heading into 2026, an AI-driven valuation crash is the single most-cited market risk: roughly half to a majority of surveyed fund managers now call AI the market&apos;s biggest tail
           risk, with the mega-cap leaders seen as the most exposed. At the same time, value and
           small-cap names sit well below fair value. The plans below lean into that split: stay
           exposed to the real AI build-out, but with ballast underneath if the froth comes off.

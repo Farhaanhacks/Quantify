@@ -34,7 +34,7 @@ function kindOf(type: string, symbol: string): SearchHit["kind"] {
 }
 
 // Map a Yahoo symbol's exchange suffix to a country flag so users can eyeball the
-// right listing, e.g. TRENT.NS 🇮🇳 vs SVT.L 🇬🇧. US symbols carry no suffix.
+// right listing — e.g. TRENT.NS 🇮🇳 vs SVT.L 🇬🇧. US symbols carry no suffix.
 const SUFFIX_FLAG: Record<string, string> = {
   NS: "🇮🇳", BO: "🇮🇳", L: "🇬🇧", TO: "🇨🇦", V: "🇨🇦", AX: "🇦🇺", NZ: "🇳🇿",
   DE: "🇩🇪", F: "🇩🇪", PA: "🇫🇷", AS: "🇳🇱", BR: "🇧🇪", MI: "🇮🇹", MC: "🇪🇸",
@@ -46,7 +46,7 @@ const SUFFIX_FLAG: Record<string, string> = {
 
 // The suffix→ISO and name→ISO maps live in lib/listingCountry because the search
 // dropdown needs the same answer for rows it loaded from localStorage. Emoji
-// flags are regional-indicator pairs that Windows has no font for: they render
+// flags are regional-indicator pairs that Windows has no font for — they render
 // there as the bare letters "IN"/"US", which is what the ISO code + drawn SVG
 // replaced.
 const countryFor = countryForSymbol;
@@ -62,10 +62,10 @@ const isEquityType = (type: string) =>
 
 // ─── EODHD search (primary when EODHD_API_KEY is set) ────────────────────────
 // EODHD indexes company NAMES and exchange CODES (incl. BSE numeric scrip codes),
-// so "mini" → Mini Diamonds India and "523373" → Mini Diamonds India both
-// resolve: the coverage Yahoo's search lacks for Indian names. We convert
-// EODHD's `Code`+`Exchange` into the Yahoo-style symbol (`.BO`/`.NS`/…) the rest
-// of the app already speaks, so the chosen result stays navigable by /api/quote.
+// so "mini" → Mini Diamonds India and "523373" → Mini Diamonds India both resolve
+// — the coverage Yahoo's search lacks for Indian names. We convert EODHD's
+// `Code`+`Exchange` into the Yahoo-style symbol (`.BO`/`.NS`/…) the rest of the
+// app already speaks, so the chosen result stays navigable by /api/quote etc.
 const EODHD_SUFFIX: Record<string, string> = {
   US: "", NYSE: "", NASDAQ: "", AMEX: "", BATS: "", NMFQS: "", OTC: "", OTCQB: "", OTCQX: "", PINK: "",
   BSE: ".BO", NSE: ".NS", LSE: ".L", TO: ".TO", V: ".V", AU: ".AX", NZ: ".NZ",
@@ -121,7 +121,7 @@ async function eodhdSearch(q: string, key: string): Promise<SearchHit[] | null> 
       });
     }
     // Every candidate, unranked and untruncated. The caller merges this with
-    // Yahoo's results and ranks the union: cutting to 8 here would throw away
+    // Yahoo's results and ranks the union — cutting to 8 here would throw away
     // the company before anything had a chance to sort it above the funds.
     return out;
   } catch {
@@ -165,7 +165,7 @@ async function yahooSearch(q: string, count = 12): Promise<SearchHit[]> {
 }
 
 // Yahoo's SEARCH doesn't index bare BSE scrip codes, but its QUOTE endpoint does
-// resolve `<code>.BO` to a name, so a user typing "523373" (or "BSE:523373")
+// resolve `<code>.BO` to a name — so a user typing "523373" (or "BSE:523373")
 // still finds the company even without EODHD.
 async function resolveBseCode(code: string): Promise<SearchHit | null> {
   try {
@@ -199,7 +199,7 @@ export async function GET(req: Request) {
   //
   // EODHD used to short-circuit this: if it returned anything at all, Yahoo was
   // never asked. That is backwards for a query like "kotak", where EODHD's
-  // index is full of fund share classes, hundreds of them, and the bank fell
+  // index is full of fund share classes — hundreds of them — and the bank fell
   // outside the results entirely. Yahoo's search is weak on Indian micro-caps
   // and strong on large companies, so the two cover each other's gaps; asking
   // only the first one to answer meant a user had to type "kotak bank" to find
@@ -222,7 +222,7 @@ export async function GET(req: Request) {
     seen.add(dedupeKey);
     merged.push(hit);
   }
-  // Multi-word queries are answered WORD BY WORD, always, not as a fallback.
+  // Multi-word queries are answered WORD BY WORD, always — not as a fallback.
   //
   // Both upstream indexes match roughly left to right, so "hdfc insurance"
   // returns nothing while "hdfc life" returns the company. Treating the phrase
@@ -254,8 +254,8 @@ export async function GET(req: Request) {
   }
 
   if (tokens.length > 1) {
-    // Ask DEEPLY on each word. A single word is a broad query: "hdfc" matches
-    // a bank, an AMC, an insurer and a dozen funds, so the company being
+    // Ask DEEPLY on each word. A single word is a broad query — "hdfc" matches
+    // a bank, an AMC, an insurer and a dozen funds — so the company being
     // looked for is often outside the first handful. Yahoo's default of twelve
     // rows is why searching "hdfc" surfaced HDFC Bank twice and HDFC Life not
     // at all; the row existed, we just never asked for enough of them.
@@ -327,13 +327,26 @@ export async function GET(req: Request) {
       kind: l.kind,
       type: l.type,
       isin: l.isin,
+      // Where the ISSUER is, versus where this LINE trades. The pair is what
+      // decides which listing a company defaults to, and the client shows the
+      // difference rather than making the reader infer it from a flag.
+      issuerCountry: l.issuerCountry,
+      listingCountry: l.listingCountry,
+      securityType: l.securityType,
+      isHomePrimary: l.isHomePrimary,
+      underlyingSymbol: l.underlyingSymbol,
     });
     return {
       id: g.id,
       name: g.name,
       kind: g.kind,
+      issuerCountry: g.issuerCountry,
       preferred: listing(g.preferred),
       listings: g.listings.map(listing),
+      // Everything EXCEPT the listing on the main row. The disclosure shows
+      // alternatives, so repeating the main listing inside it — and then
+      // labelling that repeat "preferred" — was saying the same thing twice.
+      alternatives: g.alternatives.map(listing),
       listingCount: g.listings.length,
     };
   });
@@ -346,6 +359,7 @@ export async function GET(req: Request) {
       // The alternatives, so a caller that wants them does not need a second
       // request, and one that does not can ignore the field.
       listings: c.listings,
+      alternatives: c.alternatives,
       listingCount: c.listingCount,
     })),
     companies: shaped,

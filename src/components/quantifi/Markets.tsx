@@ -769,7 +769,7 @@ export default function Markets() {
       </GlassCard>
 
       <p className="mt-4 text-[0.7rem] leading-relaxed text-slate-500">
-        Aggregated from live quotes for the {data?.companies ?? 0} largest listings we track in this market not every listed company. Research only, not advice.
+        Aggregated from live quotes for the {data?.companies ?? 0} largest listings we track in this market, not every listed company. Research only, not advice.
       </p>
     </section>
   );

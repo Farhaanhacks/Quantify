@@ -202,7 +202,7 @@ export default function CongressTrades({ limit, heading = true }: { limit?: numb
 
       <p className="mt-3 text-xs leading-relaxed text-slate-600">
         Source: public U.S. House &amp; Senate financial-disclosure filings (STOCK Act). Amounts are
-        disclosed as ranges, and filings appear weeks after the trade. For research and education only not investment advice, and not a signal to follow any individual&apos;s trades.
+        disclosed as ranges, and filings appear weeks after the trade. For research and education only, not investment advice, and not a signal to follow any individual&apos;s trades.
       </p>
     </section>
   );

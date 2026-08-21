@@ -37,6 +37,9 @@ const {
   showsCashVersusDebt,
   MODEL_HEADINGS,
   EQUITY_ONLY_HEADING,
+  isFinancialInstitutionModel,
+  isLenderModel,
+  isInsurerModel,
 } = await import(join(out, "financialHealth.js"));
 rmSync(out, { recursive: true, force: true });
 
@@ -51,23 +54,47 @@ const ok = (name, cond) => {
 };
 
 // ── Classification ──────────────────────────────────────────────────────────
+//
+// Three models were not enough. A bank funds itself with customer deposits and
+// answers to a capital-adequacy regime; a non-bank lender mostly cannot take
+// deposits at all and lives on wholesale funding it has to keep rolling. Giving
+// PFC a bank's deposit-funding check would repeat the original bug one rung
+// down — marking a company down for not being something it is not licensed to
+// be.
 {
-  const lenders = [
+  const banks = [
     "Banks—Regional",
     "Banks - Diversified",
+    "Banks",
+    "Thrifts & Mortgage Finance",
+    "Savings & Cooperative Banks",
+  ];
+  for (const i of banks) ok(`${i} is a bank`, financialHealthModel(i) === "bank");
+
+  const nbfcs = [
     "Credit Services",
     "Consumer Finance",
     "Mortgage Finance",
     "Specialty Finance",
     "Infrastructure Finance",
     "Development Finance",
-    "Thrifts & Mortgage Finance",
-    "Savings & Cooperative Banks",
+    "Housing Finance",
+    "Rental & Leasing Services",
   ];
-  for (const i of lenders) ok(`${i} is a lender`, financialHealthModel(i) === "lender");
+  for (const i of nbfcs) ok(`${i} is a non-bank lender`, financialHealthModel(i) === "nbfc");
+  // The case that started it: PFC is an infrastructure lender, not a bank.
+  ok("PFC's industry is not a bank", financialHealthModel("Credit Services") !== "bank");
+  ok("but it is a lender", isLenderModel(financialHealthModel("Credit Services")) === true);
 
-  const insurers = ["Insurance—Life", "Insurance - Property & Casualty", "Insurance—Reinsurance", "Insurance"];
-  for (const i of insurers) ok(`${i} is an insurer`, financialHealthModel(i) === "insurer");
+  const life = ["Insurance—Life", "Insurance - Life", "Life Insurance"];
+  for (const i of life) ok(`${i} is a life insurer`, financialHealthModel(i) === "life-insurer");
+
+  const general = ["Insurance - Property & Casualty", "Insurance—Reinsurance", "Insurance—Diversified", "Insurance"];
+  for (const i of general) ok(`${i} is a general insurer`, financialHealthModel(i) === "general-insurer");
+  // Life must be tested before general, or "Insurance—Life" is swallowed whole.
+  ok("a life insurer is not filed as general", financialHealthModel("Insurance—Life") !== "general-insurer");
+  ok("both are insurers", isInsurerModel(financialHealthModel("Insurance—Life")) && isInsurerModel(financialHealthModel("Insurance")));
+  ok("and neither is a lender", !isLenderModel(financialHealthModel("Insurance—Life")));
 
   const industrials = [
     "Semiconductors",
@@ -81,14 +108,15 @@ const ok = (name, cond) => {
     "Financial Data & Stock Exchanges",
   ];
   for (const i of industrials) ok(`${i} is judged normally`, financialHealthModel(i) === "industrial");
+  for (const i of industrials) ok(`${i} is not a financial institution`, isFinancialInstitutionModel(financialHealthModel(i)) === false);
 
   // The one that was wrong before: a broker is not an insurer.
   ok("Insurance Brokers is not an insurer", financialHealthModel("Insurance Brokers") === "industrial");
   ok("nor a lender", financialHealthModel("Insurance Brokers") !== "lender");
 
   // Case and spacing must not matter.
-  ok("case-insensitive", financialHealthModel("CREDIT SERVICES") === "lender");
-  ok("whitespace-insensitive", financialHealthModel("  Credit   Services  ") === "lender");
+  ok("case-insensitive", financialHealthModel("CREDIT SERVICES") === "nbfc");
+  ok("whitespace-insensitive", financialHealthModel("  Credit   Services  ") === "nbfc");
 
   // The sector alone cannot promote a company.
   ok("no industry means industrial", financialHealthModel(undefined, "Financial Services") === "industrial");
@@ -108,7 +136,7 @@ const ok = (name, cond) => {
   ok("healthy is toned good", leverageVerdict(0.3, "industrial").tone === "good");
 
   // The PFC case. 7.56x must produce a number and no adjective.
-  const pfc = leverageVerdict(7.56, "lender");
+  const pfc = leverageVerdict(7.56, "nbfc");
   ok("a lender is never called stretched", pfc.verdict !== "Stretched");
   ok("nor healthy, nor manageable", pfc.verdict !== "Healthy" && pfc.verdict !== "Manageable");
   ok("the gearing itself is stated", pfc.verdict.includes("7.56"));
@@ -119,15 +147,17 @@ const ok = (name, cond) => {
 
   // No level of gearing turns a lender's verdict red.
   for (const r of [0.5, 2, 7.56, 12, 40]) {
-    ok(`${r}x lender stays neutral`, leverageVerdict(r, "lender").tone === "neutral");
+    for (const m of ["bank", "nbfc"]) {
+      ok(`${r}x ${m} stays neutral`, leverageVerdict(r, m).tone === "neutral");
+    }
   }
 
-  const ins = leverageVerdict(0.4, "insurer");
+  const ins = leverageVerdict(0.4, "life-insurer");
   ok("an insurer is not scored either", ins.tone === "neutral");
   ok("with a note about policy reserves", /policy reserves/i.test(ins.note));
 
   // Nothing to compare.
-  for (const m of ["industrial", "lender", "insurer"]) {
+  for (const m of ["industrial", "bank", "nbfc", "life-insurer", "general-insurer"]) {
     ok(`${m}: null ratio has no verdict`, leverageVerdict(null, m).verdict === null);
     ok(`${m}: undefined ratio has no verdict`, leverageVerdict(undefined, m).verdict === null);
     ok(`${m}: NaN has no verdict`, leverageVerdict(NaN, m).verdict === null);
@@ -141,23 +171,29 @@ const ok = (name, cond) => {
   ok("cash-flow coverage is shown for industrials", showsCashFlowCoverage("industrial") === true);
   // The 1.5% warning. Money lent out is an operating outflow, so the ratio reads
   // worst exactly when the loan book is growing fastest.
-  ok("and never for a lender", showsCashFlowCoverage("lender") === false);
-  ok("nor for an insurer", showsCashFlowCoverage("insurer") === false);
+  for (const m of ["bank", "nbfc", "life-insurer", "general-insurer"]) {
+    ok(`and never for a ${m}`, showsCashFlowCoverage(m) === false);
+  }
 
   ok("cash versus debt is shown for industrials", showsCashVersusDebt("industrial") === true);
-  ok("and never for a lender", showsCashVersusDebt("lender") === false);
-  ok("nor for an insurer", showsCashVersusDebt("insurer") === false);
+  for (const m of ["bank", "nbfc", "life-insurer", "general-insurer"]) {
+    ok(`and never for a ${m}`, showsCashVersusDebt(m) === false);
+  }
 }
 
 // ── Headings ────────────────────────────────────────────────────────────────
 {
-  for (const m of ["industrial", "lender", "insurer"]) {
+  for (const m of ["industrial", "bank", "nbfc", "life-insurer", "general-insurer"]) {
     ok(`${m} has a heading`, typeof MODEL_HEADINGS[m]?.title === "string" && MODEL_HEADINGS[m].title.length > 0);
     ok(`${m} has a subtitle`, MODEL_HEADINGS[m].subtitle.length > 20);
     ok(`${m} heading has no em-dash`, !MODEL_HEADINGS[m].title.includes("—"));
   }
   ok("only the industrial heading claims a debt-to-equity history", /debt to equity/i.test(MODEL_HEADINGS.industrial.title));
-  ok("a lender's heading does not", !/debt to equity/i.test(MODEL_HEADINGS.lender.title));
+  for (const m of ["bank", "nbfc", "life-insurer", "general-insurer"]) {
+    ok(`a ${m}'s heading does not`, !/debt to equity/i.test(MODEL_HEADINGS[m].title));
+  }
+  // A bank's biggest liability is deposits, and the chart cannot show them.
+  ok("a bank's subtitle says deposits are missing", /deposit/i.test(MODEL_HEADINGS.bank.subtitle));
   // The equity-only case must not claim to show debt at all.
   ok("the equity-only heading says equity", /equity/i.test(EQUITY_ONLY_HEADING.title));
   ok("and never says debt to equity", !/debt to equity/i.test(EQUITY_ONLY_HEADING.title));

@@ -1,309 +1,291 @@
-// The arithmetic behind the market pages, kept apart from the fetching.
+#!/usr/bin/env node
+// Tests for the market-page arithmetic.
 //
-// No imports, on purpose: everything here is numbers in, numbers out, so
-// scripts/test-market-math.mjs can compile and run it directly. The functions
-// that used to live inside the aggregator and inside the React component could
-// not be exercised at all — they sat behind a network call and a browser — and
-// the two things most likely to be silently wrong (a percentage in the wrong
-// unit, a window measured from the wrong day) are exactly the things that look
-// completely plausible on screen.
+// Run: node scripts/test-market-math.mjs
+//
+// These exist because every number on the markets page is derived, and a derived
+// number that is wrong still looks like a number. Two failure modes in
+// particular are invisible on screen:
+//
+//   • A percentage in the wrong unit. Yahoo's 52-week change is a fraction on
+//     some endpoints and a percent on others, and "+0.2%" for a year the market
+//     rose 23% reads as a perfectly ordinary quiet year.
+//   • A window measured from the wrong day. A "1 year" return computed from
+//     eight months of history is not approximately right, it is a different
+//     statistic with the wrong label on it.
+//
+// The aggregate P/E is here for a different reason: it is the one figure on the
+// page that people will assume is an average, and it must never be one.
 
-export interface Point {
-  /** YYYY-MM-DD. */
-  time: string;
-  value: number;
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+const root = new URL("..", import.meta.url).pathname;
+const out = mkdtempSync(join(tmpdir(), "marketmath-"));
+execFileSync(
+  "npx",
+  ["tsc", join(root, "src/lib/marketMath.ts"), "--outDir", out, "--module", "esnext", "--target", "es2022", "--moduleResolution", "bundler"],
+  { stdio: "pipe" }
+);
+const {
+  aggregatePE,
+  weightedMean,
+  yearChangePct,
+  returnOver,
+  ytdReturn,
+  parseSparkPayload,
+  seriesReturnPct,
+  chunk,
+  pooled,
+  SPARK_SYMBOL_LIMIT,
+  seriesLadder,
+  MIN_DRAWABLE_POINTS,
+} = await import(join(out, "marketMath.js"));
+rmSync(out, { recursive: true, force: true });
+
+let pass = 0;
+let fail = 0;
+const check = (name, cond, extra = "") => {
+  if (cond) { pass++; console.log(`  ok   ${name}`); }
+  else { fail++; console.log(`  FAIL ${name} ${extra}`); }
+};
+const near = (a, b, tol = 1e-6) => a != null && Math.abs(a - b) <= tol;
+
+// A series of daily closes ending today, oldest first.
+function series(days, from = 100, step = 0.02) {
+  const pts = [];
+  const end = new Date("2026-08-16");
+  for (let i = days; i >= 0; i--) {
+    const d = new Date(end);
+    d.setDate(d.getDate() - i);
+    pts.push({ time: d.toISOString().slice(0, 10), value: from * (1 + step) ** (days - i) });
+  }
+  return pts;
 }
 
-/**
- * Cap-weighted mean of a field, ignoring rows that don't report it.
- *
- * Returns the count as well as the value so a caller can refuse to publish an
- * average that only two of forty companies actually contributed to.
- */
-export function weightedMean<T>(
-  rows: T[],
-  value: (r: T) => number | undefined,
-  weight: (r: T) => number
-): { value: number | undefined; n: number } {
-  let num = 0;
-  let den = 0;
-  let n = 0;
-  for (const r of rows) {
-    const v = value(r);
-    const w = weight(r);
-    if (v == null || !isFinite(v) || !(w > 0)) continue;
-    num += v * w;
-    den += w;
-    n++;
-  }
-  return den > 0 ? { value: num / den, n } : { value: undefined, n: 0 };
-}
+console.log("\n[aggregate P/E is not an average of P/Es]");
+// One near-break-even company on a huge multiple, among ordinary ones. The mean
+// of the ratios is ~103x; the market is really on ~19x.
+const withOutlier = [
+  { marketCap: 1000, pe: 20 },
+  { marketCap: 1000, pe: 15 },
+  { marketCap: 1000, pe: 25 },
+  { marketCap: 20, pe: 400 },
+];
+const mean = withOutlier.reduce((s, r) => s + r.pe, 0) / withOutlier.length;
+const agg = aggregatePE(withOutlier);
+check("the mean of the ratios is badly skewed", mean > 100, String(mean));
+check("the aggregate is not", agg < 25, String(agg));
+check(
+  "and equals total value over total earnings",
+  near(agg, 3020 / (1000 / 20 + 1000 / 15 + 1000 / 25 + 20 / 400), 1e-9),
+  String(agg)
+);
+check("identical multiples aggregate to themselves",
+  near(aggregatePE([{ marketCap: 5, pe: 18 }, { marketCap: 500, pe: 18 }]), 18, 1e-9));
+check("a loss-maker is excluded, not counted as zero earnings",
+  near(aggregatePE([{ marketCap: 100, pe: 10 }, { marketCap: 100, pe: -4 }]), 10, 1e-9));
+check("all loss-makers → no ratio at all", aggregatePE([{ marketCap: 100, pe: -4 }]) === undefined);
+check("no rows → undefined", aggregatePE([]) === undefined);
+check("a nonsense multiple is rejected rather than published",
+  aggregatePE([{ marketCap: 100, pe: 100000 }]) === undefined);
 
-/**
- * Aggregate P/E, the way an index computes one: total market value over total
- * earnings.
- *
- * NOT the average of the companies' P/E ratios. That average is dominated by
- * whichever company is closest to breaking even — a name on 400x earnings adds
- * 400 to the mean and a rounding error to the market's actual earnings — and it
- * is how a market of ordinary businesses ends up reading as "60x". Loss-makers
- * are excluded rather than counted as zero earnings, which would divide by zero
- * and make the whole market's ratio infinite.
- */
-export function aggregatePE(rows: { marketCap: number; pe?: number }[]): number | undefined {
-  let cap = 0;
-  let earnings = 0;
-  for (const r of rows) {
-    if (r.pe == null || !isFinite(r.pe) || r.pe <= 0 || !(r.marketCap > 0)) continue;
-    cap += r.marketCap;
-    earnings += r.marketCap / r.pe;
-  }
-  if (!(earnings > 0) || !(cap > 0)) return undefined;
-  const pe = cap / earnings;
-  return isFinite(pe) && pe > 0 && pe < 500 ? pe : undefined;
-}
+console.log("\n[cap-weighted means]");
+const rows = [
+  { cap: 900, ret: 10 },
+  { cap: 100, ret: -10 },
+];
+check("weights by size, not by name",
+  near(weightedMean(rows, (r) => r.ret, (r) => r.cap).value, 8, 1e-9));
+check("counts how many rows contributed",
+  weightedMean([{ cap: 1, ret: 5 }, { cap: 1 }], (r) => r.ret, (r) => r.cap).n === 1);
+check("a missing value doesn't count as zero",
+  near(weightedMean([{ cap: 1, ret: 5 }, { cap: 1 }], (r) => r.ret, (r) => r.cap).value, 5, 1e-9));
+check("no weight anywhere → undefined",
+  weightedMean([{ cap: 0, ret: 5 }], (r) => r.ret, (r) => r.cap).value === undefined);
 
-/**
- * A company's 52-week return, in percent, derived rather than trusted.
- *
- * Yahoo's quote feed carries both an absolute 52-week change and a percentage
- * one, and the percentage field's UNIT is not consistent across Yahoo's
- * endpoints — some return 0.234, others 23.4. Reading it wrong is not a subtle
- * error: it is a market shown as up 0.2% in a year it rose 23%, or up 2,340%.
- *
- * So the percentage is computed from the two absolute numbers, which cannot be
- * misread — price minus change is the price a year ago, by definition. The
- * reported percentage is only a fallback, and only when it is in a range a
- * percentage could plausibly be.
- */
-export function yearChangePct(q: {
-  price?: number;
-  fiftyTwoWeekChange?: number;
-  fiftyTwoWeekChangePercent?: number;
-}): number | undefined {
-  const { price, fiftyTwoWeekChange: abs, fiftyTwoWeekChangePercent: pctField } = q;
-  if (price != null && abs != null && isFinite(price) && isFinite(abs)) {
-    const before = price - abs;
-    if (before > 0) {
-      const v = (abs / before) * 100;
-      if (isFinite(v) && Math.abs(v) < 1000) return v;
-    }
-  }
-  if (pctField != null && isFinite(pctField)) {
-    // A bare fraction (|x| ≤ 3) would be a market that moved at most 300%, which
-    // is far likelier to be a fraction than a 3% year written as 3. Both
-    // readings are guesses at this point, which is why this branch is last.
-    const v = Math.abs(pctField) <= 3 ? pctField * 100 : pctField;
-    if (Math.abs(v) < 1000) return v;
-  }
-  return undefined;
-}
+console.log("\n[the 52-week unit trap]");
+check("derived from the absolute change, not the percent field",
+  near(yearChangePct({ price: 123, fiftyTwoWeekChange: 23, fiftyTwoWeekChangePercent: 0.23 }), 23, 1e-9),
+  String(yearChangePct({ price: 123, fiftyTwoWeekChange: 23, fiftyTwoWeekChangePercent: 0.23 })));
+check("a fall is negative",
+  near(yearChangePct({ price: 80, fiftyTwoWeekChange: -20 }), -20, 1e-9));
+check("a fraction-shaped fallback is read as a fraction",
+  near(yearChangePct({ fiftyTwoWeekChangePercent: 0.234 }), 23.4, 1e-9));
+check("a percent-shaped fallback is read as a percent",
+  near(yearChangePct({ fiftyTwoWeekChangePercent: 23.4 }), 23.4, 1e-9));
+check("nothing to read → undefined", yearChangePct({}) === undefined);
+check("an impossible move is rejected",
+  yearChangePct({ fiftyTwoWeekChangePercent: 5000 }) === undefined);
+check("a price at or below its own change can't be inverted",
+  yearChangePct({ price: 10, fiftyTwoWeekChange: 10 }) === undefined);
 
-/**
- * Closing prices per symbol from Yahoo's batched "spark" response.
- *
- * Two shapes exist in the wild for the same data and Yahoo serves either
- * depending on the endpoint version: a flat map keyed by symbol, and a
- * chart-style envelope with the closes nested under indicators. Both are
- * accepted, because guessing wrong here does not fail loudly — it returns
- * nothing for every company and the page quietly reports a market with no
- * sectors in it.
- *
- * Anything unrecognised yields an empty map rather than a partial one, so a
- * caller can tell "the shape changed" from "these companies have no history".
- */
-export function parseSparkPayload(json: unknown): Map<string, number[]> {
-  const out = new Map<string, number[]>();
-  if (!json || typeof json !== "object") return out;
+console.log("\n[windowed returns]");
+const oneYear = series(365, 100, 0.0005);
+const yr = returnOver(oneYear, 365);
+check("a one-year series answers for one year", yr != null, String(yr));
+check("and the answer is the whole series' return",
+  near(yr, ((oneYear[oneYear.length - 1].value - oneYear[0].value) / oneYear[0].value) * 100, 1e-6));
+check("a week is measured over a week, not the whole series",
+  returnOver(oneYear, 7) < yr / 10, String(returnOver(oneYear, 7)));
 
-  const closesOf = (v: unknown): number[] => {
-    if (!v || typeof v !== "object") return [];
-    const o = v as Record<string, unknown>;
-    // Flat shape: { close: [...] }
-    if (Array.isArray(o.close)) {
-      return (o.close as unknown[]).filter((c): c is number => typeof c === "number" && isFinite(c));
-    }
-    // Envelope shape: { response: [ { indicators: { quote: [ { close: [...] } ] } } ] }
-    const response = Array.isArray(o.response) ? (o.response[0] as Record<string, unknown>) : undefined;
-    const indicators = response?.indicators as { quote?: { close?: unknown[] }[] } | undefined;
-    const close = indicators?.quote?.[0]?.close;
-    if (Array.isArray(close)) {
-      return close.filter((c): c is number => typeof c === "number" && isFinite(c));
-    }
-    return [];
-  };
+// The regression this slack exists for: an upstream "1y" range starts a day or
+// two AFTER the exact cutoff (weekends), and the strict test blanked the figure.
+const shortByTwoDays = series(363, 100, 0.0005);
+check("two days short still answers for a year", returnOver(shortByTwoDays, 365) != null);
+// But eight months is not a year, and must not be labelled one.
+check("eight months does not", returnOver(series(240), 365) === undefined);
+check("one point is not a window", returnOver([{ time: "2026-08-16", value: 5 }], 7) === undefined);
+check("an empty series answers nothing", returnOver([], 7) === undefined);
 
-  const root = json as Record<string, unknown>;
-  const spark = root.spark as { result?: unknown[] } | undefined;
-  const rows = Array.isArray(spark?.result) ? (spark!.result as Record<string, unknown>[]) : null;
+console.log("\n[year to date]");
+const ytdPts = [
+  { time: "2025-12-30", value: 100 },
+  { time: "2026-01-02", value: 110 },
+  { time: "2026-08-16", value: 132 },
+];
+check("measured from the first session of THIS year, not from the series start",
+  near(ytdReturn(ytdPts), 20, 1e-9), String(ytdReturn(ytdPts)));
+check("a series that starts mid-year has no year-to-date figure",
+  ytdReturn([
+    { time: "2026-03-02", value: 100 },
+    { time: "2026-08-16", value: 120 },
+  ]) === undefined);
 
-  if (rows) {
-    for (const r of rows) {
-      const symbol = typeof r.symbol === "string" ? r.symbol.toUpperCase() : undefined;
-      if (!symbol) continue;
-      const closes = closesOf(r);
-      if (closes.length >= 2) out.set(symbol, closes);
-    }
-    return out;
-  }
+console.log("\n[batched price series: both shapes Yahoo serves]");
+// The flat shape: a map keyed by symbol.
+const flat = {
+  "AAPL": { symbol: "AAPL", close: [100, 105, 110] },
+  "MSFT": { symbol: "MSFT", close: [200, 190] },
+};
+const flatParsed = parseSparkPayload(flat);
+check("reads the flat shape", flatParsed.size === 2, String(flatParsed.size));
+check("keeps the closes in order", JSON.stringify(flatParsed.get("AAPL")) === "[100,105,110]");
 
-  for (const [key, v] of Object.entries(root)) {
-    if (!v || typeof v !== "object") continue;
-    const o = v as Record<string, unknown>;
-    const symbol = (typeof o.symbol === "string" ? o.symbol : key).toUpperCase();
-    const closes = closesOf(o);
-    if (closes.length >= 2) out.set(symbol, closes);
-  }
-  return out;
-}
+// The envelope shape: chart-style, closes nested under indicators.
+const envelope = {
+  spark: {
+    result: [
+      {
+        symbol: "RELIANCE.NS",
+        response: [{ indicators: { quote: [{ close: [1000, 1100] }] } }],
+      },
+    ],
+  },
+};
+const envParsed = parseSparkPayload(envelope);
+check("reads the envelope shape", envParsed.size === 1, String(envParsed.size));
+check("and finds the nested closes",
+  JSON.stringify(envParsed.get("RELIANCE.NS")) === "[1000,1100]",
+  JSON.stringify([...envParsed]));
 
-/** Return across a whole close series, in percent. */
-export function seriesReturnPct(closes: number[]): number | undefined {
-  if (closes.length < 2) return undefined;
-  const first = closes[0];
-  const last = closes[closes.length - 1];
-  if (!(first > 0) || !(last > 0)) return undefined;
-  const v = ((last - first) / first) * 100;
-  // A price series that implies a 100x move over the window is a split the feed
-  // hasn't adjusted, not a return anyone should be shown.
-  return isFinite(v) && Math.abs(v) < 10000 ? v : undefined;
-}
+check("symbols are upper-cased so lookups match the universe",
+  parseSparkPayload({ "aapl": { symbol: "aapl", close: [1, 2] } }).has("AAPL"));
+check("a null close is dropped, not read as zero",
+  JSON.stringify(parseSparkPayload({ A: { symbol: "A", close: [10, null, 12] } }).get("A")) === "[10,12]");
+check("a one-point series is no series at all",
+  parseSparkPayload({ A: { symbol: "A", close: [10] } }).size === 0);
+check("an unrecognised payload yields nothing rather than something wrong",
+  parseSparkPayload({ nonsense: true }).size === 0);
+check("garbage in, empty out", parseSparkPayload(null).size === 0 && parseSparkPayload("x").size === 0);
 
-/**
- * Symbols per batched price-series request.
- *
- * TEN, and the number matters: the upstream answers a small symbol list and
- * returns NOTHING for a large one — no error, no partial result, an empty body.
- * India's 56 companies went out as chunks of 50 and 6, the 6 came back, and the
- * page drew the two sectors that happened to fall in that tail as though they
- * were the market. A silent cap is the worst kind, so this stays well under
- * whatever it actually is.
- */
-export const SPARK_SYMBOL_LIMIT = 10;
+console.log("\n[series returns]");
+check("first to last", near(seriesReturnPct([100, 150]), 50, 1e-9));
+check("a fall is negative", near(seriesReturnPct([200, 150]), -25, 1e-9));
+check("intermediate points don't change the answer",
+  near(seriesReturnPct([100, 5, 900, 150]), 50, 1e-9));
+check("a single point has no return", seriesReturnPct([100]) === undefined);
+check("a zero start can't be divided by", seriesReturnPct([0, 100]) === undefined);
+check("an unadjusted split is rejected rather than shown as a 10,000% gain",
+  seriesReturnPct([1, 5000]) === undefined);
 
-/**
- * Run async tasks with a bounded number in flight, returning results in the
- * order the tasks were given.
- *
- * Written out rather than reached for from a library because the failure it
- * guards against is the one this whole area keeps hitting: a batch that quietly
- * does not run costs a whole sector, not a row.
- */
-export async function pooled<T>(tasks: (() => Promise<T>)[], limit: number): Promise<T[]> {
-  const out: T[] = new Array(tasks.length);
-  let next = 0;
-  const workers = Array.from({ length: Math.max(1, Math.min(limit, tasks.length)) }, async () => {
-    for (;;) {
-      const i = next++;
-      if (i >= tasks.length) return;
-      out[i] = await tasks[i]();
-    }
+console.log("\n[batch size: the bug that showed two sectors as a market]");
+// India's universe is 56 companies. At a chunk of 50 that is one request of 50
+// and one of 6; the 6 came back, the 50 came back EMPTY, and the page drew the
+// two sectors that happened to sit in that tail — Health Care and Utilities —
+// as though they were the Indian market. The upstream caps the symbol list and
+// says nothing about it, so the only defence is never to approach the cap.
+check("the batch limit is small", SPARK_SYMBOL_LIMIT <= 10, String(SPARK_SYMBOL_LIMIT));
+
+const india = Array.from({ length: 56 }, (_, i) => `SYM${i}.NS`);
+const batches = chunk(india, SPARK_SYMBOL_LIMIT);
+check("no batch approaches the cap", batches.every((b) => b.length <= SPARK_SYMBOL_LIMIT),
+  JSON.stringify(batches.map((b) => b.length)));
+check("the 50/6 split cannot recur", !batches.some((b) => b.length > 10),
+  JSON.stringify(batches.map((b) => b.length)));
+check("every company is asked for exactly once",
+  batches.flat().length === india.length && new Set(batches.flat()).size === india.length);
+check("order is preserved", batches.flat().every((s, i) => s === india[i]));
+check("an exact multiple leaves no empty batch",
+  chunk(Array.from({ length: 20 }, (_, i) => i), 10).length === 2);
+check("an empty list needs no requests", chunk([], 10).length === 0);
+check("a nonsense size still makes progress rather than looping",
+  chunk([1, 2, 3], 0).length === 3);
+
+console.log("\n[the request pool]");
+{
+  let live = 0;
+  let peak = 0;
+  const order = [];
+  const tasks = Array.from({ length: 17 }, (_, i) => async () => {
+    live++;
+    peak = Math.max(peak, live);
+    await new Promise((r) => setTimeout(r, (i % 3) * 4));
+    order.push(i);
+    live--;
+    return i * 2;
   });
-  await Promise.all(workers);
-  return out;
+  const results = await pooled(tasks, 4);
+  check("every task ran", order.length === 17, String(order.length));
+  check("results come back in task order, not completion order",
+    results.every((v, i) => v === i * 2), JSON.stringify(results.slice(0, 5)));
+  check("never more than the limit in flight", peak <= 4, String(peak));
+  check("and it actually ran them concurrently", peak > 1, String(peak));
+  check("no tasks, no workers", (await pooled([], 4)).length === 0);
+  check("a limit below one still makes progress", (await pooled(tasks.slice(0, 3), 0)).length === 3);
 }
 
-/** Split a list into chunks of at most `size`, losing and duplicating nothing. */
-export function chunk<T>(list: T[], size: number): T[][] {
-  const n = Math.max(1, Math.floor(size));
-  const out: T[][] = [];
-  for (let i = 0; i < list.length; i += n) out.push(list.slice(i, i + n));
-  return out;
+console.log("\n[chart windows for a company that has barely traded]");
+// The bug: a company listed three days ago has three daily bars, so a 1Y
+// request at a daily interval came back below the stub floor and was discarded.
+// The page then said "live chart data isn't available" directly beneath a live
+// price badge, which is the page contradicting itself about data it holds.
+//
+// The ladder asks for shorter windows at finer intervals, where those same
+// three days are hundreds of bars. What it must never do is ask for MORE than
+// the caller wanted, which would quietly draw a different period than the one
+// labelled on screen.
+{
+  const oneY = seriesLadder("1y");
+  check("1Y starts with the year asked for", oneY[0].range === "1y" && oneY[0].interval === "1d");
+  check("then narrows", oneY.length > 1);
+  check("ending at the finest window", oneY[oneY.length - 1].interval === "5m");
+  check("and never asks for more than a year", oneY.every((a) => a.range !== "5y" && a.range !== "max"));
+
+  const oneD = seriesLadder("1d");
+  check("1D is intraday from the start", oneD[0].interval === "5m");
+  check("and has nothing finer to fall back to", oneD.length === 1);
+
+  const max = seriesLadder("max");
+  check("max uses weekly bars first", max[0].interval === "1wk");
+  check("and still narrows for a young company", max.length > 1);
+
+  const oneMo = seriesLadder("1mo");
+  check("1M starts daily", oneMo[0].range === "1mo" && oneMo[0].interval === "1d");
+  check("and does not repeat itself", oneMo.filter((a) => a.range === "1mo").length === 1);
+
+  for (const r of ["1mo", "3mo", "6mo", "ytd", "1y", "5y", "max", "10y"]) {
+    const l = seriesLadder(r);
+    check(`${r}: first attempt is the requested range`, l[0].range === r);
+    check(`${r}: every attempt names an interval`, l.every((a) => typeof a.interval === "string" && a.interval.length > 0));
+    check(`${r}: no attempt is repeated`, new Set(l.map((a) => `${a.range}|${a.interval}`)).size === l.length);
+  }
+
+  // Two points make a line; one makes a dot nobody can read.
+  check("the drawable floor is two points", MIN_DRAWABLE_POINTS === 2);
 }
 
-const DAY_MS = 86400000;
-
-/**
- * Return over a trailing window, as a percentage, or undefined when the series
- * cannot honestly answer for that window.
- *
- * Two guards, and both have bitten:
- *
- *   • The start point is the first one ON OR AFTER the cutoff. Taking the last
- *     point before it instead would quietly lengthen the window, because
- *     markets are shut on plenty of the days you might ask about.
- *   • If the series does not reach back far enough, there is no answer. A "1
- *     year" figure computed from eight months of history is not a cautious
- *     estimate, it is a different number with the wrong label on it.
- *
- * The second guard carries slack, scaled to the window. A one-year series from
- * the upstream begins almost exactly 365 days ago, so demanding a point strictly
- * on or before the cutoff blanks the 1Y reading whenever that day was a weekend
- * — which is most weeks.
- */
-export function returnOver(points: Point[], days: number): number | undefined {
-  if (points.length < 2 || days <= 0) return undefined;
-  const last = points[points.length - 1];
-  const end = Date.parse(last.time);
-  if (!isFinite(end)) return undefined;
-  const cutoff = end - days * DAY_MS;
-  const iso = new Date(cutoff).toISOString().slice(0, 10);
-
-  const start = points.find((p) => p.time >= iso);
-  if (!start || start === last || !(start.value > 0)) return undefined;
-
-  const slack = Math.max(3, days * 0.04) * DAY_MS;
-  if (Date.parse(points[0].time) > cutoff + slack) return undefined;
-
-  return ((last.value - start.value) / start.value) * 100;
-}
-
-/** Return since the first trading day of the last point's calendar year. */
-export function ytdReturn(points: Point[]): number | undefined {
-  if (points.length < 2) return undefined;
-  const last = points[points.length - 1];
-  const jan = `${last.time.slice(0, 4)}-01-01`;
-  // No slack here: the year's start is a fixed date, and a series that begins in
-  // March cannot report a year-to-date figure.
-  if (points[0].time > jan) return undefined;
-  const start = points.find((p) => p.time >= jan);
-  if (!start || start === last || !(start.value > 0)) return undefined;
-  return ((last.value - start.value) / start.value) * 100;
-}
-
-
-// ── Chart windows for a company that has barely traded ──────────────────────
-
-export interface SeriesAttempt {
-  range: string;
-  interval: string;
-}
-
-/**
- * The windows to try, in order, when asking a price feed for a chart.
- *
- * A newly listed company breaks the obvious approach. Asking for a year of
- * DAILY bars three days after an IPO returns three bars, which is below any
- * sane floor for "this looks like a real year", so the series is rejected and
- * the page says no chart data is available while the price badge directly above
- * it shows a live quote. That is the data being there and the request being
- * wrong, not the data being missing.
- *
- * So each range falls back to a shorter window at a finer interval. Three days
- * of trading is three daily bars and about two hundred five-minute bars: the
- * same history, asked for in a way that can actually draw it.
- *
- * The ladder never asks for MORE than the caller wanted, so a genuinely dead
- * symbol still ends with nothing rather than being quietly given a different
- * period than the one on screen.
- */
-export function seriesLadder(range: string): SeriesAttempt[] {
-  const primary: SeriesAttempt =
-    range === "1d"
-      ? { range: "1d", interval: "5m" }
-      : range === "max" || range === "10y"
-        ? { range, interval: "1wk" }
-        : { range, interval: "1d" };
-
-  // Already the shortest, finest window there is.
-  if (range === "1d") return [primary];
-
-  const ladder: SeriesAttempt[] = [primary];
-  if (range !== "1mo") ladder.push({ range: "1mo", interval: "1d" });
-  ladder.push({ range: "5d", interval: "15m" });
-  ladder.push({ range: "1d", interval: "5m" });
-  return ladder;
-}
-
-/** The fewest points worth drawing. Two make a line; one makes a dot. */
-export const MIN_DRAWABLE_POINTS = 2;
+console.log(`\n${pass} passed, ${fail} failed`);
+process.exit(fail ? 1 : 0);
