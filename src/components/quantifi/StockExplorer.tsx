@@ -24,6 +24,7 @@ import RevenueBreakdown from "@/components/quantifi/RevenueBreakdown";
 import DebtEquityHistory from "@/components/quantifi/DebtEquityHistory";
 import StockSectionNav, { type NavSection } from "@/components/quantifi/StockSectionNav";
 import StockAiAssistant from "@/components/quantifi/StockAiAssistant";
+import StockActionDock from "@/components/quantifi/StockActionDock";
 import SignUpModal from "@/components/quantifi/SignUpModal";
 import { GlassCard, Eyebrow } from "@/components/quantifi/Cards";
 import { SCORE_AXES, type CompanyAnalytics } from "@/data/demo";
@@ -563,13 +564,23 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
             ) : null}
 
             {score?.available && score.analytics && !etf ? (
-              <StockAiAssistant
-                ticker={ticker}
-                name={score.name}
-                brief={aiBrief}
-                open={aiOpen}
-                onOpenChange={setAiOpen}
-              />
+              <>
+                <StockActionDock
+                  ticker={ticker}
+                  name={score.name}
+                  price={score.price}
+                  hidden={aiOpen}
+                  onOpenAi={() => setAiOpen(true)}
+                />
+                <StockAiAssistant
+                  ticker={ticker}
+                  name={score.name}
+                  brief={aiBrief}
+                  open={aiOpen}
+                  onOpenChange={setAiOpen}
+                  showLauncher={false}
+                />
+              </>
             ) : null}
           </div>
         </div>
