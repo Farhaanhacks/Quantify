@@ -38,7 +38,7 @@ const periodEnd = flag("period-end");
 const scope = flag("scope");
 const symbols = (flag("symbol", "") || "").split(",").map((x) => x.trim()).filter(Boolean);
 const apiBase = flag("api", process.env.QUANTIFI_BASE_URL || "");
-const cookie = process.env.QUANTIFI_ADMIN_COOKIE || "";
+const token = process.env.FILINGS_INGEST_SECRET || "";
 const write = has("write");
 
 if (!companyId) {
@@ -92,14 +92,16 @@ for (const name of files) {
     console.error("  --api or QUANTIFI_BASE_URL is required to write.");
     process.exit(1);
   }
-  if (!cookie) {
-    console.error("  QUANTIFI_ADMIN_COOKIE is required: the ingest endpoint is admin-only.");
+  if (!token) {
+    console.error("  FILINGS_INGEST_SECRET is required. A browser cookie is the wrong credential");
+    console.error("  for a script: it cannot be handed to a scheduler, and a route that accepts one");
+    console.error("  is a route a cross-site form post can reach.");
     process.exit(1);
   }
   try {
     const res = await fetch(`${apiBase.replace(/\/$/, "")}/api/filings/ingest`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Cookie: cookie },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(payload),
     });
     const out = await res.json();

@@ -418,10 +418,11 @@ export default function CompanySnapshot({
                     {d.checks.length ? (
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         <span className="text-[0.68rem] text-slate-500">
-                          Analysis checks{" "}
                           <span className="font-mono tnum text-slate-300">
-                            {passed}/{d.checks.length}
-                          </span>
+                            {evaluated.length} of {d.checks.length}
+                          </span>{" "}
+                          measured
+                          <span className="text-slate-600"> · {passed} passed</span>
                         </span>
                         <CheckDots checks={d.checks} />
                       </div>
@@ -491,7 +492,7 @@ export default function CompanySnapshot({
                               only honest thing on offer. */}
                           {d.sufficient === false ? (
                             <span className="rounded-full border border-white/15 bg-white/[0.04] px-1.5 py-px text-[0.6rem] font-medium text-slate-400">
-                              Not enough data
+                              {unsourced.length < d.checks.length ? "Partial data" : "Not enough data"}
                             </span>
                           ) : (
                             <span className={`rounded-full border px-1.5 py-px text-[0.6rem] font-medium ${labelTone(d.score)}`}>
@@ -510,14 +511,22 @@ export default function CompanySnapshot({
                     </span>
                     {d.checks.length ? (
                       <span className="mt-2.5 flex flex-wrap items-center gap-2.5">
+                        {/* Measured out of the WHOLE checklist, then how many
+                            of those passed.
+                            "Analysis checks 4/4 · 4 not available" said a bank
+                            passed everything asked of it while hiding that only
+                            half the questions were asked, and that the missing
+                            half was the half that decides. The denominator has
+                            to be the complete list. */}
                         <span className="text-[0.68rem] text-slate-500">
-                          Analysis checks{" "}
                           <span className="font-mono tnum text-slate-300">
-                            {supports.length}/{d.checks.length - unsourced.length}
+                            {d.checks.length - unsourced.length} of {d.checks.length}
+                          </span>{" "}
+                          measured
+                          <span className="text-slate-600">
+                            {" "}· {supports.length} passed
+                            {unsourced.length ? ` · ${unsourced.length} not available` : ""}
                           </span>
-                          {unsourced.length ? (
-                            <span className="text-slate-600"> · {unsourced.length} not available</span>
-                          ) : null}
                         </span>
                         <CheckDots checks={d.checks} />
                       </span>
@@ -611,7 +620,9 @@ export default function CompanySnapshot({
             >
               {axis.short} ·{" "}
               {a.scores[axis.key].sufficient === false
-                ? "not scored"
+                ? a.scores[axis.key].checks.some((c) => c.status !== "unavailable")
+                  ? "partial"
+                  : "not scored"
                 : axisLabel(axis.key, a.scores[axis.key].score)}
             </span>
           ))}

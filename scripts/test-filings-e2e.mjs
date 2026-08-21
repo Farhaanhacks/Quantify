@@ -81,10 +81,11 @@ walk(out);
 
 const { extractFromXbrl } = await import(join(out, "lib/filings/extract.js"));
 const { bankMetricsFromFilings } = await import(join(out, "lib/filings/toMetrics.js"));
-const { balanceSheetAxis } = await import(join(out, "lib/balanceSheet.js"));
+const { balanceSheetAxis, mergeMetrics } = await import(join(out, "lib/balanceSheet.js"));
 const { financialHealthModel } = await import(join(out, "lib/financialHealth.js"));
 const { provisionalIdForSymbol } = await import(join(out, "lib/filings/store.js"));
 const { companyKey } = await import(join(out, "lib/filings/companyMaster.js"));
+
 
 let passed = 0;
 let failed = 0;
@@ -152,9 +153,11 @@ const result = extractFromXbrl(xml, {
 }
 
 // ── Metrics ─────────────────────────────────────────────────────────────────
+const SOURCE_URL = "https://www.bseindia.com/xml-data/corpfiling/AttachHis/test.xml";
 const { metrics, sourced } = bankMetricsFromFilings(result.facts, {
   periodEnd: "2026-03-31",
   homeCountry: "IN",
+  sourceUrl: SOURCE_URL,
 });
 {
   ok("most of the checklist is sourced", sourced >= 7);
@@ -179,6 +182,9 @@ const { metrics, sourced } = bankMetricsFromFilings(result.facts, {
   ok("every sourced metric keeps its date", Object.values(metrics).every((m) => typeof m !== "object" || m.value == null || !!m.asOf));
   ok("and its scope", Object.values(metrics).every((m) => typeof m !== "object" || m.value == null || m.scope === "consolidated"));
   ok("and what it means", Object.values(metrics).every((m) => typeof m !== "object" || m.value == null || !!m.definition));
+  // The citation. A figure presented as coming from the company's filing has to
+  // be able to say which filing, or the citation is decoration.
+  ok("and the document it came from", Object.values(metrics).every((m) => typeof m !== "object" || m.value == null || m.sourceUrl === SOURCE_URL));
 }
 
 // ── The card ────────────────────────────────────────────────────────────────
@@ -217,6 +223,65 @@ const { metrics, sourced } = bankMetricsFromFilings(result.facts, {
   ok("without filings the same bank is not scored", blind.sufficient === false);
   ok("and says insufficient bank data", /insufficient bank data/i.test(blind.unavailableNote));
   ok("so the pipeline is what changes the answer", axis.sufficient !== blind.sufficient);
+}
+
+// ── Two sources, merged per measure ─────────────────────────────────────────
+//
+// The bug this replaces: the moment a single filed fact existed, the filing's
+// metrics were returned wholesale and four working structural ratios from the
+// quote feed were discarded. The two sources are good at opposite halves, so
+// choosing one for the whole checklist throws away half the picture whichever
+// way it is chosen.
+{
+  const filedOnly = {
+    grossNpaRatio: { value: 0.0133, asOf: "2026-03-31", scope: "consolidated", sourceUrl: SOURCE_URL },
+    netNpaRatio: { value: 0.0043, asOf: "2026-03-31", scope: "consolidated" },
+    provisionCoverage: { value: 1.71, asOf: "2026-03-31", scope: "consolidated" },
+    capitalBufferPoints: { value: 0.073, asOf: "2026-03-31", scope: "consolidated" },
+    // Present, and empty: the filing tagged no balance sheet.
+    depositFunding: { unavailableReason: "Not tagged." },
+    loansToDeposits: { unavailableReason: "Not tagged." },
+    loansToAssets: { unavailableReason: "Not tagged." },
+    assetsToEquity: { unavailableReason: "Not tagged." },
+  };
+  const fromFeed = {
+    grossNpaRatio: { unavailableReason: "Not in the feed." },
+    netNpaRatio: { unavailableReason: "Not in the feed." },
+    provisionCoverage: { unavailableReason: "Not in the feed." },
+    capitalBufferPoints: { unavailableReason: "Not in the feed." },
+    depositFunding: { value: 0.74, asOf: "2026-03-31", scope: "consolidated" },
+    loansToDeposits: { value: 0.98, asOf: "2026-03-31", scope: "consolidated" },
+    loansToAssets: { value: 0.63, asOf: "2026-03-31", scope: "consolidated" },
+    assetsToEquity: { value: 7.9, asOf: "2026-03-31", scope: "consolidated" },
+  };
+
+  const merged = mergeMetrics(filedOnly, fromFeed);
+  ok("the filing supplies asset quality", merged.grossNpaRatio.value === 0.0133);
+  ok("and capital", merged.capitalBufferPoints.value === 0.073);
+  // The half the old code threw away.
+  ok("the feed still supplies deposit funding", merged.depositFunding.value === 0.74);
+  ok("and leverage", merged.assetsToEquity.value === 7.9);
+  ok("nothing is lost either way", Object.values(merged).every((m) => typeof m.value === "number"));
+
+  const axis = balanceSheetAxis("bank", { bank: merged });
+  ok("merged, the bank is scored", axis.sufficient === true);
+  ok("on all eight measures", axis.checks.every((c) => c.status !== "unavailable"));
+  ok("and 'what we could not measure' is empty", axis.checks.filter((c) => c.status === "unavailable").length === 0);
+
+  // Neither source alone gets there.
+  ok("the filing alone does not", balanceSheetAxis("bank", { bank: filedOnly }).sufficient === false);
+  ok("nor does the feed alone", balanceSheetAxis("bank", { bank: fromFeed }).sufficient === false);
+  ok("and the feed alone is not 10/10", balanceSheetAxis("bank", { bank: fromFeed }).score !== 6);
+
+  // A filed metric that failed validation must not evict a sound derived one.
+  const badFiled = { assetsToEquity: { unavailableReason: "Mismatched scope." } };
+  ok("a refused filed metric does not displace a good one",
+    mergeMetrics(badFiled, fromFeed).assetsToEquity.value === 7.9);
+  // And a filed metric wins where both have a value: it is the company's own
+  // statement under the definition its regulator agreed to.
+  ok("a filed metric wins over a derived one",
+    mergeMetrics({ assetsToEquity: { value: 8.4 } }, fromFeed).assetsToEquity.value === 8.4);
+  ok("no filings at all leaves the feed untouched", mergeMetrics(null, fromFeed).assetsToEquity.value === 7.9);
 }
 
 // ── The join between an identifier and a symbol ─────────────────────────────

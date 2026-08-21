@@ -10,6 +10,7 @@ import { knownFund } from "@/data/knownFunds";
 import { financialHealthModel, type HealthModel } from "@/lib/financialHealth";
 import {
   balanceSheetAxis,
+  mergeMetrics,
   ratio,
   PCR_TOTAL,
   type BalanceSheetModel,
@@ -64,7 +65,10 @@ export type { IntrinsicValue, ValuationMethod } from "@/lib/valuationModel";
  * table the pipeline writes with; a symbol that has no company record has no
  * filings by definition, which is the null case.
  */
-async function filedMetrics(symbol: string, model: HealthModel): Promise<ScoreAxis | null> {
+async function filedMetrics(
+  symbol: string,
+  model: HealthModel
+): Promise<Partial<BankMetrics & NbfcMetrics> | null> {
   if (model !== "bank" && model !== "nbfc") return null;
   let facts;
   try {
@@ -73,17 +77,9 @@ async function filedMetrics(symbol: string, model: HealthModel): Promise<ScoreAx
     return null;
   }
   if (!facts.length) return null;
-
-  if (model === "bank") {
-    const { metrics, sourced } = bankMetricsFromFilings(facts);
-    // Nothing usable came out, so this is the same as holding no filings at all
-    // and the quote feed's structural ratios are still worth trying.
-    if (sourced === 0) return null;
-    return balanceSheetAxis("bank", { bank: metrics as BankMetrics });
-  }
-  const { metrics, sourced } = nbfcMetricsFromFilings(facts);
-  if (sourced === 0) return null;
-  return balanceSheetAxis("nbfc", { nbfc: metrics as NbfcMetrics });
+  return model === "bank"
+    ? bankMetricsFromFilings(facts).metrics
+    : nbfcMetricsFromFilings(facts).metrics;
 }
 
 /**
@@ -170,7 +166,6 @@ async function balanceSheetStrength(
   // things a bank is judged on. Where they have not, it falls through to the
   // structural ratios below and says how much of the picture it had.
   const filed = await filedMetrics(symbol, model);
-  if (filed) return filed;
 
   // One balance-sheet date, so every ratio below is built from figures of the
   // same vintage and the same scope; ratio() refuses the combination otherwise.
@@ -213,21 +208,24 @@ async function balanceSheetStrength(
   };
 
   if (model === "bank") {
-    const bank: BankMetrics = {
+    const fromFeed: BankMetrics = {
       grossNpaRatio: NOT_IN_FEED,
       netNpaRatio: NOT_IN_FEED,
       provisionCoverage: { ...NOT_IN_FEED, definition: PCR_TOTAL },
       capitalBufferPoints: NOT_IN_FEED,
       ...structural,
     };
-    return balanceSheetAxis("bank", { bank });
+    // Both halves, per measure. The feed knows the shape of the balance sheet
+    // and nothing about the loan book; the filing knows the loan book and may
+    // not carry a full balance sheet. Taking either wholesale loses the other.
+    return balanceSheetAxis("bank", { bank: mergeMetrics(filed as Partial<BankMetrics> | null, fromFeed) });
   }
 
   // A non-bank lender gets no deposit-funding check at all. Most are not
   // licensed to take deposits, so the measure does not apply to them — and
   // scoring a company against a bar it is legally barred from clearing is
   // exactly the mistake this whole change exists to undo.
-  const nbfc: NbfcMetrics = {
+  const fromFeedNbfc: NbfcMetrics = {
     crarBufferPoints: NOT_IN_FEED,
     tier1BufferPoints: NOT_IN_FEED,
     stage3Ratio: NOT_IN_FEED,
@@ -239,7 +237,9 @@ async function balanceSheetStrength(
     largestExposureShare: NOT_IN_FEED,
     gearing: ratio(m("totalDebt"), equity, { definition: "total borrowings / shareholder equity" }),
   };
-  return balanceSheetAxis("nbfc", { nbfc });
+  return balanceSheetAxis("nbfc", {
+    nbfc: mergeMetrics(filed as Partial<NbfcMetrics> | null, fromFeedNbfc),
+  });
 }
 
 export interface LiveScore {

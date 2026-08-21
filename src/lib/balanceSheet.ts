@@ -134,6 +134,16 @@ export type CheckStatus = "pass" | "fail" | "unavailable";
 export interface ScoreCheck {
   label: string;
   status: CheckStatus;
+  /**
+   * Which part of the picture this check describes.
+   *
+   * Counting checks was not enough. Four of a bank's eight measures could be
+   * sourced and score 6/6 while every one of the four was a structural ratio
+   * from a quote feed and not one said anything about asset quality or capital.
+   * "Strong, 10/10" over a bank whose bad loans are unknown is a worse claim
+   * than the 0/10 this all started with, because it is confident.
+   */
+  domain?: string;
   /** The figure the check read, so the reader can see what it judged. */
   value?: number;
   /** How the value should be rendered: a ratio, a percentage, a multiple. */
@@ -154,8 +164,21 @@ export interface CheckSpec {
   label: string;
   threshold: string;
   unit?: ScoreCheck["unit"];
+  domain?: string;
   test: (value: number) => boolean;
 }
+
+/** The parts of a lender's picture, each of which has to be represented. */
+export const DOMAIN = {
+  /** Bad loans, provisions: whether the book is sound. */
+  ASSET_QUALITY: "asset-quality",
+  /** Capital against the regulatory floor: whether losses can be absorbed. */
+  CAPITAL: "capital",
+  /** Funding and leverage: the shape of the balance sheet. */
+  STRUCTURAL: "structural",
+  /** Everything an ordinary company is judged on. */
+  GENERAL: "general",
+} as const;
 
 /** Build one check from a sourced metric, or mark it unavailable. */
 export function evaluate(spec: CheckSpec, metric?: Metric): ScoreCheck {
@@ -163,6 +186,7 @@ export function evaluate(spec: CheckSpec, metric?: Metric): ScoreCheck {
     label: spec.label,
     threshold: spec.threshold,
     unit: spec.unit,
+    domain: spec.domain,
     asOf: metric?.asOf,
     scope: metric?.scope,
     source: metric?.source,
@@ -199,27 +223,82 @@ export interface ScoreAxis {
   unavailableNote?: string;
 }
 
+/** At least `atLeast` checks from this domain must have been measured. */
+export interface DomainRequirement {
+  domain: string;
+  atLeast: number;
+  /** What to call it when it is missing, in a sentence. */
+  label: string;
+}
+
+export interface SufficiencyRule {
+  /** How many checks in total must be measured. */
+  minimumEvaluated: number;
+  /** Which PARTS of the picture must be represented among them. */
+  domains: DomainRequirement[];
+  subject: string;
+}
+
 /**
- * Score over the checks that were EVALUATED, never over the checks that exist.
+ * Score over the checks that were EVALUATED, and only when they cover the
+ * ground a verdict needs.
  *
- * Dividing by the full count is the bug that produced 0/10: eight bank checks
- * of which none could be sourced scored zero out of eight, which reads as eight
- * failures. Here, zero evaluated checks is not a score at all.
+ * Two failures produced this function's shape, and they pull in opposite
+ * directions.
+ *
+ * Dividing by the full count gave 0/10: eight bank checks of which none could
+ * be sourced scored zero out of eight, which reads as eight failures. So the
+ * score is over evaluated checks only.
+ *
+ * But counting evaluated checks alone gave something worse. Four of a bank's
+ * eight measures could be sourced and score a confident 6/6, and all four were
+ * structural ratios from a quote feed: how the book is funded, how levered it
+ * is. Not one said anything about bad loans or capital. "Strong, 10/10" over a
+ * bank whose asset quality is unknown is a more damaging claim than "Fragile,
+ * 0/10", because it is assured, and a reader has no way to see that the four
+ * measures behind it were the four that do not matter most.
+ *
+ * So a count is not enough: the checks that were measured have to COVER the
+ * question. A bank needs asset quality, capital and the shape of its balance
+ * sheet, and missing any one of those means the picture is partial however many
+ * of the rest arrived.
  */
-export function scoreFromChecks(
-  checks: ScoreCheck[],
-  opts: { minimumEvaluated: number; subject: string }
-): ScoreAxis {
+export function scoreFromChecks(checks: ScoreCheck[], rule: SufficiencyRule): ScoreAxis {
   const evaluated = checks.filter((c) => c.status !== "unavailable");
   const passed = evaluated.filter((c) => c.status === "pass").length;
-  if (evaluated.length < opts.minimumEvaluated) {
+
+  if (!evaluated.length) {
     return {
       score: 0,
       checks,
       sufficient: false,
-      unavailableNote: `Insufficient ${opts.subject} data (${evaluated.length} of ${checks.length} measures sourced; ${opts.minimumEvaluated} needed).`,
+      unavailableNote: `Insufficient ${rule.subject} data (0 of ${checks.length} measures sourced).`,
     };
   }
+
+  const missing: string[] = [];
+  for (const req of rule.domains) {
+    const have = evaluated.filter((c) => c.domain === req.domain).length;
+    if (have < req.atLeast) missing.push(req.label);
+  }
+  const tooFew = evaluated.length < rule.minimumEvaluated;
+
+  if (tooFew || missing.length) {
+    // "Partial" rather than "insufficient" when something WAS measured. The
+    // difference is real and the reader can act on it: partial means the figures
+    // shown are sound and the picture is incomplete, and it names which part is
+    // missing rather than leaving the gap to be inferred.
+    const gap = missing.length
+      ? ` ${missing.join(" and ")} ${missing.length === 1 ? "is" : "are"} not sourced.`
+      : "";
+    return {
+      score: 0,
+      checks,
+      sufficient: false,
+      unavailableNote: `Partial ${rule.subject} data: ${evaluated.length} of ${checks.length} measures sourced.${gap}`,
+    };
+  }
+
   return {
     score: Math.round((passed / evaluated.length) * 6),
     checks,
@@ -243,6 +322,7 @@ export function industrialChecks(m: IndustrialMetrics): ScoreCheck[] {
         label: "Short-term assets cover liabilities (current ratio >1)",
         threshold: "> 1.0x",
         unit: "times",
+        domain: DOMAIN.GENERAL,
         test: (v) => v > 1,
       },
       m.currentRatio
@@ -252,12 +332,13 @@ export function industrialChecks(m: IndustrialMetrics): ScoreCheck[] {
         label: "Conservative debt (debt/equity below 1x)",
         threshold: "< 1.0x",
         unit: "times",
+        domain: DOMAIN.GENERAL,
         test: (v) => v < 1,
       },
       m.debtToEquity
     ),
     evaluate(
-      { label: "More cash than total debt", threshold: "> 1.0x", unit: "times", test: (v) => v > 1 },
+      { label: "More cash than total debt", threshold: "> 1.0x", unit: "times", domain: DOMAIN.GENERAL, test: (v) => v > 1 },
       m.cashToDebt
     ),
   ];
@@ -302,11 +383,13 @@ export function bankChecks(m: BankMetrics): ScoreCheck[] {
   const pcrIsSpecific = m.provisionCoverage?.definition === PCR_SPECIFIC;
   return [
     evaluate(
-      { label: "Low bad loans (gross NPA at or below 2%)", threshold: "≤ 2%", unit: "percent", test: (v) => v <= 0.02 },
+      { label: "Low bad loans (gross NPA at or below 2%)",
+        domain: DOMAIN.ASSET_QUALITY, threshold: "≤ 2%", unit: "percent", test: (v) => v <= 0.02 },
       m.grossNpaRatio
     ),
     evaluate(
-      { label: "Bad loans largely provided for (net NPA at or below 1%)", threshold: "≤ 1%", unit: "percent", test: (v) => v <= 0.01 },
+      { label: "Bad loans largely provided for (net NPA at or below 1%)",
+        domain: DOMAIN.ASSET_QUALITY, threshold: "≤ 1%", unit: "percent", test: (v) => v <= 0.01 },
       m.netNpaRatio
     ),
     evaluate(
@@ -316,6 +399,7 @@ export function bankChecks(m: BankMetrics): ScoreCheck[] {
           : "Strong provision coverage (total provisions ≥100% of gross NPAs)",
         threshold: pcrIsSpecific ? "≥ 70%" : "≥ 100%",
         unit: "percent",
+        domain: DOMAIN.ASSET_QUALITY,
         test: (v) => v >= (pcrIsSpecific ? 0.7 : 1),
       },
       m.provisionCoverage
@@ -323,6 +407,7 @@ export function bankChecks(m: BankMetrics): ScoreCheck[] {
     evaluate(
       {
         label: "Funded by customer deposits (≥65% of liabilities)",
+        domain: DOMAIN.STRUCTURAL,
         threshold: "≥ 65%",
         unit: "percent",
         test: (v) => v >= 0.65,
@@ -332,6 +417,7 @@ export function bankChecks(m: BankMetrics): ScoreCheck[] {
     evaluate(
       {
         label: "Loan book within its deposit base (70–105%)",
+        domain: DOMAIN.STRUCTURAL,
         threshold: "70–105%",
         unit: "percent",
         test: (v) => v >= 0.7 && v <= 1.05,
@@ -341,6 +427,7 @@ export function bankChecks(m: BankMetrics): ScoreCheck[] {
     evaluate(
       {
         label: "Balanced asset mix (loans 50–75% of assets)",
+        domain: DOMAIN.STRUCTURAL,
         threshold: "50–75%",
         unit: "percent",
         test: (v) => v >= 0.5 && v <= 0.75,
@@ -350,6 +437,7 @@ export function bankChecks(m: BankMetrics): ScoreCheck[] {
     evaluate(
       {
         label: "Conservative leverage for a bank (assets under 10x equity)",
+        domain: DOMAIN.STRUCTURAL,
         threshold: "< 10x",
         unit: "times",
         test: (v) => v < 10,
@@ -359,6 +447,7 @@ export function bankChecks(m: BankMetrics): ScoreCheck[] {
     evaluate(
       {
         label: "Capital comfortably above the regulatory minimum",
+        domain: DOMAIN.CAPITAL,
         threshold: "≥ 2 points of headroom",
         unit: "percent",
         test: (v) => v >= 0.02,
@@ -412,6 +501,7 @@ export function nbfcChecks(m: NbfcMetrics): ScoreCheck[] {
     evaluate(
       {
         label: "Capital above the regulatory minimum (CRAR headroom)",
+        domain: DOMAIN.CAPITAL,
         threshold: "≥ 2 points of headroom",
         unit: "percent",
         test: (v) => v >= 0.02,
@@ -421,6 +511,7 @@ export function nbfcChecks(m: NbfcMetrics): ScoreCheck[] {
     evaluate(
       {
         label: "Tier-1 capital above its own minimum",
+        domain: DOMAIN.CAPITAL,
         threshold: "≥ 1 point of headroom",
         unit: "percent",
         test: (v) => v >= 0.01,
@@ -430,6 +521,7 @@ export function nbfcChecks(m: NbfcMetrics): ScoreCheck[] {
     evaluate(
       {
         label: "Impaired book contained (Stage 3 / NPA at or below 3%)",
+        domain: DOMAIN.ASSET_QUALITY,
         threshold: "≤ 3%",
         unit: "percent",
         test: (v) => v <= 0.03,
@@ -439,6 +531,7 @@ export function nbfcChecks(m: NbfcMetrics): ScoreCheck[] {
     evaluate(
       {
         label: "Impaired book provided for (coverage ≥50%)",
+        domain: DOMAIN.ASSET_QUALITY,
         threshold: "≥ 50%",
         unit: "percent",
         test: (v) => v >= 0.5,
@@ -452,6 +545,7 @@ export function nbfcChecks(m: NbfcMetrics): ScoreCheck[] {
           : "Gearing within the range typical for its category",
         threshold: ceiling ? `< ${ceiling}x` : "category-dependent",
         unit: "times",
+        domain: DOMAIN.STRUCTURAL,
         test: (v) => (ceiling ? v < ceiling : v < 8),
       },
       m.gearing
@@ -459,6 +553,7 @@ export function nbfcChecks(m: NbfcMetrics): ScoreCheck[] {
     evaluate(
       {
         label: "No negative one-year asset-liability gap",
+        domain: DOMAIN.STRUCTURAL,
         threshold: "≥ 0% of outflows",
         unit: "percent",
         test: (v) => v >= 0,
@@ -468,6 +563,7 @@ export function nbfcChecks(m: NbfcMetrics): ScoreCheck[] {
     evaluate(
       {
         label: "Liquidity coverage above requirement",
+        domain: DOMAIN.STRUCTURAL,
         threshold: "≥ 100%",
         unit: "percent",
         test: (v) => v >= 1,
@@ -477,6 +573,7 @@ export function nbfcChecks(m: NbfcMetrics): ScoreCheck[] {
     evaluate(
       {
         label: "Funding not concentrated in one source (largest under 40%)",
+        domain: DOMAIN.STRUCTURAL,
         threshold: "< 40%",
         unit: "percent",
         test: (v) => v < 0.4,
@@ -486,6 +583,7 @@ export function nbfcChecks(m: NbfcMetrics): ScoreCheck[] {
     evaluate(
       {
         label: "Lending largely secured (≥60% of the book)",
+        domain: DOMAIN.STRUCTURAL,
         threshold: "≥ 60%",
         unit: "percent",
         test: (v) => v >= 0.6,
@@ -495,6 +593,7 @@ export function nbfcChecks(m: NbfcMetrics): ScoreCheck[] {
     evaluate(
       {
         label: "Exposure not concentrated in one sector (largest under 35%)",
+        domain: DOMAIN.STRUCTURAL,
         threshold: "< 35%",
         unit: "percent",
         test: (v) => v < 0.35,
@@ -524,7 +623,7 @@ export interface LifeInsurerMetrics {
 export function lifeInsurerChecks(m: LifeInsurerMetrics): ScoreCheck[] {
   return [
     evaluate(
-      { label: "Solvency comfortably above the regulatory minimum", threshold: "≥ 1.5x minimum", unit: "times", test: (v) => v >= 1.5 },
+      { label: "Solvency comfortably above the regulatory minimum", threshold: "≥ 1.5x minimum", unit: "times", domain: DOMAIN.CAPITAL, test: (v) => v >= 1.5 },
       m.solvencyRatio
     ),
     evaluate(
@@ -573,7 +672,7 @@ export interface GeneralInsurerMetrics {
 export function generalInsurerChecks(m: GeneralInsurerMetrics): ScoreCheck[] {
   return [
     evaluate(
-      { label: "Solvency comfortably above the regulatory minimum", threshold: "≥ 1.5x minimum", unit: "times", test: (v) => v >= 1.5 },
+      { label: "Solvency comfortably above the regulatory minimum", threshold: "≥ 1.5x minimum", unit: "times", domain: DOMAIN.CAPITAL, test: (v) => v >= 1.5 },
       m.solvencyRatio
     ),
     evaluate(
@@ -603,6 +702,38 @@ export function generalInsurerChecks(m: GeneralInsurerMetrics): ScoreCheck[] {
   ];
 }
 
+/**
+ * Take each measure from whichever source actually has it.
+ *
+ * Per metric, not per source, and the difference decides what a bank's card
+ * says. The two sources are good at opposite halves: the quote feed carries the
+ * structural ratios and nothing about asset quality, while a filing carries
+ * bad loans and capital and may or may not carry a full balance sheet. Choosing
+ * one source for the whole checklist throws away half the picture whichever way
+ * it is chosen — and returning the filing's metrics wholesale, as this used to,
+ * discarded four working structural ratios the moment a single filed fact
+ * existed.
+ *
+ * A filed figure wins where both have one: it is the company's own statement,
+ * with the definition its regulator agreed to, and the derived one is our
+ * arithmetic over a feed's balance sheet.
+ */
+export function mergeMetrics<T extends object>(filed: Partial<T> | null, derived: T): T {
+  if (!filed) return derived;
+  const out = { ...derived } as Record<string, unknown>;
+  for (const [key, value] of Object.entries(filed)) {
+    const m = value as Metric | undefined;
+    // Only a metric with an actual value displaces one. A filing that tagged a
+    // concept and failed validation must not evict a sound figure from the feed.
+    if (m && typeof m === "object" && typeof m.value === "number" && isFinite(m.value)) {
+      out[key] = m;
+    } else if (out[key] == null && m != null) {
+      out[key] = m;
+    }
+  }
+  return out as T;
+}
+
 // ── Choosing between them ───────────────────────────────────────────────────
 
 /**
@@ -629,25 +760,57 @@ export interface BalanceSheetMetrics {
   general?: GeneralInsurerMetrics;
 }
 
-/** How many measures must be sourced before a score means anything. */
-const MINIMUM_EVALUATED: Record<BalanceSheetModel, number> = {
-  // Three checks, and all three come from one quote payload: two is a real bar.
-  industrial: 2,
-  // Half the checklist. Fewer than four and the picture is too partial to score
-  // a bank on — asset quality, funding and capital each have to be represented,
-  // and four is the fewest that can cover them.
-  bank: 4,
-  nbfc: 4,
-  "life-insurer": 3,
-  "general-insurer": 3,
-};
-
-const SUBJECT: Record<BalanceSheetModel, string> = {
-  industrial: "balance sheet",
-  bank: "bank",
-  nbfc: "lender",
-  "life-insurer": "insurer",
-  "general-insurer": "insurer",
+/**
+ * What each kind of company needs before it can be scored.
+ *
+ * The domain requirements are the part that matters. A previous version of this
+ * asked only for four of eight bank measures, with a comment claiming that
+ * "asset quality, funding and capital each have to be represented" — which the
+ * code did not check. Four structural ratios from a quote feed satisfied it and
+ * produced a confident 10/10 for a bank whose bad loans were unknown. A comment
+ * asserting a guarantee the code does not provide is worse than no comment.
+ */
+const SUFFICIENCY: Record<BalanceSheetModel, SufficiencyRule> = {
+  // Three checks, all from one quote payload: two is a real bar, and there is
+  // only one domain, so there is nothing further to require.
+  industrial: {
+    minimumEvaluated: 2,
+    domains: [],
+    subject: "balance sheet",
+  },
+  bank: {
+    // Six of eight, AND covering all three parts of the question. A bank with
+    // its funding and leverage measured and its bad loans unknown is not
+    // three-quarters scored; it is unscored on the thing that decides.
+    minimumEvaluated: 6,
+    domains: [
+      { domain: DOMAIN.ASSET_QUALITY, atLeast: 1, label: "asset quality" },
+      { domain: DOMAIN.CAPITAL, atLeast: 1, label: "capital adequacy" },
+      { domain: DOMAIN.STRUCTURAL, atLeast: 2, label: "funding and leverage" },
+    ],
+    subject: "bank",
+  },
+  nbfc: {
+    minimumEvaluated: 6,
+    domains: [
+      { domain: DOMAIN.ASSET_QUALITY, atLeast: 1, label: "asset quality" },
+      { domain: DOMAIN.CAPITAL, atLeast: 1, label: "capital adequacy" },
+      { domain: DOMAIN.STRUCTURAL, atLeast: 2, label: "funding and liquidity" },
+    ],
+    subject: "lender",
+  },
+  // An insurer's solvency is the equivalent of a lender's capital: without it
+  // the rest describes a business that may or may not be able to pay claims.
+  "life-insurer": {
+    minimumEvaluated: 4,
+    domains: [{ domain: DOMAIN.CAPITAL, atLeast: 1, label: "solvency" }],
+    subject: "insurer",
+  },
+  "general-insurer": {
+    minimumEvaluated: 4,
+    domains: [{ domain: DOMAIN.CAPITAL, atLeast: 1, label: "solvency" }],
+    subject: "insurer",
+  },
 };
 
 /**
@@ -672,10 +835,7 @@ export function balanceSheetAxis(
           : model === "general-insurer"
             ? generalInsurerChecks(metrics.general ?? {})
             : industrialChecks(metrics.industrial ?? {});
-  return scoreFromChecks(checks, {
-    minimumEvaluated: MINIMUM_EVALUATED[model],
-    subject: SUBJECT[model],
-  });
+  return scoreFromChecks(checks, SUFFICIENCY[model]);
 }
 
 /** Checks that must never appear on a financial institution's card. */

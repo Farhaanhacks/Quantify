@@ -79,7 +79,10 @@ export default function FilingsUpload() {
     try {
       const res = await fetch("/api/filings/ingest", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        // Names this as a fetch from our own page. A cross-site form post
+        // cannot set a custom header, so the endpoint requires one before it
+        // will accept a session cookie at all.
+        headers: { "Content-Type": "application/json", "X-Quantifi-Ingest": "1" },
         body: JSON.stringify({
           companyId,
           industry,

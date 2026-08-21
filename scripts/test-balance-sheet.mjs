@@ -54,6 +54,7 @@ const {
   INDUSTRIAL_ONLY_LABELS,
   PCR_SPECIFIC,
   PCR_TOTAL,
+  DOMAIN,
 } = await import(join(out, "balanceSheet.js"));
 const { financialHealthModel } = await import(join(out, "financialHealth.js"));
 rmSync(out, { recursive: true, force: true });
@@ -133,31 +134,32 @@ const statuses = (checks) => checks.map((c) => c.status);
 {
   const mk = (n, status) => Array.from({ length: n }, (_, i) => ({ label: `c${i}`, status }));
 
-  const allPass = scoreFromChecks(mk(4, "pass"), { minimumEvaluated: 2, subject: "bank" });
+  const allPass = scoreFromChecks(mk(4, "pass"), { minimumEvaluated: 2, domains: [], subject: "bank" });
   ok("all passed is full marks", allPass.score === 6);
   ok("and is sufficient", allPass.sufficient === true);
 
-  const half = scoreFromChecks([...mk(2, "pass"), ...mk(2, "fail")], { minimumEvaluated: 2, subject: "bank" });
+  const half = scoreFromChecks([...mk(2, "pass"), ...mk(2, "fail")], { minimumEvaluated: 2, domains: [], subject: "bank" });
   ok("half passed is half marks", half.score === 3);
 
   // The 0/10 bug: eight checks, none sourced, scored zero out of eight.
-  const none = scoreFromChecks(mk(8, "unavailable"), { minimumEvaluated: 4, subject: "bank" });
+  const none = scoreFromChecks(mk(8, "unavailable"), { minimumEvaluated: 4, domains: [], subject: "bank" });
   ok("nothing sourced is not a score", none.sufficient === false);
   ok("and says insufficient", /insufficient/i.test(none.unavailableNote));
   ok("naming the subject", /bank/i.test(none.unavailableNote));
   ok("and how much was found", /0 of 8/.test(none.unavailableNote));
 
   // Below the bar: still not a score, however well the sourced ones did.
-  const thin = scoreFromChecks([...mk(2, "pass"), ...mk(6, "unavailable")], { minimumEvaluated: 4, subject: "bank" });
+  const thin = scoreFromChecks([...mk(2, "pass"), ...mk(6, "unavailable")], { minimumEvaluated: 4, domains: [], subject: "bank" });
   ok("two of eight is still insufficient", thin.sufficient === false);
+  ok("and is called partial, because something WAS measured", /partial/i.test(thin.unavailableNote));
   ok("even though both passed", thin.checks.filter((c) => c.status === "pass").length === 2);
 
   // At the bar: scored over the evaluated ones, not diluted by the absent ones.
-  const enough = scoreFromChecks([...mk(4, "pass"), ...mk(4, "unavailable")], { minimumEvaluated: 4, subject: "bank" });
+  const enough = scoreFromChecks([...mk(4, "pass"), ...mk(4, "unavailable")], { minimumEvaluated: 4, domains: [], subject: "bank" });
   ok("four of eight, all passing, is sufficient", enough.sufficient === true);
   ok("and scores full marks, not half", enough.score === 6);
 
-  const mixed = scoreFromChecks([...mk(2, "pass"), ...mk(2, "fail"), ...mk(4, "unavailable")], { minimumEvaluated: 4, subject: "bank" });
+  const mixed = scoreFromChecks([...mk(2, "pass"), ...mk(2, "fail"), ...mk(4, "unavailable")], { minimumEvaluated: 4, domains: [], subject: "bank" });
   ok("two of four evaluated is half marks", mixed.score === 3);
   ok("the unavailable ones are still listed", mixed.checks.length === 8);
 }
@@ -201,7 +203,7 @@ const statuses = (checks) => checks.map((c) => c.status);
     assetsToEquity: at(7.9),
     capitalBufferPoints: at(0.075),
   });
-  const axis = scoreFromChecks(hdfc, { minimumEvaluated: 4, subject: "bank" });
+  const axis = scoreFromChecks(hdfc, { minimumEvaluated: 4, domains: [], subject: "bank" });
   ok("a well-run bank is sufficient", axis.sufficient === true);
   ok("and scores at the top", axis.score === 6);
   ok("with no failures at all", hdfc.every((c) => c.status === "pass"));
@@ -220,7 +222,7 @@ const statuses = (checks) => checks.map((c) => c.status);
       assetsToEquity: at(22),
       capitalBufferPoints: at(0.001),
     }),
-    { minimumEvaluated: 4, subject: "bank" }
+    { minimumEvaluated: 4, domains: [], subject: "bank" }
   );
   ok("a troubled bank scores zero", weak.score === 0);
   ok("and that zero IS sufficient, because it is measured", weak.sufficient === true);
@@ -295,7 +297,7 @@ const statuses = (checks) => checks.map((c) => c.status);
       liquidityCover: at(1.4),
       investmentQuality: at(0.86),
     }),
-    { minimumEvaluated: 3, subject: "insurer" }
+    { minimumEvaluated: 3, domains: [], subject: "insurer" }
   );
   ok("a well-run general insurer scores fully", strong.score === 6);
   ok("an underwriting loss fails the combined ratio", generalInsurerChecks({ combinedRatio: at(1.08) })[1].status === "fail");
@@ -327,17 +329,28 @@ const statuses = (checks) => checks.map((c) => c.status);
   ok("every one marked unavailable", blindBank.checks.every((c) => c.status === "unavailable"));
   ok("and none marked failed", blindBank.checks.every((c) => c.status !== "fail"));
 
-  // The structural half alone — what a generic feed can actually reach — is
-  // exactly at the bar, and reports honestly either way.
+  // THE REGRESSION. The structural half is what a generic quote feed can reach,
+  // and on its own it used to score a confident 6/6 — "Strong, 10/10" over a
+  // bank whose bad loans and capital were entirely unknown. That is a worse
+  // claim than the 0/10 this all started with, because it is assured, and a
+  // reader has no way to see that the four measures behind it were the four
+  // that matter least.
   const structuralOnly = balanceSheetAxis("bank", {
     bank: { depositFunding: at(0.74), loansToDeposits: at(0.98), loansToAssets: at(0.63), assetsToEquity: at(7.9) },
   });
-  ok("four structural measures reach the bar", structuralOnly.sufficient === true);
-  ok("and score on their own merits", structuralOnly.score === 6);
+  ok("four structural measures are NOT a score", structuralOnly.sufficient === false);
+  ok("and specifically not 10/10", structuralOnly.score !== 6);
+  ok("it is reported as partial", /partial/i.test(structuralOnly.unavailableNote));
+  ok("naming the missing asset quality", /asset quality/i.test(structuralOnly.unavailableNote));
+  ok("and the missing capital", /capital/i.test(structuralOnly.unavailableNote));
+  ok("the four it did read are still shown as passing", structuralOnly.checks.filter((c) => c.status === "pass").length === 4);
+  ok("and the other four as unavailable, not failed", structuralOnly.checks.filter((c) => c.status === "unavailable").length === 4);
+  ok("with nothing marked as a failure", structuralOnly.checks.every((c) => c.status !== "fail"));
+
   const threeOnly = balanceSheetAxis("bank", {
     bank: { depositFunding: at(0.74), loansToDeposits: at(0.98), loansToAssets: at(0.63) },
   });
-  ok("three do not", threeOnly.sufficient === false);
+  ok("three structural measures are not a score either", threeOnly.sufficient === false);
 
   ok("an unsourced NBFC says lender, not bank", /insufficient lender data/i.test(balanceSheetAxis("nbfc", {}).unavailableNote));
   ok("an unsourced insurer says insurer", /insufficient insurer data/i.test(balanceSheetAxis("life-insurer", {}).unavailableNote));
@@ -428,6 +441,90 @@ const statuses = (checks) => checks.map((c) => c.status);
   // A lone dash meaning "no value" says nothing out loud; a screen reader
   // announces it as silence.
   ok("no bare dash standing in for a value", !everyString.some((t) => t.trim() === "-" || t.trim() === "–"));
+}
+
+// ── Coverage, not just count ────────────────────────────────────────────────
+//
+// A bank has three questions to answer and eight measures spread across them.
+// Counting the measures alone lets a company answer the easy question four
+// times and be scored as though it had answered all three.
+{
+  const structural = { depositFunding: at(0.74), loansToDeposits: at(0.98), loansToAssets: at(0.63), assetsToEquity: at(7.9) };
+  const assetQuality = { grossNpaRatio: at(0.0133), netNpaRatio: at(0.0043), provisionCoverage: at(1.71, { definition: PCR_TOTAL }) };
+  const capital = { capitalBufferPoints: at(0.073) };
+
+  ok("every bank check declares a domain", bankChecks({}).every((c) => !!c.domain));
+  ok("three domains are represented", new Set(bankChecks({}).map((c) => c.domain)).size === 3);
+  ok("four structural checks", bankChecks({}).filter((c) => c.domain === DOMAIN.STRUCTURAL).length === 4);
+  ok("three asset-quality checks", bankChecks({}).filter((c) => c.domain === DOMAIN.ASSET_QUALITY).length === 3);
+  ok("one capital check", bankChecks({}).filter((c) => c.domain === DOMAIN.CAPITAL).length === 1);
+
+  const only = (m) => balanceSheetAxis("bank", { bank: m });
+
+  ok("structural alone is not enough", only(structural).sufficient === false);
+  ok("asset quality alone is not enough", only(assetQuality).sufficient === false);
+  ok("capital alone is not enough", only(capital).sufficient === false);
+  ok("structural plus capital still misses asset quality", only({ ...structural, ...capital }).sufficient === false);
+  ok("and says which", /asset quality/i.test(only({ ...structural, ...capital }).unavailableNote));
+  ok("structural plus asset quality still misses capital", only({ ...structural, ...assetQuality }).sufficient === false);
+  ok("and says which", /capital/i.test(only({ ...structural, ...assetQuality }).unavailableNote));
+
+  // Seven of eight, covering all three: enough.
+  const nearlyAll = only({ ...structural, ...capital, grossNpaRatio: at(0.0133), netNpaRatio: at(0.0043) });
+  ok("seven of eight across all three domains IS a score", nearlyAll.sufficient === true);
+  ok("and scores on what it measured", nearlyAll.score === 6);
+
+  // Six of eight is the floor, and only with the domains covered.
+  const six = only({ depositFunding: at(0.74), loansToDeposits: at(0.98), loansToAssets: at(0.63), assetsToEquity: at(7.9), grossNpaRatio: at(0.0133), capitalBufferPoints: at(0.073) });
+  ok("six across all three domains is enough", six.sufficient === true);
+  // Five is not, however well spread.
+  const five = only({ depositFunding: at(0.74), loansToDeposits: at(0.98), loansToAssets: at(0.63), grossNpaRatio: at(0.0133), capitalBufferPoints: at(0.073) });
+  ok("five is not", five.sufficient === false);
+
+  // The whole checklist still works.
+  const complete = only({ ...structural, ...assetQuality, ...capital });
+  ok("all eight is a score", complete.sufficient === true);
+  ok("and nothing is left unmeasured", complete.checks.every((c) => c.status !== "unavailable"));
+
+  // A bad bank with a full picture must still be able to score zero.
+  const troubled = only({
+    depositFunding: at(0.35), loansToDeposits: at(1.6), loansToAssets: at(0.85), assetsToEquity: at(22),
+    grossNpaRatio: at(0.14), netNpaRatio: at(0.07), provisionCoverage: at(0.4, { definition: PCR_TOTAL }),
+    capitalBufferPoints: at(0.001),
+  });
+  ok("a troubled bank still scores zero", troubled.score === 0);
+  ok("and that zero is a measurement", troubled.sufficient === true);
+}
+
+// ── The same rule for a non-bank lender ─────────────────────────────────────
+{
+  ok("every NBFC check declares a domain", nbfcChecks({}).every((c) => !!c.domain));
+  const structuralOnly = balanceSheetAxis("nbfc", {
+    nbfc: { gearing: at(7.56, {}), liquidityCoverage: at(1.4), securedShare: at(0.9), largestFundingShare: at(0.3) },
+  });
+  ok("an NBFC is not scored on structure alone", structuralOnly.sufficient === false);
+  ok("and it says lender, not bank", /lender/i.test(structuralOnly.unavailableNote));
+  const full = balanceSheetAxis("nbfc", {
+    nbfc: {
+      crarBufferPoints: at(0.08), tier1BufferPoints: at(0.05), stage3Ratio: at(0.02),
+      provisionCoverage: at(0.6), gearing: at(7.56), gearingCeiling: 10,
+      liquidityCoverage: at(1.4), securedShare: at(0.9),
+    },
+  });
+  ok("a full picture is scored", full.sufficient === true);
+}
+
+// ── Insurers need their solvency ────────────────────────────────────────────
+{
+  const noSolvency = balanceSheetAxis("general-insurer", {
+    general: { combinedRatio: at(0.96), claimsRatio: at(0.68), reserveAdequacy: at(1.1), liquidityCover: at(1.4) },
+  });
+  ok("an insurer without solvency is not scored", noSolvency.sufficient === false);
+  ok("and it says so", /solvency/i.test(noSolvency.unavailableNote));
+  const withSolvency = balanceSheetAxis("general-insurer", {
+    general: { solvencyRatio: at(2.1), combinedRatio: at(0.96), claimsRatio: at(0.68), reserveAdequacy: at(1.1) },
+  });
+  ok("with it, the same figures score", withSolvency.sufficient === true);
 }
 
 console.log(`${passed} passed, ${failed} failed`);
