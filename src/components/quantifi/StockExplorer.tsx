@@ -398,27 +398,31 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
       ) : null}
 
       {stage === "analysis" ? (
-        <div className="mx-auto max-w-7xl lg:grid lg:grid-cols-[224px_minmax(0,1fr)]">
-          {/* Sticky section rail (desktop) */}
-          <div className="lg:pl-4">
-            <StockSectionNav sections={NAV_SECTIONS} />
-          </div>
+        <>
+          {/* The live company identity is the page header. It spans the full
+              analysis width before the section rail splits off, instead of
+              leaving a generic title above and an empty 224px strip beside it. */}
+          <StockHero
+            ticker={ticker}
+            name={score?.name ?? etf?.name}
+            price={score?.price}
+            currency={score?.currency}
+            score={
+              score?.analytics
+                ? SCORE_AXES.reduce((sum, ax) => sum + (score.analytics!.scores[ax.key].score ?? 0), 0)
+                : undefined
+            }
+            fairValue={score?.analytics?.fairValue?.estimate}
+          />
 
-          {/* Main content column */}
-          <div className="min-w-0">
-            {/* Identity band — who this company is, what it costs, and the actions. */}
-            <StockHero
-              ticker={ticker}
-              name={score?.name ?? etf?.name}
-              price={score?.price}
-              currency={score?.currency}
-              score={
-                score?.analytics
-                  ? SCORE_AXES.reduce((sum, ax) => sum + (score.analytics!.scores[ax.key].score ?? 0), 0)
-                  : undefined
-              }
-              fairValue={score?.analytics?.fairValue?.estimate}
-            />
+          <div className="mx-auto max-w-7xl lg:grid lg:grid-cols-[224px_minmax(0,1fr)]">
+            {/* Sticky section rail (desktop) */}
+            <div className="lg:pl-4">
+              <StockSectionNav sections={NAV_SECTIONS} />
+            </div>
+
+            {/* Main content column */}
+            <div className="min-w-0">
 
             {/* Live chart with engine toggle — only for a revealed name or Pro. */}
             <section id="sec-chart" className="scroll-mt-24 px-4 pb-2 pt-6 sm:px-6 lg:px-8">
@@ -582,8 +586,9 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
                 />
               </>
             ) : null}
+            </div>
           </div>
-        </div>
+        </>
       ) : stage === "loading" ? (
         <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
           <GlassCard className="p-6">
