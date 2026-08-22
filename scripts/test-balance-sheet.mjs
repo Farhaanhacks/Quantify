@@ -55,6 +55,11 @@ const {
   PCR_SPECIFIC,
   PCR_TOTAL,
   DOMAIN,
+  valuationChecks,
+  growthChecks,
+  qualityChecks,
+  capitalAllocationChecks,
+  GENERAL_SUFFICIENCY,
 } = await import(join(out, "balanceSheet.js"));
 const { financialHealthModel } = await import(join(out, "financialHealth.js"));
 rmSync(out, { recursive: true, force: true });
@@ -525,6 +530,90 @@ const statuses = (checks) => checks.map((c) => c.status);
     general: { solvencyRatio: at(2.1), combinedRatio: at(0.96), claimsRatio: at(0.68), reserveAdequacy: at(1.1) },
   });
   ok("with it, the same figures score", withSolvency.sufficient === true);
+}
+
+// ── The other four axes ─────────────────────────────────────────────────────
+//
+// Three checks each was thin enough to mislead. A company could pass "below
+// target, P/E under 25, PEG under 2" and be a declining business cheap for good
+// reason; three binary questions cannot tell that from a compounder, and a
+// score out of ten implied a precision the checklist did not have.
+{
+  const all = [
+    ["valuation", valuationChecks({})],
+    ["growth", growthChecks({})],
+    ["quality", qualityChecks({})],
+    ["capital allocation", capitalAllocationChecks({})],
+  ];
+  for (const [name, checks] of all) {
+    ok(`${name} asks six questions`, checks.length === 6);
+    ok(`${name} declares a domain on each`, checks.every((c) => !!c.domain));
+    ok(`${name} states a threshold on each`, checks.every((c) => !!c.threshold));
+    ok(`${name} is unavailable with nothing sourced`, checks.every((c) => c.status === "unavailable"));
+    ok(`${name} marks nothing as failed`, checks.every((c) => c.status !== "fail"));
+    ok(`${name} asks six DIFFERENT questions`, new Set(checks.map((c) => c.label)).size === 6);
+    ok(`${name} carries no em-dash`, checks.every((c) => !c.label.includes("—")));
+  }
+
+  // Each axis must be able to reach both ends, or it is decoration.
+  const cheap = scoreFromChecks(
+    valuationChecks({
+      belowTarget: at(0.25), priceEarnings: at(14), pegRatio: at(0.9),
+      priceToFairValue: at(0.7), priceToSales: at(2.1), freeCashFlowYield: at(0.06),
+    }),
+    GENERAL_SUFFICIENCY
+  );
+  ok("a cheap company scores fully on valuation", cheap.score === 6);
+  ok("and is sufficient", cheap.sufficient === true);
+  const dear = scoreFromChecks(
+    valuationChecks({
+      belowTarget: at(-0.2), priceEarnings: at(80), pegRatio: at(5),
+      priceToFairValue: at(2.4), priceToSales: at(22), freeCashFlowYield: at(0.002),
+    }),
+    GENERAL_SUFFICIENCY
+  );
+  ok("an expensive one scores zero", dear.score === 0);
+  ok("which is a measurement", dear.sufficient === true);
+
+  // Four of six is the bar; three is not.
+  ok("four sourced measures are enough",
+    scoreFromChecks(valuationChecks({ belowTarget: at(0.2), priceEarnings: at(14), pegRatio: at(0.9), priceToSales: at(2) }), GENERAL_SUFFICIENCY).sufficient === true);
+  ok("three are not",
+    scoreFromChecks(valuationChecks({ belowTarget: at(0.2), priceEarnings: at(14), pegRatio: at(0.9) }), GENERAL_SUFFICIENCY).sufficient === false);
+  ok("and it says partial", /partial/i.test(
+    scoreFromChecks(valuationChecks({ belowTarget: at(0.2) }), GENERAL_SUFFICIENCY).unavailableNote));
+
+  // The distinctions the extra checks exist to draw.
+  //
+  // Revenue growth bought by discounting is not growth, and the two are
+  // indistinguishable until earnings growth is compared against it.
+  const discounting = growthChecks({ revenueGrowth: at(0.30), earningsGrowth: at(0.02), marginExpansion: at(-0.28) });
+  ok("revenue growth alone still passes", discounting[0].status === "pass");
+  ok("but the margin check catches the discounting", discounting[2].status === "fail");
+
+  // Return on equity flatters a levered company; return on assets does not.
+  const levered = qualityChecks({ returnOnEquity: at(0.22), returnOnAssets: at(0.011) });
+  ok("return on equity passes", levered[2].status === "pass");
+  ok("and return on assets does not", levered[3].status === "fail");
+
+  // Reported profit that never reaches the cash flow statement.
+  const uncashed = qualityChecks({ profitMargin: at(0.18), earningsBackedByCash: at(0.3) });
+  ok("the margin looks healthy", uncashed[1].status === "pass");
+  ok("and the cash check refuses it", uncashed[4].status === "fail");
+
+  // A dividend covered on paper and not in cash.
+  const borrowed = capitalAllocationChecks({
+    dividendYield: at(0.05), payoutRatio: at(0.6), dividendCoveredByCash: at(0.4), netDebtToCashFlow: at(6.2),
+  });
+  ok("the payout ratio passes", borrowed[2].status === "pass");
+  ok("the cash cover does not", borrowed[3].status === "fail");
+  ok("and the borrowing shows", borrowed[4].status === "fail");
+
+  // A company that pays nothing and compounds is allocating capital well, and
+  // a three-check dividend axis had no way to say so.
+  const compounder = capitalAllocationChecks({ dividendYield: at(0), payoutRatio: at(0), reinvestmentReturn: at(0.28) });
+  ok("no dividend is a fail on the yield checks", compounder[0].status === "fail" && compounder[1].status === "fail");
+  ok("but the reinvestment check passes", compounder[5].status === "pass");
 }
 
 console.log(`${passed} passed, ${failed} failed`);

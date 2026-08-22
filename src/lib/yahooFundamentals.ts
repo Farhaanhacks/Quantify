@@ -1,7 +1,6 @@
 import type {
   CompanyAnalytics,
   ScoreAxis,
-  ScoreCheck,
   ScoreAxisKey,
 } from "@/data/demo";
 import { yahooQuoteSummary, resolveYahooSymbol, yahooQuotes } from "@/lib/yahooCrumb";
@@ -10,8 +9,14 @@ import { knownFund } from "@/data/knownFunds";
 import { financialHealthModel, type HealthModel } from "@/lib/financialHealth";
 import {
   balanceSheetAxis,
+  capitalAllocationChecks,
+  GENERAL_SUFFICIENCY,
+  growthChecks,
   mergeMetrics,
+  qualityChecks,
   ratio,
+  scoreFromChecks,
+  valuationChecks,
   PCR_TOTAL,
   type BalanceSheetModel,
   type BankMetrics,
@@ -269,30 +274,11 @@ const num = (x: unknown): number | undefined => {
   return undefined;
 };
 
-const str = (x: unknown): string | undefined =>
-  typeof x === "string" && x.length ? x : undefined;
-
-/**
- * An axis built from checks that were all evaluated.
- *
- * The other four axes read fields that either arrive or do not, and where they
- * do not the check genuinely fails — a company with no dividend yield does not
- * pay a dividend. Balance Sheet Strength is different, and does not come
- * through here: see balanceSheetAxis, which distinguishes a metric we could not
- * source from one the company failed.
- */
-function axis(checks: ScoreCheck[]): ScoreAxis {
-  const passed = checks.filter((c) => c.status === "pass").length;
-  const score = checks.length ? Math.round((passed / checks.length) * 6) : 0;
-  return { score, checks, sufficient: true };
-}
-
-const c = (label: string, pass: boolean): ScoreCheck => ({
-  label,
-  status: pass ? "pass" : "fail",
-});
 const fpct = (x: number | undefined): string =>
   x == null ? "n/a" : `${(x * 100).toFixed(0)}%`;
+
+const str = (x: unknown): string | undefined =>
+  typeof x === "string" && x.length ? x : undefined;
 
 // The through-cycle cash-flow base, extracted so the live score and the
 // historical reconstruction cannot drift apart. Raw free cash flow is the wrong
@@ -937,30 +923,6 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
     totalDebt,
   });
 
-  const scores: Record<ScoreAxisKey, ScoreAxis> = {
-    value: axis([
-      c("Trades below analysts' average target", target != null && price < target),
-      c("Reasonable P/E (below 25)", pe != null && pe > 0 && pe < 25),
-      c("Growth fairly priced (PEG below 2)", peg != null && peg > 0 && peg < 2),
-    ]),
-    growth: axis([
-      c("Revenue growing (>5%)", revGrowth != null && revGrowth > 0.05),
-      c("Earnings growing (>5%)", earnGrowth != null && earnGrowth > 0.05),
-      c("Strong return on equity (>15%)", roe != null && roe > 0.15),
-    ]),
-    past: axis([
-      c("Currently profitable", profitMargins != null && profitMargins > 0),
-      c("Healthy profit margin (>10%)", profitMargins != null && profitMargins > 0.1),
-      c("Good return on equity (>12%)", roe != null && roe > 0.12),
-    ]),
-    health,
-    dividends: axis([
-      c("Pays a dividend", divYield != null && divYield > 0),
-      c("Yield above ~2%", divYield != null && divYield > 0.02),
-      c("Dividend covered by earnings (payout <80%)", payout != null && payout > 0 && payout < 0.8),
-    ]),
-  };
-
   const rewards: string[] = [];
   const riskFlags: string[] = [];
   if (roe != null && roe > 0.15) rewards.push(`Strong return on equity (${fpct(roe)}).`);
@@ -1168,6 +1130,111 @@ export async function getYahooScore(symbol: string): Promise<LiveScore | null> {
         evToRevenue: num(ks.enterpriseToRevenue),
       })
     : undefined;
+
+  // ── The other four axes, in detail ────────────────────────────────────────
+  //
+  // Six measures each, from a source named on every one. Three was thin enough
+  // to be misleading: a company could pass "below target, P/E under 25, PEG
+  // under 2" and be a declining business cheap for good reason, and three
+  // binary questions cannot separate that from a compounder.
+  const yf = (value: number | undefined, definition: string, derived = false): Metric =>
+    value != null && isFinite(value)
+      ? { value, source: "Yahoo Finance", definition, derived }
+      : { unavailableReason: "Not published for this company by the current data source.", definition };
+
+  const ocfLatest = ocfSeries.length ? ocfSeries[ocfSeries.length - 1] : undefined;
+  const revenueTtm = num(fd.totalRevenue) ?? num(ks.totalRevenue);
+  const netIncomeApprox =
+    profitMargins != null && revenueTtm != null ? profitMargins * revenueTtm : undefined;
+  const netDebt =
+    totalDebt != null && totalCash != null ? totalDebt - totalCash : undefined;
+  const dividendBill =
+    divYield != null && marketCapLive != null ? divYield * marketCapLive : undefined;
+
+  const scores: Record<ScoreAxisKey, ScoreAxis> = {
+    value: scoreFromChecks(
+      valuationChecks({
+        belowTarget: yf(
+          target != null && price != null && price > 0 ? target / price - 1 : undefined,
+          "analysts' mean target over price, less one",
+          true
+        ),
+        priceEarnings: yf(pe, "trailing price to earnings"),
+        pegRatio: yf(peg, "price/earnings to growth"),
+        priceToFairValue: yf(
+          intrinsic?.estimate != null && intrinsic.estimate > 0 && price != null
+            ? price / intrinsic.estimate
+            : undefined,
+          "price over the modelled fair value",
+          true
+        ),
+        priceToSales: yf(priceToSales, "price to sales"),
+        freeCashFlowYield: yf(
+          medFcf != null && marketCapLive != null && marketCapLive > 0
+            ? medFcf / marketCapLive
+            : undefined,
+          "through-cycle free cash flow over market value",
+          true
+        ),
+      }),
+      GENERAL_SUFFICIENCY
+    ),
+    growth: scoreFromChecks(
+      growthChecks({
+        revenueGrowth: yf(revGrowth, "revenue growth, year on year"),
+        earningsGrowth: yf(earnGrowth, "earnings growth, year on year"),
+        marginExpansion: yf(
+          earnGrowth != null && revGrowth != null ? earnGrowth - revGrowth : undefined,
+          "earnings growth less revenue growth",
+          true
+        ),
+        forecastGrowth: yf(growthOf("+1y"), "analyst consensus growth, next year"),
+        longTermGrowth: yf(analystGrowth, "analyst consensus growth, longer term"),
+        cashFlowGrowth: yf(cagr(ocfSeries) ?? cagr(fcfSeries), "compound growth in operating cash flow", true),
+      }),
+      GENERAL_SUFFICIENCY
+    ),
+    past: scoreFromChecks(
+      qualityChecks({
+        profitMargin: yf(profitMargins, "net profit margin"),
+        returnOnEquity: yf(roe, "return on equity"),
+        returnOnAssets: yf(num(fd.returnOnAssets), "return on assets"),
+        earningsBackedByCash: yf(
+          ocfLatest != null && netIncomeApprox != null && netIncomeApprox > 0
+            ? ocfLatest / netIncomeApprox
+            : undefined,
+          "operating cash flow over net income",
+          true
+        ),
+        throughCycleFreeCashFlow: yf(medFcf, "through-cycle free cash flow"),
+        profitableYears: yf(undefined, "share of the last five years that were profitable"),
+      }),
+      GENERAL_SUFFICIENCY
+    ),
+    health,
+    dividends: scoreFromChecks(
+      capitalAllocationChecks({
+        dividendYield: yf(divYield, "dividend yield"),
+        payoutRatio: yf(payout, "dividends as a share of earnings"),
+        dividendCoveredByCash: yf(
+          dividendBill != null && dividendBill > 0 && medFcf != null
+            ? medFcf / dividendBill
+            : undefined,
+          "through-cycle free cash flow over the dividend bill",
+          true
+        ),
+        netDebtToCashFlow: yf(
+          netDebt != null && ocfLatest != null && ocfLatest > 0 ? netDebt / ocfLatest : undefined,
+          "net debt over operating cash flow",
+          true
+        ),
+        reinvestmentReturn: yf(roe, "return on equity"),
+        shareCountChange: yf(undefined, "shares outstanding against a year ago"),
+      }),
+      GENERAL_SUFFICIENCY
+    ),
+  };
+
 
   const analytics: CompanyAnalytics = {
     ticker: symbol.toUpperCase(),

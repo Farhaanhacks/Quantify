@@ -127,7 +127,17 @@ function proxied(url: string, opts?: { ultra?: boolean }): string {
 // On a non-OK response we also keep a short body snippet — that's what tells a
 // ScraperAPI key error (401 "invalid api key") apart from a BSE block (403/upstream)
 // apart from a plan limit, from the live ?debug=1 URL, without more round trips.
-async function fetchStatus(
+/**
+ * Exported so the filings pipeline can reuse it.
+ *
+ * Everything hard about talking to the BSE lives in this function and in
+ * proxied() above: the header pass-through ScraperAPI drops by default, the
+ * residential proxy pool the BSE's datacenter block requires, the double-decode
+ * for bodies that come back JSON-encoded as strings, and the status reporting
+ * that tells a bad key from a block from a plan limit. A second caller writing
+ * its own would rediscover each of those the hard way.
+ */
+export async function bseFetchJson(
   url: string,
   timeoutMs = usingProxy() ? 18000 : 9000,
   opts?: { ultra?: boolean }
@@ -171,15 +181,41 @@ async function fetchStatus(
   }
 }
 
+/**
+ * Fetch a document as text, through the same proxy the JSON calls use.
+ *
+ * The attachments are XML, so the JSON path is wrong for them twice over: it
+ * parses and discards the body, and it truncates what it keeps to a snippet.
+ * They still need the proxy, because the block that stops the API also stops
+ * the file server.
+ */
+export async function bseFetchText(
+  url: string,
+  timeoutMs = usingProxy() ? 30000 : 15000
+): Promise<{ status: number | null; text: string | null }> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(proxied(url), { headers: BSE_HEADERS, signal: ctrl.signal });
+    const text = await res.text().catch(() => "");
+    return { status: res.status, text: res.ok ? text : null };
+  } catch {
+    return { status: null, text: null };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 const baseSymbol = (ticker: string): string =>
   ticker.toUpperCase().replace(/\.(NS|BO)$/i, "").trim();
 
-async function resolveScripCode(ticker: string): Promise<string | null> {
+/** Exported for the same reason: the scrip code is how the BSE names a company. */
+export async function resolveScripCode(ticker: string): Promise<string | null> {
   const sym = baseSymbol(ticker);
   if (/^\d{6}$/.test(sym)) return sym; // a ".BO" numeric code is the scrip code
   if (BSE_SCRIP[sym]) return BSE_SCRIP[sym];
 
-  const { json } = await fetchStatus(
+  const { json } = await bseFetchJson(
     `https://api.bseindia.com/BseIndiaAPI/api/PageInoutSearch/w?flag=&text=${encodeURIComponent(sym)}`
   );
   const arr: unknown[] = Array.isArray(json)
@@ -195,7 +231,7 @@ async function resolveScripCode(ticker: string): Promise<string | null> {
   return null;
 }
 
-const ymd = (d: Date): string =>
+export const ymd = (d: Date): string =>
   `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
 
 const isInsiderRow = (cat: string, sub: string): boolean =>
@@ -265,13 +301,13 @@ export async function getIndiaInsiderWithDebug(
     // A TIMEOUT (status null) is NOT a block — escalating to the slower ultra tier
     // on a timeout is what blew the 60s budget, so we do NOT escalate on it.
     const fetchUrl = async (url: string, allowUltra: boolean) => {
-      let r = await fetchStatus(url);
+      let r = await bseFetchJson(url);
       if (r.status === 429) {
         await sleep(2500);
-        r = await fetchStatus(url);
+        r = await bseFetchJson(url);
       } else if (allowUltra && r.status === 403 && usingProxy() && process.env.SCRAPER_ULTRA !== "1") {
         debug.escalated = true;
-        const retry = await fetchStatus(url, undefined, { ultra: true });
+        const retry = await bseFetchJson(url, undefined, { ultra: true });
         if (!blocked(retry)) r = retry;
       }
       return r;

@@ -739,6 +739,305 @@ export function mergeMetrics<T extends object>(filed: Partial<T> | null, derived
   return out as T;
 }
 
+// ── The other four axes ─────────────────────────────────────────────────────
+//
+// Three checks each was thin, and thin in a way that showed: a company could
+// pass all three of "below target, P/E under 25, PEG under 2" and be a
+// declining business on a low multiple for good reason, or fail all three and
+// be a compounder. Three binary questions cannot separate those, and the score
+// out of ten implied a precision the checklist did not have.
+//
+// So six each, and each one a different question rather than three phrasings of
+// the same one. The valuation axis now asks about earnings, sales, cash and two
+// independent estimates of worth; the growth axis asks whether growth is
+// happening, whether it is profitable, and whether anyone expects it to
+// continue.
+//
+// They use the same three-state check as the bank checklist, and for the same
+// reason: a P/E that is absent because a company lost money is a different
+// statement from a P/E that is absent because the feed did not carry one, and
+// only one of them is a mark against the company.
+
+export interface ValuationMetrics {
+  belowTarget?: Metric;
+  priceEarnings?: Metric;
+  pegRatio?: Metric;
+  /** Price against an independently modelled value, as a ratio. Below 1 is cheap. */
+  priceToFairValue?: Metric;
+  priceToSales?: Metric;
+  /** Through-cycle free cash flow over market value. */
+  freeCashFlowYield?: Metric;
+}
+
+export function valuationChecks(m: ValuationMetrics): ScoreCheck[] {
+  return [
+    evaluate(
+      {
+        label: "Trades below analysts' average target",
+        threshold: "price < target",
+        unit: "ratio",
+        domain: DOMAIN.GENERAL,
+        test: (v) => v > 0,
+      },
+      m.belowTarget
+    ),
+    evaluate(
+      {
+        label: "Earnings multiple is not demanding (P/E below 25)",
+        threshold: "< 25x",
+        unit: "times",
+        domain: DOMAIN.GENERAL,
+        test: (v) => v > 0 && v < 25,
+      },
+      m.priceEarnings
+    ),
+    evaluate(
+      {
+        label: "Growth is fairly priced (PEG below 2)",
+        threshold: "< 2.0",
+        unit: "ratio",
+        domain: DOMAIN.GENERAL,
+        test: (v) => v > 0 && v < 2,
+      },
+      m.pegRatio
+    ),
+    evaluate(
+      {
+        label: "Below an independent estimate of fair value",
+        threshold: "< 1.0x fair value",
+        unit: "times",
+        domain: DOMAIN.GENERAL,
+        test: (v) => v > 0 && v < 1,
+      },
+      m.priceToFairValue
+    ),
+    evaluate(
+      {
+        label: "Sales multiple is not stretched (P/S below 5)",
+        threshold: "< 5.0x",
+        unit: "times",
+        domain: DOMAIN.GENERAL,
+        test: (v) => v > 0 && v < 5,
+      },
+      m.priceToSales
+    ),
+    evaluate(
+      {
+        // The check that does not depend on an accounting profit at all, which
+        // is why it earns its place beside three that do.
+        label: "Free cash flow yield above 3%",
+        threshold: "≥ 3%",
+        unit: "percent",
+        domain: DOMAIN.GENERAL,
+        test: (v) => v >= 0.03,
+      },
+      m.freeCashFlowYield
+    ),
+  ];
+}
+
+export interface GrowthMetrics {
+  revenueGrowth?: Metric;
+  earningsGrowth?: Metric;
+  /** Earnings growth less revenue growth. Positive means margins are widening. */
+  marginExpansion?: Metric;
+  /** What analysts expect next year. */
+  forecastGrowth?: Metric;
+  /** The longer consensus, where there is one. */
+  longTermGrowth?: Metric;
+  /** Compound growth in operating cash flow across the years we hold. */
+  cashFlowGrowth?: Metric;
+}
+
+export function growthChecks(m: GrowthMetrics): ScoreCheck[] {
+  return [
+    evaluate(
+      { label: "Revenue growing (above 5%)", threshold: "> 5%", unit: "percent", domain: DOMAIN.GENERAL, test: (v) => v > 0.05 },
+      m.revenueGrowth
+    ),
+    evaluate(
+      { label: "Earnings growing (above 5%)", threshold: "> 5%", unit: "percent", domain: DOMAIN.GENERAL, test: (v) => v > 0.05 },
+      m.earningsGrowth
+    ),
+    evaluate(
+      {
+        // Revenue growth bought by discounting is not the same thing as growth,
+        // and the two are indistinguishable until you compare them.
+        label: "Earnings growing at least as fast as revenue",
+        threshold: "≥ 0 points",
+        unit: "percent",
+        domain: DOMAIN.GENERAL,
+        test: (v) => v >= 0,
+      },
+      m.marginExpansion
+    ),
+    evaluate(
+      { label: "Analysts expect growth next year", threshold: "> 0%", unit: "percent", domain: DOMAIN.GENERAL, test: (v) => v > 0 },
+      m.forecastGrowth
+    ),
+    evaluate(
+      { label: "Longer-term consensus growth above 8%", threshold: "> 8%", unit: "percent", domain: DOMAIN.GENERAL, test: (v) => v > 0.08 },
+      m.longTermGrowth
+    ),
+    evaluate(
+      {
+        // Reported growth that never reaches the cash flow statement is the
+        // oldest warning sign there is.
+        label: "Cash generation growing, not just reported profit",
+        threshold: "> 0%",
+        unit: "percent",
+        domain: DOMAIN.GENERAL,
+        test: (v) => v > 0,
+      },
+      m.cashFlowGrowth
+    ),
+  ];
+}
+
+export interface QualityMetrics {
+  profitMargin?: Metric;
+  returnOnEquity?: Metric;
+  returnOnAssets?: Metric;
+  /** Operating cash flow over reported net income. Around 1 or above is healthy. */
+  earningsBackedByCash?: Metric;
+  /** Through-cycle free cash flow. Positive means the business funds itself. */
+  throughCycleFreeCashFlow?: Metric;
+  /** How many of the years we hold were profitable, as a share. */
+  profitableYears?: Metric;
+}
+
+export function qualityChecks(m: QualityMetrics): ScoreCheck[] {
+  return [
+    evaluate(
+      { label: "Currently profitable", threshold: "> 0%", unit: "percent", domain: DOMAIN.GENERAL, test: (v) => v > 0 },
+      m.profitMargin
+    ),
+    evaluate(
+      { label: "Healthy profit margin (above 10%)", threshold: "> 10%", unit: "percent", domain: DOMAIN.GENERAL, test: (v) => v > 0.1 },
+      m.profitMargin
+    ),
+    evaluate(
+      { label: "Good return on equity (above 12%)", threshold: "> 12%", unit: "percent", domain: DOMAIN.GENERAL, test: (v) => v > 0.12 },
+      m.returnOnEquity
+    ),
+    evaluate(
+      {
+        // Return on equity flatters a levered company; return on assets does
+        // not, which is why both are here rather than either alone.
+        label: "Earns a return on its assets, not just its equity (above 5%)",
+        threshold: "> 5%",
+        unit: "percent",
+        domain: DOMAIN.GENERAL,
+        test: (v) => v > 0.05,
+      },
+      m.returnOnAssets
+    ),
+    evaluate(
+      {
+        label: "Profits arrive as cash (operating cash flow at least matches earnings)",
+        threshold: "≥ 0.9x",
+        unit: "times",
+        domain: DOMAIN.GENERAL,
+        test: (v) => v >= 0.9,
+      },
+      m.earningsBackedByCash
+    ),
+    evaluate(
+      {
+        label: "Generates free cash flow through the cycle",
+        threshold: "> 0",
+        unit: "ratio",
+        domain: DOMAIN.GENERAL,
+        test: (v) => v > 0,
+      },
+      m.throughCycleFreeCashFlow
+    ),
+  ];
+}
+
+export interface CapitalAllocationMetrics {
+  dividendYield?: Metric;
+  payoutRatio?: Metric;
+  /** The dividend bill against through-cycle free cash flow. */
+  dividendCoveredByCash?: Metric;
+  /** Net debt against operating cash flow, in years. */
+  netDebtToCashFlow?: Metric;
+  /** Return on equity, as the measure of what retained earnings are doing. */
+  reinvestmentReturn?: Metric;
+  /** Share count against a year ago. Below 1 means buybacks. */
+  shareCountChange?: Metric;
+}
+
+/**
+ * What the company does with the cash it makes.
+ *
+ * Not a dividend checklist, which is what three checks about yield and payout
+ * amounted to. A company that pays nothing and compounds at 20% is allocating
+ * capital well, and one that borrows to maintain a yield is not; neither shows
+ * up in a payout ratio.
+ */
+export function capitalAllocationChecks(m: CapitalAllocationMetrics): ScoreCheck[] {
+  return [
+    evaluate(
+      { label: "Pays a dividend", threshold: "> 0%", unit: "percent", domain: DOMAIN.GENERAL, test: (v) => v > 0 },
+      m.dividendYield
+    ),
+    evaluate(
+      { label: "Yield above 2%", threshold: "> 2%", unit: "percent", domain: DOMAIN.GENERAL, test: (v) => v > 0.02 },
+      m.dividendYield
+    ),
+    evaluate(
+      { label: "Dividend covered by earnings (payout below 80%)", threshold: "< 80%", unit: "percent", domain: DOMAIN.GENERAL, test: (v) => v > 0 && v < 0.8 },
+      m.payoutRatio
+    ),
+    evaluate(
+      {
+        // Earnings cover is an accounting test; this is the one that decides
+        // whether the cheque clears.
+        label: "Dividend covered by free cash flow",
+        threshold: "≥ 1.0x",
+        unit: "times",
+        domain: DOMAIN.GENERAL,
+        test: (v) => v >= 1,
+      },
+      m.dividendCoveredByCash
+    ),
+    evaluate(
+      {
+        label: "Not borrowing to fund returns (net debt under 3 years of cash flow)",
+        threshold: "< 3.0x",
+        unit: "times",
+        domain: DOMAIN.GENERAL,
+        test: (v) => v < 3,
+      },
+      m.netDebtToCashFlow
+    ),
+    evaluate(
+      {
+        label: "Retained earnings are reinvested well (return on equity above 15%)",
+        threshold: "> 15%",
+        unit: "percent",
+        domain: DOMAIN.GENERAL,
+        test: (v) => v > 0.15,
+      },
+      m.reinvestmentReturn
+    ),
+  ];
+}
+
+/**
+ * The rule for the four axes that are not a balance sheet.
+ *
+ * One domain, so coverage adds nothing, and the bar is four of six. Below that
+ * the axis is measuring too little to put a number on, and the card says
+ * "partial" instead of scoring a company on two lucky fields.
+ */
+export const GENERAL_SUFFICIENCY: SufficiencyRule = {
+  minimumEvaluated: 4,
+  domains: [],
+  subject: "fundamentals",
+};
+
 // ── Choosing between them ───────────────────────────────────────────────────
 
 /**
