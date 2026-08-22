@@ -25,7 +25,7 @@ import DebtEquityHistory from "@/components/quantifi/DebtEquityHistory";
 import StockSectionNav, { type NavSection } from "@/components/quantifi/StockSectionNav";
 import SignUpModal from "@/components/quantifi/SignUpModal";
 import { GlassCard, Eyebrow } from "@/components/quantifi/Cards";
-import { SCORE_AXES, type CompanyAnalytics } from "@/data/demo";
+import { overallScore, type CompanyAnalytics } from "@/data/demo";
 import type { EtfData } from "@/lib/yahooEtf";
 import { popularTickers } from "@/data/popularTickers";
 import { useProStatus } from "@/lib/useProStatus";
@@ -363,11 +363,7 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
               name={score?.name ?? etf?.name}
               price={score?.price}
               currency={score?.currency}
-              score={
-                score?.analytics
-                  ? SCORE_AXES.reduce((sum, ax) => sum + (score.analytics!.scores[ax.key].score ?? 0), 0)
-                  : undefined
-              }
+              score={score?.analytics ? overallScore(score.analytics) : undefined}
               fairValue={score?.analytics?.fairValue?.estimate}
             />
 
