@@ -240,7 +240,7 @@ export function parseXbrlNumber(text: string, sign?: string): number | undefined
   }
   // Indian grouping ("1,23,45,678") and Western grouping both reduce to the same
   // digits once separators go; the placement differs but the value does not.
-  t = t.replace(/[,\s  ]/g, "");
+  t = t.replace(/[,\s  ]/g, "");
   if (/^-/.test(t)) {
     negative = !negative;
     t = t.slice(1);
