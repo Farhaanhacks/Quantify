@@ -198,7 +198,9 @@ export async function importRbiTable(req: RbiImportRequest): Promise<RbiImportRe
       if (!saved) {
         report.errors.push(`Storage not configured; ${set.entry.legalName} was parsed and not kept.`);
       }
-      await linkSymbol(set.entry.symbol, set.entry.companyId);
+      // Every listing, not just the NSE one. Half the readers arrive at the
+      // other symbol.
+      for (const sym of set.entry.symbols) await linkSymbol(sym, set.entry.companyId);
     }
   }
 

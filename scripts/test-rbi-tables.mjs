@@ -199,9 +199,25 @@ const table = parseRbiTable(csv);
 {
   const bankMasterPath = join(root, "src/data/indianBanks.ts");
   const src = readFileSync(bankMasterPath, "utf8");
-  // Every entry keys on a symbol, never on a guessed identifier.
-  ok("the master invents no ISINs", !/isin:/i.test(src));
-  ok("and keys on symbols", /provisional:nse:/.test(src));
+  // An ISIN appears only where one was supplied or read from a filing. Every
+  // other entry keys on a provisional symbol id and is upgraded later.
+  const isins = Array.from(src.matchAll(/isin: "([^"]+)"/g)).map((m) => m[1]);
+  ok("any ISIN present is well formed", isins.every((i) => /^[A-Z]{2}[A-Z0-9]{9}\d$/.test(i)));
+  ok("no two banks claim the same ISIN", new Set(isins).size === isins.length);
+  ok("the id matches the ISIN where there is one", isins.every((i) => src.includes(`companyId: "isin:${i}"`)));
+  ok("the rest are provisional", /provisional:nse:/.test(src));
+
+  // Both listings, always. Linking only the NSE line leaves a reader who
+  // arrived at the BSE symbol looking at an empty card.
+  const symbolLists = Array.from(src.matchAll(/symbols: \[([^\]]+)\]/g)).map((m) =>
+    Array.from(m[1].matchAll(/"([^"]+)"/g)).map((a) => a[1])
+  );
+  ok("every bank lists its symbols", symbolLists.length >= 30);
+  ok("and lists two of them", symbolLists.every((l) => l.length === 2));
+  ok("one NSE and one BSE", symbolLists.every((l) => l.some((x) => x.endsWith(".NS")) && l.some((x) => x.endsWith(".BO"))));
+  ok("with the same root", symbolLists.every((l) => l[0].replace(/\.NS$/, "") === l[1].replace(/\.BO$/, "")));
+  const allSymbols = symbolLists.flat();
+  ok("no symbol belongs to two banks", new Set(allSymbols).size === allSymbols.length);
 
   const names = Array.from(src.matchAll(/legalName: "([^"]+)"/g)).map((m) => m[1]);
   ok("the master has the major banks", names.length >= 30);

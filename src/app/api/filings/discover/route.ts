@@ -39,9 +39,8 @@ export async function POST(req: Request) {
   // The industry decides which tags mean what, so it is looked up rather than
   // assumed. A company that is not in the bank master is not a bank, and giving
   // it a bank's concept table would map its treasury income to interest earned.
-  const bank = INDIAN_BANKS.find(
-    (b) => b.symbol.toUpperCase().replace(/\.(NS|BO)$/, "") === symbol.toUpperCase().replace(/\.(NS|BO)$/, "")
-  );
+  const root = (x: string) => x.toUpperCase().replace(/\.(NS|BO)$/, "");
+  const bank = INDIAN_BANKS.find((b) => b.symbols.some((s) => root(s) === root(symbol)));
   const industry: IndustryType = bank ? "bank" : "ordinary";
 
   const report = {
@@ -74,7 +73,9 @@ export async function POST(req: Request) {
       exchangeFilingId: f.exchangeFilingId,
       category: f.category,
       submittedAt: f.filedAt,
-      symbols: bank ? [bank.symbol] : [symbol.toUpperCase()],
+      // Both listings when we know them, so the page finds the filing whichever
+      // symbol the reader arrived at.
+      symbols: bank ? bank.symbols : [symbol.toUpperCase()],
     });
     report.ingested.push({ sourceUrl: f.sourceUrl, ...result });
   }

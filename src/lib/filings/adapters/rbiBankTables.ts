@@ -251,14 +251,34 @@ export function normaliseBankName(name: string): string {
 }
 
 export interface BankMasterEntry {
-  /** The id filings are stored under. */
+  /**
+   * The id filings are stored under.
+   *
+   * An ISIN where one is known, and a provisional symbol key otherwise. The
+   * distinction matters when a company relists or renames: the ISIN survives
+   * and the symbol does not, so a provisional entry is a placeholder that
+   * should be upgraded the moment a real identifier turns up.
+   */
   companyId: string;
-  /** The symbol a page is reached by. */
-  symbol: string;
+  /**
+   * Every symbol a page can be reached by.
+   *
+   * Both listings, not one. A company files once and trades on two exchanges,
+   * and a reader arriving at HDFCBANK.BO must find the same filings as one
+   * arriving at HDFCBANK.NS. Linking only the NSE line leaves half the readers
+   * looking at a card that says the data is unavailable while it sits in the
+   * database under the other symbol.
+   */
+  symbols: string[];
+  /** The permanent identifier, where it is known rather than guessed. */
+  isin?: string;
   legalName: string;
   /** Names the RBI has used for this bank, where they differ. */
   rbiNames?: string[];
 }
+
+/** The first symbol, for messages and for the legacy single-symbol callers. */
+export const primarySymbol = (e: BankMasterEntry): string => e.symbols[0] ?? "";
 
 export interface BankMatch {
   entry?: BankMasterEntry;

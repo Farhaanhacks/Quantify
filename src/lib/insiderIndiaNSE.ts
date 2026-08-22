@@ -67,7 +67,16 @@ function proxied(url: string, session?: number, render = false): string {
   return `https://api.scraperapi.com/?${p.toString()}`;
 }
 
-async function nseFetch(
+/**
+ * Exported so the filings pipeline can reuse the handshake.
+ *
+ * The hard part of talking to the NSE is not the endpoint, it is the cookies:
+ * a plain GET returns 200 with an empty array, and the fix is a rendered
+ * warm-up on the homepage inside a pinned ScraperAPI session whose cookies then
+ * authorise the API call. A second caller writing its own would rediscover the
+ * silent-empty-array failure the hard way, as this one did.
+ */
+export async function nseFetch(
   url: string,
   session: number,
   timeoutMs = usingProxy() ? 12000 : 8000,
@@ -174,6 +183,21 @@ function pitRowToDisclosure(
     valueText: valPart || undefined,
   };
   return { symbol: sym, disc };
+}
+
+/**
+ * Open a warmed NSE session and return its number.
+ *
+ * The warm-up is not optional and not a retry: it is the step that sets the
+ * cookies the API refuses to serve without. Bundled with the session number so
+ * the two cannot be separated by a caller who does not know that.
+ */
+export async function nseSession(): Promise<number> {
+  const session = Math.floor(Math.random() * 900000) + 100000;
+  await nseFetch("https://www.nseindia.com/", session, usingProxy() ? 30000 : 8000, true).catch(
+    () => undefined
+  );
+  return session;
 }
 
 // One session attempt: warm up cookies, then hit the PIT API. Returns the parsed

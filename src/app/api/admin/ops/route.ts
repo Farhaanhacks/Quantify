@@ -71,6 +71,7 @@ export async function GET() {
           "/api/cron/insider-in",
           "/api/cron/insider-tw",
           "/api/cron/filings-rbi",
+          "/api/cron/filings-banks",
           "/api/insider/status",
           "/api/admin/ops",
           "/api/admin/run/[job]",

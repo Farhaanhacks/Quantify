@@ -315,8 +315,15 @@ const { metrics, sourced } = bankMetricsFromFilings(result.facts, {
   ok("banks absent from the table are listed", shaped.missingFromTable.length > 0);
   ok("HDFC is not among them", !shaped.missingFromTable.some((n) => /HDFC/.test(n)));
 
-  const hdfc = shaped.sets.find((s) => s.entry.symbol === "HDFCBANK.NS");
+  const hdfc = shaped.sets.find((s) => s.entry.symbols.includes("HDFCBANK.NS"));
   ok("HDFC resolved", !!hdfc);
+  // Both listings, so a reader arriving at either symbol finds the filings.
+  ok("and carries both its listings", hdfc.entry.symbols.length === 2);
+  ok("the NSE one", hdfc.entry.symbols.includes("HDFCBANK.NS"));
+  ok("and the BSE one", hdfc.entry.symbols.includes("HDFCBANK.BO"));
+  // Its identity is the ISIN, not a ticker: a ticker does not survive a rename.
+  ok("keyed on the ISIN", hdfc.entry.companyId === "isin:INE040A01034");
+  ok("and the facts are stored under it", hdfc.facts.every((f) => f.companyId === "isin:INE040A01034"));
   ok("its facts carry the standalone scope", hdfc.facts.every((f) => f.scope === "standalone"));
   ok("and the regulator as the method", hdfc.facts.every((f) => f.method === "regulator-table"));
   ok("and the reporting date", hdfc.facts.every((f) => f.periodEnd === "2026-03-31"));
@@ -392,7 +399,7 @@ const { metrics, sourced } = bankMetricsFromFilings(result.facts, {
   ok("keyed to its own company", shaped.sets.every((s) => s.filingId.includes(s.entry.companyId.replace(/[^A-Za-z0-9]/g, ""))));
 
   // The five names that are why the matcher is strict, end to end.
-  const bySymbol = Object.fromEntries(shaped.sets.map((s) => [s.entry.symbol, s]));
+  const bySymbol = Object.fromEntries(shaped.sets.map((s) => [s.entry.symbols[0], s]));
   ok("Bank of India got its own row", bySymbol["BANKINDIA.NS"].facts.find((f) => f.concept === "grossNpaRatio").numericValue === 4.6);
   ok("Indian Bank got a different one", bySymbol["INDIANB.NS"].facts.find((f) => f.concept === "grossNpaRatio").numericValue === 3.8);
   ok("Central Bank of India another", bySymbol["CENTRALBK.NS"].facts.find((f) => f.concept === "grossNpaRatio").numericValue === 4.5);
