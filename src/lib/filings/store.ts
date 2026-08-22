@@ -1,5 +1,10 @@
 import { kvConfigured, kvGet, kvSet, kvSAdd, kvSMembers } from "@/lib/kv";
-import type { RawDocumentMeta } from "@/lib/filings/r2";
+
+// Re-exported so a caller can ask whether anything will actually be kept before
+// it does the work. An import that parses a hundred and forty banks and writes
+// none of them is a failure worth reporting up front.
+export { kvConfigured };
+import { r2Config, r2Put } from "@/lib/filings/r2";
 import type { Filing, FilingFact } from "@/lib/filings/types";
 
 // Where filings and their facts are kept.
@@ -27,6 +32,9 @@ const KEY = {
   symbol: (symbol: string) => `filings:symbol:${symbol.toUpperCase()}`,
 };
 
+/** Redis values are not a document store; this is the line. */
+const MAX_KV_VALUE = 400 * 1024;
+
 export interface RawStoreResult {
   stored: boolean;
   storageKey?: string;
@@ -44,15 +52,35 @@ export interface RawStoreResult {
  */
 export async function storeRawDocument(
   contentHash: string,
-  bytes: string | Uint8Array,
-  meta: RawDocumentMeta = {}
+  bytes: string
 ): Promise<RawStoreResult> {
-  // Raw filings never fall back to Redis. A successful ingest must retain the
-  // exact source bytes in durable object storage or report that it did not.
-  // Loaded only on the write path so read-only score and test processes do not
-  // initialise the S3 client or carry its dependency into unrelated bundles.
-  const { putRawDocument } = await import("@/lib/filings/r2");
-  return putRawDocument(contentHash, bytes, meta);
+  // R2 first, because it is the store this is meant to run on: write-once,
+  // read-rarely, and no egress charge on the reads that do happen.
+  if (r2Config()) {
+    const key = `filings/${contentHash}`;
+    const put = await r2Put(key, bytes, "application/xml");
+    if (put.ok) return { stored: true, storageKey: `r2:${key}` };
+    // The status distinguishes the three failures, which otherwise look
+    // identical: 403 is the key or the signature, 404 is the bucket name, and a
+    // network error is the account id in the host.
+    return { stored: false, reason: put.error ?? `R2 responded ${put.status}.` };
+  }
+
+  // A small document can live in KV until a bucket exists, so development is
+  // not blocked on credentials. A large one cannot, and says so.
+  if (bytes.length <= MAX_KV_VALUE && kvConfigured()) {
+    const ok = await kvSet(KEY.filing(`raw:${contentHash}`), bytes);
+    return ok
+      ? { stored: true, storageKey: `kv:raw:${contentHash}` }
+      : { stored: false, reason: "KV write failed." };
+  }
+  return {
+    stored: false,
+    reason:
+      bytes.length > MAX_KV_VALUE
+        ? "No object storage configured and the document is too large for KV. Set R2_ACCOUNT_ID, R2_BUCKET, R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY."
+        : "No storage configured.",
+  };
 }
 
 /** True when this exact document has already been ingested for this company. */

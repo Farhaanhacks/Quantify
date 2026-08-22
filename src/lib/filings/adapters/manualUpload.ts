@@ -85,12 +85,7 @@ export async function ingestFiling(req: IngestRequest): Promise<IngestResult> {
   // that claim is only checkable while the document still exists as it was read
   // — re-fetching later is not the same thing, because exchanges replace files
   // in place when a company re-files.
-  const raw = await storeRawDocument(contentHash, req.content, {
-    companyId: req.companyId,
-    source: req.source,
-    periodEnd: req.periodEnd,
-    format: req.format,
-  });
+  const raw = await storeRawDocument(contentHash, req.content);
 
   if (req.format !== "xbrl") {
     // Honest rather than partial. An HTML or PDF reader that guessed at tables

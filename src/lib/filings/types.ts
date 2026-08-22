@@ -32,14 +32,26 @@ export type DocumentFormat = "xbrl" | "xhtml" | "html" | "pdf-text" | "pdf-scann
  * model asked to read a balance sheet will produce a plausible number whether
  * or not one is there, which is the single worst failure mode available here.
  */
-export type ExtractionMethod = "xbrl" | "html-table" | "pdf-text" | "ocr" | "llm";
+export type ExtractionMethod =
+  | "xbrl"
+  | "regulator-table"
+  | "html-table"
+  | "pdf-text"
+  | "ocr"
+  | "llm";
 
 export const EXTRACTION_RANK: Record<ExtractionMethod, number> = {
   xbrl: 0,
-  "html-table": 1,
-  "pdf-text": 2,
-  ocr: 3,
-  llm: 4,
+  // The regulator's own bank-wise tables. Below a company's tagged filing only
+  // because they are annual and standalone where the filing is quarterly and
+  // consolidated, not because they are less reliable: for asset quality and
+  // capital adequacy the RBI's table IS the reference the filing is checked
+  // against.
+  "regulator-table": 1,
+  "html-table": 2,
+  "pdf-text": 3,
+  ocr: 4,
+  llm: 5,
 };
 
 /**

@@ -43,6 +43,13 @@ export async function GET() {
         fairValueHistory: fairValueHistoryConfigured(),
         adminAllowlist: adminConfigured(),
         cronSecret: isSet(process.env.CRON_SECRET),
+        // The filings pipeline. Without R2 a large document is parsed and its
+        // original is not kept, and without a table list the bulk import has
+        // nothing to fetch; both fail quietly, so both are shown.
+        filingsIngestSecret: isSet(process.env.FILINGS_INGEST_SECRET),
+        r2: isSet(process.env.R2_ACCOUNT_ID) && isSet(process.env.R2_BUCKET) &&
+          isSet(process.env.R2_ACCESS_KEY_ID) && isSet(process.env.R2_SECRET_ACCESS_KEY),
+        rbiTables: isSet(process.env.RBI_TABLES),
         logoDev: isSet(process.env.LOGO_DEV_TOKEN),
         eodhd: isSet(process.env.EODHD_API_KEY),
         scraperApi: isSet(process.env.SCRAPER_API_KEY),
@@ -63,6 +70,7 @@ export async function GET() {
         guardedRoutes: [
           "/api/cron/insider-in",
           "/api/cron/insider-tw",
+          "/api/cron/filings-rbi",
           "/api/insider/status",
           "/api/admin/ops",
           "/api/admin/run/[job]",

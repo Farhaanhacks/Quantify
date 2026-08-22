@@ -153,32 +153,6 @@ Add the same variables under **Project → Settings → Environment Variables** 
 Vercel, then redeploy. Because the app now has API routes, it runs as a Next.js
 server (still zero-config on Vercel).
 
-## Contextual Quantifi AI (DeepSeek)
-
-Stock Analysis includes a right-side Quantifi AI drawer and a cached “What
-matters now” brief inside Quantifi Read. The server builds the model context
-from the same live score, valuation and company functions that render the page;
-the model explains those figures but never calculates replacement P/E ratios,
-fair values or scores.
-
-Create a DeepSeek API key, then add this server-only variable in Vercel:
-
-```env
-AI_QUANTIFI=your_deepseek_api_key
-```
-
-Quantifi defaults to `deepseek-v4-flash`. To change the model without editing
-code, optionally add:
-
-```env
-AI_QUANTIFI_MODEL=deepseek-v4-flash
-```
-
-Do not prefix the key with `NEXT_PUBLIC_`. The browser calls Quantifi’s own
-`/api/ai/stock` route, and only that server route communicates with DeepSeek.
-After adding the variable, redeploy the project. Automatic company briefs are
-cached for six hours; follow-up answers stream into the drawer.
-
 ## User portfolios (manual entry)
 
 The `/portfolio` page lets users create multiple named portfolios and add

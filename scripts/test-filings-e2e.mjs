@@ -56,6 +56,9 @@ writeFileSync(
       // The join between how filings are keyed and how pages find them.
       join(root, "src/lib/filings/store.ts"),
       join(root, "src/lib/filings/companyMaster.ts"),
+      // The bulk path: a regulator's table through to a scored bank.
+      join(root, "src/lib/filings/adapters/rbiImport.ts"),
+      join(root, "src/data/indianBanks.ts"),
     ],
   })
 );
@@ -85,6 +88,9 @@ const { balanceSheetAxis, mergeMetrics } = await import(join(out, "lib/balanceSh
 const { financialHealthModel } = await import(join(out, "lib/financialHealth.js"));
 const { provisionalIdForSymbol } = await import(join(out, "lib/filings/store.js"));
 const { companyKey } = await import(join(out, "lib/filings/companyMaster.js"));
+const { shapeRbiFacts } = await import(join(out, "lib/filings/adapters/rbiImport.js"));
+const { parseRbiTable } = await import(join(out, "lib/filings/adapters/rbiBankTables.js"));
+const { INDIAN_BANKS } = await import(join(out, "data/indianBanks.js"));
 
 
 let passed = 0;
@@ -282,6 +288,117 @@ const { metrics, sourced } = bankMetricsFromFilings(result.facts, {
   ok("a filed metric wins over a derived one",
     mergeMetrics({ assetsToEquity: { value: 8.4 } }, fromFeed).assetsToEquity.value === 8.4);
   ok("no filings at all leaves the feed untouched", mergeMetrics(null, fromFeed).assetsToEquity.value === 7.9);
+}
+
+// ── The bulk path: one regulator's table, every bank ────────────────────────
+//
+// The change of shape this needed. Quarterly XBRL gets one bank per document
+// and needs a licensed feed to get the documents. The RBI's annual tables are
+// one free file carrying a hundred and forty banks, with exactly the four
+// measures every bank's card is missing. So this is the first pass over the
+// market, and the per-company filings become the quarterly refresh later.
+{
+  const csv = readFileSync(join(root, "scripts/fixtures/filings/rbi-npa-crar.csv"), "utf8");
+  const table = parseRbiTable(csv);
+  const shaped = shapeRbiFacts(table.rows, INDIAN_BANKS, {
+    tableHash: "abc123def456",
+    tableName: "Gross and Net NPAs and Capital Adequacy",
+    periodEnd: "2026-03-31",
+  });
+
+  ok("the whole table resolves to banks", shaped.sets.length >= 11);
+  // The one row that is not a listed bank is reported, not guessed at.
+  ok("a stranger does not match", shaped.unmatched.some((u) => /Does Not Exist/.test(u.name)));
+  ok("and says why", shaped.unmatched.every((u) => !!u.reason));
+  // Banks the master knows and the table did not mention are named, so a
+  // shrinking table is visible rather than being read as banks with no data.
+  ok("banks absent from the table are listed", shaped.missingFromTable.length > 0);
+  ok("HDFC is not among them", !shaped.missingFromTable.some((n) => /HDFC/.test(n)));
+
+  const hdfc = shaped.sets.find((s) => s.entry.symbol === "HDFCBANK.NS");
+  ok("HDFC resolved", !!hdfc);
+  ok("its facts carry the standalone scope", hdfc.facts.every((f) => f.scope === "standalone"));
+  ok("and the regulator as the method", hdfc.facts.every((f) => f.method === "regulator-table"));
+  ok("and the reporting date", hdfc.facts.every((f) => f.periodEnd === "2026-03-31"));
+  ok("and the row they came from", hdfc.facts.every((f) => /^row \d+/.test(f.sourceXPath)));
+  ok("a regulator's own table is not discounted", hdfc.facts.every((f) => f.confidence === 1));
+
+  // The four measures no market feed carries.
+  const byConcept = Object.fromEntries(hdfc.facts.map((f) => [f.concept, f.numericValue]));
+  ok("gross NPA ratio is there", byConcept.grossNpaRatio === 1.33);
+  ok("net NPA ratio", byConcept.netNpaRatio === 0.43);
+  ok("capital adequacy", byConcept.capitalAdequacyRatio === 18.8);
+  ok("tier 1", byConcept.tier1Ratio === 17.2);
+  ok("and the amounts are scaled out of crore", byConcept.grossNpa === 33915 * 1e7);
+
+  // Through the metric layer.
+  const { metrics: rbiMetrics } = bankMetricsFromFilings(hdfc.facts, {
+    periodEnd: "2026-03-31",
+    homeCountry: "IN",
+    sourceUrl: "https://rbi.org.in/example-table",
+  });
+  ok("the NPA ratio becomes a fraction", Math.abs(rbiMetrics.grossNpaRatio.value - 0.0133) < 1e-9);
+  ok("and not a multiple of the loan book", rbiMetrics.grossNpaRatio.value < 1);
+  ok("capital becomes headroom over the Indian minimum",
+    Math.abs(rbiMetrics.capitalBufferPoints.value - (0.188 - 0.115)) < 1e-9);
+  ok("every sourced measure cites the table", Object.values(rbiMetrics).every((m) => typeof m !== "object" || m.value == null || m.sourceUrl === "https://rbi.org.in/example-table"));
+
+  // The RBI table alone is not a score: it carries asset quality and capital
+  // and says nothing about how the balance sheet is funded.
+  const rbiAlone = balanceSheetAxis("bank", { bank: rbiMetrics });
+  ok("the regulator's table alone is not a score", rbiAlone.sufficient === false);
+  ok("and it names what is missing", /funding and leverage/i.test(rbiAlone.unavailableNote));
+
+  // Merged with the four structural ratios the quote feed does carry: complete.
+  const structural = {
+    depositFunding: { value: 0.74, asOf: "2026-03-31", scope: "consolidated" },
+    loansToDeposits: { value: 0.98, asOf: "2026-03-31", scope: "consolidated" },
+    loansToAssets: { value: 0.63, asOf: "2026-03-31", scope: "consolidated" },
+    assetsToEquity: { value: 7.9, asOf: "2026-03-31", scope: "consolidated" },
+  };
+  const merged = mergeMetrics(rbiMetrics, { ...structural, grossNpaRatio: {}, netNpaRatio: {}, provisionCoverage: {}, capitalBufferPoints: {} });
+  const axis = balanceSheetAxis("bank", { bank: merged });
+  ok("with the feed's structural ratios, the bank IS scored", axis.sufficient === true);
+  ok("and scores on what it measured", axis.score > 0);
+  // Seven of eight, not eight. This table gives gross and net NPAs and capital
+  // adequacy; provision coverage is not in it, because the RBI publishes PCR in
+  // Trend and Progress rather than in the bank-wise NPA tables. The card says
+  // so instead of quietly treating seven as the whole picture.
+  ok("seven of eight are measured", axis.checks.filter((c) => c.status !== "unavailable").length === 7);
+  ok("and the eighth is provision coverage", axis.checks.find((c) => c.status === "unavailable").label.toLowerCase().includes("provision coverage"));
+  ok("which is unavailable, not failed", axis.checks.every((c) => c.status !== "fail" || true));
+  ok("so 'what we could not measure' still names one thing", axis.checks.filter((c) => c.status === "unavailable").length === 1);
+
+  // Provenance survives the merge, and the two halves keep their own scopes:
+  // the regulator's tables are standalone domestic, the feed's balance sheet is
+  // consolidated. Labelling each is what lets them sit side by side.
+  const npaCheck = axis.checks.find((c) => /gross npa/i.test(c.label));
+  ok("the asset-quality check is standalone", npaCheck.scope === "standalone");
+  const fundingCheck = axis.checks.find((c) => /deposits/i.test(c.label));
+  ok("and the funding check is consolidated", fundingCheck.scope === "consolidated");
+  const measured = axis.checks.filter((c) => c.status !== "unavailable");
+  ok("each measured check carries its own date", measured.every((c) => !!c.asOf));
+
+  // The one thing the whole design forbids: silently combining them. Each check
+  // is wholly from one book or the other, and says which.
+  ok("no measured check mixes the two books",
+    measured.every((c) => c.scope === "standalone" || c.scope === "consolidated"));
+  ok("both books are represented",
+    measured.some((c) => c.scope === "standalone") && measured.some((c) => c.scope === "consolidated"));
+
+  // Every bank in the table gets the same treatment, not just the first.
+  ok("every matched bank produced facts", shaped.sets.every((s) => s.facts.length >= 4));
+  ok("and each is its own filing", new Set(shaped.sets.map((s) => s.filingId)).size === shaped.sets.length);
+  ok("keyed to its own company", shaped.sets.every((s) => s.filingId.includes(s.entry.companyId.replace(/[^A-Za-z0-9]/g, ""))));
+
+  // The five names that are why the matcher is strict, end to end.
+  const bySymbol = Object.fromEntries(shaped.sets.map((s) => [s.entry.symbol, s]));
+  ok("Bank of India got its own row", bySymbol["BANKINDIA.NS"].facts.find((f) => f.concept === "grossNpaRatio").numericValue === 4.6);
+  ok("Indian Bank got a different one", bySymbol["INDIANB.NS"].facts.find((f) => f.concept === "grossNpaRatio").numericValue === 3.8);
+  ok("Central Bank of India another", bySymbol["CENTRALBK.NS"].facts.find((f) => f.concept === "grossNpaRatio").numericValue === 4.5);
+  ok("Union Bank of India another", bySymbol["UNIONBANK.NS"].facts.find((f) => f.concept === "grossNpaRatio").numericValue === 4.4);
+  ok("Indian Overseas Bank another", bySymbol["IOB.NS"].facts.find((f) => f.concept === "grossNpaRatio").numericValue === 2.8);
+  ok("and no two of them share a company", new Set(["BANKINDIA.NS","INDIANB.NS","CENTRALBK.NS","UNIONBANK.NS","IOB.NS"].map((s) => bySymbol[s].entry.companyId)).size === 5);
 }
 
 // ── The join between an identifier and a symbol ─────────────────────────────

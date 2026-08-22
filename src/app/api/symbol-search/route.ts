@@ -214,30 +214,13 @@ export async function GET(req: Request) {
 
   const merged: SearchHit[] = [];
   const seen = new Set<string>();
-  const bySymbol = new Map<string, SearchHit>();
-  const addOrEnrich = (hit: SearchHit): boolean => {
-    const key = hit.symbol.toUpperCase();
-    const existing = bySymbol.get(key);
-    if (existing) {
-      // Yahoo is intentionally first because its symbol is the most navigable,
-      // but its row often omits the ISIN/currency that another source knows.
-      // Dropping the duplicate used to drop that identity too, which left the
-      // NSE and BSE lines in separate company groups even after both were found.
-      if (!existing.isin && hit.isin) existing.isin = hit.isin;
-      if (!existing.currency && hit.currency) existing.currency = hit.currency;
-      if (!existing.providerSymbol && hit.providerSymbol) existing.providerSymbol = hit.providerSymbol;
-      if (!existing.exchangeCode && hit.exchangeCode) existing.exchangeCode = hit.exchangeCode;
-      return false;
-    }
-    seen.add(key);
-    bySymbol.set(key, hit);
-    merged.push(hit);
-    return true;
-  };
   // Yahoo first on ties: for a name every source knows, its symbol is the one
   // the rest of the app resolves most reliably.
   for (const hit of [...(bse ? [bse] : []), ...yahoo, ...(eod ?? [])]) {
-    addOrEnrich(hit);
+    const dedupeKey = hit.symbol.toUpperCase();
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+    merged.push(hit);
   }
   // Multi-word queries are answered WORD BY WORD, always — not as a fallback.
   //
@@ -264,7 +247,10 @@ export async function GET(req: Request) {
   // coverage, which the NSE list obviously does not have.
   const local = await searchIndia(tokens.length ? tokens : tokensOf(q));
   for (const hit of local) {
-    addOrEnrich(hit);
+    const dedupeKey = hit.symbol.toUpperCase();
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+    merged.push(hit);
   }
 
   if (tokens.length > 1) {
@@ -283,12 +269,8 @@ export async function GET(req: Request) {
     for (const hit of perWord.flat()) {
       if (!hit) continue;
       const dedupeKey = hit.symbol.toUpperCase();
-      if (seen.has(dedupeKey)) {
-        addOrEnrich(hit);
-        continue;
-      }
+      if (seen.has(dedupeKey)) continue;
       seen.add(dedupeKey);
-      bySymbol.set(dedupeKey, hit);
       candidates.push(hit);
     }
 

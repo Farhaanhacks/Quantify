@@ -1,0 +1,23 @@
+"Statistical Tables Relating to Banks in India"
+"Table 5: Gross and Net NPAs and Capital Adequacy of Scheduled Commercial Banks"
+"(Amount in ₹ crore; ratios in per cent)"
+"As on 31 March 2026"
+,,,,,,,
+"Name of the Bank","Gross Advances","Gross NPAs","Gross NPA Ratio","Net NPAs","Net NPA Ratio","CRAR","Tier I Capital Ratio"
+"SCHEDULED COMMERCIAL BANKS",,,,,,,
+"HDFC Bank Ltd.","2550000","33915","1.33","10965","0.43","18.80","17.20"
+"ICICI Bank Ltd.","1290000","24510","1.90","5160","0.40","16.30","15.60"
+"State Bank of India","3820000","82130","2.15","19100","0.50","14.20","12.10"
+"Bank of India","620000","28520","4.60","6820","1.10","16.10","14.00"
+"Indian Bank","540000","20520","3.80","2160","0.40","16.40","13.90"
+"Central Bank of India","260000","11700","4.50","2860","1.10","15.80","13.20"
+"Indian Overseas Bank","230000","6440","2.80","920","0.40","17.20","14.90"
+"Union Bank of India","900000","39600","4.40","8100","0.90","16.90","14.30"
+"Punjab & Sind Bank","85000","4250","5.00","1445","1.70","17.10","14.60"
+"The Federal Bank Ltd.","210000","4620","2.20","1890","0.90","15.20","14.10"
+"The Jammu & Kashmir Bank Ltd.","95000","3990","4.20","855","0.90","15.40","12.80"
+"Some Bank That Does Not Exist Ltd.","1000","50","5.00","20","2.00","12.00","10.00"
+"Loss Making Bank Ltd.","5000","-","-","-","-","n.a.","-"
+,,,,,,,
+"Note: Data are provisional and relate to domestic operations."
+"Source: Off-site returns (domestic), RBI."

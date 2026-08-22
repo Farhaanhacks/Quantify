@@ -23,8 +23,6 @@ import FutureGrowth from "@/components/quantifi/FutureGrowth";
 import RevenueBreakdown from "@/components/quantifi/RevenueBreakdown";
 import DebtEquityHistory from "@/components/quantifi/DebtEquityHistory";
 import StockSectionNav, { type NavSection } from "@/components/quantifi/StockSectionNav";
-import StockAiAssistant from "@/components/quantifi/StockAiAssistant";
-import StockActionDock from "@/components/quantifi/StockActionDock";
 import SignUpModal from "@/components/quantifi/SignUpModal";
 import { GlassCard, Eyebrow } from "@/components/quantifi/Cards";
 import { SCORE_AXES, type CompanyAnalytics } from "@/data/demo";
@@ -124,9 +122,6 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
   const [score, setScore] = useState<ScoreResponse | null>(null);
   const [scoreLoading, setScoreLoading] = useState(false);
   const [etf, setEtf] = useState<EtfData | null>(null);
-  const [aiOpen, setAiOpen] = useState(false);
-  const [aiBrief, setAiBrief] = useState<string>();
-  const [aiBriefLoading, setAiBriefLoading] = useState(false);
 
   // Free-analysis quota is enforced server-side, per email (Pro is unlimited).
   // `used` = the symbols this account has already unlocked; loaded from the API
@@ -210,50 +205,6 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
   useEffect(() => {
     setEngine(defaultEngine(ticker));
   }, [ticker]);
-
-  // Build the first, stock-aware AI answer in the background. The score page
-  // renders immediately; this never sits in the loading path for the chart or
-  // fundamentals. The server caches this "what matters now" read for six hours
-  // and rebuilds its context from the same valuation/scoring functions as the
-  // page, so DeepSeek cannot silently substitute a different P/E or fair value.
-  useEffect(() => {
-    let cancelled = false;
-    setAiOpen(false);
-    setAiBrief(undefined);
-
-    if (stage !== "analysis" || !score?.available || !score.analytics || etf) {
-      setAiBriefLoading(false);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    setAiBriefLoading(true);
-    fetch("/api/ai/stock", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ symbol: ticker, mode: "brief" }),
-    })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("AI brief unavailable");
-        return response.json() as Promise<{ answer?: string }>;
-      })
-      .then((data) => {
-        if (!cancelled && data.answer) setAiBrief(data.answer);
-      })
-      .catch(() => {
-        // The deterministic Quantifi Read stays visible if AI is not configured
-        // or the provider is down; an optional enhancement must not break the
-        // stock analysis.
-      })
-      .finally(() => {
-        if (!cancelled) setAiBriefLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [ticker, stage, score?.available, score?.analytics, etf]);
 
   // Fetch the live Quantifi Score; if the symbol has no company fundamentals
   // (i.e. it's an ETF/fund), fall back to the ETF X-ray instead.
@@ -398,31 +349,27 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
       ) : null}
 
       {stage === "analysis" ? (
-        <>
-          {/* The live company identity is the page header. It spans the full
-              analysis width before the section rail splits off, instead of
-              leaving a generic title above and an empty 224px strip beside it. */}
-          <StockHero
-            ticker={ticker}
-            name={score?.name ?? etf?.name}
-            price={score?.price}
-            currency={score?.currency}
-            score={
-              score?.analytics
-                ? SCORE_AXES.reduce((sum, ax) => sum + (score.analytics!.scores[ax.key].score ?? 0), 0)
-                : undefined
-            }
-            fairValue={score?.analytics?.fairValue?.estimate}
-          />
+        <div className="mx-auto max-w-7xl lg:grid lg:grid-cols-[224px_minmax(0,1fr)]">
+          {/* Sticky section rail (desktop) */}
+          <div className="lg:pl-4">
+            <StockSectionNav sections={NAV_SECTIONS} />
+          </div>
 
-          <div className="mx-auto max-w-7xl lg:grid lg:grid-cols-[224px_minmax(0,1fr)]">
-            {/* Sticky section rail (desktop) */}
-            <div className="lg:pl-4">
-              <StockSectionNav sections={NAV_SECTIONS} />
-            </div>
-
-            {/* Main content column */}
-            <div className="min-w-0">
+          {/* Main content column */}
+          <div className="min-w-0">
+            {/* Identity band — who this company is, what it costs, and the actions. */}
+            <StockHero
+              ticker={ticker}
+              name={score?.name ?? etf?.name}
+              price={score?.price}
+              currency={score?.currency}
+              score={
+                score?.analytics
+                  ? SCORE_AXES.reduce((sum, ax) => sum + (score.analytics!.scores[ax.key].score ?? 0), 0)
+                  : undefined
+              }
+              fairValue={score?.analytics?.fairValue?.estimate}
+            />
 
             {/* Live chart with engine toggle — only for a revealed name or Pro. */}
             <section id="sec-chart" className="scroll-mt-24 px-4 pb-2 pt-6 sm:px-6 lg:px-8">
@@ -484,9 +431,6 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
                     name={score.name}
                     currency={score.currency}
                     live={Boolean(score.live)}
-                    aiBrief={aiBrief}
-                    aiBriefLoading={aiBriefLoading}
-                    onOpenAi={() => setAiOpen(true)}
                   />
                 </div>
                 <div id="sec-overview" className="scroll-mt-24">
@@ -566,29 +510,8 @@ export default function StockExplorer({ initial = "NVDA" }: { initial?: string }
                 <InsiderActivity ticker={ticker} heading showFilter />
               </div>
             ) : null}
-
-            {score?.available && score.analytics && !etf ? (
-              <>
-                <StockActionDock
-                  ticker={ticker}
-                  name={score.name}
-                  price={score.price}
-                  hidden={aiOpen}
-                  onOpenAi={() => setAiOpen(true)}
-                />
-                <StockAiAssistant
-                  ticker={ticker}
-                  name={score.name}
-                  brief={aiBrief}
-                  open={aiOpen}
-                  onOpenChange={setAiOpen}
-                  showLauncher={false}
-                />
-              </>
-            ) : null}
-            </div>
           </div>
-        </>
+        </div>
       ) : stage === "loading" ? (
         <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
           <GlassCard className="p-6">

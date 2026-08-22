@@ -263,6 +263,8 @@ export interface SufficiencyRule {
  * sheet, and missing any one of those means the picture is partial however many
  * of the rest arrived.
  */
+const sentenceCase = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+
 export function scoreFromChecks(checks: ScoreCheck[], rule: SufficiencyRule): ScoreAxis {
   const evaluated = checks.filter((c) => c.status !== "unavailable");
   const passed = evaluated.filter((c) => c.status === "pass").length;
@@ -288,14 +290,17 @@ export function scoreFromChecks(checks: ScoreCheck[], rule: SufficiencyRule): Sc
     // difference is real and the reader can act on it: partial means the figures
     // shown are sound and the picture is incomplete, and it names which part is
     // missing rather than leaving the gap to be inferred.
+    // Named in the reader's terms, not ours. "Pending official filing data"
+    // says where the missing half comes from and that it is expected, which is
+    // the difference between a gap in the pipeline and a gap in the company.
     const gap = missing.length
-      ? ` ${missing.join(" and ")} ${missing.length === 1 ? "is" : "are"} not sourced.`
+      ? ` ${sentenceCase(missing.join(" and "))} pending official filing data.`
       : "";
     return {
       score: 0,
       checks,
       sufficient: false,
-      unavailableNote: `Partial ${rule.subject} data: ${evaluated.length} of ${checks.length} measures sourced.${gap}`,
+      unavailableNote: `Partial ${rule.subject} data: ${evaluated.length} of ${checks.length} measures available.${gap}`,
     };
   }
 
@@ -785,7 +790,7 @@ const SUFFICIENCY: Record<BalanceSheetModel, SufficiencyRule> = {
     minimumEvaluated: 6,
     domains: [
       { domain: DOMAIN.ASSET_QUALITY, atLeast: 1, label: "asset quality" },
-      { domain: DOMAIN.CAPITAL, atLeast: 1, label: "capital adequacy" },
+      { domain: DOMAIN.CAPITAL, atLeast: 1, label: "regulatory capital" },
       { domain: DOMAIN.STRUCTURAL, atLeast: 2, label: "funding and leverage" },
     ],
     subject: "bank",
@@ -794,7 +799,7 @@ const SUFFICIENCY: Record<BalanceSheetModel, SufficiencyRule> = {
     minimumEvaluated: 6,
     domains: [
       { domain: DOMAIN.ASSET_QUALITY, atLeast: 1, label: "asset quality" },
-      { domain: DOMAIN.CAPITAL, atLeast: 1, label: "capital adequacy" },
+      { domain: DOMAIN.CAPITAL, atLeast: 1, label: "regulatory capital" },
       { domain: DOMAIN.STRUCTURAL, atLeast: 2, label: "funding and liquidity" },
     ],
     subject: "lender",

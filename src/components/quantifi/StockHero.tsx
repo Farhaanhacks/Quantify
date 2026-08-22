@@ -80,9 +80,9 @@ export default function StockHero({
           <div className="flex min-w-0 items-start gap-3">
             <CompanyLogo symbol={ticker} name={name ?? data?.name} size={44} fallback="none" className="mt-0.5" />
             <div className="min-w-0">
-              <h1 className="truncate font-display text-2xl font-semibold text-white sm:text-3xl">
+              <h2 className="truncate font-display text-2xl font-semibold text-white sm:text-3xl">
                 {name ?? data?.name ?? ticker}
-              </h1>
+              </h2>
               <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
                 <span className="font-mono text-slate-300">{listingLabel(ticker)}</span>
                 {data?.marketCap != null ? (
