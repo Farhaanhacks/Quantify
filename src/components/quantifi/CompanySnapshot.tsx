@@ -124,6 +124,8 @@ export default function CompanySnapshot({
   // and the footnote under the chart names which axes are unscored so the shape
   // is never read as more informed than it is.
   const unscoredAxes = SCORE_AXES.filter((axis) => a.scores[axis.key].sufficient === false);
+  const scoredAxisCount = SCORE_AXES.length - unscoredAxes.length;
+  const incompleteAxisLabels = unscoredAxes.map((axis) => axis.label.toLowerCase());
   const radarValues = SCORE_AXES.map((axis) =>
     a.scores[axis.key].sufficient === false ? 3 : a.scores[axis.key].score
   );
@@ -150,14 +152,25 @@ export default function CompanySnapshot({
   // Risk lens: weak axes + valuation stretch + unprofitability.
   const weakCount = ranked.filter((r) => r.score <= 2).length;
   const riskPoints = weakCount + (gap < 0 ? 1 : 0) + (profitScore <= 1 ? 1 : 0);
-  const riskLens =
-    riskPoints >= 4 ? "Severe" : riskPoints >= 3 ? "High" : riskPoints >= 1 ? "Medium" : "Low";
+  // Missing an entire axis is uncertainty, not low risk. Do not publish a
+  // reassuring risk label until the bank checklist is complete.
+  const riskLens = unscoredAxes.length
+    ? "Incomplete"
+    : riskPoints >= 4
+      ? "Severe"
+      : riskPoints >= 3
+        ? "High"
+        : riskPoints >= 1
+          ? "Medium"
+          : "Low";
   const riskTone =
-    riskLens === "Low"
-      ? "border-up/30 bg-up/10 text-up"
-      : riskLens === "Medium"
-      ? "border-gold/30 bg-gold/10 text-gold"
-      : "border-down/30 bg-down/10 text-down";
+    riskLens === "Incomplete"
+      ? "border-white/15 bg-white/[0.04] text-slate-400"
+      : riskLens === "Low"
+        ? "border-up/30 bg-up/10 text-up"
+        : riskLens === "Medium"
+          ? "border-gold/30 bg-gold/10 text-gold"
+          : "border-down/30 bg-down/10 text-down";
 
   // The caption under the snowflake: what the SHAPE says, in one line.
   //
@@ -169,16 +182,29 @@ export default function CompanySnapshot({
   const softs = ranked.filter((r) => r.score <= 2).map((r) => r.axis.short.toLowerCase());
   const list = (xs: string[]) =>
     xs.length <= 1 ? xs[0] ?? "" : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
+  const incompleteRead = unscoredAxes.length
+    ? `${list(incompleteAxisLabels)} ${unscoredAxes.length === 1 ? "is" : "are"} not yet scored.`
+    : "";
   const snowflakeRead =
     strengths.length >= 4
-      ? `Reaches the edge on almost every axis; a broadly strong profile with no obvious weak side.`
+      ? unscoredAxes.length
+        ? `Strong on the scored axes; ${incompleteRead}`
+        : `Reaches the edge on almost every axis; a broadly strong profile with no obvious weak side.`
       : strengths.length && softs.length
-      ? `Strong on ${list(strengths)}; pinched on ${list(softs)}.`
-      : strengths.length
-      ? `Strong on ${list(strengths)}, and steady elsewhere.`
-      : softs.length
-      ? `Pinched on ${list(softs)}; the shape is small on the axes that matter most there.`
-      : `A middling shape: nothing at the edge, nothing at the centre.`;
+        ? unscoredAxes.length
+          ? `Strong on ${list(strengths)}; pinched on ${list(softs)}. ${incompleteRead}`
+          : `Strong on ${list(strengths)}; pinched on ${list(softs)}.`
+        : strengths.length
+          ? unscoredAxes.length
+            ? `Strong on ${list(strengths)}; ${incompleteRead}`
+            : `Strong on ${list(strengths)}, and steady elsewhere.`
+          : softs.length
+            ? unscoredAxes.length
+              ? `Pinched on ${list(softs)}. ${incompleteRead}`
+              : `Pinched on ${list(softs)}; the shape is small on the axes that matter most there.`
+            : unscoredAxes.length
+              ? `The scored axes are mixed; ${incompleteRead}`
+              : `A middling shape: nothing at the edge, nothing at the centre.`;
 
   // One-line read that names the soft spot rather than declaring perfection.
   const valuationHint =
@@ -190,7 +216,9 @@ export default function CompanySnapshot({
   const quantifiRead = !weakest
     ? `Not enough sourced fundamentals to score this company on any axis. The measures involved are published in the company's own filings rather than in the data source behind this page.`
     : weakest.score >= 5
-      ? `Screens strongly across the board; ${valuationHint}. The thesis test now is whether it can keep beating already-high expectations.`
+      ? unscoredAxes.length
+        ? `The scored dimensions screen strongly, but ${incompleteRead} Treat the overall score as partial until the missing filing metrics arrive.`
+        : `Screens strongly across the board; ${valuationHint}. The thesis test now is whether it can keep beating already-high expectations.`
       : `Strongest on ${strongest.axis.label.toLowerCase()}; the soft spot is ${weakest.axis.label.toLowerCase()} (${axisLabel(weakest.axis.key, weakest.score)}). Key thesis test: ${weakest.axis.question.toLowerCase()}`;
 
   // The independent valuation, whichever model the company qualifies for: a
@@ -373,10 +401,15 @@ export default function CompanySnapshot({
             <div className="text-right">
               <div className="font-display text-2xl font-semibold tnum text-gradient-gold">
                 {total}
+                {unscoredAxes.length ? <sup className="ml-0.5 text-xs text-slate-500">*</sup> : null}
                 <span className="text-base text-slate-500">/30</span>
               </div>
               <div className="text-[0.7rem] uppercase tracking-[0.14em] text-slate-500">
-                {live ? "Overall · live" : "Overall"}
+                {unscoredAxes.length
+                  ? `${live ? "Partial overall · live" : "Partial overall"} · ${scoredAxisCount}/${SCORE_AXES.length} axes`
+                  : live
+                    ? "Overall · live"
+                    : "Overall"}
               </div>
             </div>
           </div>
@@ -460,6 +493,7 @@ export default function CompanySnapshot({
               const supports = d.checks.filter((c) => c.status === "pass");
               const worries = d.checks.filter((c) => c.status === "fail");
               const unsourced = d.checks.filter((c) => c.status === "unavailable");
+              const measured = d.checks.length - unsourced.length;
               const active = activeAxis === idx;
               return (
                 <details
@@ -504,7 +538,11 @@ export default function CompanySnapshot({
                       </span>
                       <span className="flex flex-none items-center gap-2.5">
                         <span className="font-mono text-sm tnum text-white">
-                          {d.sufficient === false ? "n/a" : `${toTen(d.score)}/10`}
+                          {d.sufficient === false
+                            ? measured
+                              ? `${measured}/${d.checks.length} measured`
+                              : "Not scored"
+                            : `${toTen(d.score)}/10`}
                         </span>
                         <span className="text-slate-500 transition group-open:rotate-90" aria-hidden>›</span>
                       </span>
@@ -520,7 +558,7 @@ export default function CompanySnapshot({
                             to be the complete list. */}
                         <span className="text-[0.68rem] text-slate-500">
                           <span className="font-mono tnum text-slate-300">
-                            {d.checks.length - unsourced.length} of {d.checks.length}
+                            {measured} of {d.checks.length}
                           </span>{" "}
                           measured
                           <span className="text-slate-600">
