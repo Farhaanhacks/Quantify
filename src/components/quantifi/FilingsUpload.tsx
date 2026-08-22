@@ -27,6 +27,21 @@ const INDUSTRIES = [
   { key: "ordinary", label: "Ordinary company" },
 ] as const;
 
+interface HealthLink {
+  step: string;
+  ok: boolean;
+  detail: string;
+  fix?: string;
+  notes?: string[];
+}
+
+interface HealthResponse {
+  symbol?: string;
+  verdict?: string;
+  links?: HealthLink[];
+  error?: string;
+}
+
 interface IngestResponse {
   ok?: boolean;
   duplicate?: boolean;
@@ -51,6 +66,8 @@ export default function FilingsUpload() {
   const [fileName, setFileName] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<IngestResponse | null>(null);
+  const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [checking, setChecking] = useState(false);
 
   // The company is keyed on its ISIN or CIN where one is given, and on the
   // symbol otherwise. Both work; only the first survives a rename, so the field
@@ -100,6 +117,29 @@ export default function FilingsUpload() {
       setResult({ error: (e as Error).message });
     } finally {
       setBusy(false);
+    }
+  }
+
+  /**
+   * Walk the chain and say where it breaks.
+   *
+   * The question this answers had been asked four times and answered in prose
+   * every time, which was the wrong instrument: the chain has seven links and
+   * any one of them failing produces the same symptom at the far end, a bank
+   * card reading four of eight. This asks the deployment instead of reasoning
+   * about it.
+   */
+  async function runHealth() {
+    setChecking(true);
+    setHealth(null);
+    try {
+      const target = symbol.trim() || "HDFCBANK.NS";
+      const res = await fetch(`/api/filings/health?symbol=${encodeURIComponent(target)}`);
+      setHealth((await res.json()) as HealthResponse);
+    } catch (e) {
+      setHealth({ error: (e as Error).message });
+    } finally {
+      setChecking(false);
     }
   }
 
@@ -228,6 +268,14 @@ export default function FilingsUpload() {
         >
           {busy ? "Reading…" : "Ingest"}
         </button>
+        <button
+          type="button"
+          disabled={checking}
+          onClick={runHealth}
+          className="rounded-lg border border-white/15 px-3 py-2 text-sm text-slate-300 transition hover:border-gold/40 hover:text-gold disabled:opacity-40"
+        >
+          {checking ? "Checking…" : "Where is it broken?"}
+        </button>
         {companyId ? (
           <span className="font-mono text-[0.65rem] text-slate-500">stored as {companyId}</span>
         ) : (
@@ -235,8 +283,57 @@ export default function FilingsUpload() {
         )}
       </div>
 
+      {health ? <HealthReport health={health} /> : null}
       {result ? <IngestReport result={result} /> : null}
     </GlassCard>
+  );
+}
+
+/**
+ * The chain, link by link, with the first break called out.
+ *
+ * Everything after the first failure is a consequence of it, so the verdict
+ * names one step rather than listing four red rows and leaving the reader to
+ * work out which one to fix.
+ */
+function HealthReport({ health }: { health: HealthResponse }) {
+  if (health.error) {
+    return (
+      <div className="mt-5 rounded-lg border border-down/30 bg-down/[0.06] p-4 text-sm text-slate-200">
+        {health.error}
+      </div>
+    );
+  }
+  const broken = (health.links ?? []).some((l) => !l.ok);
+  return (
+    <div
+      className={`mt-5 rounded-lg border p-4 ${
+        broken ? "border-gold/30 bg-gold/[0.06]" : "border-up/25 bg-up/[0.05]"
+      }`}
+    >
+      <p className="text-sm leading-relaxed text-slate-100">{health.verdict}</p>
+      <ul className="mt-3 space-y-2">
+        {(health.links ?? []).map((l, i) => (
+          <li key={i} className="flex items-start gap-2.5 text-xs">
+            <span className={`mt-0.5 flex-none ${l.ok ? "text-up" : "text-down/80"}`}>
+              {l.ok ? "\u2713" : "\u2715"}
+            </span>
+            <span className="min-w-0">
+              <span className="text-slate-200">{l.step}</span>
+              <span className="text-slate-400">: {l.detail}</span>
+              {l.fix ? <span className="mt-0.5 block text-slate-500">{l.fix}</span> : null}
+              {l.notes?.length ? (
+                <ul className="mt-1 space-y-0.5 font-mono text-[0.65rem] text-slate-600">
+                  {l.notes.map((n, j) => (
+                    <li key={j}>{n}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
